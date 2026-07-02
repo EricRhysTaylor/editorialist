@@ -8,3 +8,4 @@ main.js
 *.nosync/
 
 .wiki_temp_publish/
+.DS_Store
