@@ -1,4 +1,6 @@
-# Claude Code Instructions — Editorialist
+# Agent Instructions — Editorialist
+
+Applies to all coding agents (Claude Code, Codex — AGENTS.md is a symlink to this file). Company-wide context and shared doctrine: `/Users/ericrhystaylor/Documents/RT LLC/CLAUDE.md`.
 
 ## Working directory
 
