@@ -593,23 +593,24 @@
 	flex: 0 1 auto;
 }
 
-/* Mode switch: a small, chrome-free icon that sits immediately beside the title
-   (margin-left:0 keeps it out of the right-floated action cluster). Deliberately
-   NOT a full-size settings-button. */
+/* Mode switch: a padded icon beside the title. Keep it visually separate from
+   the right-side action buttons, which use the framed settings-button style. */
 .editorialist-panel__mode-toggle {
+	appearance: none;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	width: 1.35rem;
-	height: 1.35rem;
+	min-width: 0;
+	min-height: 0;
 	margin-left: 0;
-	padding: 0;
+	padding: 0.18rem;
 	border: none;
-	border-radius: var(--editorialist-radius-pill);
+	border-radius: var(--editorialist-radius-xs);
 	background: transparent;
 	box-shadow: none;
 	color: var(--text-faint);
 	cursor: pointer;
+	line-height: 1;
 }
 
 .editorialist-panel__mode-toggle svg {
@@ -621,7 +622,16 @@
 .editorialist-panel__mode-toggle:hover,
 .editorialist-panel__mode-toggle:focus-visible {
 	color: color-mix(in srgb, var(--color-purple) 75%, var(--text-normal));
-	background: color-mix(in srgb, var(--color-purple) 12%, transparent);
+	background: transparent;
+	box-shadow: none;
+}
+
+.editorialist-panel__mode-toggle:focus-visible {
+	outline: 1px solid color-mix(in srgb, var(--color-purple) 55%, transparent);
+	outline-offset: 2px;
+}
+
+.editorialist-panel__mode-toggle:hover {
 	outline: none;
 }
 
@@ -5904,4 +5914,3 @@
 .editorialist-editorialism-panel__scope-label {
 	letter-spacing: 0.02em;
 }
-
