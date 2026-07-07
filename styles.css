@@ -595,43 +595,54 @@
 
 /* Mode switch: a padded icon beside the title. Keep it visually separate from
    the right-side action buttons, which use the framed settings-button style. */
-.editorialist-panel__mode-toggle {
+.editorialist-panel__title-row > button.editorialist-panel__mode-toggle {
 	appearance: none;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
 	min-width: 0;
 	min-height: 0;
+	width: auto;
+	height: auto;
 	margin-left: 0;
 	padding: 0.18rem;
 	border: none;
+	border-color: transparent;
 	border-radius: var(--editorialist-radius-xs);
 	background: transparent;
+	background-color: transparent;
+	background-image: none;
 	box-shadow: none;
 	color: var(--text-faint);
 	cursor: pointer;
 	line-height: 1;
+	filter: none;
 }
 
-.editorialist-panel__mode-toggle svg {
+.editorialist-panel__title-row > button.editorialist-panel__mode-toggle svg {
 	width: 0.95rem;
 	height: 0.95rem;
 	stroke-width: 1.9px;
 }
 
-.editorialist-panel__mode-toggle:hover,
-.editorialist-panel__mode-toggle:focus-visible {
+.editorialist-panel__title-row > button.editorialist-panel__mode-toggle:hover,
+.editorialist-panel__title-row > button.editorialist-panel__mode-toggle:focus-visible,
+.editorialist-panel__title-row > button.editorialist-panel__mode-toggle:active {
 	color: color-mix(in srgb, var(--color-purple) 75%, var(--text-normal));
 	background: transparent;
+	background-color: transparent;
+	background-image: none;
+	border-color: transparent;
 	box-shadow: none;
+	filter: none;
 }
 
-.editorialist-panel__mode-toggle:focus-visible {
+.editorialist-panel__title-row > button.editorialist-panel__mode-toggle:focus-visible {
 	outline: 1px solid color-mix(in srgb, var(--color-purple) 55%, transparent);
 	outline-offset: 2px;
 }
 
-.editorialist-panel__mode-toggle:hover {
+.editorialist-panel__title-row > button.editorialist-panel__mode-toggle:hover {
 	outline: none;
 }
 
