@@ -1,10 +1,10 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/EricRhysTaylor/Editorialist/master/logo.png">
-    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/EricRhysTaylor/Editorialist/master/logo-light.png">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/EricRhysTaylor/Editorialist/main/logo.png">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/EricRhysTaylor/Editorialist/main/logo-light.png">
     <!-- Fallback img is the WHITE logo: renderers that ignore <picture> (e.g. the
          community.obsidian.md listing page, which is dark-themed) show this one. -->
-    <img src="https://raw.githubusercontent.com/EricRhysTaylor/Editorialist/master/logo.png" alt="Editorialist Logo" width="360" style="border-radius: 0;">
+    <img src="https://raw.githubusercontent.com/EricRhysTaylor/Editorialist/main/logo.png" alt="Editorialist Logo" width="360" style="border-radius: 0;">
   </picture>
 </p>
 <p align="center" style="font-family: sans-serif; font-size: 26px; margin-top: 12px; margin-bottom: 4px;">
@@ -51,7 +51,7 @@ written permission. See [LICENSE](LICENSE) and [NOTICE](NOTICE) for full terms.
   <!-- Restore once Editorialist is listed in the community directory:
   <a href="https://obsidian.md/plugins?id=editorialist" target="_blank" rel="noopener"><img src="https://img.shields.io/badge/dynamic/json?url=https://raw.githubusercontent.com/obsidianmd/obsidian-releases/master/community-plugin-stats.json&query=$.editorialist.downloads&label=Downloads&style=for-the-badge&colorA=363a4f&colorB=d53984" alt="Plugin Downloads"/></a>
   -->
-  <a href="https://github.com/EricRhysTaylor/Editorialist/blob/master/LICENSE" target="_blank" rel="noopener"><img src="https://img.shields.io/static/v1.svg?style=for-the-badge&label=LICENSE&message=NON-COMMERCIAL%20SOFTWARE%20LICENSE&colorA=363a4f&colorB=b7bdf8" alt="LICENSE — NON-COMMERCIAL SOFTWARE LICENSE"/></a>
+  <a href="https://github.com/EricRhysTaylor/Editorialist/blob/main/LICENSE" target="_blank" rel="noopener"><img src="https://img.shields.io/static/v1.svg?style=for-the-badge&label=LICENSE&message=NON-COMMERCIAL%20SOFTWARE%20LICENSE&colorA=363a4f&colorB=b7bdf8" alt="LICENSE — NON-COMMERCIAL SOFTWARE LICENSE"/></a>
   <br/>
   <a href="https://github.com/EricRhysTaylor/Editorialist/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement" target="_blank" rel="noopener"><img src="https://img.shields.io/github/issues/EricRhysTaylor/Editorialist/enhancement?colorA=363a4f&colorB=00bfa5&style=for-the-badge&label=enhancements" alt="Open enhancements on GitHub"></a>
   <a href="https://github.com/EricRhysTaylor/Editorialist/issues?q=is%3Aclosed+label%3Aenhancement" target="_blank" rel="noopener"><img src="https://img.shields.io/github/issues-closed/EricRhysTaylor/Editorialist/enhancement?colorA=363a4f&colorB=4a90e2&style=for-the-badge&label=closed%20enhancements" alt="Closed enhancements on GitHub"></a>

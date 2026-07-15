@@ -9,6 +9,7 @@ const messageInput = args.filter((arg) => arg !== "--dry-run").join(" ").trim();
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..");
 const backupStampPath = path.join(repoRoot, ".git", "editorialist-last-backup.json");
+const PRIMARY_BRANCH = "main";
 
 function safe(command) {
 	try {
@@ -26,6 +27,34 @@ function run(command) {
 	}
 
 	execSync(command, { stdio: "inherit" });
+}
+
+function shellQuote(value) {
+	return `'${String(value).replace(/'/g, `'\\''`)}'`;
+}
+
+function assertRemoteCanFastForward(branch, phase) {
+	if (dryRun) {
+		return;
+	}
+
+	execSync("git fetch origin", { stdio: "inherit" });
+	const remoteRef = `origin/${branch}`;
+	if (!safe(`git rev-parse --verify --quiet ${shellQuote(remoteRef)}`)) {
+		throw new Error(`Remote tracking branch ${remoteRef} does not exist.`);
+	}
+
+	const counts = safe(`git rev-list --left-right --count ${shellQuote(`HEAD...${remoteRef}`)}`);
+	const [aheadText = "0", behindText = "0"] = counts.split(/\s+/);
+	const ahead = Number(aheadText);
+	const behind = Number(behindText);
+	if (behind > 0) {
+		const state = ahead > 0 ? `diverged (${ahead} ahead, ${behind} behind)` : `behind by ${behind}`;
+		throw new Error(
+			`Refusing backup ${phase}: local ${branch} is ${state} relative to ${remoteRef}. ` +
+			`Run "git pull --rebase origin ${branch}" and resolve conflicts first.`,
+		);
+	}
 }
 
 function ensureGitReady() {
@@ -73,7 +102,11 @@ function writeBackupStamp(branch) {
 try {
 	ensureGitReady();
 
-	const branch = safe("git rev-parse --abbrev-ref HEAD") || "main";
+	const branch = safe("git rev-parse --abbrev-ref HEAD");
+	if (branch !== PRIMARY_BRANCH) {
+		throw new Error(`Backups must run from '${PRIMARY_BRANCH}'. Current branch: '${branch || "unknown"}'.`);
+	}
+	assertRemoteCanFastForward(branch, "before commit");
 	const status = safe("git status --porcelain");
 
 	if (!status) {
@@ -81,10 +114,11 @@ try {
 		process.exit(0);
 	}
 
-	const message = createMessage().replace(/"/g, '\\"');
-	run("git add .");
-	run(`git commit -m "${message}"`);
-	run(`git push origin ${branch}`);
+	const message = createMessage();
+	run("git add -A");
+	run(`git commit -m ${shellQuote(message)}`);
+	assertRemoteCanFastForward(branch, "before push");
+	run(`git push origin ${shellQuote(branch)}`);
 	writeBackupStamp(branch);
 
 	console.log(`\n[backup] Done. ${dryRun ? `Would push to ${branch}.` : `Pushed to ${branch}.`}`);

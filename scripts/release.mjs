@@ -8,7 +8,7 @@
 //       1. Runs the full check funnel (typecheck, lint, css, compliance, audits, tests, build).
 //       2. Bumps manifest.json + versions.json + package.json.
 //       3. Rebuilds the production bundle, commits, tags (bare version, no "v"),
-//          pushes master + tag.
+//          pushes main + tag.
 //       4. Creates a DRAFT GitHub release with an auto-generated changelog and
 //          opens it in the browser so the notes can be polished by hand.
 //
@@ -20,7 +20,7 @@
 //          assets, and upload manifest.json, main.js, styles.css to the release.
 //       3. Publishes the draft (with confirmation).
 //
-// Requires: gh CLI authenticated, releases cut from master.
+// Requires: gh CLI authenticated, releases cut from main.
 
 import { execSync } from "node:child_process";
 import { readFileSync, writeFileSync, unlinkSync, existsSync } from "node:fs";
@@ -101,10 +101,10 @@ async function ask(question) {
 	return answer.trim();
 }
 
-function requireMasterBranch() {
+function requireMainBranch() {
 	const branch = capture("git rev-parse --abbrev-ref HEAD");
-	if (branch !== "master") {
-		console.error(`[release] Releases must be cut from 'master'. Current: '${branch}'`);
+	if (branch !== "main") {
+		console.error(`[release] Releases must be cut from 'main'. Current: '${branch}'`);
 		process.exit(1);
 	}
 }
@@ -218,7 +218,7 @@ function readLocalReleaseDraft(version) {
 // assets carry build provenance.
 function runReleaseWorkflowAndWait(version) {
 	run(
-		`gh workflow run release-build.yml --ref master -f version=${version}`,
+		`gh workflow run release-build.yml --ref main -f version=${version}`,
 		"Dispatching release build workflow on GitHub"
 	);
 
@@ -325,7 +325,7 @@ async function startRelease(bumpArg) {
 	);
 	run(`git commit -m "release: ${targetVersion}"`, "Committing version bump");
 	run(`git tag ${targetVersion}`, `Creating tag ${targetVersion}`);
-	run("git push origin master", "Pushing master");
+	run("git push origin main", "Pushing main");
 	run(`git push origin ${targetVersion}`, "Pushing tag");
 
 	// 5. Create a draft release with the changelog.
@@ -356,7 +356,7 @@ async function main() {
 		console.error("[release] Missing manifest.json, versions.json, or package.json.");
 		process.exit(1);
 	}
-	requireMasterBranch();
+	requireMainBranch();
 	run("gh auth status", "Checking gh CLI authentication", { silent: true });
 
 	const bumpArg = process.argv[2];

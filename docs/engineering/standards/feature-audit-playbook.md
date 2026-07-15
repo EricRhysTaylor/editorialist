@@ -32,7 +32,7 @@ both projects. It is subordinate to:
 - **Verification uses `npm run check` (or `npx tsc --noEmit` + `npx vitest run`
   + `npm run build-only`).** Do NOT run `npm run build` for mid-audit
   verification — it copies into the vault and the backup hook commits + pushes
-  to `master`. The closing build-and-commit happens once, after approved fixes
+  to `main`. The closing build-and-commit happens once, after approved fixes
   land, as a deliberate final step — not as a verification probe.
 - **Complement the gates, don't re-implement them.** `qa-audit.mjs`,
   `obsidian-compliance.mjs`, `css-audit.mjs`, and `css-drift-check.mjs` already

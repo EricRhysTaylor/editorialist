@@ -4,11 +4,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
+const PRIMARY_BRANCH = "main";
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..");
 const backupStampPath = path.join(repoRoot, ".git", "editorialist-last-backup.json");
 
-function readLastBackupAt() {
+function readLastBackup() {
 	if (!existsSync(backupStampPath)) {
 		return null;
 	}
@@ -16,14 +17,22 @@ function readLastBackupAt() {
 	try {
 		const raw = readFileSync(backupStampPath, "utf8");
 		const parsed = JSON.parse(raw);
-		if (!parsed.backedUpAt) {
+		if (!parsed.backedUpAt || parsed.branch !== PRIMARY_BRANCH) {
 			return null;
 		}
 
 		const timestamp = Date.parse(parsed.backedUpAt);
-		return Number.isNaN(timestamp) ? null : timestamp;
+		return Number.isNaN(timestamp) ? null : { branch: parsed.branch, timestamp };
 	} catch {
 		return null;
+	}
+}
+
+function currentBranch() {
+	try {
+		return execSync("git rev-parse --abbrev-ref HEAD", { cwd: repoRoot, encoding: "utf8" }).trim();
+	} catch {
+		return "";
 	}
 }
 
@@ -38,7 +47,19 @@ function formatAge(ms) {
 	return remainderMinutes > 0 ? `${hours}h ${remainderMinutes}m` : `${hours}h`;
 }
 
-const lastBackupAt = readLastBackupAt();
+if (process.env.EDITORIALIST_SKIP_AUTO_BACKUP === "1") {
+	console.log("[backup:hourly] EDITORIALIST_SKIP_AUTO_BACKUP=1. Skipping automatic backup.");
+	process.exit(0);
+}
+
+const branch = currentBranch();
+if (branch !== PRIMARY_BRANCH) {
+	console.log(`[backup:hourly] Automatic backup is main-only; current branch is ${branch || "unknown"}. Skipping.`);
+	process.exit(0);
+}
+
+const lastBackup = readLastBackup();
+const lastBackupAt = lastBackup?.timestamp ?? null;
 const ageMs = lastBackupAt ? Date.now() - lastBackupAt : Number.POSITIVE_INFINITY;
 
 if (ageMs < ONE_HOUR_MS) {

@@ -27,7 +27,7 @@
 		"release:check": "npm run check && npm run test && npm run css-drift -- --maintenance && npm run build",
 		"release": "node scripts/release.mjs",
 		"publish-wiki": "node scripts/publish-wiki.mjs",
-		"backup": "npm run test && npm run css-drift -- --maintenance && npm run build && node scripts/backup.mjs",
+		"backup": "npm run test && npm run css-drift -- --maintenance && EDITORIALIST_SKIP_AUTO_BACKUP=1 npm run build && node scripts/backup.mjs",
 		"backup:msg": "npm run backup",
 		"audit:codebase": "node -e \"console.log('Weekly Codebase Health Audit\\n  Prompt: docs/engineering/audits/prompts/weekly-codebase-health-audit.md\\n  Template: docs/engineering/audits/templates/codebase-health-report.md\\n  Save report to: docs/engineering/audits/reports/YYYY-MM-DD-codebase-health.md\\n\\nThis script does not run the audit automatically — paste the prompt into an IDE agent at the repo root.')\"",
 		"audit:architecture": "node -e \"console.log('Weekly Architecture Drift Audit\\n  Prompt: docs/engineering/audits/prompts/weekly-architecture-drift-audit.md\\n  Template: docs/engineering/audits/templates/architecture-drift-report.md\\n  Save report to: docs/engineering/audits/reports/YYYY-MM-DD-architecture-drift.md\\n\\nThis script does not run the audit automatically — paste the prompt into an IDE agent at the repo root.')\"",

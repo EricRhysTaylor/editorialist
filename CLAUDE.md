@@ -5,7 +5,7 @@ Applies to all coding agents (Claude Code, Codex — AGENTS.md is a symlink to t
 ## Working directory
 
 Main repo: `/Users/ericrhystaylor/Documents/RT LLC/Plugin/Editorialist`
-Primary branch: `master`
+Primary branch: `main`
 
 ## Code standards
 
