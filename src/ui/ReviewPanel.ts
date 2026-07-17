@@ -67,7 +67,6 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	private reviewerPickerValue: string | null = null;
 	private starredOnly = false;
 	private reviewStateProcessedExpanded = false;
-	private pendingEditsExpanded = false;
 	private commentsCollapsed = false;
 	// null = follow the cold-start default; an explicit boolean once the user
 	// toggles the onboarding disclosure within this view session.
@@ -145,17 +144,22 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		});
 
 		// Clean-batches header action: a single persistent control so cleanup is
-		// always reachable without hunting for per-card links. Accent + enabled
-		// when fully-resolved batches exist; muted + disabled (with an explanatory
-		// label) when there is nothing to clean.
-		const cleanableBatchIds = this.plugin.getCleanableBatchIds();
-		const cleanableCount = cleanableBatchIds.length;
+		// always reachable without hunting for per-card links. Discretionary, not
+		// gated on sweep completion — enabled whenever any batch still carries
+		// review blocks, even with undecided items (e.g. passages rewritten out
+		// from under their suggestions); cleanImportedBatches confirms before
+		// wiping those. Muted + disabled only when nothing is left to clean.
+		const { ready: readyBatchIds, undecided: undecidedBatchIds } = this.plugin.getCleanableBatchCandidates();
+		const cleanableCount = readyBatchIds.length + undecidedBatchIds.length;
+		const cleanLabel = cleanableCount === 0
+			? "No imported batches to clean"
+			: undecidedBatchIds.length === 0
+				? `Clean ${cleanableCount} resolved batch${cleanableCount === 1 ? "" : "es"} from their scenes`
+				: `Clean ${cleanableCount} batch${cleanableCount === 1 ? "" : "es"} from their scenes (${undecidedBatchIds.length} with undecided items)`;
 		const cleanButton = titleRow.createEl("button", {
 			cls: `editorialist-panel__settings-button editorialist-panel__clean-button${cleanableCount > 0 ? " is-active" : ""}`,
 			attr: {
-				"aria-label": cleanableCount > 0
-					? `Clean ${cleanableCount} resolved batch${cleanableCount === 1 ? "" : "es"} from their scenes`
-					: "No resolved batches to clean",
+				"aria-label": cleanLabel,
 				type: "button",
 				...(cleanableCount === 0 ? { disabled: "true" } : {}),
 			},
@@ -164,7 +168,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		setIcon(cleanIcon, "eraser");
 		if (cleanableCount > 0) {
 			this.bindImmediateAction(cleanButton, () => {
-				void this.plugin.cleanReadyBatches();
+				void this.plugin.cleanImportedBatches();
 			});
 		}
 
@@ -280,28 +284,22 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 				this.renderUpNextPendingScenes(overview.pending, launchTarget?.notePath ?? null, Boolean(launchTarget));
 			}
 
-			// 2. Pending edits — the full browsable queue now lives in its own
-			// Pending mode; here we keep only a compact pointer so the count stays
-			// discoverable from review without duplicating the workflow.
-			const pendingSummary = this.plugin.getPendingEditsSummary();
-			if (pendingSummary && pendingSummary.segmentCount > 0) {
-				this.renderPendingPointer(pendingSummary.segmentCount, pendingSummary.sceneCount);
-			}
-
-			// 3. Recent review sessions.
+			// 2. Recent review sessions. (Pending edits are deliberately absent
+			// from the review view — the workflow lives entirely in the panel's
+			// Pending edits mode, reachable from the mode toggle.)
 			renderRecentActivityBlock(this.plugin, this.contentEl);
 
-			// 4. Ready to clean — processed sweeps awaiting cleanup. Distinct from
+			// 3. Ready to clean — processed sweeps awaiting cleanup. Distinct from
 			// the pending work above: it's post-resolution housekeeping, so it sits
 			// after recent reviews rather than in the Up next cluster.
 			if (overview && overview.processed.length > 0) {
 				this.renderReadyToCleanCard(overview.processed);
 			}
 
-			// 5. Contributors.
+			// 4. Contributors.
 			renderContributorsBlock(this.plugin, this.contentEl);
 
-			// 6. Onboarding — demoted to a disclosure. Auto-expanded only on a
+			// 5. Onboarding — demoted to a disclosure. Auto-expanded only on a
 			// cold-start vault where there is nothing else to anchor on.
 			renderWorkflowsDisclosure(this, this.plugin, this.contentEl, !hasHistory && !launchTarget);
 			return;
@@ -313,13 +311,6 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			text: headerDetails.summary,
 		});
 
-		// Pending edits lead during a batch: they're a book-level backlog that can
-		// sit for days/weeks and are independent of the scene in front of you.
-		// Keeping the always-present row at the top stops it from splitting the
-		// active batch (its Comments and its suggestion/handoff cards) down the
-		// middle, and keeps the workflow reachable even on a scene with no pending
-		// items of its own.
-		this.renderPendingEditsBatchRow(session.notePath);
 		const memos = session.memos ?? [];
 		this.renderCommentsCard(memos);
 
@@ -691,65 +682,6 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		}
 	}
 
-	// Compact review-mode pointer to the standalone Pending edits panel — keeps
-	// the count visible without re-rendering the full queue here.
-	private renderPendingPointer(segmentCount: number, sceneCount: number): void {
-		const itemNoun = segmentCount === 1 ? "item" : "items";
-		const sceneNoun = sceneCount === 1 ? "scene" : "scenes";
-		const pointer = this.contentEl.createDiv({
-			cls: "editorialist-panel__pending-pointer",
-			attr: { "aria-label": "Open the pending edits panel" },
-		});
-		setIcon(pointer.createSpan({ cls: "editorialist-panel__pending-pointer-icon" }), "clipboard-list");
-		pointer.createSpan({
-			cls: "editorialist-panel__pending-pointer-text",
-			text: `${segmentCount} pending edit ${itemNoun} across ${sceneCount} ${sceneNoun}`,
-		});
-		setIcon(pointer.createSpan({ cls: "editorialist-panel__pending-pointer-arrow" }), "chevron-right");
-		this.bindImmediateAction(pointer, () => {
-			void this.plugin.openPendingEditsPanel();
-		});
-	}
-
-	// Always-present pending-edits affordance during a batch. Scene-scoped when
-	// the active scene has its own items; otherwise falls back to a book-wide
-	// entry so pending work elsewhere in the book stays reachable mid-batch.
-	// Renders nothing only when the entire book has zero pending edits.
-	private renderPendingEditsBatchRow(notePath: string): void {
-		const sceneCount = this.plugin.getPendingEditsCountForScene(notePath);
-		const bookCount = this.plugin.getPendingEditsSummary()?.segmentCount ?? 0;
-		if (sceneCount === 0 && bookCount === 0) {
-			return;
-		}
-
-		const card = this.contentEl.createDiv({ cls: "editorialist-panel__comments" });
-		const header = card.createDiv({ cls: "editorialist-panel__comments-header" });
-		const titleIcon = header.createSpan({ cls: "editorialist-panel__comments-title-icon" });
-		setIcon(titleIcon, "clipboard-list");
-		header.createSpan({ cls: "editorialist-panel__comments-title", text: "Pending edits" });
-		header.createSpan({
-			cls: "editorialist-panel__comments-summary",
-			text: sceneCount > 0 ? `${sceneCount} on this scene` : `${bookCount} in this book`,
-		});
-
-		const body = card.createDiv({ cls: "editorialist-panel__comments-body" });
-		if (sceneCount > 0) {
-			this.renderPendingEditsEntry(body, {
-				countLabel: `${sceneCount} item${sceneCount === 1 ? "" : "s"} on this scene`,
-				linkText: "→ Review pending edits in this scene",
-				tooltip: "Review the pending edits on this scene",
-				onClick: () => this.plugin.startPendingEditsReviewForScene(notePath),
-			});
-		} else {
-			this.renderPendingEditsEntry(body, {
-				countLabel: `${bookCount} item${bookCount === 1 ? "" : "s"} elsewhere in this book`,
-				linkText: "→ Review all pending edits",
-				tooltip: "Start a pending-edits review across the active book",
-				onClick: () => this.plugin.startPendingEditsReview(),
-			});
-		}
-	}
-
 	private renderMemoEntry(parent: HTMLElement, memo: SceneMemo): void {
 		const entry = parent.createDiv({ cls: "editorialist-panel__comment-entry editorialist-panel__comment-entry--memo" });
 
@@ -789,31 +721,6 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			});
 			block.createDiv({ cls: "editorialist-panel__comment-entry-block-text", text: memo.body });
 		}
-	}
-
-	private renderPendingEditsEntry(
-		parent: HTMLElement,
-		options: { countLabel: string; linkText: string; tooltip: string; onClick: () => void | Promise<void> },
-	): void {
-		const entry = parent.createDiv({ cls: "editorialist-panel__comment-entry editorialist-panel__comment-entry--pending" });
-
-		const header = entry.createDiv({ cls: "editorialist-panel__comment-entry-header" });
-		const kindBadge = header.createSpan({ cls: "editorialist-panel__comment-entry-kind" });
-		kindBadge.setText("Pending edits");
-		header.createSpan({
-			cls: "editorialist-panel__comment-entry-contributor",
-			text: options.countLabel,
-		});
-
-		const actionRow = entry.createDiv({ cls: "editorialist-panel__comment-entry-action" });
-		const link = actionRow.createEl("a", {
-			cls: "editorialist-panel__comment-entry-action-link",
-			attr: { href: "#", "aria-label": options.tooltip },
-		});
-		link.createSpan({ text: options.linkText });
-		this.bindImmediateAction(link, () => {
-			void options.onClick();
-		});
 	}
 
 	private renderFilters(): void {
@@ -1721,14 +1628,6 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 
 	setOnboardingExpanded(value: boolean): void {
 		this.onboardingExpanded = value;
-	}
-
-	getPendingEditsExpanded(): boolean {
-		return this.pendingEditsExpanded;
-	}
-
-	setPendingEditsExpanded(value: boolean): void {
-		this.pendingEditsExpanded = value;
 	}
 
 	private getFilteredSuggestions(suggestions: ReviewSuggestion[]): ReviewSuggestion[] {

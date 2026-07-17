@@ -31,8 +31,6 @@ export interface IdleSectionsHost {
 	requestRender(): void;
 	getOnboardingExpanded(): boolean | null;
 	setOnboardingExpanded(value: boolean): void;
-	getPendingEditsExpanded(): boolean;
-	setPendingEditsExpanded(value: boolean): void;
 }
 
 // ── completed sweep ──────────────────────────────────────────────────────
@@ -137,25 +135,6 @@ export function renderCompletedSweepCard(
 			return;
 		}
 
-		if (step.action === "pending" && step.scenePath) {
-			const scenePath = step.scenePath;
-			const link = item.createEl("a", {
-				cls: "editorialist-panel__completion-step-link",
-				attr: {
-					href: "#",
-					title: step.label,
-				},
-			});
-			link.createSpan({
-				cls: "editorialist-panel__completion-link-text",
-				text: step.label,
-			});
-			host.bindAction(link, () => {
-				void plugin.startPendingEditsReviewForScene(scenePath);
-			});
-			return;
-		}
-
 		item.createSpan({
 			cls: "editorialist-panel__completion-step-text",
 			text: step.label,
@@ -229,11 +208,6 @@ export function renderIdleStateCard(
 		void plugin.openEditorialistModal();
 	});
 
-	const pendingSummary = plugin.getPendingEditsSummary();
-	if (pendingSummary && pendingSummary.segmentCount > 0) {
-		renderPendingEditsStep(host, plugin, steps, pendingSummary);
-	}
-
 	const operationsStep = steps.createDiv({ cls: "editorialist-panel__completion-step" });
 	const operationsBullet = operationsStep.createSpan({ cls: "editorialist-panel__completion-step-bullet" });
 	setIcon(operationsBullet, "arrow-right");
@@ -265,119 +239,6 @@ export function renderIdleStateDescription(parent: HTMLElement, description: str
 	if (after.length > 0) {
 		parent.createSpan({ text: after });
 	}
-}
-
-// ── pending-edits CTA ────────────────────────────────────────────────────
-
-// Slim workspace card surfacing the pending-edits CTA when the user has
-// pending edit segments but no active session. Visually mirrors the compact
-// onboarding card's pending-edits step verbatim — same icon, link text,
-// click action — wrapped in a minimal `__completion --neutral` shell so the
-// styling is byte-identical to the chip the compact card shows. Rendered
-// from ReviewPanel.render()'s workspace path; the compact card itself still
-// includes the same step internally via renderPendingEditsStep below.
-export function renderPendingEditsWorkspaceBlock(
-	host: IdleSectionsHost,
-	plugin: EditorialistPlugin,
-	parent: HTMLElement,
-	summary: NonNullable<ReturnType<EditorialistPlugin["getPendingEditsSummary"]>>,
-): void {
-	if (summary.segmentCount <= 0) {
-		return;
-	}
-
-	const expandable = summary.scenes.length > 0;
-	const expanded = expandable && host.getPendingEditsExpanded();
-	const section = parent.createDiv({
-		cls: `editorialist-panel__pending-edits${expanded ? "" : " is-collapsed"}`,
-	});
-
-	const heading = section.createDiv({
-		cls: "editorialist-panel__section-header editorialist-panel__pending-edits-header",
-	});
-	if (expandable) {
-		const caret = heading.createSpan({ cls: "editorialist-panel__pending-edits-caret" });
-		setIcon(caret, expanded ? "chevron-down" : "chevron-right");
-	} else {
-		const icon = heading.createSpan({ cls: "editorialist-panel__pending-edits-icon" });
-		setIcon(icon, "clipboard-list");
-	}
-	heading.createDiv({ cls: "editorialist-panel__section-title", text: "Pending edits" });
-	const sceneNoun = summary.sceneCount === 1 ? "scene" : "scenes";
-	heading.createDiv({
-		cls: "editorialist-panel__section-meta",
-		text: `${summary.segmentCount} across ${summary.sceneCount} ${sceneNoun}`,
-	});
-	if (expandable) {
-		host.bindAction(heading, () => {
-			host.setPendingEditsExpanded(!expanded);
-			host.requestRender();
-		});
-	}
-
-	if (expanded) {
-		const list = section.createDiv({ cls: "editorialist-panel__pending-edits-list" });
-		for (const scene of summary.scenes) {
-			const row = list.createDiv({
-				cls: "editorialist-panel__pending-edits-row",
-				attr: { title: `Review pending edits in ${scene.title}` },
-			});
-			const rowHeader = row.createDiv({ cls: "editorialist-panel__pending-edits-row-header" });
-			rowHeader.createDiv({
-				cls: "editorialist-panel__pending-edits-row-title",
-				text: scene.title,
-			});
-			const targetScenePath = scene.scenePath;
-			host.bindAction(row, () => {
-				void plugin.startPendingEditsReviewForScene(targetScenePath);
-			});
-			rowHeader.createSpan({
-				cls: "editorialist-panel__pending-edits-row-count",
-				text: `${scene.count}`,
-			});
-			if (scene.firstExcerpt) {
-				row.createDiv({
-					cls: "editorialist-panel__pending-edits-row-excerpt",
-					text: scene.firstExcerpt,
-				});
-			}
-		}
-	}
-
-	const steps = section.createDiv({ cls: "editorialist-panel__completion-steps" });
-	renderPendingEditsStep(host, plugin, steps, summary);
-}
-
-// Shared pending-edits step renderer used by BOTH the compact onboarding
-// card and the workspace CTA block. Emits the existing chip-style DOM
-// (bullet icon + link + link-text) so the two surfaces stay byte-identical.
-export function renderPendingEditsStep(
-	host: IdleSectionsHost,
-	plugin: EditorialistPlugin,
-	steps: HTMLElement,
-	summary: NonNullable<ReturnType<EditorialistPlugin["getPendingEditsSummary"]>>,
-): void {
-	const pendingStep = steps.createDiv({
-		cls: "editorialist-panel__completion-step editorialist-panel__completion-step--active",
-	});
-	const pendingBullet = pendingStep.createSpan({ cls: "editorialist-panel__completion-step-bullet" });
-	setIcon(pendingBullet, "clipboard-list");
-	const pendingLink = pendingStep.createEl("a", {
-		cls: "editorialist-panel__completion-step-link",
-		attr: {
-			href: "#",
-			title: "Start pending-edits review in active book",
-		},
-	});
-	const itemNoun = summary.segmentCount === 1 ? "item" : "items";
-	const sceneNoun = summary.sceneCount === 1 ? "scene" : "scenes";
-	pendingLink.createSpan({
-		cls: "editorialist-panel__completion-link-text",
-		text: `Review ${summary.segmentCount} pending edit ${itemNoun} across ${summary.sceneCount} ${sceneNoun}`,
-	});
-	host.bindAction(pendingLink, () => {
-		void plugin.startPendingEditsReview();
-	});
 }
 
 // ── header launcher chip (workflows disclosure helper) ───────────────────
