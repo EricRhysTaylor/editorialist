@@ -144,22 +144,17 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		});
 
 		// Clean-batches header action: a single persistent control so cleanup is
-		// always reachable without hunting for per-card links. Discretionary, not
-		// gated on sweep completion — enabled whenever any batch still carries
-		// review blocks, even with undecided items (e.g. passages rewritten out
-		// from under their suggestions); cleanImportedBatches confirms before
-		// wiping those. Muted + disabled only when nothing is left to clean.
-		const { ready: readyBatchIds, undecided: undecidedBatchIds } = this.plugin.getCleanableBatchCandidates();
-		const cleanableCount = readyBatchIds.length + undecidedBatchIds.length;
-		const cleanLabel = cleanableCount === 0
-			? "No imported batches to clean"
-			: undecidedBatchIds.length === 0
-				? `Clean ${cleanableCount} resolved batch${cleanableCount === 1 ? "" : "es"} from their scenes`
-				: `Clean ${cleanableCount} batch${cleanableCount === 1 ? "" : "es"} from their scenes (${undecidedBatchIds.length} with undecided items)`;
+		// always reachable without hunting for per-card links. Accent + enabled
+		// when fully-resolved batches exist; muted + disabled (with an explanatory
+		// label) when there is nothing to clean.
+		const cleanableBatchIds = this.plugin.getCleanableBatchIds();
+		const cleanableCount = cleanableBatchIds.length;
 		const cleanButton = titleRow.createEl("button", {
 			cls: `editorialist-panel__settings-button editorialist-panel__clean-button${cleanableCount > 0 ? " is-active" : ""}`,
 			attr: {
-				"aria-label": cleanLabel,
+				"aria-label": cleanableCount > 0
+					? `Clean ${cleanableCount} resolved batch${cleanableCount === 1 ? "" : "es"} from their scenes`
+					: "No resolved batches to clean",
 				type: "button",
 				...(cleanableCount === 0 ? { disabled: "true" } : {}),
 			},
@@ -168,7 +163,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		setIcon(cleanIcon, "eraser");
 		if (cleanableCount > 0) {
 			this.bindImmediateAction(cleanButton, () => {
-				void this.plugin.cleanImportedBatches();
+				void this.plugin.cleanReadyBatches();
 			});
 		}
 

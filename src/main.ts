@@ -1530,13 +1530,10 @@ export default class EditorialistPlugin extends Plugin {
 		return this.registry.getSweepRegistryEntries();
 	}
 
-	// Sweep batches in the active book that still carry a review block, split by
-	// whether every suggestion is decided. `ready` batches clean without
-	// ceremony; `undecided` batches can still be cleaned discretionarily (e.g.
-	// items whose passages were rewritten and can no longer be located will
-	// never reach a decision) but get a confirmation first. Powers the panel
-	// header's Clean action so the user never has to hunt for per-card links.
-	getCleanableBatchCandidates(): { ready: string[]; undecided: string[] } {
+	// Sweep batches in the active book that are fully decided and still carry a
+	// review block — i.e. cleanable right now. Powers the panel header's Clean
+	// action so the user never has to hunt for per-card clean links.
+	getCleanableBatchIds(): string[] {
 		const scopeFolder = this.registry.getActiveBookScopeInfo().sourceFolder;
 		const inActiveBook = (entry: ReviewSweepRegistryEntry): boolean => {
 			if (!scopeFolder) {
@@ -1545,50 +1542,19 @@ export default class EditorialistPlugin extends Plugin {
 			const paths = entry.sceneOrder.length > 0 ? entry.sceneOrder : entry.importedNotePaths;
 			return paths.length === 0 || paths.some((path) => isPathInFolderScope(path, scopeFolder));
 		};
-		const ready: string[] = [];
-		const undecided: string[] = [];
-		for (const entry of this.registry.getSweepRegistryEntries()) {
-			if (!inActiveBook(entry) || entry.status === "cleaned" || entry.totalSuggestions <= 0) {
-				continue;
-			}
-			if (isBatchReadyToClean(entry, this.getBatchDecisionStats(entry.batchId))) {
-				ready.push(entry.batchId);
-			} else {
-				undecided.push(entry.batchId);
-			}
-		}
-		return { ready, undecided };
+		return this.registry
+			.getSweepRegistryEntries()
+			.filter((entry) => inActiveBook(entry) && isBatchReadyToClean(entry, this.getBatchDecisionStats(entry.batchId)))
+			.map((entry) => entry.batchId);
 	}
 
-	getCleanableBatchIds(): string[] {
-		return this.getCleanableBatchCandidates().ready;
-	}
-
-	// Remove the review blocks of every batch in the active book that still has
-	// them — one sync, one summary notice, one panel refresh. Fully-decided
-	// batches clean silently; when undecided suggestions remain, confirm once
-	// before wiping them, since their prose only lives inside the review blocks.
-	// Returns the batch count cleaned.
-	async cleanImportedBatches(): Promise<number> {
-		const { ready, undecided } = this.getCleanableBatchCandidates();
-		const batchIds = [...ready, ...undecided];
+	// Remove the review blocks of every cleanable batch in one pass — one sync,
+	// one summary notice, one panel refresh. Returns the batch count cleaned.
+	async cleanReadyBatches(): Promise<number> {
+		const batchIds = this.getCleanableBatchIds();
 		if (batchIds.length === 0) {
-			new Notice("No imported batches to clean.");
+			new Notice("No resolved batches are ready to clean.");
 			return 0;
-		}
-		if (undecided.length > 0) {
-			const choice = await openEditorialistChoiceModal(this.app, {
-				title: "Clean batches with undecided items?",
-				description:
-					`${undecided.length} batch${undecided.length === 1 ? " still carries" : "es still carry"} undecided suggestions — for example items whose passages were rewritten and can no longer be matched. Cleaning removes their review blocks from the scenes, and any undecided items disappear with them.`,
-				choices: [
-					{ label: "Clean anyway", value: "confirm" },
-					{ label: "Cancel", value: "cancel" },
-				],
-			});
-			if (choice !== "confirm") {
-				return 0;
-			}
 		}
 		let blocksRemoved = 0;
 		for (const batchId of batchIds) {
