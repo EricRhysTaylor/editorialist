@@ -86,6 +86,10 @@ function makeFakeHost(config: FakeConfig = {}) {
 		markSuggestionRewritten: vi.fn().mockImplementation(async (id: string) => {
 			calls.push(`sm.markSuggestionRewritten:${id}`);
 		}),
+		markSuggestionsRewritten: vi.fn().mockImplementation(async (ids: string[]) => {
+			calls.push(`sm.markSuggestionsRewritten:${ids.join(",")}`);
+			return ids.length;
+		}),
 		deferSuggestion: vi.fn().mockImplementation(async (id: string) => {
 			calls.push(`sm.deferSuggestion:${id}`);
 		}),

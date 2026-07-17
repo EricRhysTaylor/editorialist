@@ -1561,6 +1561,52 @@
 	white-space: nowrap;
 }
 
+/* Reconciliation card — the dead-end state where only unmatched items remain.
+   Warm accent (orange) so it reads as "needs a decision", not an error. */
+.editorialist-panel__reconcile {
+	display: flex;
+	flex-direction: column;
+	gap: 0.55rem;
+	margin-bottom: 0.95rem;
+	padding: 0.72rem 0.82rem;
+	border: 1px solid color-mix(in srgb, var(--color-orange) 30%, var(--background-modifier-border));
+	border-radius: var(--editorialist-radius-md);
+	background: color-mix(in srgb, var(--background-primary) 88%, var(--color-orange) 7%);
+}
+
+.editorialist-panel__reconcile-header {
+	display: flex;
+	align-items: center;
+	gap: 0.42rem;
+}
+
+.editorialist-panel__reconcile-icon,
+.editorialist-panel__reconcile-icon svg {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 0.95rem;
+	height: 0.95rem;
+	color: color-mix(in srgb, var(--color-orange) 70%, var(--text-normal));
+}
+
+.editorialist-panel__reconcile-title {
+	font-size: var(--font-ui-small);
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.editorialist-panel__reconcile-copy {
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+	line-height: 1.45;
+}
+
+.editorialist-panel__reconcile-actions {
+	display: flex;
+	gap: var(--editorialist-space-sm);
+}
+
 .editorialist-panel__comments {
 	display: flex;
 	flex-direction: column;

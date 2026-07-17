@@ -172,6 +172,10 @@ export interface ReviewStateIndexEntry {
 	noteTitle: string;
 	sceneId?: string;
 	pendingCount: number;
+	// Open items the matcher could not locate in the scene at last sync —
+	// usually passages the author rewrote. Kept separate from pendingCount so
+	// the panel can name the stuck state and offer bulk reconciliation.
+	unresolvedCount: number;
 	deferredCount: number;
 	processedCount: number;
 	lastUpdated: number;
@@ -1490,6 +1494,23 @@ export default class EditorialistPlugin extends Plugin {
 		await this.reviewActions.markSuggestionRewritten(id);
 	}
 
+	async resolveUnmatchedSuggestions(): Promise<number> {
+		return this.reviewActions.resolveUnmatchedSuggestions();
+	}
+
+	// One-click reconciliation from the workspace view: open (or resume) the
+	// scene's review session, then mark its unmatched leftovers as rewritten.
+	// The resolve step recomputes unmatched-ness from the live session after
+	// matching runs, so a stale registry count can never over-resolve.
+	async resolveUnmatchedSuggestionsForNote(notePath: string): Promise<void> {
+		await this.startOrResumeReviewForNote(notePath);
+		const session = this.getCurrentReviewSession();
+		if (session?.notePath !== notePath) {
+			return;
+		}
+		await this.resolveUnmatchedSuggestions();
+	}
+
 	async deferSuggestion(id: string): Promise<void> {
 		await this.reviewActions.deferSuggestion(id);
 	}
@@ -1828,13 +1849,14 @@ export default class EditorialistPlugin extends Plugin {
 				notePath: record.notePath,
 				noteTitle: record.noteTitle,
 				sceneId: record.sceneId,
-				pendingCount: record.pendingCount + record.unresolvedCount,
+				pendingCount: record.pendingCount,
+				unresolvedCount: record.unresolvedCount,
 				deferredCount: record.deferredCount,
 				processedCount: record.acceptedCount + record.rejectedCount + record.rewrittenCount,
 				lastUpdated: record.lastUpdated,
 			};
 
-			if (record.status === "in_progress" || entry.pendingCount > 0 || entry.deferredCount > 0) {
+			if (record.status === "in_progress" || entry.pendingCount > 0 || entry.unresolvedCount > 0 || entry.deferredCount > 0) {
 				pending.push(entry);
 			} else {
 				processed.push(entry);

@@ -16,7 +16,10 @@
 
 import { Notice } from "obsidian";
 import { getSuggestionAnchorTarget } from "../core/OperationSupport";
-import { findPreferredSuggestionId as findPreferredSuggestionIdShared } from "../core/review/SuggestionTraversal";
+import {
+	findPreferredSuggestionId as findPreferredSuggestionIdShared,
+	getUnmatchedOpenSuggestionIds as getUnmatchedOpenSuggestionIdsShared,
+} from "../core/review/SuggestionTraversal";
 import type {
 	ReviewSession,
 	ReviewSuggestion,
@@ -41,6 +44,7 @@ export interface ReviewActionsStateMachine {
 	acceptSuggestion(id: string): Promise<boolean>;
 	rejectSuggestion(id: string): Promise<void>;
 	markSuggestionRewritten(id: string): Promise<void>;
+	markSuggestionsRewritten(ids: string[]): Promise<number>;
 	deferSuggestion(id: string): Promise<void>;
 	undoLastAppliedSuggestion(): Promise<void>;
 	jumpToSuggestionTarget(id: string): Promise<void>;
@@ -261,6 +265,29 @@ export class ReviewActionsOrchestrator {
 
 	async markSuggestionRewritten(id: string): Promise<void> {
 		await this.host.getReviewStateMachine().markSuggestionRewritten(id);
+	}
+
+	// Reconciliation: mark every open suggestion the manuscript can no longer
+	// locate as rewritten in one pass. This is the escape hatch for the
+	// dead-end state where the author has decided everything locatable but
+	// rewrote some passages past recognition, leaving the sweep pinned open.
+	async resolveUnmatchedSuggestions(): Promise<number> {
+		const session = this.host.getReviewSession();
+		if (!session) {
+			return 0;
+		}
+
+		const ids = getUnmatchedOpenSuggestionIdsShared(session.suggestions);
+		if (ids.length === 0) {
+			new Notice("No unmatched items to resolve.");
+			return 0;
+		}
+
+		const resolvedCount = await this.host.getReviewStateMachine().markSuggestionsRewritten(ids);
+		if (resolvedCount > 0) {
+			new Notice(`Marked ${resolvedCount} unmatched item${resolvedCount === 1 ? "" : "s"} as rewritten.`);
+		}
+		return resolvedCount;
 	}
 
 	async deferSuggestion(id: string): Promise<void> {

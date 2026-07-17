@@ -86,6 +86,140 @@ function buildFuzzyMatchPattern(text: string): string | null {
 	return out;
 }
 
+export interface ApproximateMatchRange {
+	startOffset: number;
+	endOffset: number;
+	/** Word-set Dice similarity of the matched span to the target, 0..1. */
+	similarity: number;
+}
+
+// Similarity gate for approximate matching. 0.55 keeps a lightly-reworded
+// paragraph (most shared vocabulary intact) while rejecting passages that
+// merely share a character name or a stock phrase.
+const APPROXIMATE_SIMILARITY_THRESHOLD = 0.55;
+// A runner-up this close to the winner means the target isn't uniquely
+// locatable — return nothing rather than guess between two candidates.
+const APPROXIMATE_AMBIGUITY_MARGIN = 0.15;
+// Below this many tokens the word-set similarity is dominated by common words
+// and produces spurious winners; tiny targets stay unmatched instead.
+const APPROXIMATE_MIN_TARGET_TOKENS = 4;
+
+interface ParagraphRange {
+	start: number;
+	end: number;
+	tokens: Set<string>;
+}
+
+function tokenizeForSimilarity(value: string): Set<string> {
+	const tokens = value.toLowerCase().match(/[\p{L}\p{N}'’]+/gu) ?? [];
+	return new Set(tokens);
+}
+
+function tokenSetSimilarity(a: Set<string>, b: Set<string>): number {
+	if (a.size === 0 || b.size === 0) {
+		return 0;
+	}
+	let shared = 0;
+	for (const token of a) {
+		if (b.has(token)) {
+			shared += 1;
+		}
+	}
+	return (2 * shared) / (a.size + b.size);
+}
+
+// Paragraph spans of the raw note text (blank-line separated), with raw
+// offsets preserved and per-paragraph token sets precomputed.
+function collectParagraphRanges(noteText: string): ParagraphRange[] {
+	const ranges: ParagraphRange[] = [];
+	const separator = /\n[ \t]*\n+/g;
+	let blockStart = 0;
+	const pushRange = (rawStart: number, rawEnd: number): void => {
+		let start = rawStart;
+		let end = rawEnd;
+		while (start < end && /\s/.test(noteText[start] ?? "")) {
+			start += 1;
+		}
+		while (end > start && /\s/.test(noteText[end - 1] ?? "")) {
+			end -= 1;
+		}
+		if (end > start) {
+			ranges.push({ start, end, tokens: tokenizeForSimilarity(noteText.slice(start, end)) });
+		}
+	};
+	let match: RegExpExecArray | null;
+	while ((match = separator.exec(noteText)) !== null) {
+		pushRange(blockStart, match.index);
+		blockStart = match.index + match[0].length;
+	}
+	pushRange(blockStart, noteText.length);
+	return ranges;
+}
+
+// Last-resort locator for a target the exact and normalized passes could not
+// find: the passage was likely rewritten in the author's own words. Scores
+// every window of consecutive paragraphs (sized around the target's own
+// paragraph count) by word-set similarity and returns the winner only when it
+// clears the threshold AND no runner-up is close enough to make the location
+// ambiguous. Returns null otherwise — a wrong guess is worse than no guess.
+export function findApproximateMatch(noteText: string, target: string): ApproximateMatchRange | null {
+	const targetTokens = tokenizeForSimilarity(target);
+	if (targetTokens.size < APPROXIMATE_MIN_TARGET_TOKENS) {
+		return null;
+	}
+
+	const paragraphs = collectParagraphRanges(noteText);
+	if (paragraphs.length === 0) {
+		return null;
+	}
+
+	const targetParagraphCount = collectParagraphRanges(target).length || 1;
+	// The author may have merged or split paragraphs while rewriting, so
+	// consider windows one paragraph narrower and wider than the target.
+	const windowSizes = new Set<number>([
+		Math.max(1, targetParagraphCount - 1),
+		targetParagraphCount,
+		targetParagraphCount + 1,
+	]);
+
+	let best: ApproximateMatchRange | null = null;
+	let secondBestSimilarity = 0;
+	for (const windowSize of windowSizes) {
+		for (let index = 0; index + windowSize <= paragraphs.length; index += 1) {
+			const first = paragraphs[index];
+			const last = paragraphs[index + windowSize - 1];
+			if (!first || !last) {
+				continue;
+			}
+			const windowTokens = windowSize === 1
+				? first.tokens
+				: tokenizeForSimilarity(noteText.slice(first.start, last.end));
+			const similarity = tokenSetSimilarity(targetTokens, windowTokens);
+			if (!best || similarity > best.similarity) {
+				// Overlapping windows of a true match compete with each other;
+				// only track a non-overlapping runner-up as ambiguity evidence.
+				if (best && !(best.startOffset < last.end && first.start < best.endOffset)) {
+					secondBestSimilarity = Math.max(secondBestSimilarity, best.similarity);
+				}
+				best = { startOffset: first.start, endOffset: last.end, similarity };
+			} else if (!(best.startOffset < last.end && first.start < best.endOffset)) {
+				secondBestSimilarity = Math.max(secondBestSimilarity, similarity);
+			}
+		}
+	}
+
+	if (!best || best.similarity < APPROXIMATE_SIMILARITY_THRESHOLD) {
+		return null;
+	}
+	if (
+		secondBestSimilarity >= APPROXIMATE_SIMILARITY_THRESHOLD
+		&& best.similarity - secondBestSimilarity < APPROXIMATE_AMBIGUITY_MARGIN
+	) {
+		return null;
+	}
+	return best;
+}
+
 export function countNormalizedMatches(noteText: string, text: string): number {
 	const normalizedText = normalizeMatchText(noteText);
 	const normalizedTarget = normalizeMatchText(text);

@@ -295,7 +295,10 @@ export function renderContinueReviewCard(
 	const metaParts: string[] = [];
 	if (entry) {
 		if (entry.pendingCount > 0) {
-			metaParts.push(`${entry.pendingCount} unresolved`);
+			metaParts.push(`${entry.pendingCount} pending`);
+		}
+		if (entry.unresolvedCount > 0) {
+			metaParts.push(`${entry.unresolvedCount} unmatched`);
 		}
 		if (entry.deferredCount > 0) {
 			metaParts.push(`${entry.deferredCount} deferred`);

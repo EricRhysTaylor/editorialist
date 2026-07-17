@@ -3,6 +3,10 @@ import { formatContributorIdentityLabel } from "../core/ContributorIdentity";
 import { getEffectiveSuggestionStatus, getSuggestionCopyBlocks, getSuggestionReason as getOperationSuggestionReason, isImplicitlyAcceptedSuggestion, isMoveSuggestion } from "../core/OperationSupport";
 import type { ReviewSuggestion, SceneMemo } from "../models/ReviewSuggestion";
 import type { default as EditorialistPlugin, ReviewStateIndexEntry } from "../main";
+import {
+	getUnmatchedOpenSuggestionIds,
+	hasOnlyUnmatchedOpenWork,
+} from "../core/review/SuggestionTraversal";
 import { bindImmediateAction } from "./util/bindImmediateAction";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
 // Pure projection helpers extracted to characterize ReviewPanel before the
@@ -330,6 +334,15 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			this.renderPanelOnlyState(panelOnlyState);
 		}
 
+		// Reconciliation card: fires only in the dead-end state where every
+		// locatable suggestion is decided and the ONLY open work left is items
+		// the matcher can't place — passages rewritten past recognition. One
+		// click resolves the tail so the sweep can complete honestly; each card
+		// below keeps its individual controls for item-by-item review.
+		if (hasOnlyUnmatchedOpenWork(session.suggestions)) {
+			this.renderUnmatchedReconcileCard(getUnmatchedOpenSuggestionIds(session.suggestions).length);
+		}
+
 		if (shouldShowReviewerFilters(session.suggestions)) {
 			this.renderFilters();
 		} else {
@@ -510,6 +523,9 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		if (entry.pendingCount > 0) {
 			metaParts.push(`${entry.pendingCount} pending`);
 		}
+		if (entry.unresolvedCount > 0) {
+			metaParts.push(`${entry.unresolvedCount} unmatched`);
+		}
 		if (entry.deferredCount > 0) {
 			metaParts.push(`${entry.deferredCount} deferred`);
 		}
@@ -520,6 +536,34 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			row.createSpan({
 				cls: "editorialist-panel__review-state-row-meta",
 				text: metaParts.join(" · "),
+			});
+		}
+
+		// A scene stuck on nothing but unmatched items gets a one-click
+		// reconciliation shortcut: resume the scene and mark those leftovers as
+		// rewritten. The resolve step re-derives unmatched-ness from the live
+		// session, so a stale count here can't over-resolve.
+		if (
+			!showCleanAction
+			&& entry.pendingCount === 0
+			&& entry.deferredCount === 0
+			&& entry.unresolvedCount > 0
+		) {
+			const resolveButton = row.createEl("button", {
+				cls: "editorialist-panel__review-state-row-clean",
+				attr: {
+					type: "button",
+					"aria-label": `Mark ${entry.unresolvedCount} unmatched item${entry.unresolvedCount === 1 ? "" : "s"} in this scene as rewritten`,
+				},
+			});
+			const resolveIcon = resolveButton.createSpan({ cls: "editorialist-panel__review-state-row-clean-icon" });
+			setIcon(resolveIcon, "search-x");
+			resolveButton.createSpan({
+				cls: "editorialist-panel__review-state-row-clean-text",
+				text: "Resolve",
+			});
+			this.bindImmediateAction(resolveButton, () => {
+				void this.plugin.resolveUnmatchedSuggestionsForNote(entry.notePath);
 			});
 		}
 
@@ -540,6 +584,28 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 				});
 			});
 		}
+	}
+
+	private renderUnmatchedReconcileCard(count: number): void {
+		const card = this.contentEl.createDiv({ cls: "editorialist-panel__reconcile" });
+		const header = card.createDiv({ cls: "editorialist-panel__reconcile-header" });
+		setIcon(header.createSpan({ cls: "editorialist-panel__reconcile-icon" }), "search-x");
+		header.createSpan({
+			cls: "editorialist-panel__reconcile-title",
+			text: count === 1 ? "1 item couldn't be matched" : `${count} items couldn't be matched`,
+		});
+		card.createDiv({
+			cls: "editorialist-panel__reconcile-copy",
+			text: "Every suggestion that could be located is decided. The remaining items no longer match the scene text — most likely passages you already rewrote. Mark them as rewritten to complete this scene, or work through them individually below.",
+		});
+		const actions = card.createDiv({ cls: "editorialist-panel__reconcile-actions" });
+		const resolve = new ButtonComponent(actions)
+			.setButtonText(count === 1 ? "Mark it as rewritten" : `Mark all ${count} as rewritten`)
+			.setCta();
+		resolve.buttonEl.setAttribute("aria-label", "Mark every unmatched item in this scene as rewritten");
+		this.bindImmediateAction(resolve.buttonEl, () => {
+			void this.plugin.resolveUnmatchedSuggestions();
+		});
 	}
 
 	private renderCommentsCard(memos: SceneMemo[]): void {

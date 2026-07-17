@@ -230,6 +230,61 @@ export class ReviewStateMachine {
 		}
 	}
 
+	// Bulk form of markSuggestionRewritten for reconciliation: resolve a tail of
+	// unmatched items in one pass. Mirrors the single-item flow's effect order —
+	// per-id persistence with rollback hooks accumulated in one scope — but runs
+	// the signals/inventory sync and handoff check once at the end instead of N
+	// times. Returns how many suggestions were actually marked.
+	async markSuggestionsRewritten(ids: string[]): Promise<number> {
+		const eligibleIds = ids.filter((id) => this.host.canMarkSuggestionRewritten(id));
+		if (eligibleIds.length === 0) {
+			return 0;
+		}
+
+		const session = this.host.getReviewSession();
+		const tracking = this.host.getCurrentSessionTrackingContext();
+		const { sessionId, sessionStartedAt } = tracking;
+		const scope = new ReviewMutationScope();
+		try {
+			for (const id of eligibleIds) {
+				const suggestion = this.host.getSuggestionById(id);
+				const previousStatus = suggestion?.status ?? null;
+				if (session && suggestion) {
+					await this.host.registry.persistReviewDecision(session.notePath, suggestion, "rewritten", {
+						persist: false,
+						sessionId,
+						sessionStartedAt,
+					});
+					scope.onRollback(() =>
+						this.host.registry.clearPersistedReviewDecision(session.notePath, suggestion, {
+							persist: false,
+						}),
+					);
+				}
+
+				this.host.store.updateSuggestionStatus(id, "rewritten");
+				if (previousStatus) {
+					scope.onRollback(() => this.host.store.updateSuggestionStatus(id, previousStatus));
+				}
+			}
+
+			await this.host.registry.syncReviewerSignalsForSession(this.host.store.getSession(), {
+				persist: false,
+				sessionId,
+				sessionStartedAt,
+			});
+			await this.host.registry.syncSceneInventoryForSession(this.host.store.getSession());
+
+			if (this.handoffApplies(this.host.store.getSession())) {
+				await this.host.enterGuidedSweepHandoff();
+			}
+			return eligibleIds.length;
+		} catch {
+			await this.repairFailedDecision(scope, tracking);
+			return 0;
+		}
+	}
+
 	async deferSuggestion(id: string): Promise<void> {
 		if (!this.host.hasActiveReviewSession()) {
 			return;

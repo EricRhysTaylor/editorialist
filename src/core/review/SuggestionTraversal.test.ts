@@ -5,7 +5,10 @@ import {
 	findPreferredSuggestionId,
 	getAdjacentRevealableSuggestionId,
 	getSuggestionTraversalTier,
+	getUnmatchedOpenSuggestionIds,
 	hasLiveActionableSuggestions,
+	hasOnlyUnmatchedOpenWork,
+	isUnmatchedOpenSuggestion,
 } from "./SuggestionTraversal";
 
 // Minimal edit-suggestion factory. `resolved` controls whether the primary
@@ -102,6 +105,44 @@ describe("hasLiveActionableSuggestions", () => {
 
 	it("false for an empty list", () => {
 		expect(hasLiveActionableSuggestions([])).toBe(false);
+	});
+});
+
+describe("unmatched-open helpers", () => {
+	it("isUnmatchedOpenSuggestion: open without a range => true; open with a range or closed => false", () => {
+		expect(isUnmatchedOpenSuggestion(makeSuggestion("a", "pending", false))).toBe(true);
+		expect(isUnmatchedOpenSuggestion(makeSuggestion("a", "unresolved", false))).toBe(true);
+		expect(isUnmatchedOpenSuggestion(makeSuggestion("a", "pending", true))).toBe(false);
+		expect(isUnmatchedOpenSuggestion(makeSuggestion("a", "rewritten", false))).toBe(false);
+	});
+
+	it("getUnmatchedOpenSuggestionIds collects only the unmatched open items", () => {
+		const list = [
+			makeSuggestion("stuck1", "unresolved", false),
+			makeSuggestion("locatable", "pending", true),
+			makeSuggestion("done", "accepted", false),
+			makeSuggestion("stuck2", "pending", false),
+		];
+		expect(getUnmatchedOpenSuggestionIds(list)).toEqual(["stuck1", "stuck2"]);
+	});
+
+	it("hasOnlyUnmatchedOpenWork: true only when open work exists and none of it is locatable", () => {
+		expect(
+			hasOnlyUnmatchedOpenWork([
+				makeSuggestion("stuck", "unresolved", false),
+				makeSuggestion("done", "accepted", true),
+			]),
+		).toBe(true);
+		// A locatable open item means normal per-card review should continue.
+		expect(
+			hasOnlyUnmatchedOpenWork([
+				makeSuggestion("stuck", "unresolved", false),
+				makeSuggestion("locatable", "pending", true),
+			]),
+		).toBe(false);
+		// No open work at all => nothing to reconcile.
+		expect(hasOnlyUnmatchedOpenWork([makeSuggestion("done", "accepted", true)])).toBe(false);
+		expect(hasOnlyUnmatchedOpenWork([])).toBe(false);
 	});
 });
 

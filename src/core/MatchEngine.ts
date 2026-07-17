@@ -10,7 +10,7 @@ import type {
 	ReviewTargetRef,
 } from "../models/ReviewSuggestion";
 import { rewriteAnchorEdit } from "./AnchorDirective";
-import { findExactMatches, findFuzzyMatches, normalizeMatchText } from "./TextMatching";
+import { findApproximateMatch, findExactMatches, findFuzzyMatches, normalizeMatchText } from "./TextMatching";
 
 interface TextResolution {
 	matchCount: number;
@@ -527,6 +527,27 @@ export class MatchEngine {
 					},
 				};
 			}
+		}
+
+		// Similarity fallback: the target is gone verbatim, but a uniquely
+		// similar passage exists — almost always the author's own rewrite of
+		// the passage this suggestion pointed at. Surface it as an
+		// "approximate" target WITH offsets so the card can jump/reveal for a
+		// side-by-side read, but never as an applicable match (apply paths all
+		// require matchType "exact"); the author decides via Mark as
+		// rewritten / Reject.
+		const approximate = findApproximateMatch(noteText, text);
+		if (approximate) {
+			return {
+				matchCount: 1,
+				target: {
+					text,
+					startOffset: approximate.startOffset,
+					endOffset: approximate.endOffset,
+					matchType: "approximate",
+					reason: `Passage appears rewritten — showing the closest match (${Math.round(approximate.similarity * 100)}% similar). Compare, then mark as rewritten or reject.`,
+				},
+			};
 		}
 
 		return {

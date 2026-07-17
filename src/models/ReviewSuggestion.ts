@@ -25,7 +25,12 @@ export type ReviewStatus = "pending" | "accepted" | "rejected" | "deferred" | "u
 // authorQueryDecisions index, reconciled onto the parsed memo at session build.
 export type AuthorQueryStatus = "open" | "resolved" | "dismissed";
 
-export type MatchType = "exact" | "multiple" | "none" | "already_applied";
+// "approximate": the target text no longer exists verbatim, but a uniquely
+// similar passage was located — almost always the author's own rewrite of the
+// passage the suggestion pointed at. Approximate targets carry offsets (so the
+// card can jump/reveal for side-by-side comparison) but never enable apply;
+// the author decides via Mark as rewritten / Reject.
+export type MatchType = "exact" | "multiple" | "none" | "already_applied" | "approximate";
 
 export type ReviewPlacement = "before" | "after";
 

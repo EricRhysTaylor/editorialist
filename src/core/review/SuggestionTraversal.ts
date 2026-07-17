@@ -57,6 +57,26 @@ export function getSuggestionTraversalTier(
 	return 2;
 }
 
+// An open suggestion the author can no longer act on in the manuscript: no
+// side of it resolves to a text range (the passage was rewritten past even
+// approximate recognition, or removed). These are the items that pin a sweep
+// open after every locatable suggestion has been decided.
+export function isUnmatchedOpenSuggestion(suggestion: ReviewSuggestion): boolean {
+	return isSuggestionOpen(suggestion) && !canRevealSuggestionInManuscript(suggestion);
+}
+
+export function getUnmatchedOpenSuggestionIds(suggestions: readonly ReviewSuggestion[]): string[] {
+	return suggestions.filter(isUnmatchedOpenSuggestion).map((suggestion) => suggestion.id);
+}
+
+// True in the dead-end state: open work remains, but ALL of it is unmatched —
+// the sweep can never complete through normal per-card decisions. Drives the
+// reconciliation card in the review panel.
+export function hasOnlyUnmatchedOpenWork(suggestions: readonly ReviewSuggestion[]): boolean {
+	const open = suggestions.filter(isSuggestionOpen);
+	return open.length > 0 && open.every((suggestion) => !canRevealSuggestionInManuscript(suggestion));
+}
+
 export function findPreferredSuggestionId(suggestions: readonly ReviewSuggestion[]): string | null {
 	for (const tier of [0, 1, 2]) {
 		const match = suggestions.find((suggestion) => getSuggestionTraversalTier(suggestion) === tier);
