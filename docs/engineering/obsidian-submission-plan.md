@@ -1,5 +1,10 @@
 # Obsidian Community Plugin Submission Plan — Editorialist
 
+> **COMPLETED — Editorialist is live in the Obsidian community directory**
+> (id `editorialist`, verified against obsidian-releases community-plugins.json 2026-07-16).
+> This document is retained as the historical submission record only; nothing below is a
+> current blocker. README Downloads badge restored 2026-07-16.
+
 Status snapshot (2026-06-11):
 
 - Repo public at `EricRhysTaylor/Editorialist`; `npm run compliance` passes; 571/571 tests pass.
