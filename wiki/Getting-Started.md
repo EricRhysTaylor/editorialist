@@ -19,8 +19,12 @@ Editorialist registers these commands in the command palette:
 |---|---|
 | **Open review launcher** | Opens the launcher modal to import a review batch or start a pending-edits review |
 | **Open review panel** | Opens the [Review Panel](Review-Panel) in the sidebar |
+| **Open editorialism panel** | Opens the [Editorialisms Panel](Editorialisms-Panel) in the sidebar |
+| **Open pending edits panel** | Opens the [Pending Edits](Pending-Edits) panel in the sidebar |
 | **Review pending edits in active book** | Starts the pending-edits review flow across the active Radial Timeline book |
+| **Rescan review blocks for cleanup** | Re-scans scene notes for review blocks that are ready to be cleaned up |
 | **Backup selection to cut file** | Copies selected text to the scene's cut file without changing the manuscript |
+| **Insert author query** | Inserts a hidden `%%ai: …%%` marker at the cursor so the next AI review answers it — the only command-palette entry point for author queries |
 
 Editorialist ships **no default hotkeys** — assign your own under **Settings → Hotkeys** if you want them.
 

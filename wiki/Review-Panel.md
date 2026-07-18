@@ -1,4 +1,4 @@
-The Review mode is traditional Editorialist: scene-level review batches with line edits, cut / move / condense / expand suggestions, `%%ai question%%` responses, and memos for a scene. Open it with the **Open review panel** command or choose **Review** from the mode menu.
+The Review mode is traditional Editorialist: scene-level review batches with line edits, cut / move / condense / expand suggestions, `%%ai: question%%` responses, and memos for a scene. Open it with the **Open review panel** command or choose **Review** from the mode menu.
 
 ## Idle state
 
@@ -22,8 +22,8 @@ The header controls keep the most common actions close to the review panel:
 |---|---|
 | **Toggle modes** | Switch between Review, [Pending edits](Pending-Edits), and [Editorialisms](Editorialisms-Panel). |
 | **Erase batches** | Remove imported review batches after you are done with them. |
-| **Import Batch** | Paste in a formatted review batch and route it into matching scenes. |
-| **Insert AI directed inline comments** | Add a hidden inline question for the next review pass. |
+| **Open review launcher** | Opens the launcher modal to import a review batch or start a pending-edits review. |
+| **Insert author query** | Adds a hidden `%%ai: …%%` marker for the next review pass. |
 | **Select text and backup to cut file** | Copy selected manuscript text into the scene's cut file. |
 | **Settings** | Open Editorialist settings. |
 
@@ -59,15 +59,51 @@ Each highlighted suggestion gets an inline toolbar in the editor:
 
 | Action | Trigger | Effect |
 |---|---|---|
+| **Previous** | Click | Select the previous suggestion in the session |
+| **Next** | Click | Select the next suggestion in the session |
 | **Apply** (Edit / Cut / Condense / Expand / Move) | Click | Apply this suggestion to the prose |
 | **Apply and advance** | Shift + click | Apply, then jump to the next suggestion |
-| **Apply to all** | Shift + Cmd + click | Apply every applicable suggestion of this kind |
+| **Apply to all** | Shift + Cmd + click | Stage every eligible suggestion in this scene and show a Cancel/Confirm bar — see [Apply to all](#apply-to-all) below |
 | **Defer** | Click | Skip for now; the sweep can finish later |
 | **Rewrite myself** | Click | Take the suggestion as a prompt and write your own version |
 | **Backup to cut file** | Click | Archive the target text to the [cut file](Settings-Reference#configuration-tab) before deciding |
 | **Open cut file** | Shift + click Backup to cut file | Open the scene's cut file |
 | **Reject** | Click | Decline the suggestion |
+| **Undo** | Click | Replaces Reject once you've just applied a change — undoes that single applied edit (see [Undo](#undo)) |
 | **Hide toolbar** | Click | Dismiss the overlay without deciding |
+| **`*` legend** | Hover or focus | Reveals a compact reference for every action's icon and modifier-key shortcut |
+
+An **↑ / ↓** indicator next to the Hide-toolbar button shows, for Move suggestions, whether the destination anchor is above or below the highlighted text.
+
+### Status chips
+
+The toolbar's meta row shows the current operation type, plus:
+
+- **Scene progress** — a label for where this scene sits in a multi-scene sweep.
+- **`Entry n/N`** — the selected suggestion's position among all suggestions in the session.
+- Conditional counts, shown only when their count is greater than 0: **N accepted**, **N pending**, **N rejected**, **N unresolved** (hover for which suggestion numbers), **N deferred**, **N rewritten**.
+- A green **"sweep complete"** chip once every suggestion in the scene has a resolved status.
+
+### Apply to all
+
+Shift + Cmd + click on **Apply** stages every eligible suggestion in the current scene — not just suggestions of the same type as the one you clicked — and swaps the toolbar into a **"Apply to all?"** confirm bar showing how many changes are staged, with **Cancel** and **Confirm** buttons. Nothing is written to the note until you click **Confirm**. Suggestions that are unresolved (their target text couldn't be matched), already decided, or moves (which need a destination decided individually) aren't included.
+
+### Toolbar modes
+
+The toolbar isn't only the per-suggestion editor above — it switches to a different mode depending on where you are in the sweep. In order of priority:
+
+| Mode | When you see it | Title | Actions |
+|---|---|---|---|
+| **pending_edits_review** | Working the [Pending Edits](Pending-Edits) queue | "Pending edits" | Previous, Next (leave item in pending edits), Complete and remove from pending edits, Backup to cut file |
+| **applied_review** | Reviewing changes just written by Apply to all | "Review applied changes" | Previous, Next, Undo |
+| **completed_review** | Every suggestion in the batch is resolved | "All revisions complete" | Previous, Next, Undo (if a change is still undoable) |
+| **accepted_review** | Nothing else needs a decision but you're looking back at what was accepted | "Review accepted changes" | Previous, Next, Undo (if available) |
+| **handoff** | The current scene's revision notes are all resolved and the sweep can move on | "Scene complete" (or "Note complete"), or "All revision notes are resolved" on the final scene | Next scene / Finish sweep |
+| **panel** | Open suggestions remain further down the note than the visible editor viewport | "Continue in this scene" / "this note" | none — resume from the side panel, not the editor toolbar |
+| **bulk_confirm** | Right after Shift + Cmd + click on Apply | "Apply to all?" | Cancel, Confirm |
+| **review** | A suggestion is selected and still open | operation badge + status chips | the full action set above |
+
+`handoff`, `panel`, and the "All revisions complete" state of `completed_review` are ordinary stops in a normal sweep, not error states — they mean, respectively: this scene is done and ready to advance; there's more to do further down the note than fits the current view; and the whole batch is fully decided.
 
 ### Cut-file preview
 
@@ -87,7 +123,9 @@ pending ──→ accepted
        ──→ unresolved  (couldn't be matched or needs attention)
 ```
 
-Decisions are undoable during the session. Suggestions whose target text can't be found in the note (paraphrased targets, already-applied edits) are flagged by match type — exact, multiple matches, not found, or already applied — so nothing is ever applied against the wrong text.
+### Undo
+
+Only the single most-recently applied change can be undone, and only for as long as you stay on that note — navigate away and it's final. Rejecting, deferring, and rewriting have no undo. Suggestions whose target text can't be found in the note (paraphrased targets, already-applied edits) are flagged by match type — exact, multiple matches, not found, or already applied — so nothing is ever applied against the wrong text.
 
 ### Sweep completion
 
@@ -95,4 +133,4 @@ A sweep finishes only when every suggestion in the batch has a resolved status (
 
 ## Pending-edits review
 
-Pending edits now have their own [Pending Edits](Pending-Edits) mode. The Review panel still points to that queue when the active book or current scene has pending author notes or Radial Timeline Inquiry follow-ups.
+See [Pending Edits](Pending-Edits) — its own panel mode, which the Review panel points to when the active book or current scene has pending author notes or Radial Timeline Inquiry follow-ups.

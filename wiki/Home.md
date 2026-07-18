@@ -12,6 +12,10 @@ The plugin does not rewrite your prose on import. Line edits, memos, author ques
 >
 > Editorialist can use [Radial Timeline](https://community.obsidian.md/plugins/radial-timeline) for active-book scope and scene IDs, but it also works on its own.
 
+## AI-Agnostic by Design
+
+Editorialist ships a review format, not an AI. It makes no network calls and holds no API keys — a review batch is just text you paste in, however it was produced. It works the same way with an AI model, a human editor, or beta readers: whoever (or whatever) can follow the format can contribute suggestions.
+
 ## What It Helps With
 
 - Turning AI, editor, or beta-reader feedback into reviewable suggestions.
@@ -39,7 +43,7 @@ The standard Review workflow supports a full set of scene-level editorial moves:
 
 | Mode | Use it for |
 |---|---|
-| **Review** | Traditional Editorialist review batches: scene-level edits such as expand, condense, cut, move, and line edits, plus `%%ai question%%` responses and scene memos. Each scene can carry multiple batches from different manuscript shares or review passes. |
+| **Review** | Traditional Editorialist review batches: scene-level edits such as expand, condense, cut, move, and line edits, plus `%%ai: question%%` responses and scene memos. Each scene can carry multiple batches from different manuscript shares or review passes. |
 | **Pending edits** | Author pending-edit notes and Radial Timeline Inquiry follow-ups gathered across the active book, then walked scene by scene. |
 | **Editorialisms** | Manuscript-wide commentary: structural guidance, theme/subplot notes, and general feedback with no line edits. |
 

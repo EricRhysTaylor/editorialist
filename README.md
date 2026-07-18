@@ -29,12 +29,20 @@ Editorialist turns outside feedback into a controlled revision workflow inside O
 - **Editorialisms** are separate structural checklist files under `Editorialist/<Book>/`; use them for broader guidance that spans scenes or the whole manuscript.
 - Maintenance actions can clean review blocks or reset history, and bulk actions ask for confirmation.
 
+## AI-agnostic by design
+
+Editorialist ships a format, not an AI. It never makes a network call and holds no API keys — every review batch is text you paste in from whatever produced it: an AI conversation, a human editor's notes, or beta-reader feedback. Any model or reviewer that can follow the format works.
+
 ## Commands
 
 - `Open review launcher` — opens the launcher modal to import a review batch or start pending-edits review.
 - `Open review panel` — opens the review side panel for the active note.
+- `Open editorialism panel` — opens the Editorialisms panel for structural guidance documents.
+- `Open pending edits panel` — opens the Pending edits panel for author notes and Inquiry follow-ups.
 - `Review pending edits in active book` — starts the pending-edits review flow across the active book.
+- `Rescan review blocks for cleanup` — re-scans scene notes for review blocks ready to be cleaned.
 - `Backup selection to cut file` — copies the selected text into the scene's cut file without changing the manuscript. Also available from the editor right-click menu when text is selected.
+- `Insert author query` — drops a hidden `%%ai: …%%` marker into the scene at the cursor, so the next AI review answers it in a `QUERY` block. Also available from the editor right-click menu.
 
 Editorialist ships no default hotkeys. Assign your own from Obsidian's hotkey settings.
 

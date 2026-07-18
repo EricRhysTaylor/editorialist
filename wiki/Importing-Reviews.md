@@ -69,16 +69,28 @@ The lines before the first `=== SECTION ===` marker identify the batch and the c
 
 ### Operations
 
-`MEMO` carries editorial commentary; the five operations below it are actionable suggestions (their UI labels are **Edit**, **Move**, **Cut**, **Condense**, **Expand**):
+`MEMO` and `QUERY` carry commentary rather than a line edit — neither ever applies to the prose. The five operations below them are actionable suggestions (their UI labels are **Edit**, **Move**, **Cut**, **Condense**, **Expand**):
 
 | Section | Fields | What it does |
 |---|---|---|
 | `=== MEMO ===` | freeform, optional `Strengths:` / `Issues:`, optional `SceneId:` | Commentary that doesn't belong inline as a line edit. A MEMO **with** a `SceneId` attaches to that scene only; a MEMO **without** one is duplicated to every scene that received edits in the batch. Use as many as needed. |
+| `=== QUERY ===` | `Id:`, optional `SceneId:`, `Question:`, `Answer:`, optional `Recommendation:` | Answers an author query — a hidden `%%ai: …%%` marker the author left inline. See [Author queries](#author-queries) below. |
 | `=== EDIT ===` | `SceneId:`, `Original:`, `Revised:`, `Why:` | Replace `Original` text with a specific suggested change. |
 | `=== MOVE ===` | `SceneId:`, `Target:`, `Before:` (or `After:`), `Why:` | Relocate the target passage relative to a destination anchor. |
 | `=== CUT ===` | `SceneId:`, `Target:`, `Why:` | Remove the target passage. Accepted cuts can be [backed up to a cut file](Settings-Reference#configuration-tab) first. |
 | `=== CONDENSE ===` | `SceneId:`, `Target:`, `Suggestion:`, `Why:` | Tighten the passage between two anchors into the suggested replacement. |
 | `=== EXPAND ===` | `SceneId:`, `Target:`, optional `Suggestion:`, `Why:` | Develop, slow down, or decompress a beat with finished prose or advisory guidance. |
+
+### Author queries
+
+An author query is a hidden `%%ai: <question>%%` marker you leave inline in a scene — run **Insert author query** (command palette, editor right-click menu, or the Review Panel's header button) to drop one at the cursor. It never renders in reading view; it just waits for the next review pass.
+
+The round trip:
+
+1. **Marker.** You (or Editorialist's **Insert author query** action) write `%%ai: <question>%%` into the scene.
+2. **Template.** When you copy the formatting instructions, Editorialist finds every marker in the passage, strips it from the copy sent to the reviewer, and lists the questions with instructions to answer each one in its own `=== QUERY ===` block.
+3. **QUERY answer.** The reviewer's reply includes a `=== QUERY ===` section per question: the repeated `Question:`, a direct `Answer:`, and an optional one-line `Recommendation:`.
+4. **Resolve or dismiss.** On import, the answer routes back to the scene the marker sits in. Resolving a query strips the matching `%%ai:…%%` marker from the note; dismissing it records your decision but leaves the marker in place for a later pass.
 
 ### CONDENSE anchor pairs
 
