@@ -1,10 +1,10 @@
 # Agent Instructions — Editorialist
 
-Applies to all coding agents (Claude Code, Codex — AGENTS.md is a symlink to this file). Company-wide context and shared doctrine: `/Users/ericrhystaylor/Documents/RT LLC/CLAUDE.md`.
+Applies to all coding agents (Claude Code, Codex — AGENTS.md is a symlink to this file). Company-wide context and shared doctrine: `/Users/ericrhystaylor/Documents/Radial Timeline LLC/CLAUDE.md`.
 
 ## Working directory
 
-Main repo: `/Users/ericrhystaylor/Documents/RT LLC/Plugin/Editorialist`
+Main repo: `/Users/ericrhystaylor/Documents/Radial Timeline LLC/Plugin/Editorialist`
 Primary branch: `main`
 
 ## Code standards

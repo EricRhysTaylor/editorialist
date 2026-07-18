@@ -4,8 +4,8 @@ import path from "node:path";
 const ROOT = process.cwd();
 const TARGET_DIRS = [
 	"/Users/ericrhystaylor/Obsidian Vault Author/.obsidian/plugins/editorialist",
-	"/Users/ericrhystaylor/Documents/RT LLC/Demo Vaults/Obsidian Vault Pride & Prejudice/.obsidian/plugins/editorialist",
-	"/Users/ericrhystaylor/Documents/RT LLC/Plugin/Test Vaults/Obsidian Vault Sherlock Holmes/.obsidian/plugins/editorialist",
+	"/Users/ericrhystaylor/Documents/Radial Timeline LLC/Demo Vaults/Obsidian Vault Pride & Prejudice/.obsidian/plugins/editorialist",
+	"/Users/ericrhystaylor/Documents/Radial Timeline LLC/Plugin/Test Vaults/Obsidian Vault Sherlock Holmes/.obsidian/plugins/editorialist",
 ];
 const TARGET_LABEL = "/Author/ and /Pride & Prejudice/ and /Sherlock Holmes/";
 const FILES_TO_COPY = ["manifest.json", "main.js", "styles.css"];
