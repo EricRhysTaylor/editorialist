@@ -2,8 +2,7 @@ import { ButtonComponent, Notice, PluginSettingTab, setIcon, TFile, ToggleCompon
 import { formatReviewerTypeLabel } from "../core/ContributorIdentity";
 import {
 	renderContributorBrandMark,
-	resolveContributorBrand,
-	type ContributorBrand,
+	resolveContributorAvatarKind,
 } from "../core/ContributorBrandMarks";
 import {
 	CONTRIBUTOR_ROLE_DEFINITIONS,
@@ -1687,35 +1686,24 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		parent: HTMLElement,
 		profile: ReturnType<EditorialistPlugin["getSortedReviewerProfiles"]>[number],
 	): void {
-		const aiBrand = profile.kind === "ai" ? this.getContributorAvatarBrand(profile) : null;
+		const avatarKind = resolveContributorAvatarKind(profile);
+		const isAiStyle = avatarKind !== "person";
+		const brand = avatarKind === "person" || avatarKind === "generic-ai" ? null : avatarKind;
 		const avatar = parent.createDiv({
-			cls: `editorialist-settings__contributor-avatar${profile.kind === "ai" ? " is-ai" : ""}${profile.isStarred ? " is-starred" : ""}${aiBrand ? ` is-provider-${aiBrand}` : ""}`,
+			cls: `editorialist-settings__contributor-avatar${isAiStyle ? " is-ai" : ""}${profile.isStarred ? " is-starred" : ""}${brand ? ` is-provider-${brand}` : ""}`,
 		});
 		const icon = avatar.createSpan({ cls: "editorialist-settings__contributor-avatar-icon" });
-		if (profile.kind === "ai") {
-			const brand = this.getContributorAvatarBrand(profile);
-			if (brand === "generic") {
-				setIcon(icon, "cpu");
-				return;
-			}
-
+		if (brand) {
 			icon.addClass("is-brand");
 			renderContributorBrandMark(icon, brand);
 			return;
 		}
+		if (avatarKind === "generic-ai") {
+			setIcon(icon, "cpu");
+			return;
+		}
 
 		setIcon(icon, profile.isStarred ? "user-star" : "user-round");
-	}
-
-	private getContributorAvatarBrand(
-		profile: ReturnType<EditorialistPlugin["getSortedReviewerProfiles"]>[number],
-	): ContributorBrand | "generic" {
-		return resolveContributorBrand({
-			aliases: profile.aliases,
-			displayName: profile.displayName,
-			model: profile.model,
-			provider: profile.provider,
-		});
 	}
 
 	private renderContributorUseIcons(

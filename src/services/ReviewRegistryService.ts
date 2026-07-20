@@ -46,6 +46,7 @@ import {
 	EDITORIALIST_PLUGIN_DATA_VERSION,
 	defaultEditorialistSettings,
 	normalizeEditorialistSettings,
+	positiveNumber,
 } from "./PluginDataMigration";
 
 interface ReviewActivitySummary {
@@ -170,11 +171,22 @@ export class ReviewRegistryService {
 		};
 	}
 
-	// Merge a partial effort-settings patch. Caller persists via savePluginData().
+	// Merge a partial effort-settings patch, clamping each field the same way
+	// load-time normalization does — a 0/negative/NaN patch value would
+	// otherwise stay live (Infinity/NaN estimates) until the next reload.
+	// Invalid fields keep their current value. Caller persists via
+	// savePluginData().
 	setEffortSettings(patch: Partial<EditorialistEffortSettings>): void {
+		const current = this.settings.effort;
+		const merged = { ...current, ...patch };
 		this.settings = {
 			...this.settings,
-			effort: { ...this.settings.effort, ...patch },
+			effort: {
+				wordsPerNewScene: positiveNumber(merged.wordsPerNewScene, current.wordsPerNewScene),
+				draftRateWordsPerHour: positiveNumber(merged.draftRateWordsPerHour, current.draftRateWordsPerHour),
+				minutesPerDirective: positiveNumber(merged.minutesPerDirective, current.minutesPerDirective),
+				dailyWritingHours: positiveNumber(merged.dailyWritingHours, current.dailyWritingHours),
+			},
 		};
 	}
 

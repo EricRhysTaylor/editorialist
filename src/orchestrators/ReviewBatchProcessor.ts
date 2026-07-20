@@ -273,16 +273,28 @@ export class ReviewBatchProcessor {
 			}
 		}
 
+		// Re-locate against the LIVE buffer: inspectReviewBatch and the duplicate
+		// modal above both yield, so the author (or a sync) may have edited the
+		// note meanwhile — splicing the pre-await snapshot into setValue would
+		// silently overwrite those edits. Proceed only if the block is still
+		// present with identical text; otherwise touch nothing.
+		const liveText = context.view.editor.getValue();
+		const liveBlock = findUnimportedReviewBlock(liveText);
+		if (!liveBlock || liveText.slice(liveBlock.startOffset, liveBlock.endOffset) !== rawBlockText) {
+			new Notice("The note changed while formalizing — nothing was modified. Run the command again.");
+			return;
+		}
+
 		// Canonicalize as we stamp: rebuild the block from its body with an
 		// `editorialist-review` fence regardless of how the author/AI fenced it
 		// (a generic ``` fence would otherwise survive normalization and never get
 		// the BatchId/ImportedBy stamp, orphaning the block from cleanup). The
 		// classifier guarantees this body carries no prior stamp.
 		const stampedBlock = createReviewBlock(
-			[`BatchId: ${batch.batchId}`, "ImportedBy: Editorialist", targetBlock.bodyText.trim()].join("\n"),
+			[`BatchId: ${batch.batchId}`, "ImportedBy: Editorialist", liveBlock.bodyText.trim()].join("\n"),
 		);
 		const nextText =
-			currentText.slice(0, targetBlock.startOffset) + stampedBlock + currentText.slice(targetBlock.endOffset);
+			liveText.slice(0, liveBlock.startOffset) + stampedBlock + liveText.slice(liveBlock.endOffset);
 		context.view.editor.setValue(nextText);
 
 		await this.host.recordImportedBatch(

@@ -4263,14 +4263,17 @@
 }
 
 .editorialist-contributor-modal__rename-editor .editorialist-contributor-modal__input {
-	padding: 0.45rem 0.65rem;
+	padding: 0.45rem 0.75rem;
 }
 
 .editorialist-contributor-modal__rename-link {
 	display: inline-flex;
 	align-items: center;
 	align-self: flex-start;
-	padding: 0;
+
+	/* Some themes give <button> a filled background despite the transparent
+	   override; keep horizontal padding so the label never hugs the edge. */
+	padding: 0.35rem 0.75rem;
 	border: none;
 	background: transparent;
 	color: var(--text-muted);
@@ -4301,6 +4304,7 @@
 
 .editorialist-contributor-modal__input--rename {
 	width: min(22rem, 100%);
+	padding: 0.45rem 0.75rem;
 }
 
 .editorialist-contributor-modal__select--fit {

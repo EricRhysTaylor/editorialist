@@ -182,8 +182,12 @@ export function findApproximateMatch(noteText: string, target: string): Approxim
 		targetParagraphCount + 1,
 	]);
 
-	let best: ApproximateMatchRange | null = null;
-	let secondBestSimilarity = 0;
+	// Score every window first, then judge ambiguity against the FINAL winner.
+	// A single pass that tracks the runner-up incrementally compares each
+	// window against whichever candidate led at that moment, so a strong
+	// non-overlapping candidate seen early could be dropped from the ambiguity
+	// evidence once a later window took the lead.
+	const candidates: ApproximateMatchRange[] = [];
 	for (const windowSize of windowSizes) {
 		for (let index = 0; index + windowSize <= paragraphs.length; index += 1) {
 			const first = paragraphs[index];
@@ -195,21 +199,31 @@ export function findApproximateMatch(noteText: string, target: string): Approxim
 				? first.tokens
 				: tokenizeForSimilarity(noteText.slice(first.start, last.end));
 			const similarity = tokenSetSimilarity(targetTokens, windowTokens);
-			if (!best || similarity > best.similarity) {
-				// Overlapping windows of a true match compete with each other;
-				// only track a non-overlapping runner-up as ambiguity evidence.
-				if (best && !(best.startOffset < last.end && first.start < best.endOffset)) {
-					secondBestSimilarity = Math.max(secondBestSimilarity, best.similarity);
-				}
-				best = { startOffset: first.start, endOffset: last.end, similarity };
-			} else if (!(best.startOffset < last.end && first.start < best.endOffset)) {
-				secondBestSimilarity = Math.max(secondBestSimilarity, similarity);
-			}
+			candidates.push({ startOffset: first.start, endOffset: last.end, similarity });
 		}
 	}
 
+	let best: ApproximateMatchRange | null = null;
+	for (const candidate of candidates) {
+		if (!best || candidate.similarity > best.similarity) {
+			best = candidate;
+		}
+	}
 	if (!best || best.similarity < APPROXIMATE_SIMILARITY_THRESHOLD) {
 		return null;
+	}
+
+	// Overlapping windows of a true match compete with each other; only a
+	// non-overlapping runner-up counts as ambiguity evidence.
+	let secondBestSimilarity = 0;
+	for (const candidate of candidates) {
+		if (candidate === best) {
+			continue;
+		}
+		const overlapsBest = candidate.startOffset < best.endOffset && best.startOffset < candidate.endOffset;
+		if (!overlapsBest) {
+			secondBestSimilarity = Math.max(secondBestSimilarity, candidate.similarity);
+		}
 	}
 	if (
 		secondBestSimilarity >= APPROXIMATE_SIMILARITY_THRESHOLD

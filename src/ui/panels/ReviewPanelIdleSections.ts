@@ -15,7 +15,7 @@
 // fires; this module owns the render bodies the panel dispatches to.
 
 import { setIcon } from "obsidian";
-import { renderContributorBrandMark, resolveContributorBrand } from "../../core/ContributorBrandMarks";
+import { renderContributorBrandMark, resolveContributorAvatarKind } from "../../core/ContributorBrandMarks";
 import { formatReviewerTypeLabel } from "../../core/ContributorIdentity";
 import { isPathInFolderScope } from "../../core/VaultScope";
 import { isBatchReadyToClean } from "../../core/review/SweepCompletion";
@@ -497,33 +497,25 @@ export function renderContributorsBlock(plugin: EditorialistPlugin, parent: HTML
 	for (const profile of profiles) {
 		const row = list.createDiv({ cls: "editorialist-panel__contributors-row" });
 
-		const aiBrand = profile.kind === "ai"
-			? resolveContributorBrand({
-				aliases: profile.aliases,
-				displayName: profile.displayName,
-				model: profile.model,
-				provider: profile.provider,
-			})
-			: null;
+		const avatarKind = resolveContributorAvatarKind(profile);
+		const brand = avatarKind === "person" || avatarKind === "generic-ai" ? null : avatarKind;
 		const avatarClasses = ["editorialist-panel__contributors-avatar"];
-		if (profile.kind === "ai") {
+		if (avatarKind !== "person") {
 			avatarClasses.push("is-ai");
 		}
 		if (profile.isStarred) {
 			avatarClasses.push("is-starred");
 		}
-		if (aiBrand && aiBrand !== "generic") {
-			avatarClasses.push(`is-provider-${aiBrand}`);
+		if (brand) {
+			avatarClasses.push(`is-provider-${brand}`);
 		}
 		const avatar = row.createSpan({ cls: avatarClasses.join(" ") });
 		const avatarIcon = avatar.createSpan({ cls: "editorialist-panel__contributors-avatar-icon" });
-		if (profile.kind === "ai") {
-			if (aiBrand && aiBrand !== "generic") {
-				avatarIcon.addClass("is-brand");
-				renderContributorBrandMark(avatarIcon, aiBrand);
-			} else {
-				setIcon(avatarIcon, "cpu");
-			}
+		if (brand) {
+			avatarIcon.addClass("is-brand");
+			renderContributorBrandMark(avatarIcon, brand);
+		} else if (avatarKind === "generic-ai") {
+			setIcon(avatarIcon, "cpu");
 		} else {
 			setIcon(avatarIcon, profile.isStarred ? "user-star" : "user-round");
 		}

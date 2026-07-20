@@ -163,7 +163,9 @@ export function inferContributorKind(raw: ParsedContributorReference): Contribut
 		return "ai";
 	}
 
-	if (/^(gpt|claude|gemini|chatgpt|grok|llama|mistral|deepseek|o\d)/.test(rawNameKey)) {
+	if (
+		/^(gpt|claude|gemini|chatgpt|grok|llama|mistral|deepseek|o\d|fable|mythos|anthropic|openai)/.test(rawNameKey)
+	) {
 		return "ai";
 	}
 

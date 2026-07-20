@@ -2,13 +2,19 @@ import { TextComponent, setIcon, type App } from "obsidian";
 import { PromiseModal } from "./modals/PromiseModal";
 import { buildModalFooter, type ModalFooter } from "./primitives/ModalFooter";
 import { formatReviewerTypeLabel } from "../core/ContributorIdentity";
+import { renderContributorBrandMark, type ContributorBrand } from "../core/ContributorBrandMarks";
 import {
 	CONTRIBUTOR_ROLE_DEFINITIONS,
 	CONTRIBUTOR_STRENGTH_DEFINITIONS,
 	type ContributorRoleDefinition,
 	type ContributorStrengthDefinition,
 } from "../core/ContributorStrengths";
-import type { ContributorStrength, ContributorProfile, ReviewerType } from "../models/ContributorProfile";
+import type {
+	ContributorAvatarOverride,
+	ContributorStrength,
+	ContributorProfile,
+	ReviewerType,
+} from "../models/ContributorProfile";
 
 interface ContributorStrengthsModalOptions {
 	profile: ContributorProfile;
@@ -18,7 +24,27 @@ export interface ContributorStrengthsModalResult {
 	displayName: string;
 	strengths: ContributorStrength[];
 	reviewerType: ReviewerType;
+	// null = "Auto": clear any stored override and derive the avatar from
+	// kind + provider/model brand detection.
+	avatar: ContributorAvatarOverride | null;
 }
+
+interface AvatarChoiceDefinition {
+	value: ContributorAvatarOverride | null;
+	label: string;
+	icon?: string;
+	brand?: ContributorBrand;
+}
+
+const AVATAR_CHOICE_DEFINITIONS: AvatarChoiceDefinition[] = [
+	{ value: null, label: "Auto", icon: "sparkles" },
+	{ value: "person", label: "Person", icon: "user-round" },
+	{ value: "generic-ai", label: "AI chip", icon: "cpu" },
+	{ value: "openai", label: "OpenAI", brand: "openai" },
+	{ value: "anthropic", label: "Anthropic", brand: "anthropic" },
+	{ value: "gemini", label: "Gemini", brand: "gemini" },
+	{ value: "grok", label: "Grok", brand: "grok" },
+];
 
 class ContributorStrengthsModal extends PromiseModal<ContributorStrengthsModalResult> {
 	private displayName: string;
@@ -31,6 +57,7 @@ class ContributorStrengthsModal extends PromiseModal<ContributorStrengthsModalRe
 	private nameTriggerEl: HTMLElement | null = null;
 	private selectedStrengths = new Set<ContributorStrength>();
 	private selectedRole: ReviewerType | null;
+	private selectedAvatar: ContributorAvatarOverride | null;
 	private footer: ModalFooter | null = null;
 
 	constructor(
@@ -40,6 +67,7 @@ class ContributorStrengthsModal extends PromiseModal<ContributorStrengthsModalRe
 		super(app);
 		this.displayName = options.profile.displayName;
 		this.selectedRole = options.profile.reviewerType;
+		this.selectedAvatar = options.profile.avatar ?? null;
 	}
 
 	protected renderContent(): void {
@@ -122,6 +150,17 @@ class ContributorStrengthsModal extends PromiseModal<ContributorStrengthsModalRe
 			roleSyncCallbacks.push(this.createRoleTile(roleGrid, definition, roleSyncCallbacks));
 		}
 
+		const avatarSection = this.contentEl.createDiv({ cls: "editorialist-contributor-modal__section" });
+		avatarSection.createDiv({
+			cls: "editorialist-contributor-modal__label",
+			text: "Avatar",
+		});
+		const avatarGrid = avatarSection.createDiv({ cls: "editorialist-contributor-modal__tile-grid" });
+		const avatarSyncCallbacks: Array<() => void> = [];
+		for (const definition of AVATAR_CHOICE_DEFINITIONS) {
+			avatarSyncCallbacks.push(this.createAvatarTile(avatarGrid, definition, avatarSyncCallbacks));
+		}
+
 		const detailSection = this.contentEl.createDiv({ cls: "editorialist-contributor-modal__section" });
 		const detailToggle = detailSection.createEl("button", {
 			cls: "editorialist-contributor-modal__detail-toggle",
@@ -162,6 +201,7 @@ class ContributorStrengthsModal extends PromiseModal<ContributorStrengthsModalRe
 							displayName: this.displayName.trim(),
 							strengths: [...this.selectedStrengths],
 							reviewerType: this.selectedRole,
+							avatar: this.selectedAvatar,
 						});
 					},
 				},
@@ -203,6 +243,41 @@ class ContributorStrengthsModal extends PromiseModal<ContributorStrengthsModalRe
 				sync();
 			}
 			this.footer?.syncDisabled();
+		});
+
+		return syncState;
+	}
+
+	private createAvatarTile(
+		parent: HTMLElement,
+		definition: AvatarChoiceDefinition,
+		allSyncCallbacks: Array<() => void>,
+	): () => void {
+		const tile = parent.createEl("button", {
+			cls: "editorialist-contributor-modal__tile",
+			attr: { type: "button", title: definition.label, "aria-label": definition.label },
+		});
+		const icon = tile.createSpan({ cls: "editorialist-contributor-modal__tile-icon" });
+		if (definition.brand) {
+			renderContributorBrandMark(icon, definition.brand);
+		} else if (definition.icon) {
+			setIcon(icon, definition.icon);
+		}
+		tile.createSpan({
+			cls: "editorialist-contributor-modal__tile-label",
+			text: definition.label,
+		});
+
+		const syncState = () => {
+			tile.toggleClass("is-selected", this.selectedAvatar === definition.value);
+		};
+		syncState();
+
+		tile.addEventListener("click", () => {
+			this.selectedAvatar = definition.value;
+			for (const sync of allSyncCallbacks) {
+				sync();
+			}
 		});
 
 		return syncState;

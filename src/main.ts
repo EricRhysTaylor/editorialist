@@ -1301,8 +1301,20 @@ export default class EditorialistPlugin extends Plugin {
 		if (!(file instanceof TFile)) {
 			return;
 		}
+		// The pattern is built from the AI-echoed question, which may be a
+		// paraphrase of the original %%ai:…%% marker. When it finds nothing, say
+		// so — a silently surviving marker gets re-asked on every future export.
 		const pattern = buildAuthorQueryMarkerPattern(question);
-		await this.app.vault.process(file, (text) => text.replace(pattern, ""));
+		let stripped = false;
+		await this.app.vault.process(file, (text) => {
+			stripped = pattern.test(text);
+			return stripped ? text.replace(pattern, "") : text;
+		});
+		if (!stripped) {
+			new Notice(
+				"Query resolved, but its %%ai:…%% marker was not found in the scene (the review may have reworded the question). Remove the marker manually so it is not re-asked.",
+			);
+		}
 	}
 
 	private resolveCutBackupSource(preferDisplayedSuggestion: boolean): CutBackupSource | null {

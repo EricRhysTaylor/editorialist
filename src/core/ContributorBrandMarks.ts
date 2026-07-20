@@ -10,8 +10,25 @@
 // so the exact logo remains reusable in future contributor surfaces.
 
 import { normalizeContributorValue } from "./ContributorIdentity";
+import type { ContributorAvatarOverride, ContributorKind } from "../models/ContributorProfile";
 
 export type ContributorBrand = "openai" | "anthropic" | "gemini" | "grok";
+
+// What an avatar actually renders as, after applying any explicit override and
+// falling back to brand auto-detection.
+export type ContributorAvatarKind = ContributorBrand | "generic-ai" | "person";
+
+const CONTRIBUTOR_AVATAR_OVERRIDES: ReadonlyArray<ContributorAvatarOverride> = [
+	"person",
+	"generic-ai",
+	"openai",
+	"anthropic",
+	"gemini",
+	"grok",
+];
+
+export const isContributorAvatarOverride = (value: unknown): value is ContributorAvatarOverride =>
+	typeof value === "string" && (CONTRIBUTOR_AVATAR_OVERRIDES as ReadonlyArray<string>).includes(value);
 
 export interface ContributorBrandLookup {
 	aliases?: ReadonlyArray<string>;
@@ -28,7 +45,12 @@ export const resolveContributorBrand = (
 		parts.filter((value): value is string => Boolean(value?.trim())).join(" "),
 	);
 
-	if (signature.includes("claude") || signature.includes("anthropic")) {
+	if (
+		signature.includes("claude")
+		|| signature.includes("anthropic")
+		|| signature.includes("fable")
+		|| signature.includes("mythos")
+	) {
 		return "anthropic";
 	}
 
@@ -50,6 +72,27 @@ export const resolveContributorBrand = (
 	}
 
 	return "generic";
+};
+
+// Single source for what a contributor's avatar shows: an explicit override
+// wins outright (so the author can pin a provider mark or a person thumbnail
+// regardless of role), otherwise kind + brand auto-detection decide.
+export const resolveContributorAvatarKind = (profile: {
+	kind: ContributorKind;
+	avatar?: ContributorAvatarOverride;
+	aliases?: ReadonlyArray<string>;
+	displayName?: string;
+	model?: string;
+	provider?: string;
+}): ContributorAvatarKind => {
+	if (profile.avatar) {
+		return profile.avatar;
+	}
+	if (profile.kind !== "ai") {
+		return "person";
+	}
+	const brand = resolveContributorBrand(profile);
+	return brand === "generic" ? "generic-ai" : brand;
 };
 
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";

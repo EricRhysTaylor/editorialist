@@ -1,4 +1,4 @@
-import { ItemView, TFile, debounce, setIcon, type WorkspaceLeaf } from "obsidian";
+import { ItemView, TFile, debounce, setIcon, type Debouncer, type WorkspaceLeaf } from "obsidian";
 import type EditorialistPlugin from "../main";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
 import type { PendingEditsSummary } from "../orchestrators/PendingEditsCoordinator";
@@ -10,6 +10,7 @@ export const PENDING_EDITS_PANEL_VIEW_TYPE = "editorialist-pending-edits-panel";
 // of the review and editorialism views, swapped in the same leaf.
 export class PendingEditsPanel extends ItemView {
 	private summary: PendingEditsSummary | null = null;
+	private refreshDebounced: Debouncer<[], void> | null = null;
 
 	constructor(leaf: WorkspaceLeaf, private readonly plugin: EditorialistPlugin) {
 		super(leaf);
@@ -30,11 +31,11 @@ export class PendingEditsPanel extends ItemView {
 	async onOpen(): Promise<void> {
 		this.contentEl.addClass("editorialist-pending-panel");
 
-		const refreshDebounced = debounce(() => void this.refresh(), 600);
+		this.refreshDebounced = debounce(() => void this.refresh(), 600);
 		this.registerEvent(
 			this.app.vault.on("modify", (file) => {
 				if (file instanceof TFile && file.extension === "md") {
-					refreshDebounced();
+					this.refreshDebounced?.();
 				}
 			}),
 		);
@@ -47,6 +48,13 @@ export class PendingEditsPanel extends ItemView {
 		);
 
 		await this.refresh();
+	}
+
+	async onClose(): Promise<void> {
+		// registerEvent stops new modify events on unload, but a refresh already
+		// queued inside the debounce window would still fire against the
+		// detached view — cancel it.
+		this.refreshDebounced?.cancel();
 	}
 
 	async refresh(): Promise<void> {

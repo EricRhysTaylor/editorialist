@@ -5,8 +5,10 @@ import {
 	reviewerTypeToKind,
 } from "../core/ContributorIdentity";
 import { normalizeContributorStrengths } from "../core/ContributorStrengths";
+import { isContributorAvatarOverride } from "../core/ContributorBrandMarks";
 import type { ReviewContributor } from "../models/ReviewSuggestion";
 import type {
+	ContributorAvatarOverride,
 	ContributorStrength,
 	ParsedContributorReference,
 	ContributorProfile,
@@ -195,6 +197,8 @@ export class ContributorDirectory {
 			displayName: string;
 			reviewerType: ReviewerType;
 			strengths: ContributorStrength[];
+			// undefined = leave unchanged; null = clear back to auto.
+			avatar?: ContributorAvatarOverride | null;
 		},
 	): ContributorProfile | null {
 		const profile = this.getProfileById(reviewerId);
@@ -243,10 +247,12 @@ export class ContributorDirectory {
 		const nextStrengths = this.normalizeStrengths(updates.strengths);
 		const currentStrengths = this.normalizeStrengths(profile.strengths ?? []);
 		const nextModel = nextKind === "ai" ? nextDisplayName : profile.model;
+		const nextAvatar = updates.avatar === undefined ? profile.avatar : updates.avatar ?? undefined;
 		const didChange = profile.displayName !== nextDisplayName
 			|| profile.reviewerType !== updates.reviewerType
 			|| profile.kind !== nextKind
 			|| profile.model !== nextModel
+			|| profile.avatar !== nextAvatar
 			|| JSON.stringify(currentStrengths) !== JSON.stringify(nextStrengths)
 			|| JSON.stringify(profile.aliases.map((alias) => this.normalizeValue(alias)))
 				!== JSON.stringify(normalizedAliases.map((alias) => this.normalizeValue(alias)));
@@ -259,6 +265,7 @@ export class ContributorDirectory {
 		profile.reviewerType = updates.reviewerType;
 		profile.aliases = normalizedAliases;
 		profile.model = nextModel;
+		profile.avatar = nextAvatar;
 		profile.strengths = nextStrengths.length > 0 ? nextStrengths : undefined;
 		profile.updatedAt = Date.now();
 		this.didChange = true;
@@ -517,6 +524,7 @@ export class ContributorDirectory {
 			strengths: this.normalizeStrengths(profile.strengths ?? []),
 			provider: seed.provider,
 			model: seed.model,
+			avatar: isContributorAvatarOverride(profile.avatar) ? profile.avatar : undefined,
 			isStarred: profile.isStarred ?? false,
 			stats: {
 				...this.createEmptyStats(),

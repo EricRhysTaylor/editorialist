@@ -59,8 +59,9 @@ export function defaultEditorialistSettings(): EditorialistSettings {
 }
 
 // Clamp a persisted numeric setting to a positive value, falling back to the
-// default when missing or garbage.
-function positiveNumber(value: unknown, fallback: number): number {
+// default when missing or garbage. Also used by setEffortSettings so a bad
+// value from the settings UI can't go live for the session.
+export function positiveNumber(value: unknown, fallback: number): number {
 	return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : fallback;
 }
 

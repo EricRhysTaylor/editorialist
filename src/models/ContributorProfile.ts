@@ -29,6 +29,16 @@ export type ContributorStrength =
 	| "worldbuilding"
 	| "tightening";
 
+// Explicit avatar choice made in the Edit contributor modal. Absent means
+// "auto": derive the avatar from kind + provider/model brand detection.
+export type ContributorAvatarOverride =
+	| "person"
+	| "generic-ai"
+	| "openai"
+	| "anthropic"
+	| "gemini"
+	| "grok";
+
 export interface ReviewerStats {
 	totalSuggestions: number;
 	accepted: number;
@@ -50,6 +60,7 @@ export interface ContributorProfile {
 	strengths?: ContributorStrength[];
 	provider?: string;
 	model?: string;
+	avatar?: ContributorAvatarOverride;
 	isStarred?: boolean;
 	stats?: ReviewerStats;
 	createdAt: number;
