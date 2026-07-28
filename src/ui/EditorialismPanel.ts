@@ -456,16 +456,9 @@ export class EditorialismPanel extends ItemView {
 			});
 		}
 
-		// A failed jump stays visible on the row rather than living only in a
-		// Notice that has already faded — the author needs to know which passage
-		// moved, not just that one did.
-		if (unlocatedReason) {
-			row.createDiv({
-				cls: "editorialist-editorialism-panel__anchor-warning",
-				text: unlocatedReason,
-			});
-		}
-
+		// Order matters: the row is a three-column grid, and the warning spans
+		// beneath. Creating the jump button before the warning keeps grid
+		// auto-placement filling row one completely.
 		const jump = row.createEl("button", {
 			cls: "editorialist-editorialism-panel__anchor-jump",
 			attr: { type: "button", "aria-label": "Jump to this passage" },
@@ -480,6 +473,16 @@ export class EditorialismPanel extends ItemView {
 		};
 		jump.addEventListener("click", jumpToAnchor);
 		main.addEventListener("click", jumpToAnchor);
+
+		// A failed jump stays visible on the row rather than living only in a
+		// Notice that has already faded — the author needs to know which passage
+		// moved, not just that one did.
+		if (unlocatedReason) {
+			row.createDiv({
+				cls: "editorialist-editorialism-panel__anchor-warning",
+				text: unlocatedReason,
+			});
+		}
 	}
 
 	private async openAnchor(

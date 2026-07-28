@@ -53,11 +53,40 @@ export function isPathInFolderScope(filePath: string, scopeRoot: string): boolea
 	return normalizedFilePath === normalizedScopeRoot || normalizedFilePath.startsWith(`${normalizedScopeRoot}/`);
 }
 
-export function isSceneClassFile(app: App, file: TFile): boolean {
-	const frontmatter = app.metadataCache.getFileCache(file)?.frontmatter;
-	const classValues = getFrontmatterStringValues(frontmatter, ["class", "Class", "classes", "Classes"]);
+// Folder name cut archives are written into. Lives here rather than in
+// CutArchiveService so consumers that must *exclude* cut files (anchor scene
+// resolution) can share the constant without importing the service — which
+// imports this module, and would be a cycle.
+export const CUT_FOLDER_NAME = "Cut";
 
-	return classValues.some((value) => value.trim().toLowerCase() === "scene");
+function classValuesFor(app: App, file: TFile): string[] {
+	const frontmatter = app.metadataCache.getFileCache(file)?.frontmatter;
+	return getFrontmatterStringValues(frontmatter, ["class", "Class", "classes", "Classes"]);
+}
+
+export function isSceneClassFile(app: App, file: TFile): boolean {
+	return classValuesFor(app, file).some((value) => value.trim().toLowerCase() === "scene");
+}
+
+// A cut archive is stamped `Class: Cut` by CutArchiveService.
+export function isCutClassFile(app: App, file: TFile): boolean {
+	return classValuesFor(app, file).some((value) => value.trim().toLowerCase() === "cut");
+}
+
+// Path-level cut detection. A cut file deliberately carries the SAME basename
+// as the scene it archives and sits inside the book folder, so any lookup that
+// matches scenes by file name will also match the cut file unless it excludes
+// this. Checked by path as well as by class so a cut file whose frontmatter was
+// stripped still can't impersonate its scene.
+export function isCutArchivePath(filePath: string, cutFolderOverride: string): boolean {
+	const normalizedPath = normalizePath(filePath);
+	const override = cutFolderOverride.trim();
+	if (override && isPathInFolderScope(normalizedPath, normalizePath(override))) {
+		return true;
+	}
+	// Any ancestor folder named "Cut" — covers the default
+	// `<book>/Cut/` and the per-scene-folder fallback alike.
+	return normalizedPath.split("/").slice(0, -1).includes(CUT_FOLDER_NAME);
 }
 
 export function getSceneIdForFile(app: App, file: TFile): string | undefined {

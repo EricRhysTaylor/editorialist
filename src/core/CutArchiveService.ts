@@ -1,6 +1,12 @@
 import { normalizePath, TFile, TFolder, type App } from "obsidian";
 import type { SupportedReviewOperationType } from "../models/ReviewSuggestion";
-import { getActiveNoteScopeRoot, isPathInFolderScope, isSceneClassFile, type ActiveBookScopeInfo } from "./VaultScope";
+import {
+	CUT_FOLDER_NAME,
+	getActiveNoteScopeRoot,
+	isPathInFolderScope,
+	isSceneClassFile,
+	type ActiveBookScopeInfo,
+} from "./VaultScope";
 
 // CutArchiveService owns the "Backup to cut file" workflow: where a scene's cut
 // file lives, how it is created/appended, and the per-cut block format. It is a
@@ -8,7 +14,6 @@ import { getActiveNoteScopeRoot, isPathInFolderScope, isSceneClassFile, type Act
 // stats, or contributor metrics. Path math and block formatting are exported as
 // pure functions so they can be unit-tested without vault IO.
 
-const CUT_FOLDER_NAME = "Cut";
 // Distinct frontmatter for the cut file. Matches the vault's `Class: Scene`
 // convention (readers are case-insensitive) but is deliberately NOT a copy of
 // the scene's own frontmatter — this is a separate, special archive file.

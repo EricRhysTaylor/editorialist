@@ -5858,11 +5858,15 @@
 	color: var(--text-faint);
 }
 
+/* Grid, not flex: the fragment/note are nowrap-ellipsized, so their min-content
+   width is large and `flex-wrap` bounced the whole text block onto its own row,
+   stranding the status circle alone on the line above. Fixed tracks keep
+   status | text | jump on one row and let the warning span beneath. */
 .editorialist-editorialism-panel__anchor {
-	display: flex;
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
 	align-items: baseline;
-	gap: 0.35rem;
-	flex-wrap: wrap;
+	gap: 0.1rem 0.35rem;
 	padding: 0.15rem 0.25rem;
 	border-radius: var(--editorialist-radius-sm);
 }
@@ -5920,7 +5924,6 @@
 }
 
 .editorialist-editorialism-panel__anchor-main {
-	flex: 1 1 auto;
 	min-width: 0;
 	display: flex;
 	align-items: baseline;
@@ -5989,8 +5992,7 @@
 }
 
 .editorialist-editorialism-panel__anchor-warning {
-	flex: 1 0 100%;
-	padding-left: 1.5rem;
+	grid-column: 2 / -1;
 	font-size: var(--font-ui-smaller);
 	color: var(--text-error);
 }

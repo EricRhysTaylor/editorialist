@@ -34,7 +34,14 @@ import {
 } from "./core/ReviewBlockFormat";
 import { ReviewEngine } from "./core/ReviewEngine";
 import { buildReviewTemplate, type ReviewTemplateContext } from "./core/ReviewTemplate";
-import { getFrontmatterStringValues, getSceneIdForFile, isPathInFolderScope, isSceneClassFile } from "./core/VaultScope";
+import {
+	getFrontmatterStringValues,
+	getSceneIdForFile,
+	isCutArchivePath,
+	isCutClassFile,
+	isPathInFolderScope,
+	isSceneClassFile,
+} from "./core/VaultScope";
 import { buildSceneTokens, sceneNumberFromName, type SceneRelevanceContext } from "./core/SceneRelevance";
 import { SuggestionParser } from "./core/SuggestionParser";
 import type {
@@ -862,16 +869,36 @@ export default class EditorialistPlugin extends Plugin {
 			return null;
 		}
 
-		const scopeFolder = this.registry.getActiveBookScopeInfo().sourceFolder;
+		const scope = this.registry.getActiveBookScopeInfo();
+		const cutFolderOverride = this.registry.getCutFolderOverride();
+		// A cut archive carries the SAME basename as its scene and lives inside
+		// the book folder, so matching on the scene number alone finds it just as
+		// readily as the scene — and its contents are the removed prose, so every
+		// anchor then reports "passage not found". Scene class is the positive
+		// signal; the cut checks are the guard for vaults where it is absent.
+		let unclassified: TFile | null = null;
 		for (const file of this.app.vault.getMarkdownFiles()) {
-			if (scopeFolder && !isPathInFolderScope(file.path, scopeFolder)) {
+			if (scope.sourceFolder && !isPathInFolderScope(file.path, scope.sourceFolder)) {
 				continue;
 			}
-			if (sceneNumberFromName(file.basename) === sceneNumber) {
+			if (sceneNumberFromName(file.basename) !== sceneNumber) {
+				continue;
+			}
+			if (isCutArchivePath(file.path, cutFolderOverride) || isCutClassFile(this.app, file)) {
+				continue;
+			}
+			if (isSceneClassFile(this.app, file)) {
 				return file;
 			}
+			if (unclassified === null) {
+				unclassified = file;
+			}
 		}
-		return null;
+
+		// A structured scope guarantees Class: Scene, so no scene-class match
+		// means the scene genuinely is not there — say so rather than navigating
+		// to whatever else happened to share the number.
+		return scope.structured ? null : unclassified;
 	}
 
 	async openEditorialismAnchor(
