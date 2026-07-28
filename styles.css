@@ -5840,3 +5840,177 @@
 .editorialist-editorialism-panel__scope-label {
 	letter-spacing: 0.02em;
 }
+
+/* Anchors — the passages a directive actually touches. Rendered as a short
+   indented route under the directive, with a rule on the left tying them to it. */
+.editorialist-editorialism-panel__anchors {
+	display: flex;
+	flex-direction: column;
+	gap: 0.2rem;
+	margin-top: 0.4rem;
+	padding-left: 0.55rem;
+	border-left: 2px solid color-mix(in srgb, var(--background-modifier-border) 70%, transparent);
+}
+
+.editorialist-editorialism-panel__anchors-count {
+	font-size: var(--font-ui-smaller);
+	letter-spacing: 0.02em;
+	color: var(--text-faint);
+}
+
+.editorialist-editorialism-panel__anchor {
+	display: flex;
+	align-items: baseline;
+	gap: 0.35rem;
+	flex-wrap: wrap;
+	padding: 0.15rem 0.25rem;
+	border-radius: var(--editorialist-radius-sm);
+}
+
+.editorialist-editorialism-panel__anchor:hover {
+	background: color-mix(in srgb, var(--background-modifier-hover) 65%, transparent);
+}
+
+/* Where the author is standing in the walk. */
+.editorialist-editorialism-panel__anchor--current {
+	background: color-mix(in srgb, var(--interactive-accent) 12%, transparent);
+	box-shadow: inset 2px 0 0 color-mix(in srgb, var(--interactive-accent) 80%, transparent);
+}
+
+.editorialist-editorialism-panel__anchor--done,
+.editorialist-editorialism-panel__anchor--deferred {
+	opacity: 0.55;
+}
+
+.editorialist-editorialism-panel__anchor--done .editorialist-editorialism-panel__anchor-fragment {
+	text-decoration: line-through;
+}
+
+.editorialist-editorialism-panel__anchor-status {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.15rem;
+	height: 1.15rem;
+	padding: 0;
+	border: none;
+	background: transparent;
+	color: var(--text-faint);
+	cursor: pointer;
+}
+
+.editorialist-editorialism-panel__anchor-status:hover {
+	color: var(--text-normal);
+}
+
+.editorialist-editorialism-panel__anchor--done .editorialist-editorialism-panel__anchor-status {
+	color: color-mix(in srgb, var(--interactive-accent) 80%, var(--text-normal));
+}
+
+.editorialist-editorialism-panel__anchor-status-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.editorialist-editorialism-panel__anchor-status-icon svg {
+	width: 0.85rem;
+	height: 0.85rem;
+}
+
+.editorialist-editorialism-panel__anchor-main {
+	flex: 1 1 auto;
+	min-width: 0;
+	display: flex;
+	align-items: baseline;
+	gap: 0.35rem;
+	cursor: pointer;
+}
+
+.editorialist-editorialism-panel__anchor-scene {
+	flex: 0 0 auto;
+	padding: 0 0.3rem;
+	font-size: var(--font-ui-smaller);
+	font-variant-numeric: tabular-nums;
+	border-radius: var(--editorialist-radius-pill);
+	background: color-mix(in srgb, var(--background-modifier-border) 55%, transparent);
+	color: var(--text-muted);
+}
+
+.editorialist-editorialism-panel__anchor-fragment {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.editorialist-editorialism-panel__anchor-note {
+	flex: 0 1 auto;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--font-ui-smaller);
+	font-style: italic;
+	color: var(--text-faint);
+}
+
+.editorialist-editorialism-panel__anchor-jump {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.15rem;
+	height: 1.15rem;
+	padding: 0;
+	border: none;
+	background: transparent;
+	color: var(--text-faint);
+	cursor: pointer;
+}
+
+.editorialist-editorialism-panel__anchor-jump:hover {
+	color: var(--interactive-accent);
+}
+
+.editorialist-editorialism-panel__anchor-jump-icon svg {
+	width: 0.85rem;
+	height: 0.85rem;
+}
+
+/* The fragment no longer matches the manuscript. Stated on the row, not just in
+   a Notice that has already faded. */
+.editorialist-editorialism-panel__anchor--unlocated .editorialist-editorialism-panel__anchor-fragment {
+	color: color-mix(in srgb, var(--text-error) 80%, var(--text-muted));
+	text-decoration: underline wavy color-mix(in srgb, var(--text-error) 55%, transparent);
+}
+
+.editorialist-editorialism-panel__anchor-warning {
+	flex: 1 0 100%;
+	padding-left: 1.5rem;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-error);
+}
+
+/* Anchor-target picker (selection → directive). */
+.editorialist-anchor-target__item {
+	color: var(--text-normal);
+}
+
+.editorialist-anchor-target__meta {
+	display: flex;
+	gap: 0.45rem;
+	flex-wrap: wrap;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.editorialist-anchor-target__scope,
+.editorialist-anchor-target__count {
+	padding: 0 0.35rem;
+	border-radius: var(--editorialist-radius-pill);
+	background: color-mix(in srgb, var(--background-modifier-border) 55%, transparent);
+}

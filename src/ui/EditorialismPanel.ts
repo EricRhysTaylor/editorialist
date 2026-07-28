@@ -3,11 +3,13 @@ import type EditorialistPlugin from "../main";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
 import { formatEffortDuration } from "../core/EffortEstimate";
 import { scopeRelatesToScene, type SceneRelevanceContext } from "../core/SceneRelevance";
-import type {
-	Editorialism,
-	EditorialismItem,
-	EditorialismItemStatus,
-	EditorialismSummary,
+import {
+	isAnchorProcessed,
+	type Editorialism,
+	type EditorialismAnchor,
+	type EditorialismItem,
+	type EditorialismItemStatus,
+	type EditorialismSummary,
 } from "../models/Editorialism";
 
 export const EDITORIALISM_PANEL_VIEW_TYPE = "editorialist-editorialism-panel";
@@ -220,6 +222,9 @@ export class EditorialismPanel extends ItemView {
 	}
 
 	private renderDetail(parent: HTMLElement, editorialism: Editorialism): void {
+		// Tell the plugin which agenda the anchor commands act on, so "next
+		// anchor" works from the keyboard before the author has clicked one.
+		this.plugin.setActiveEditorialismPath(editorialism.filePath);
 		const detail = parent.createDiv({ cls: "editorialist-editorialism-panel__detail" });
 
 		const back = detail.createEl("button", {
@@ -232,6 +237,7 @@ export class EditorialismPanel extends ItemView {
 		back.addEventListener("click", () => {
 			this.activeFilePath = null;
 			this.activeEditorialism = null;
+			this.plugin.setActiveEditorialismPath(null);
 			this.render();
 		});
 
@@ -371,6 +377,126 @@ export class EditorialismPanel extends ItemView {
 			const chip = chips.createSpan({ cls: "editorialist-editorialism-panel__tag-chip" });
 			chip.createSpan({ text: tag });
 		}
+
+		this.renderAnchors(main, editorialism, item);
+	}
+
+	// The anchor list turns a manuscript-wide comment into a short route: the
+	// passages it actually touches, in document order, each one click away.
+	private renderAnchors(
+		parent: HTMLElement,
+		editorialism: Editorialism,
+		item: EditorialismItem,
+	): void {
+		if (item.anchors.length === 0) {
+			return;
+		}
+
+		const processed = item.anchors.filter((anchor) => isAnchorProcessed(anchor.status)).length;
+		const list = parent.createDiv({ cls: "editorialist-editorialism-panel__anchors" });
+		list.createDiv({
+			cls: "editorialist-editorialism-panel__anchors-count",
+			text: `${processed} / ${item.anchors.length} passages processed`,
+		});
+
+		for (const anchor of item.anchors) {
+			this.renderAnchor(list, editorialism, item, anchor);
+		}
+	}
+
+	private renderAnchor(
+		parent: HTMLElement,
+		editorialism: Editorialism,
+		item: EditorialismItem,
+		anchor: EditorialismAnchor,
+	): void {
+		const unlocatedReason = this.plugin.getUnlocatedAnchorReason(editorialism.filePath, anchor);
+		const isCurrent = this.plugin.isCurrentAnchor(editorialism.filePath, anchor);
+		const modifiers = [
+			`editorialist-editorialism-panel__anchor--${anchor.status}`,
+			...(unlocatedReason ? ["editorialist-editorialism-panel__anchor--unlocated"] : []),
+			...(isCurrent ? ["editorialist-editorialism-panel__anchor--current"] : []),
+		].join(" ");
+		const row = parent.createDiv({
+			cls: `editorialist-editorialism-panel__anchor ${modifiers}`,
+		});
+
+		const status = row.createEl("button", {
+			cls: "editorialist-editorialism-panel__anchor-status",
+			attr: {
+				type: "button",
+				"aria-label": `Anchor status: ${STATUS_LABEL[anchor.status]} (click to advance)`,
+			},
+		});
+		setIcon(
+			status.createSpan({ cls: "editorialist-editorialism-panel__anchor-status-icon" }),
+			STATUS_ICON[anchor.status],
+		);
+		status.addEventListener("click", (event) => {
+			event.preventDefault();
+			event.stopPropagation();
+			void this.advanceAnchorStatus(editorialism.filePath, anchor);
+		});
+
+		const main = row.createDiv({ cls: "editorialist-editorialism-panel__anchor-main" });
+		if (anchor.scene) {
+			main.createSpan({
+				cls: "editorialist-editorialism-panel__anchor-scene",
+				text: anchor.scene,
+			});
+		}
+		main.createSpan({
+			cls: "editorialist-editorialism-panel__anchor-fragment",
+			text: anchor.closing === null ? anchor.opening : `${anchor.opening} … ${anchor.closing}`,
+		});
+		if (anchor.note) {
+			main.createSpan({
+				cls: "editorialist-editorialism-panel__anchor-note",
+				text: anchor.note,
+			});
+		}
+
+		// A failed jump stays visible on the row rather than living only in a
+		// Notice that has already faded — the author needs to know which passage
+		// moved, not just that one did.
+		if (unlocatedReason) {
+			row.createDiv({
+				cls: "editorialist-editorialism-panel__anchor-warning",
+				text: unlocatedReason,
+			});
+		}
+
+		const jump = row.createEl("button", {
+			cls: "editorialist-editorialism-panel__anchor-jump",
+			attr: { type: "button", "aria-label": "Jump to this passage" },
+		});
+		setIcon(
+			jump.createSpan({ cls: "editorialist-editorialism-panel__anchor-jump-icon" }),
+			"corner-down-right",
+		);
+		const jumpToAnchor = (event: MouseEvent): void => {
+			event.preventDefault();
+			void this.openAnchor(editorialism, item, anchor);
+		};
+		jump.addEventListener("click", jumpToAnchor);
+		main.addEventListener("click", jumpToAnchor);
+	}
+
+	private async openAnchor(
+		editorialism: Editorialism,
+		item: EditorialismItem,
+		anchor: EditorialismAnchor,
+	): Promise<void> {
+		await this.plugin.openEditorialismAnchor(editorialism.filePath, item, anchor);
+		this.render();
+	}
+
+	private async advanceAnchorStatus(filePath: string, anchor: EditorialismAnchor): Promise<void> {
+		const currentIndex = STATUS_CYCLE.indexOf(anchor.status);
+		const nextIndex = (currentIndex + 1) % STATUS_CYCLE.length;
+		const next = STATUS_CYCLE[nextIndex] ?? "open";
+		await this.plugin.setEditorialismAnchorStatus(filePath, anchor, next);
+		await this.refresh();
 	}
 
 	private renderScopeChip(parent: HTMLElement, item: EditorialismItem, editorialism: Editorialism): void {

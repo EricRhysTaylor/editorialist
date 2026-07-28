@@ -57,6 +57,34 @@ Rows light up when their `[scope:: …]` matches the current scene:
 - A range scope matches when the current scene falls inside the range.
 - A subplot scope matches when the subplot name overlaps the scene's character, subplot, or action / description frontmatter. For example, an item scoped to `[scope:: subplot:Cesena thread]` lights up while you are in a scene whose metadata mentions `Cesena`.
 
+### Anchors — jumping to the passages a directive is about
+
+A scope tells you *which scene*. An **anchor** tells you *which paragraph*. Anchors are the answer to the slow part of working an agenda: reading "thread the grief so it escalates" and then hunting through nine scenes for the places that need work.
+
+An anchor is a nested task line under a directive, carrying a verbatim fragment of the manuscript:
+
+```markdown
+- [ ] Grief should escalate, not reset each scene [scope:: 13–22]
+  - [ ] 14 "She poured the coffee and didn't look up."
+  - [ ] 17 "Marla laughed" → "nobody else was laughing."
+  - [x] 21 "It had been six months."
+```
+
+The two-fragment form (`"opening" → "closing"`) anchors a whole passage between the fragments; the single-fragment form anchors one stretch of prose. A trailing `— note` after the fragment is optional.
+
+**An anchor is not an edit.** It carries no replacement text and Editorialist never applies it. Clicking one opens that scene, selects the passage, and highlights the directive's *other* anchors in the same scene — so a comment that touches three places shows all three at once. You read, revise however you see fit, and mark the anchor processed. The editing stays yours.
+
+Anchors have the same five-state status as directives; **done** and **deferred** both retire an anchor from the walk. Marking the last one does not mark the directive done — that call is yours.
+
+**Getting anchors:**
+
+- **From a reviewer.** The launcher template asks for anchors whenever a directive is about particular passages, so an AI or editor working from your manuscript can supply them with the agenda.
+- **From a selection.** Select a passage in a scene and run **Anchor selection to editorialism directive** (also on the editor right-click menu), then pick the directive. Long or multi-line selections are stored as a span automatically.
+
+**Walking the agenda.** `Go to next unprocessed anchor` moves to the next one in document order, opening scenes as it goes; `Mark anchor processed and go to next` records the current one and advances. Assign hotkeys to those two and you can work an entire directive without touching the panel. The walk stops at the end rather than looping, so finishing is visible.
+
+> **When a passage has moved.** Anchors are resolved against the live note every time — offsets are never stored. If you have rewritten the prose so the fragment no longer matches, the anchor is marked unlocated on its row with the fragment shown, rather than silently jumping to a nearby paragraph. Re-anchor it from a new selection.
+
 ## When to use which
 
 | Situation | Use |
@@ -64,5 +92,6 @@ Rows light up when their `[scope:: …]` matches the current scene:
 | Concrete prose change to a specific passage | [Review batch](Importing-Reviews#format-a--the-review-batch) → imported review blocks → Review Panel |
 | Commentary on a scene or the batch | `=== MEMO ===` in a review block |
 | Directive spanning scenes, subplots, or the whole book | Editorialism file → this panel |
+| Broad note that keeps sending you hunting for the passages | Add anchors to the directive |
 | Author note or Radial Timeline Inquiry follow-up | [Pending Edits](Pending-Edits) |
 | A reviewer sends both line edits and structural notes | Both formats in one reply — each goes to its own surface |

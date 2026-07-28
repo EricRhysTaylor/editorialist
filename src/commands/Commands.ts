@@ -68,4 +68,30 @@ export function registerCommands(plugin: EditorialistPlugin): void {
 			void plugin.insertAuthorQuery();
 		},
 	});
+
+	plugin.addCommand({
+		id: "anchor-selection-to-editorialism",
+		name: "Anchor selection to editorialism directive",
+		editorCallback: () => {
+			void plugin.anchorSelectionToEditorialismItem();
+		},
+	});
+
+	// The two-key rhythm of an anchor walk: read the passage, edit it by hand,
+	// then either move on or record that it is handled and move on.
+	plugin.addCommand({
+		id: "go-to-next-anchor",
+		name: "Go to next unprocessed anchor",
+		callback: () => {
+			void plugin.goToNextEditorialismAnchor();
+		},
+	});
+
+	plugin.addCommand({
+		id: "mark-anchor-processed",
+		name: "Mark anchor processed and go to next",
+		callback: () => {
+			void plugin.markCurrentEditorialismAnchorProcessed();
+		},
+	});
 }

@@ -26,7 +26,7 @@ Editorialist turns outside feedback into a controlled revision workflow inside O
 - A **review batch** is the AI-formatted response: line edits, cuts, moves, condenses, expands, and memos.
 - Importing a batch appends **review blocks** to the bottom of the targeted scene notes. Nothing is applied to the prose until you act on a suggestion.
 - The Review Panel walks those suggestions scene by scene and records contributor stats, revision history, and per-scene progress as you finish.
-- **Editorialisms** are separate structural checklist files under `Editorialist/<Book>/`; use them for broader guidance that spans scenes or the whole manuscript.
+- **Editorialisms** are separate structural checklist files under `Editorialist/<Book>/`; use them for broader guidance that spans scenes or the whole manuscript. A directive can carry **anchors** — verbatim fragments pinning it to the passages it is actually about, so a manuscript-wide note becomes a short route through the prose instead of a hunt. Anchors are jump targets only; nothing is ever applied for you.
 - Maintenance actions can clean review blocks or reset history, and bulk actions ask for confirmation.
 
 ## AI-agnostic by design
@@ -43,6 +43,9 @@ Editorialist ships a format, not an AI. It never makes a network call and holds 
 - `Rescan review blocks for cleanup` — re-scans scene notes for review blocks ready to be cleaned.
 - `Backup selection to cut file` — copies the selected text into the scene's cut file without changing the manuscript. Also available from the editor right-click menu when text is selected.
 - `Insert author query` — drops a hidden `%%ai: …%%` marker into the scene at the cursor, so the next AI review answers it in a `QUERY` block. Also available from the editor right-click menu.
+- `Anchor selection to editorialism directive` — pins the selected passage to an Editorialism directive so you can jump straight back to it later. Also available from the editor right-click menu.
+- `Go to next unprocessed anchor` — opens the next anchored passage in the active Editorialism, across scenes.
+- `Mark anchor processed and go to next` — records the current anchored passage as handled and advances.
 
 Editorialist ships no default hotkeys. Assign your own from Obsidian's hotkey settings.
 

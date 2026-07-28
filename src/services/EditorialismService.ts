@@ -1,5 +1,6 @@
 import { normalizePath, TFile, TFolder, type App } from "obsidian";
 import {
+	insertAnchorLine,
 	parseEditorialism,
 	rewriteTaskMarker,
 } from "../core/EditorialismParser";
@@ -68,6 +69,22 @@ export class EditorialismService {
 		await this.app.vault.process(file, (currentText) =>
 			rewriteTaskMarker(currentText, lineIndex, nextStatus),
 		);
+	}
+
+	// Append an anchor beneath an item. The markdown stays the source of truth:
+	// nothing about the anchor is recorded anywhere else.
+	async appendAnchor(filePath: string, itemLineIndex: number, anchorBody: string): Promise<boolean> {
+		const file = this.app.vault.getAbstractFileByPath(filePath);
+		if (!(file instanceof TFile)) {
+			return false;
+		}
+		let changed = false;
+		await this.app.vault.process(file, (currentText) => {
+			const next = insertAnchorLine(currentText, itemLineIndex, anchorBody);
+			changed = next !== currentText;
+			return next;
+		});
+		return changed;
 	}
 
 	getRootFolderName(): string {

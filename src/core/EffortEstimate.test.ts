@@ -17,6 +17,7 @@ function item(over: Partial<EditorialismItem> = {}): EditorialismItem {
 		text: "",
 		scope: null,
 		tags: [],
+		anchors: [],
 		...over,
 	};
 }
