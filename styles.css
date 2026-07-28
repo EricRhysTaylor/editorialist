@@ -5951,14 +5951,16 @@
 	color: var(--text-muted);
 }
 
+/* Own row beneath the locator, wrapping freely: this is guidance the author
+   must read in full, so it is never truncated. */
 .editorialist-editorialism-panel__anchor-note {
-	flex: 0 1 auto;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
+	grid-column: 2 / -1;
+	white-space: normal;
+	overflow-wrap: anywhere;
 	font-size: var(--font-ui-smaller);
 	font-style: italic;
-	color: var(--text-faint);
+	line-height: 1.35;
+	color: var(--text-muted);
 }
 
 .editorialist-editorialism-panel__anchor-jump {

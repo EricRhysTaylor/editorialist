@@ -445,16 +445,15 @@ export class EditorialismPanel extends ItemView {
 				text: anchor.scene,
 			});
 		}
-		main.createSpan({
+		const fragmentText =
+			anchor.closing === null ? anchor.opening : `${anchor.opening} … ${anchor.closing}`;
+		const fragment = main.createSpan({
 			cls: "editorialist-editorialism-panel__anchor-fragment",
-			text: anchor.closing === null ? anchor.opening : `${anchor.opening} … ${anchor.closing}`,
+			text: fragmentText,
 		});
-		if (anchor.note) {
-			main.createSpan({
-				cls: "editorialist-editorialism-panel__anchor-note",
-				text: anchor.note,
-			});
-		}
+		// The fragment is a locator, so it stays on one line and ellipsizes to
+		// keep the route scannable — the full text is available on hover.
+		fragment.setAttr("title", fragmentText);
 
 		// Order matters: the row is a three-column grid, and the warning spans
 		// beneath. Creating the jump button before the warning keeps grid
@@ -473,6 +472,17 @@ export class EditorialismPanel extends ItemView {
 		};
 		jump.addEventListener("click", jumpToAnchor);
 		main.addEventListener("click", jumpToAnchor);
+
+		// The note is the reviewer's instruction for this passage — the thing the
+		// author actually has to read — so it gets its own full-width row and
+		// wraps rather than sharing the locator line and being truncated. Left
+		// unclickable so the text stays selectable.
+		if (anchor.note) {
+			row.createDiv({
+				cls: "editorialist-editorialism-panel__anchor-note",
+				text: anchor.note,
+			});
+		}
 
 		// A failed jump stays visible on the row rather than living only in a
 		// Notice that has already faded — the author needs to know which passage
