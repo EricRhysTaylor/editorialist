@@ -121,8 +121,10 @@ export function createReviewToolbarElement(
 	state: ToolbarState,
 ): HTMLElement {
 	const tracker = plugin.getToolbarKeyTracker();
-	const overlay = activeDocument.createElement("div");
-	overlay.classList.add("editorialist-toolbar-overlay");
+	// Created through `activeDocument.body` so the overlay belongs to the focused
+	// window's document: ToolbarOverlayController mounts it via
+	// `el.ownerDocument.body`, which is how popout windows get their own toolbar.
+	const overlay = activeDocument.body.createDiv({ cls: "editorialist-toolbar-overlay" });
 	markAsNonEditorSurface(overlay);
 
 	const toolbar = overlay.createDiv({ cls: "editorialist-toolbar" });

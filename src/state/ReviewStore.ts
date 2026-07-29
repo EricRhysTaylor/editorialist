@@ -57,7 +57,7 @@ const VOLATILE_RENDER_SIGNATURE_KEYS = new Set(["parsedAt", "startOffset", "endO
 // is compared. Insertion order is stable because every state object is built by
 // the same code paths, so structurally-equal states stringify identically.
 function renderSignature(state: ReviewStoreState): string {
-	return JSON.stringify(state, (key, value) =>
+	return JSON.stringify(state, (key: string, value: unknown): unknown =>
 		VOLATILE_RENDER_SIGNATURE_KEYS.has(key) ? undefined : value,
 	);
 }
