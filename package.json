@@ -56,7 +56,7 @@
 		"@typescript-eslint/parser": "^8.57.2",
 		"esbuild": "0.25.5",
 		"eslint": "^9.39.4",
-		"eslint-plugin-obsidianmd": "^0.3.0",
+		"eslint-plugin-obsidianmd": "^0.4.1",
 		"obsidian": "^1.13.1",
 		"stylelint": "^16.26.1",
 		"stylelint-config-standard": "^36.0.1",

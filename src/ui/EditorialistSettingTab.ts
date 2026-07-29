@@ -15,6 +15,19 @@ import type EditorialistPlugin from "../main";
 import { openEditorialistChoiceModal } from "./EditorialistChoiceModal";
 import { RADIAL_TIMELINE_ICON_ID } from "./RadialTimelineLogoIcon";
 
+// Deliberately imperative: the declarative settings API (getSettingDefinitions,
+// Obsidian 1.13.0+) is evaluated and deferred, not overlooked. Three blockers —
+// (1) returning a non-empty definition array suppresses display() entirely, so
+// there is no path that surfaces only the handful of atomic knobs while keeping
+// the rest; this tab is a bespoke three-tab dashboard (heroes, inventory,
+// activity, contributor cards, maintenance) rather than a list of settings.
+// (2) getSettingDefinitions() is synchronous, but rendering here depends on
+// awaited metadata (syncOperationalMetadata / refreshPendingEditsSummary).
+// (3) manifest minAppVersion is 1.7.2; the API is 1.13.0+, and carrying both
+// renderings would duplicate the whole tab and invite drift.
+// Cost accepted: these settings do not appear in Obsidian's settings search on
+// 1.13+. Revisit when minAppVersion moves to 1.13.0.
+// See docs/CODE-STANDARDS.md § "Settings tab rendering".
 export class EditorialistSettingTab extends PluginSettingTab {
 	private static readonly SETTINGS_DOCS_URL = "https://github.com/EricRhysTaylor/Editorialist#readme";
 	private static readonly RADIAL_TIMELINE_INSTALL_URL = "obsidian://show-plugin?id=radial-timeline";

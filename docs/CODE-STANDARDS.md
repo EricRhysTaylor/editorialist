@@ -71,6 +71,33 @@ of these is a build failure.
 - `element.style.setProperty("--css-var", value)` is allowed **only** for
   CSS custom properties. Hardcoding pixel/color values is not.
 - SVG elements must be created with `document.createElementNS(SVG_NS, ...)`.
+- Never `document.createElement(...)` for HTML. Use the `createEl` family. When
+  an element must belong to the focused window's document (popout support), go
+  through that document's node — e.g.
+  `activeDocument.body.createDiv({ cls })` — not the global `createDiv()`,
+  which always builds in the main document. `activeWindow.createDiv()` is what
+  `obsidianmd/prefer-create-el` suggests, but it does not typecheck: obsidian's
+  `Window` interface does not declare the `createEl` helpers.
+
+### Settings tab rendering
+
+`EditorialistSettingTab` renders imperatively via `display()` and does **not**
+implement `getSettingDefinitions()` (Obsidian's declarative settings API,
+1.13.0+). `eslint-plugin-obsidianmd` ≥ 0.4.0 warns about this
+(`obsidianmd/settings-tab/prefer-setting-definitions`); the warning is known and
+accepted. Reasons:
+
+1. Returning a non-empty definition array suppresses `display()` entirely, so
+   there is no partial adoption. The tab is a bespoke three-tab dashboard
+   (heroes, inventory, activity, contributor cards, maintenance), not a list of
+   settings — only about five items are atomic knobs.
+2. `getSettingDefinitions()` is synchronous, but rendering depends on awaited
+   metadata (`syncOperationalMetadata`, `refreshPendingEditsSummary`).
+3. `manifest.json` sets `minAppVersion: 1.7.2`; the API is 1.13.0+. Carrying
+   both renderings would duplicate the whole tab and invite drift.
+
+Accepted cost: these settings do not appear in Obsidian's settings search on
+1.13+. Revisit when `minAppVersion` moves to 1.13.0.
 
 ### 1.6 Styling
 
