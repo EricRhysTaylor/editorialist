@@ -61,6 +61,19 @@ of these is a build failure.
   of other commands.
 - The README command list must match the commands actually registered by
   `registerCommands()`. Reviewers check this.
+- UI strings are sentence case (`obsidianmd/ui/sentence-case`). The rule fires
+  only at UI call sites — `new Notice()`, `setPlaceholder()`, `createEl` text,
+  `aria-label` — not at plain string constants.
+- **Do not `eslint-disable` an `obsidianmd/*` rule.** The preset ships
+  `eslint-comments/no-restricted-disable`, which reports the disable itself, so
+  a suppression trades one problem for two. Fix the string instead.
+- To keep a literal token out of the rule's reach, wrap it in backticks: the
+  rule treats a backtick span as code and leaves its casing alone. This is how
+  `%%ai:…%%` stays lowercase in UI copy — matching what `main.ts` actually
+  writes into a note. Without backticks the rule "corrects" it to `%%AI:…%%`,
+  which names a marker the plugin never emits.
+- Prefer naming a marker over spelling it in an `aria-label`; the `%%…%%`
+  delimiters are noise when spoken.
 
 ### 1.5 DOM and rendering
 

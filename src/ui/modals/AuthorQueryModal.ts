@@ -17,12 +17,12 @@ export class AuthorQueryModal extends PromiseModal<string> {
 
 		this.contentEl.createEl("p", {
 			cls: "editorialist-author-query__hint",
-			text: "Adds a hidden %%ai:…%% note in the scene. Editorialist answers it on the next review; readers never see it.",
+			text: "Adds a hidden `%%ai:…%%` note in the scene. Editorialist answers it on the next review; readers never see it.",
 		});
 
 		new Setting(this.contentEl).setName("Question").addTextArea((textArea) => {
 			textArea
-				.setPlaceholder("e.g. Is this beat too abrupt after the reveal?")
+				.setPlaceholder("E.g. Is this beat too abrupt after the reveal?")
 				.setValue(this.value)
 				.onChange((value) => {
 					this.value = value;

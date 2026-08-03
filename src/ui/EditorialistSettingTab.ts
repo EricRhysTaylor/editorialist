@@ -316,7 +316,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			attr: {
 				type: "text",
 				spellcheck: "false",
-				placeholder: "Manuscripts/My Book",
+				placeholder: "Manuscripts/my book",
 			},
 		});
 		input.value = this.plugin.getBookFolderOverride();

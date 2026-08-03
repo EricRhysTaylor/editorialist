@@ -726,7 +726,9 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		if (status === "open") {
 			const actions = entry.createDiv({ cls: "editorialist-panel__comment-entry-actions" });
 			const resolve = new ButtonComponent(actions).setButtonText("Resolve").setCta();
-			resolve.buttonEl.setAttribute("aria-label", "Resolve — removes the %%ai:…%% marker from the scene");
+			// Spoken label: the literal `%%ai:…%%` delimiters read as noise in a screen
+			// reader, so this names the marker instead of spelling it out.
+			resolve.buttonEl.setAttribute("aria-label", "Resolve — removes the author-query marker from the scene");
 			this.bindImmediateAction(resolve.buttonEl, () => {
 				void this.plugin.resolveAuthorQuery(memo.id);
 			});

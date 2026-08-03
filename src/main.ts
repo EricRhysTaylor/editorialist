@@ -506,6 +506,35 @@ export default class EditorialistPlugin extends Plugin {
 			}),
 		);
 
+		// The header's cut button reports whether the active scene's cut file
+		// exists on disk. That answer changes when the file is created, deleted, or
+		// renamed — none of which touch the review store or the active file, so
+		// neither the store subscription nor `file-open` would repaint the button
+		// and it would stay muted until the user reopened the scene. Watch the
+		// vault instead, and repaint only when the affected path is the very cut
+		// file the button points at. Deferred to layout-ready because `create`
+		// fires once per file while the vault index is warming up.
+		this.app.workspace.onLayoutReady(() => {
+			this.registerEvent(
+				this.app.vault.on("create", (file) => {
+					this.refreshReviewPanelIfActiveSceneCutFile(file.path);
+				}),
+			);
+			this.registerEvent(
+				this.app.vault.on("delete", (file) => {
+					this.refreshReviewPanelIfActiveSceneCutFile(file.path);
+				}),
+			);
+			this.registerEvent(
+				this.app.vault.on("rename", (file, oldPath) => {
+					// Either end of the rename can be the cut file: renaming one in
+					// creates the button's target, renaming it away removes it.
+					this.refreshReviewPanelIfActiveSceneCutFile(file.path);
+					this.refreshReviewPanelIfActiveSceneCutFile(oldPath);
+				}),
+			);
+		});
+
 		this.syncActiveEditorDecorations();
 		void this.pendingEdits.refreshPendingEditsSummary({ force: true });
 	}
@@ -1404,6 +1433,10 @@ export default class EditorialistPlugin extends Plugin {
 			});
 			const displayName = result.cutFilePath.split("/").pop() ?? result.cutFilePath;
 			new Notice(`Backed up to ${displayName}.`);
+			// A first backup creates the cut file, which flips the header cut button
+			// from muted to active. Nothing in the review store changed, so repaint
+			// the panel explicitly rather than waiting for the next store update.
+			this.refreshReviewPanel();
 		} catch (error) {
 			console.error("Editorialist: failed to back up text to cut file", error);
 			new Notice("Could not write to the cut file. Check the cut folder path in settings.");
@@ -1423,6 +1456,23 @@ export default class EditorialistPlugin extends Plugin {
 		const cutFilePath = this.cutArchive.resolveCutFilePathForScene(sceneFile);
 		const hasCutFile = this.app.vault.getAbstractFileByPath(cutFilePath) instanceof TFile;
 		return { sceneName: sceneFile.basename, hasCutFile };
+	}
+
+	// Repaints the panel when `path` is the cut file the header button currently
+	// targets. Keeps vault-event churn off the panel: every other created,
+	// deleted, or renamed file resolves to a different path and is ignored.
+	private refreshReviewPanelIfActiveSceneCutFile(path: string): void {
+		if (!path.endsWith(".md")) {
+			return;
+		}
+		const sceneFile = this.resolveActiveSceneFileForCut();
+		if (!sceneFile) {
+			return;
+		}
+		if (this.cutArchive.resolveCutFilePathForScene(sceneFile) !== path) {
+			return;
+		}
+		this.refreshReviewPanel();
 	}
 
 	// Opens the active scene's cut file for browsing/editing — the "scratch pad"
@@ -1645,7 +1695,7 @@ export default class EditorialistPlugin extends Plugin {
 		});
 		if (!stripped) {
 			new Notice(
-				"Query resolved, but its %%ai:…%% marker was not found in the scene (the review may have reworded the question). Remove the marker manually so it is not re-asked.",
+				"Query resolved, but its `%%ai:…%%` marker was not found in the scene (the review may have reworded the question). Remove the marker manually so it is not re-asked.",
 			);
 		}
 	}
