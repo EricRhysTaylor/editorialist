@@ -22,6 +22,7 @@ import {
 // and the fixture-gated test suite.
 import {
 	selectPanelPrimarySuggestionId,
+	shouldAutoExpandCompletedMemos,
 	shouldShowReviewerFilters,
 } from "./viewmodels/ReviewPanelViewModel";
 // Idle / completion / workspace section renderers extracted from the
@@ -88,6 +89,10 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	private starredOnly = false;
 	private reviewStateProcessedExpanded = false;
 	private commentsCollapsed = false;
+	// The completed sweep whose memos have already been auto-expanded, so the
+	// expansion fires once when a pass finishes rather than fighting the author
+	// every time they fold the card in the completion view.
+	private commentsExpandedForBatchId: string | null = null;
 	// Directives from the active book's editorialisms that touch the scene under
 	// review. Loaded asynchronously (the agenda lives in separate files) and
 	// cached against the note they were loaded for, so a re-render does not
@@ -292,6 +297,35 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 
 		if (completedSweep) {
 			renderCompletedSweepCard(this, this.plugin, this.contentEl, completedSweep);
+
+			// Finishing a pass is exactly when the reviewer's framing is worth
+			// re-reading — and it used to be the one state that could not show it.
+			// This branch returned before the comments card ever rendered, so a
+			// memo became unreachable the moment the sweep completed, including
+			// after "Review changes" re-entered audit mode (that path never
+			// acknowledges the sweep, so the panel stayed parked on this card
+			// while the editor toolbar switched to the audit walk).
+			//
+			// A memo the author collapsed mid-sweep is auto-expanded once per
+			// completed batch: leaving it folded here would reproduce the same
+			// disappearance the fold was never meant to cause.
+			const completedMemos = session?.memos ?? [];
+			if (
+				shouldAutoExpandCompletedMemos(
+					completedMemos.length,
+					completedSweep.batchId,
+					this.commentsExpandedForBatchId,
+				)
+			) {
+				this.commentsCollapsed = false;
+				this.commentsExpandedForBatchId = completedSweep.batchId;
+			}
+			this.renderCommentsCard(completedMemos);
+
+			if (session) {
+				this.ensureSceneDirectivesLoaded(session.notePath);
+				this.renderSceneDirectivesCard();
+			}
 			return;
 		}
 

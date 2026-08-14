@@ -167,6 +167,9 @@ interface CompletedReviewPreviewState {
 }
 
 interface CompletedSweepPanelState {
+	// Identifies which sweep this card is for, so the panel can tell a fresh
+	// completion from a re-render of one the author has already looked at.
+	batchId: string;
 	closeLabel: string;
 	description: string;
 	editsReviewedLabel: string;
@@ -2240,6 +2243,7 @@ export default class EditorialistPlugin extends Plugin {
 		}
 
 		return {
+			batchId: completedSweep.batchId,
 			closeLabel: "Close review",
 			title: "All revisions complete",
 			editsReviewedLabel: `${completedSweep.totalSuggestions} edit${completedSweep.totalSuggestions === 1 ? "" : "s"} reviewed across ${completedSweep.notePaths.length} ${unitLabel}`,

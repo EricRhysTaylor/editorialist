@@ -4,6 +4,7 @@ import {
 	REVIEW_PANEL_BRANCH_ORDER,
 	selectPanelPrimarySuggestionId,
 	selectReviewPanelBranch,
+	shouldAutoExpandCompletedMemos,
 	shouldShowReviewerFilters,
 	shouldShowWorkspacePendingEditsCTA,
 	type ReviewPanelBranch,
@@ -372,5 +373,24 @@ describe("selectPanelPrimarySuggestionId", () => {
 			makeEditSuggestion({ id: "s2", status: "rejected" }),
 		];
 		expect(selectPanelPrimarySuggestionId(suggestions, "s1")).toBeNull();
+	});
+});
+
+describe("shouldAutoExpandCompletedMemos", () => {
+	it("expands when a completed sweep carries memos and has not been expanded yet", () => {
+		expect(shouldAutoExpandCompletedMemos(2, "batch-1", null)).toBe(true);
+	});
+
+	it("does not expand a second time for the same batch", () => {
+		// Folding the comments card inside the completion view has to stick.
+		expect(shouldAutoExpandCompletedMemos(2, "batch-1", "batch-1")).toBe(false);
+	});
+
+	it("expands again when a different sweep completes", () => {
+		expect(shouldAutoExpandCompletedMemos(2, "batch-2", "batch-1")).toBe(true);
+	});
+
+	it("stays put when the completed sweep has no memos", () => {
+		expect(shouldAutoExpandCompletedMemos(0, "batch-1", null)).toBe(false);
 	});
 });

@@ -167,3 +167,22 @@ export function selectPanelPrimarySuggestionId(
 
 	return suggestions.find(isSuggestionOpen)?.id ?? null;
 }
+
+// Whether the completion view should force the comments card open for this
+// sweep.
+//
+// The completed-sweep branch of ReviewPanel.render() used to return before the
+// comments card rendered at all, which made a memo unreachable the moment a
+// pass finished — including after "Review changes" re-entered audit mode, since
+// that path never acknowledges the sweep and the panel stays on the completion
+// card. With the card now rendered there, a memo the author folded mid-sweep
+// would still be invisible at exactly the moment it matters most, so the fold
+// is cleared once per completed batch. Once per batch, not on every render:
+// folding the card inside the completion view has to stick.
+export function shouldAutoExpandCompletedMemos(
+	memoCount: number,
+	completedBatchId: string,
+	alreadyExpandedForBatchId: string | null,
+): boolean {
+	return memoCount > 0 && completedBatchId !== alreadyExpandedForBatchId;
+}
