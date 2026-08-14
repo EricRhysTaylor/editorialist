@@ -1607,6 +1607,195 @@
 	gap: var(--editorialist-space-sm);
 }
 
+/* Directives in this scene — editorialism agenda items surfaced inside the
+   review sweep. Shares the comments card's shell so the two read as one family
+   of contextual cards, and carries a left accent to mark it as coming from the
+   manuscript-wide agenda rather than from this scene's review batch. */
+.editorialist-panel__directives {
+	display: flex;
+	flex-direction: column;
+	gap: 0.55rem;
+	margin-bottom: 0.85rem;
+	padding: 0.65rem var(--editorialist-space-md);
+	border: 1px solid color-mix(in srgb, var(--background-modifier-border) 60%, transparent);
+	border-left: 2px solid color-mix(in srgb, var(--color-green) 55%, transparent);
+	border-radius: var(--editorialist-radius-card);
+	background: color-mix(in srgb, var(--background-secondary) 76%, var(--background-primary) 24%);
+}
+
+.editorialist-panel__directives-header {
+	display: flex;
+	align-items: center;
+	gap: 0.45rem;
+	padding-bottom: 0.45rem;
+	border-bottom: 1px solid color-mix(in srgb, var(--background-modifier-border) 38%, transparent);
+}
+
+.editorialist-panel__directives.is-collapsed .editorialist-panel__directives-header {
+	padding-bottom: 0;
+	border-bottom: none;
+}
+
+.editorialist-panel__directives-title-icon {
+	display: inline-flex;
+	align-items: center;
+	color: var(--text-muted);
+}
+
+.editorialist-panel__directives-title-icon svg {
+	width: 14px;
+	height: 14px;
+}
+
+.editorialist-panel__directives-title {
+	font-weight: 700;
+	font-size: 0.78rem;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--text-normal);
+}
+
+.editorialist-panel__directives-summary {
+	margin-left: auto;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.editorialist-panel__directives-toggle {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.6rem;
+	height: 1.6rem;
+	margin-left: 0.35rem;
+	padding: 0;
+	border: none;
+	background: transparent;
+	color: var(--text-muted);
+	border-radius: var(--editorialist-radius-xs);
+	cursor: pointer;
+}
+
+.editorialist-panel__directives-toggle:hover {
+	color: var(--text-normal);
+	background: color-mix(in srgb, var(--background-modifier-border) 35%, transparent);
+}
+
+.editorialist-panel__directives-toggle-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.editorialist-panel__directives-toggle-icon svg {
+	width: 0.95rem;
+	height: 0.95rem;
+}
+
+.editorialist-panel__directives-body {
+	display: flex;
+	flex-direction: column;
+	gap: 0.7rem;
+}
+
+.editorialist-panel__directive-entry {
+	display: flex;
+	flex-direction: column;
+	gap: 0.3rem;
+}
+
+.editorialist-panel__directive-head {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.4rem;
+}
+
+.editorialist-panel__directive-status,
+.editorialist-panel__directive-anchor-status {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	width: 1.25rem;
+	height: 1.25rem;
+	padding: 0;
+	border: none;
+	background: transparent;
+	color: var(--text-muted);
+	border-radius: var(--editorialist-radius-xs);
+	cursor: pointer;
+}
+
+.editorialist-panel__directive-status:hover,
+.editorialist-panel__directive-anchor-status:hover {
+	color: var(--text-normal);
+	background: color-mix(in srgb, var(--background-modifier-border) 35%, transparent);
+}
+
+.editorialist-panel__directive-status-icon svg,
+.editorialist-panel__directive-anchor-status-icon svg {
+	width: 0.85rem;
+	height: 0.85rem;
+}
+
+.editorialist-panel__directive-text {
+	flex: 1 1 auto;
+	color: var(--text-normal);
+	font-size: var(--font-ui-smaller);
+	line-height: 1.35;
+}
+
+.editorialist-panel__directive-source {
+	padding-left: 1.65rem;
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+}
+
+.editorialist-panel__directive-noanchors {
+	padding-left: 1.65rem;
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+	font-style: italic;
+}
+
+.editorialist-panel__directive-anchors {
+	display: flex;
+	flex-direction: column;
+	gap: 0.2rem;
+	padding-left: 1.65rem;
+}
+
+.editorialist-panel__directive-anchor {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.35rem;
+	flex-wrap: wrap;
+}
+
+.editorialist-panel__directive-anchor-jump {
+	flex: 1 1 auto;
+	padding: 0.1rem 0.25rem;
+	border: none;
+	background: transparent;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	text-align: left;
+	border-radius: var(--editorialist-radius-xs);
+	cursor: pointer;
+}
+
+.editorialist-panel__directive-anchor-jump:hover {
+	color: var(--text-normal);
+	background: color-mix(in srgb, var(--background-modifier-border) 30%, transparent);
+}
+
+.editorialist-panel__directive-anchor-warning {
+	flex: 1 1 100%;
+	padding-left: 1.6rem;
+	color: var(--text-error);
+	font-size: var(--font-ui-smaller);
+}
+
 .editorialist-panel__comments {
 	display: flex;
 	flex-direction: column;

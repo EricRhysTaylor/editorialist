@@ -105,6 +105,21 @@ The toolbar isn't only the per-suggestion editor above — it switches to a diff
 
 `handoff`, `panel`, and the "All revisions complete" state of `completed_review` are ordinary stops in a normal sweep, not error states — they mean, respectively: this scene is done and ready to advance; there's more to do further down the note than fits the current view; and the whole batch is fully decided.
 
+### Directives in this scene
+
+When the scene under review is covered by [Editorialism](Editorialisms-Panel) directives, they appear in a **Directives in this scene** card in the panel, above the suggestion list. The card is present for the whole session — while you work the suggestions, at the scene-complete handoff, and after the batch is finished.
+
+Each directive shows its status, its text, and the Editorialism and section it came from. Anchored passages that fall in this scene are listed beneath it; clicking one opens the passage the same way the Editorialisms panel does. Clicking a status cycles it through the five states and writes the change to the Editorialism file.
+
+A directive whose scope covers this scene but that carries no anchor here says so, rather than offering a jump that would land somewhere approximate.
+
+Two behaviors are deliberate:
+
+- **Directives never block sweep completion.** They are not part of the batch. A sweep finishes on its suggestions alone, whatever state the directives are in.
+- **There is no Apply.** A directive carries no replacement prose, so nothing here is ever written to the manuscript. Marking every anchor in a scene processed also does not mark the directive done — that stays your call.
+
+Directives scoped to the whole manuscript do not appear here: they apply everywhere, so they cannot point at a passage in this scene.
+
 ### Cut-file preview
 
 <p align="center"><img src="images/panel-side-cut-closeup-rounded.png" alt="Closeup of a scene cut file with Class: Cut frontmatter and Editorialist backup metadata" width="520"></p>

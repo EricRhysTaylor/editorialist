@@ -83,6 +83,10 @@ Anchors have the same five-state status as directives; **done** and **deferred**
 
 **Walking the agenda.** `Go to next unprocessed anchor` moves to the next one in document order, opening scenes as it goes; `Mark anchor processed and go to next` records the current one and advances. Assign hotkeys to those two and you can work an entire directive without touching the panel. The walk stops at the end rather than looping, so finishing is visible.
 
+### Directives during a review sweep
+
+Directives do not only wait here. When you run a review sweep on a scene these directives cover, they appear in a **Directives in this scene** card in the [Review panel](Review-Panel#directives-in-this-scene), with their anchored passages for that scene. Statuses set there write straight back to the Editorialism file, so the two surfaces stay in step.
+
 > **When a passage has moved.** Anchors are resolved against the live note every time — offsets are never stored. If you have rewritten the prose so the fragment no longer matches, the anchor is marked unlocated on its row with the fragment shown, rather than silently jumping to a nearby paragraph. Re-anchor it from a new selection.
 
 ## When to use which

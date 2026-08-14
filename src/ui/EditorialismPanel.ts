@@ -4,39 +4,19 @@ import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
 import { formatEffortDuration } from "../core/EffortEstimate";
 import { scopeRelatesToScene, type SceneRelevanceContext } from "../core/SceneRelevance";
 import {
+	STATUS_ICON,
+	STATUS_LABEL,
+	nextStatusInCycle,
+} from "./editorialism/EditorialismStatusPresentation";
+import {
 	isAnchorProcessed,
 	type Editorialism,
 	type EditorialismAnchor,
 	type EditorialismItem,
-	type EditorialismItemStatus,
 	type EditorialismSummary,
 } from "../models/Editorialism";
 
 export const EDITORIALISM_PANEL_VIEW_TYPE = "editorialist-editorialism-panel";
-
-const STATUS_CYCLE: EditorialismItemStatus[] = [
-	"open",
-	"in-progress",
-	"done",
-	"deferred",
-	"question",
-];
-
-const STATUS_LABEL: Record<EditorialismItemStatus, string> = {
-	"open": "Open",
-	"in-progress": "In progress",
-	"done": "Done",
-	"deferred": "Deferred",
-	"question": "Question",
-};
-
-const STATUS_ICON: Record<EditorialismItemStatus, string> = {
-	"open": "circle",
-	"in-progress": "circle-dashed",
-	"done": "check-circle-2",
-	"deferred": "circle-slash",
-	"question": "circle-help",
-};
 
 function formatWords(words: number): string {
 	if (words < 1000) {
@@ -505,10 +485,7 @@ export class EditorialismPanel extends ItemView {
 	}
 
 	private async advanceAnchorStatus(filePath: string, anchor: EditorialismAnchor): Promise<void> {
-		const currentIndex = STATUS_CYCLE.indexOf(anchor.status);
-		const nextIndex = (currentIndex + 1) % STATUS_CYCLE.length;
-		const next = STATUS_CYCLE[nextIndex] ?? "open";
-		await this.plugin.setEditorialismAnchorStatus(filePath, anchor, next);
+		await this.plugin.setEditorialismAnchorStatus(filePath, anchor, nextStatusInCycle(anchor.status));
 		await this.refresh();
 	}
 
@@ -547,10 +524,7 @@ export class EditorialismPanel extends ItemView {
 	}
 
 	private async advanceItemStatus(filePath: string, item: EditorialismItem): Promise<void> {
-		const currentIndex = STATUS_CYCLE.indexOf(item.status);
-		const nextIndex = (currentIndex + 1) % STATUS_CYCLE.length;
-		const next = STATUS_CYCLE[nextIndex] ?? "open";
-		await this.plugin.setEditorialismItemStatus(filePath, item.lineIndex, next);
+		await this.plugin.setEditorialismItemStatus(filePath, item.lineIndex, nextStatusInCycle(item.status));
 		await this.refresh();
 	}
 

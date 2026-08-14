@@ -9,6 +9,13 @@ import {
 } from "../core/review/SuggestionTraversal";
 import { bindImmediateAction } from "./util/bindImmediateAction";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
+import { countOpenAnchors, type SceneDirective } from "../core/SceneDirectives";
+import type { EditorialismAnchor } from "../models/Editorialism";
+import {
+	STATUS_ICON,
+	STATUS_LABEL,
+	nextStatusInCycle,
+} from "./editorialism/EditorialismStatusPresentation";
 // Pure projection helpers extracted to characterize ReviewPanel before the
 // eventual file split. See src/ui/viewmodels/ReviewPanelViewModel.ts for the
 // branch-decision contract (REVIEW_PANEL_BRANCH_ORDER + selectReviewPanelBranch)
@@ -63,6 +70,15 @@ function compareReviewStateEntriesByNarrativeOrder(
 
 type ReviewerMenuAction = "assign" | "create" | "unresolved" | "save_alias";
 
+// An anchor's display label: one fragment, or the two-fragment span form, plus
+// the reviewer's optional trailing note.
+function formatAnchorFragment(anchor: EditorialismAnchor): string {
+	const span = anchor.closing
+		? `"${anchor.opening}" → "${anchor.closing}"`
+		: `"${anchor.opening}"`;
+	return anchor.note ? `${span} — ${anchor.note}` : span;
+}
+
 export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	private jumpMenuSuggestionId: string | null = null;
 	private reviewerFilterId: string | null = null;
@@ -72,6 +88,14 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	private starredOnly = false;
 	private reviewStateProcessedExpanded = false;
 	private commentsCollapsed = false;
+	// Directives from the active book's editorialisms that touch the scene under
+	// review. Loaded asynchronously (the agenda lives in separate files) and
+	// cached against the note they were loaded for, so a re-render does not
+	// re-read the vault. `null` key means "not loaded for any note yet".
+	private sceneDirectives: SceneDirective[] = [];
+	private sceneDirectivesNotePath: string | null = null;
+	private sceneDirectivesLoading = false;
+	private sceneDirectivesCollapsed = false;
 	// null = follow the cold-start default; an explicit boolean once the user
 	// toggles the onboarding disclosure within this view session.
 	private onboardingExpanded: boolean | null = null;
@@ -96,6 +120,22 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	}
 
 	async onOpen(): Promise<void> {
+		// Editorialism files are edited outside this panel — by hand, by the
+		// launcher saving a new agenda, or by the Editorialisms panel. Drop the
+		// cache when one changes so the in-sweep card cannot show a stale
+		// directive or a status the author already advanced elsewhere.
+		this.registerEvent(this.app.vault.on("modify", (file) => this.invalidateSceneDirectivesFor(file.path)));
+		this.registerEvent(this.app.vault.on("create", (file) => this.invalidateSceneDirectivesFor(file.path)));
+		this.registerEvent(this.app.vault.on("delete", (file) => this.invalidateSceneDirectivesFor(file.path)));
+		this.registerEvent(this.app.vault.on("rename", (file) => this.invalidateSceneDirectivesFor(file.path)));
+		this.render();
+	}
+
+	private invalidateSceneDirectivesFor(path: string): void {
+		if (!path.startsWith(`${this.plugin.getEditorialismFolder()}/`)) {
+			return;
+		}
+		this.sceneDirectivesNotePath = null;
 		this.render();
 	}
 
@@ -312,6 +352,13 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 
 		const memos = session.memos ?? [];
 		this.renderCommentsCard(memos);
+
+		// Structural directives for this scene, rendered before the branch checks
+		// below so they are present in every session state — mid-sweep, at the
+		// scene-complete handoff, and after completion. The handoff is the moment
+		// that matters most: the author is about to leave the scene.
+		this.ensureSceneDirectivesLoaded(session.notePath);
+		this.renderSceneDirectivesCard();
 
 		if (session.suggestions.length === 0) {
 			if (memos.length === 0) {
@@ -606,6 +653,206 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		this.bindImmediateAction(resolve.buttonEl, () => {
 			void this.plugin.resolveUnmatchedSuggestions();
 		});
+	}
+
+	private ensureSceneDirectivesLoaded(notePath: string): void {
+		if (this.sceneDirectivesNotePath === notePath || this.sceneDirectivesLoading) {
+			return;
+		}
+		this.sceneDirectivesLoading = true;
+		void this.plugin
+			.collectSceneDirectivesForActiveNote()
+			.then((directives) => {
+				this.sceneDirectives = directives;
+			})
+			.catch(() => {
+				// A failed read must not retry on every render. Record the note as
+				// loaded with an empty agenda; the next vault change or note switch
+				// tries again.
+				this.sceneDirectives = [];
+			})
+			.finally(() => {
+				this.sceneDirectivesNotePath = notePath;
+				this.sceneDirectivesLoading = false;
+				this.render();
+			});
+	}
+
+	// Directives whose scope covers this scene. Read-only with respect to the
+	// manuscript: every control here either navigates or writes a task status
+	// back to the editorialism markdown. There is deliberately no Apply — a
+	// directive carries no replacement text, and the prose stays the author's.
+	private renderSceneDirectivesCard(): void {
+		if (this.sceneDirectives.length === 0) {
+			return;
+		}
+
+		const card = this.contentEl.createDiv({
+			cls: `editorialist-panel__directives${this.sceneDirectivesCollapsed ? " is-collapsed" : ""}`,
+		});
+
+		const header = card.createDiv({ cls: "editorialist-panel__directives-header" });
+		const titleIcon = header.createSpan({ cls: "editorialist-panel__directives-title-icon" });
+		setIcon(titleIcon, "compass");
+		header.createSpan({
+			cls: "editorialist-panel__directives-title",
+			text: "Directives in this scene",
+		});
+		header.createSpan({
+			cls: "editorialist-panel__directives-summary",
+			text: this.formatDirectivesSummary(),
+		});
+
+		const toggle = header.createEl("button", {
+			cls: "editorialist-panel__directives-toggle",
+			attr: {
+				type: "button",
+				"aria-label": this.sceneDirectivesCollapsed ? "Show directives" : "Hide directives",
+				"aria-expanded": this.sceneDirectivesCollapsed ? "false" : "true",
+			},
+		});
+		const toggleIcon = toggle.createSpan({ cls: "editorialist-panel__directives-toggle-icon" });
+		setIcon(toggleIcon, this.sceneDirectivesCollapsed ? "chevron-down" : "chevron-up");
+		this.bindImmediateAction(toggle, () => {
+			this.sceneDirectivesCollapsed = !this.sceneDirectivesCollapsed;
+			this.render();
+		});
+
+		if (this.sceneDirectivesCollapsed) {
+			return;
+		}
+
+		const body = card.createDiv({ cls: "editorialist-panel__directives-body" });
+		for (const directive of this.sceneDirectives) {
+			this.renderSceneDirectiveEntry(body, directive);
+		}
+	}
+
+	private formatDirectivesSummary(): string {
+		const directiveCount = this.sceneDirectives.length;
+		const passageCount = countOpenAnchors(this.sceneDirectives);
+		const directiveLabel = `${directiveCount} directive${directiveCount === 1 ? "" : "s"}`;
+		if (passageCount === 0) {
+			return directiveLabel;
+		}
+		return `${directiveLabel} · ${passageCount} passage${passageCount === 1 ? "" : "s"}`;
+	}
+
+	private renderSceneDirectiveEntry(parent: HTMLElement, directive: SceneDirective): void {
+		const entry = parent.createDiv({ cls: "editorialist-panel__directive-entry" });
+
+		const head = entry.createDiv({ cls: "editorialist-panel__directive-head" });
+		const status = head.createEl("button", {
+			cls: "editorialist-panel__directive-status",
+			attr: {
+				type: "button",
+				"aria-label": `Status: ${STATUS_LABEL[directive.item.status]} (click to advance)`,
+			},
+		});
+		setIcon(
+			status.createSpan({ cls: "editorialist-panel__directive-status-icon" }),
+			STATUS_ICON[directive.item.status],
+		);
+		this.bindImmediateAction(status, () => {
+			void this.advanceSceneDirectiveStatus(directive);
+		});
+
+		head.createSpan({
+			cls: "editorialist-panel__directive-text",
+			text: directive.item.text,
+		});
+
+		entry.createDiv({
+			cls: "editorialist-panel__directive-source",
+			text: directive.sectionHeading
+				? `${directive.editorialismTitle} · ${directive.sectionHeading}`
+				: directive.editorialismTitle,
+		});
+
+		if (directive.anchorsInScene.length === 0) {
+			// Honest empty state. A scoped directive with no anchored passage
+			// still tells the author it applies here, but it cannot say where —
+			// which is exactly the gap issue #3 closes.
+			entry.createDiv({
+				cls: "editorialist-panel__directive-noanchors",
+				text: "No anchored passages in this scene.",
+			});
+			return;
+		}
+
+		const anchors = entry.createDiv({ cls: "editorialist-panel__directive-anchors" });
+		for (const anchor of directive.anchorsInScene) {
+			this.renderSceneDirectiveAnchor(anchors, directive, anchor);
+		}
+	}
+
+	private renderSceneDirectiveAnchor(
+		parent: HTMLElement,
+		directive: SceneDirective,
+		anchor: EditorialismAnchor,
+	): void {
+		const row = parent.createDiv({ cls: "editorialist-panel__directive-anchor" });
+
+		const status = row.createEl("button", {
+			cls: "editorialist-panel__directive-anchor-status",
+			attr: {
+				type: "button",
+				"aria-label": `Anchor status: ${STATUS_LABEL[anchor.status]} (click to advance)`,
+			},
+		});
+		setIcon(
+			status.createSpan({ cls: "editorialist-panel__directive-anchor-status-icon" }),
+			STATUS_ICON[anchor.status],
+		);
+		this.bindImmediateAction(status, () => {
+			void this.advanceSceneDirectiveAnchorStatus(directive, anchor);
+		});
+
+		const jump = row.createEl("button", {
+			cls: "editorialist-panel__directive-anchor-jump",
+			attr: { type: "button", "aria-label": "Jump to this passage" },
+		});
+		jump.createSpan({
+			cls: "editorialist-panel__directive-anchor-fragment",
+			text: formatAnchorFragment(anchor),
+		});
+		this.bindImmediateAction(jump, () => {
+			void this.plugin.openEditorialismAnchor(directive.editorialismPath, directive.item, anchor);
+		});
+
+		const unlocated = this.plugin.getUnlocatedAnchorReason(directive.editorialismPath, anchor);
+		if (unlocated) {
+			row.createDiv({
+				cls: "editorialist-panel__directive-anchor-warning",
+				text: unlocated,
+			});
+		}
+	}
+
+	private async advanceSceneDirectiveStatus(directive: SceneDirective): Promise<void> {
+		await this.plugin.setEditorialismItemStatus(
+			directive.editorialismPath,
+			directive.item.lineIndex,
+			nextStatusInCycle(directive.item.status),
+		);
+		this.sceneDirectivesNotePath = null;
+		this.render();
+	}
+
+	private async advanceSceneDirectiveAnchorStatus(
+		directive: SceneDirective,
+		anchor: EditorialismAnchor,
+	): Promise<void> {
+		// Advancing an anchor never touches the parent directive's status, even
+		// when this is the last open passage. Whether the underlying concern is
+		// addressed is the author's call, not an inference from the anchors.
+		await this.plugin.setEditorialismAnchorStatus(
+			directive.editorialismPath,
+			anchor,
+			nextStatusInCycle(anchor.status),
+		);
+		this.sceneDirectivesNotePath = null;
+		this.render();
 	}
 
 	private renderCommentsCard(memos: SceneMemo[]): void {

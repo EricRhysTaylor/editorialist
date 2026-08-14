@@ -86,6 +86,7 @@ import {
 	type EditorialismAnchor,
 	type EditorialismItem,
 } from "./models/Editorialism";
+import { collectSceneDirectives, type SceneDirective } from "./core/SceneDirectives";
 import { isLocated, locateAnchor } from "./core/EditorialismAnchorLocator";
 import { buildAnchorFragments, formatAnchorBody } from "./core/EditorialismParser";
 import { openAnchorTargetModal, type AnchorTargetChoice } from "./ui/modals/AnchorTargetModal";
@@ -839,6 +840,28 @@ export default class EditorialistPlugin extends Plugin {
 		nextStatus: Parameters<EditorialismService["setItemStatus"]>[2],
 	): Promise<void> {
 		await this.editorialismService.setItemStatus(filePath, lineIndex, nextStatus);
+	}
+
+	// Directives from the active book's editorialisms that bear on the scene the
+	// author is reviewing, for the review panel's in-sweep card. Returns [] when
+	// there is no scene context — an unnumbered note cannot be located against a
+	// scope, and guessing is what this feature must never do.
+	async collectSceneDirectivesForActiveNote(): Promise<SceneDirective[]> {
+		const context = this.getSceneRelevanceContext();
+		if (!context) {
+			return [];
+		}
+		const summaries = await this.editorialismService.listForBook(
+			this.registry.getActiveBookScopeInfo().label,
+		);
+		const loaded: Editorialism[] = [];
+		for (const summary of summaries) {
+			const editorialism = await this.editorialismService.load(summary.filePath);
+			if (editorialism) {
+				loaded.push(editorialism);
+			}
+		}
+		return collectSceneDirectives(loaded, context);
 	}
 
 	// ── Editorialism anchors ────────────────────────────────────────────────
