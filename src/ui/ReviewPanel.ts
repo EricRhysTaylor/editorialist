@@ -71,6 +71,23 @@ function compareReviewStateEntriesByNarrativeOrder(
 
 type ReviewerMenuAction = "assign" | "create" | "unresolved" | "save_alias";
 
+// What to say when a directive covers this scene but anchors none of its
+// passages here. Falls back to the bare statement only when the directive has
+// no anchors at all, or none whose scene could be resolved.
+function formatAnchorsElsewhereLabel(directive: SceneDirective): string {
+	const scenes = directive.anchorScenesElsewhere;
+	if (directive.anchorsElsewhereCount === 0 || scenes.length === 0) {
+		return "No anchored passages in this scene.";
+	}
+	const count = directive.anchorsElsewhereCount;
+	const passages = `${count} passage${count === 1 ? "" : "s"}`;
+	const sceneList =
+		scenes.length === 1
+			? `scene ${scenes[0]}`
+			: `scenes ${scenes.slice(0, -1).join(", ")} and ${scenes[scenes.length - 1]}`;
+	return `None here — ${passages} in ${sceneList}.`;
+}
+
 // An anchor's display label: one fragment, or the two-fragment span form, plus
 // the reviewer's optional trailing note.
 function formatAnchorFragment(anchor: EditorialismAnchor): string {
@@ -804,12 +821,16 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		});
 
 		if (directive.anchorsInScene.length === 0) {
-			// Honest empty state. A scoped directive with no anchored passage
-			// still tells the author it applies here, but it cannot say where —
-			// which is exactly the gap issue #3 closes.
+			// A range- or subplot-scoped directive routinely applies here while
+			// every passage it names sits in another scene. Saying only "none
+			// here" is true and useless — it is the checklist row this card
+			// exists to replace. Name the scenes instead, so the directive still
+			// points somewhere. Deliberately not a jump: leaving the scene
+			// mid-sweep would abandon the batch the author is working. Walking
+			// the directive across scenes is the Editorialisms panel's job.
 			entry.createDiv({
 				cls: "editorialist-panel__directive-noanchors",
-				text: "No anchored passages in this scene.",
+				text: formatAnchorsElsewhereLabel(directive),
 			});
 			return;
 		}

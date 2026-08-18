@@ -149,3 +149,60 @@ describe("collectSceneDirectives", () => {
 		expect(collectSceneDirectives([editorialism([subplot])], sceneContext)).toHaveLength(1);
 	});
 });
+
+describe("out-of-scene anchors", () => {
+	it("names the scenes where the other passages live", () => {
+		const spanning = item({
+			anchors: [
+				anchor({ lineIndex: 1, scene: "26" }),
+				anchor({ lineIndex: 2, scene: "27" }),
+				anchor({ lineIndex: 3, scene: "26" }),
+			],
+		});
+		const directives = collectSceneDirectives([editorialism([spanning])], sceneContext);
+		// Scene 14 holds none of them; the label has to point somewhere.
+		expect(directives[0]?.anchorsInScene).toEqual([]);
+		expect(directives[0]?.anchorsElsewhereCount).toBe(3);
+		expect(directives[0]?.anchorScenesElsewhere).toEqual(["26", "27"]);
+	});
+
+	it("counts only anchors outside this scene", () => {
+		const mixed = item({
+			anchors: [
+				anchor({ lineIndex: 1, scene: "14" }),
+				anchor({ lineIndex: 2, scene: "21" }),
+			],
+		});
+		const directives = collectSceneDirectives([editorialism([mixed])], sceneContext);
+		expect(directives[0]?.anchorsInScene.map((entry) => entry.lineIndex)).toEqual([1]);
+		expect(directives[0]?.anchorsElsewhereCount).toBe(1);
+		expect(directives[0]?.anchorScenesElsewhere).toEqual(["21"]);
+	});
+
+	it("sorts scene numbers numerically, not lexically", () => {
+		const spanning = item({
+			anchors: [
+				anchor({ lineIndex: 1, scene: "9" }),
+				anchor({ lineIndex: 2, scene: "27" }),
+				anchor({ lineIndex: 3, scene: "13" }),
+			],
+		});
+		const directives = collectSceneDirectives([editorialism([spanning])], sceneContext);
+		expect(directives[0]?.anchorScenesElsewhere).toEqual(["9", "13", "27"]);
+	});
+
+	it("omits anchors whose scene cannot be resolved rather than guessing", () => {
+		const spanning = item({
+			anchors: [anchor({ lineIndex: 1, scene: null }), anchor({ lineIndex: 2, scene: "27" })],
+		});
+		const directives = collectSceneDirectives([editorialism([spanning])], sceneContext);
+		expect(directives[0]?.anchorsElsewhereCount).toBe(2);
+		expect(directives[0]?.anchorScenesElsewhere).toEqual(["27"]);
+	});
+
+	it("reports nothing elsewhere for a directive with no anchors at all", () => {
+		const directives = collectSceneDirectives([editorialism([item()])], sceneContext);
+		expect(directives[0]?.anchorsElsewhereCount).toBe(0);
+		expect(directives[0]?.anchorScenesElsewhere).toEqual([]);
+	});
+});

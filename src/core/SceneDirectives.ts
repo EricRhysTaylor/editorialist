@@ -36,6 +36,13 @@ export interface SceneDirective {
 	// Anchors in this scene still awaiting the author (neither done nor
 	// deferred), for the card's summary line.
 	openAnchorsInScene: number;
+	// Scene numbers where this directive's OTHER anchors live, in ascending
+	// order. A range- or subplot-scoped directive routinely applies to the
+	// current scene while every passage it names sits elsewhere; without this
+	// the card can only say "no anchored passages here", which is true and
+	// useless. Naming the scenes turns a dead row into a signpost.
+	anchorScenesElsewhere: string[];
+	anchorsElsewhereCount: number;
 }
 
 // Which scene an anchor points at. The anchor's own leading scene token wins;
@@ -85,6 +92,9 @@ export function collectSceneDirectives(
 					sceneNumber === null
 						? []
 						: item.anchors.filter((anchor) => anchorTargetsScene(anchor, item, sceneNumber));
+				const anchorsElsewhere = item.anchors.filter(
+					(anchor) => !anchorsInScene.includes(anchor),
+				);
 
 				out.push({
 					editorialismPath: editorialism.filePath,
@@ -93,12 +103,36 @@ export function collectSceneDirectives(
 					item,
 					anchorsInScene,
 					openAnchorsInScene: anchorsInScene.filter((anchor) => !isAnchorRetired(anchor.status)).length,
+					anchorScenesElsewhere: collectAnchorScenes(anchorsElsewhere, item),
+					anchorsElsewhereCount: anchorsElsewhere.length,
 				});
 			}
 		}
 	}
 
 	return out;
+}
+
+// Distinct scene numbers an anchor set points at, ascending. Uses the same
+// token precedence as anchorTargetsScene so the label cannot name a scene the
+// jump would not go to. Anchors with no resolvable scene are omitted rather
+// than guessed at.
+function collectAnchorScenes(
+	anchors: ReadonlyArray<EditorialismAnchor>,
+	item: EditorialismItem,
+): string[] {
+	const scenes = new Set<number>();
+	for (const anchor of anchors) {
+		const token = anchor.scene ?? (item.scope?.kind === "scene" ? item.scope.scene ?? null : null);
+		if (!token) {
+			continue;
+		}
+		const value = Number.parseInt(token, 10);
+		if (Number.isFinite(value)) {
+			scenes.add(value);
+		}
+	}
+	return [...scenes].sort((left, right) => left - right).map((value) => String(value));
 }
 
 export function countOpenAnchors(directives: ReadonlyArray<SceneDirective>): number {
