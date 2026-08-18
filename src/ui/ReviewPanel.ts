@@ -85,7 +85,7 @@ function formatAnchorsElsewhereLabel(directive: SceneDirective): string {
 		scenes.length === 1
 			? `scene ${scenes[0]}`
 			: `scenes ${scenes.slice(0, -1).join(", ")} and ${scenes[scenes.length - 1]}`;
-	return `None here — ${passages} in ${sceneList}.`;
+	return `${passages} in ${sceneList} — none in this scene.`;
 }
 
 // An anchor's display label: one fragment, or the two-fragment span form, plus
@@ -115,7 +115,12 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	// cached against the note they were loaded for, so a re-render does not
 	// re-read the vault. `null` key means "not loaded for any note yet".
 	private sceneDirectives: SceneDirective[] = [];
-	private sceneDirectivesNotePath: string | null = null;
+	// Keyed on the SCENE the directives were computed for (active note path +
+	// scene number), not on the review session's note. The two diverge whenever
+	// the author opens a different scene while a session is still bound to the
+	// previous one, and keying on the session left the card showing the old
+	// scene's directives.
+	private sceneDirectivesKey: string | null = null;
 	private sceneDirectivesLoading = false;
 	private sceneDirectivesCollapsed = false;
 	// null = follow the cold-start default; an explicit boolean once the user
@@ -150,6 +155,14 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		this.registerEvent(this.app.vault.on("create", (file) => this.invalidateSceneDirectivesFor(file.path)));
 		this.registerEvent(this.app.vault.on("delete", (file) => this.invalidateSceneDirectivesFor(file.path)));
 		this.registerEvent(this.app.vault.on("rename", (file) => this.invalidateSceneDirectivesFor(file.path)));
+		// Scene relevance is computed against the note the author is looking at,
+		// so moving between scenes has to re-evaluate it. Guarded on the key so
+		// focusing the panel itself does not churn the card.
+		this.registerEvent(this.app.workspace.on("active-leaf-change", () => {
+			if (this.sceneDirectivesKey !== this.currentSceneDirectivesKey()) {
+				this.render();
+			}
+		}));
 		this.render();
 	}
 
@@ -157,7 +170,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		if (!path.startsWith(`${this.plugin.getEditorialismFolder()}/`)) {
 			return;
 		}
-		this.sceneDirectivesNotePath = null;
+		this.sceneDirectivesKey = null;
 		this.render();
 	}
 
@@ -340,7 +353,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			this.renderCommentsCard(completedMemos);
 
 			if (session) {
-				this.ensureSceneDirectivesLoaded(session.notePath);
+				this.ensureSceneDirectivesLoaded();
 				this.renderSceneDirectivesCard();
 			}
 			return;
@@ -408,7 +421,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		// below so they are present in every session state — mid-sweep, at the
 		// scene-complete handoff, and after completion. The handoff is the moment
 		// that matters most: the author is about to leave the scene.
-		this.ensureSceneDirectivesLoaded(session.notePath);
+		this.ensureSceneDirectivesLoaded();
 		this.renderSceneDirectivesCard();
 
 		if (session.suggestions.length === 0) {
@@ -706,24 +719,43 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		});
 	}
 
-	private ensureSceneDirectivesLoaded(notePath: string): void {
-		if (this.sceneDirectivesNotePath === notePath || this.sceneDirectivesLoading) {
+	// Identifies the scene the directives belong to. Both halves matter: the
+	// path changes when the author opens another note, and the scene number is
+	// what every scope is actually matched against.
+	private currentSceneDirectivesKey(): string {
+		const activePath = this.app.workspace.getActiveFile()?.path ?? "";
+		const sceneNumber = this.plugin.getSceneRelevanceContext()?.sceneNumber ?? null;
+		return `${activePath}::${sceneNumber ?? ""}`;
+	}
+
+	private ensureSceneDirectivesLoaded(): void {
+		const key = this.currentSceneDirectivesKey();
+		if (this.sceneDirectivesKey === key || this.sceneDirectivesLoading) {
 			return;
 		}
+		const context = this.plugin.getSceneRelevanceContext();
+		if (!context) {
+			// An unnumbered note cannot be matched against a scope. Record the
+			// key so this does not re-attempt on every render.
+			this.sceneDirectives = [];
+			this.sceneDirectivesKey = key;
+			return;
+		}
+
 		this.sceneDirectivesLoading = true;
 		void this.plugin
-			.collectSceneDirectivesForActiveNote()
+			.collectSceneDirectivesForContext(context)
 			.then((directives) => {
 				this.sceneDirectives = directives;
 			})
 			.catch(() => {
-				// A failed read must not retry on every render. Record the note as
-				// loaded with an empty agenda; the next vault change or note switch
-				// tries again.
+				// A failed read must not retry on every render. Record the scene
+				// as loaded with an empty agenda; the next vault change or scene
+				// switch tries again.
 				this.sceneDirectives = [];
 			})
 			.finally(() => {
-				this.sceneDirectivesNotePath = notePath;
+				this.sceneDirectivesKey = key;
 				this.sceneDirectivesLoading = false;
 				this.render();
 			});
@@ -747,7 +779,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		setIcon(titleIcon, "compass");
 		header.createSpan({
 			cls: "editorialist-panel__directives-title",
-			text: "Directives in this scene",
+			text: "Editorialisms",
 		});
 		header.createSpan({
 			cls: "editorialist-panel__directives-summary",
@@ -758,7 +790,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			cls: "editorialist-panel__directives-toggle",
 			attr: {
 				type: "button",
-				"aria-label": this.sceneDirectivesCollapsed ? "Show directives" : "Hide directives",
+				"aria-label": this.sceneDirectivesCollapsed ? "Show editorialisms" : "Hide editorialisms",
 				"aria-expanded": this.sceneDirectivesCollapsed ? "false" : "true",
 			},
 		});
@@ -779,6 +811,9 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		}
 	}
 
+	// The summary must not imply the work is in this scene. A directive can be
+	// in scope here while every passage it names sits elsewhere, so passages are
+	// counted only when they are actually here, and labelled as such.
 	private formatDirectivesSummary(): string {
 		const directiveCount = this.sceneDirectives.length;
 		const passageCount = countOpenAnchors(this.sceneDirectives);
@@ -786,7 +821,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		if (passageCount === 0) {
 			return directiveLabel;
 		}
-		return `${directiveLabel} · ${passageCount} passage${passageCount === 1 ? "" : "s"}`;
+		return `${directiveLabel} · ${passageCount} passage${passageCount === 1 ? "" : "s"} here`;
 	}
 
 	private renderSceneDirectiveEntry(parent: HTMLElement, directive: SceneDirective): void {
@@ -890,7 +925,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			directive.item.lineIndex,
 			nextStatusInCycle(directive.item.status),
 		);
-		this.sceneDirectivesNotePath = null;
+		this.sceneDirectivesKey = null;
 		this.render();
 	}
 
@@ -906,7 +941,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			anchor,
 			nextStatusInCycle(anchor.status),
 		);
-		this.sceneDirectivesNotePath = null;
+		this.sceneDirectivesKey = null;
 		this.render();
 	}
 

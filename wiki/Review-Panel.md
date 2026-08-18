@@ -105,13 +105,13 @@ The toolbar isn't only the per-suggestion editor above — it switches to a diff
 
 `handoff`, `panel`, and the "All revisions complete" state of `completed_review` are ordinary stops in a normal sweep, not error states — they mean, respectively: this scene is done and ready to advance; there's more to do further down the note than fits the current view; and the whole batch is fully decided.
 
-### Directives in this scene
+### Editorialisms
 
-When the scene under review is covered by [Editorialism](Editorialisms-Panel) directives, they appear in a **Directives in this scene** card in the panel, above the suggestion list. The card is present for the whole session — while you work the suggestions, at the scene-complete handoff, and after the batch is finished.
+When the scene under review is covered by [Editorialism](Editorialisms-Panel) directives, they appear in an **Editorialisms** card in the panel, above the suggestion list. The card is not a claim that the work sits in this scene — a directive can be in scope here while the passages it names live elsewhere, so the summary counts passages only when they are actually in the scene you are reading. The card is present for the whole session — while you work the suggestions, at the scene-complete handoff, and after the batch is finished.
 
 Each directive shows its status, its text, and the Editorialism and section it came from. Anchored passages that fall in this scene are listed beneath it; clicking one opens the passage the same way the Editorialisms panel does. Clicking a status cycles it through the five states and writes the change to the Editorialism file.
 
-A directive whose scope covers this scene while its passages sit elsewhere names those scenes — "None here — 2 passages in scenes 26 and 27" — so a range- or subplot-scoped note still points somewhere. Those scenes are named, not linked: leaving mid-sweep would abandon the batch you are working, so walking a directive across scenes stays the [Editorialisms panel](Editorialisms-Panel)'s job. A directive with no anchored passages at all says that plainly, rather than offering a jump that would land somewhere approximate.
+A directive whose scope covers this scene while its passages sit elsewhere names those scenes — "2 passages in scenes 26 and 27 — none in this scene" — so a range- or subplot-scoped note still points somewhere. Those scenes are named, not linked: leaving mid-sweep would abandon the batch you are working, so walking a directive across scenes stays the [Editorialisms panel](Editorialisms-Panel)'s job. A directive with no anchored passages at all says that plainly, rather than offering a jump that would land somewhere approximate.
 
 Two behaviors are deliberate:
 
@@ -146,7 +146,7 @@ Only the single most-recently applied change can be undone, and only for as long
 
 A sweep finishes only when every suggestion in the batch has a resolved status (accepted, rejected, or rewritten). If pending, unresolved, or deferred items remain, Editorialist pauses and tells you what's left. On completion, the batch is recorded: per-scene polish frontmatter (`Editorialist.revision`, `Editorialist.revision_updated`), contributor acceptance stats, and the activity history all update.
 
-The **All revisions complete** card keeps the scene's memos and any [directives for this scene](#directives-in-this-scene) beneath it, so the reviewer's framing is still readable after the pass rather than only during it. A comments card you collapsed while sweeping is reopened when the pass completes; collapsing it again in the completion view stays collapsed. **Review changes** re-enters the batch to walk what you accepted, and the memos stay in view there too.
+The **All revisions complete** card keeps the scene's memos and any [Editorialisms](#editorialisms) beneath it, so the reviewer's framing is still readable after the pass rather than only during it. A comments card you collapsed while sweeping is reopened when the pass completes; collapsing it again in the completion view stays collapsed. **Review changes** re-enters the batch to walk what you accepted, and the memos stay in view there too.
 
 ## Pending-edits review
 

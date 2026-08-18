@@ -1,5 +1,5 @@
 // Shared presentation for the five-state editorialism task status. Both the
-// Editorialisms panel and the in-sweep "Directives in this scene" card cycle
+// Editorialisms panel and the in-sweep Editorialisms card cycle
 // and label the same statuses, so the cycle order, labels, and icons live here
 // rather than being duplicated per surface.
 

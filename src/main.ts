@@ -845,15 +845,15 @@ export default class EditorialistPlugin extends Plugin {
 		await this.editorialismService.setItemStatus(filePath, lineIndex, nextStatus);
 	}
 
-	// Directives from the active book's editorialisms that bear on the scene the
-	// author is reviewing, for the review panel's in-sweep card. Returns [] when
-	// there is no scene context — an unnumbered note cannot be located against a
-	// scope, and guessing is what this feature must never do.
-	async collectSceneDirectivesForActiveNote(): Promise<SceneDirective[]> {
-		const context = this.getSceneRelevanceContext();
-		if (!context) {
-			return [];
-		}
+	// Directives from the active book's editorialisms that bear on a scene, for
+	// the review panel's in-sweep card.
+	//
+	// The CALLER supplies the scene context rather than this method reading the
+	// active note itself. The panel caches the result against the context it
+	// asked for, and if this method resolved its own context the two could
+	// disagree — load scene 26's directives, file them under scene 29 — which is
+	// exactly how the card went stale when the author moved between scenes.
+	async collectSceneDirectivesForContext(context: SceneRelevanceContext): Promise<SceneDirective[]> {
 		const summaries = await this.editorialismService.listForBook(
 			this.registry.getActiveBookScopeInfo().label,
 		);

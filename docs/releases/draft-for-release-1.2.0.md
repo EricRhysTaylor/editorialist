@@ -4,13 +4,13 @@ This release brings the Editorialisms agenda into the review sweep. Structural d
 
 ## What's new
 
-### Directives in this scene
+### Editorialisms in the review panel
 
-When a scene you are reviewing is covered by Editorialism directives, they appear in a **Directives in this scene** card in the review panel, above the suggestion list. The card is present for the whole session — while you work the suggestions, at the scene-complete handoff, and after the batch is finished.
+When a scene you are reviewing is covered by Editorialism directives, they appear in an **Editorialisms** card in the review panel, above the suggestion list. The card is present for the whole session — while you work the suggestions, at the scene-complete handoff, and after the batch is finished.
 
 Each directive shows its status, its text, and the Editorialism and section it came from. Anchored passages that fall in this scene are listed beneath it; clicking one opens the passage. Clicking a status cycles it through the five states and writes the change to the Editorialism file, so the two panels stay in step.
 
-Example: while reviewing scene 14, a directive scoped `[scope:: 13–22]` about escalating grief appears with the two passages it anchors in that scene, so the broader agenda is worked alongside the line edits instead of waiting in another panel.
+Example: while reviewing scene 14, a directive scoped `[scope:: 13–22]` about escalating grief appears with the two passages it anchors in that scene, so the broader agenda is worked alongside the line edits instead of waiting in another panel. When a directive applies here but its passages sit in other scenes, the card names those scenes instead of leaving the row empty.
 
 Directives never block sweep completion, and there is no Apply — a directive carries no replacement prose, so nothing is written to the manuscript for you. Marking every anchor in a scene processed does not mark the directive done; that stays your call.
 
