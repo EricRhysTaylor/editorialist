@@ -89,6 +89,40 @@ export function isCutArchivePath(filePath: string, cutFolderOverride: string): b
 	return normalizedPath.split("/").slice(0, -1).includes(CUT_FOLDER_NAME);
 }
 
+// Whether a note may be treated as a scene of the active book.
+//
+// Scene relevance (which Editorialism directives light up) and anchor
+// navigation (which note an anchor opens) must answer this identically. When
+// they disagreed, relevance fired on Beat, frontmatter, and cut notes that
+// anchor navigation correctly refused to open — a numbered structural note like
+// `29.01 Crossing the Threshold` read as scene 29.
+//
+// The tiering is deliberate and each tier is load-bearing:
+//   - Cut archives are ALWAYS rejected. A cut file carries its scene's exact
+//     basename, so anything matching scenes by name matches the cut too.
+//   - `Class: Scene` is required ONLY when the book scope is structured.
+//     Unstructured, non-Radial-Timeline vaults have no Class frontmatter at
+//     all; demanding it there would disable the feature for those vaults.
+//   - Folder membership is checked whenever the scope declares a root, so a
+//     note from another book cannot impersonate one in this book.
+export function isSceneNoteForScope(
+	app: App,
+	file: TFile,
+	scope: { sourceFolder: string | null; structured: boolean },
+	cutFolderOverride: string,
+): boolean {
+	if (isCutArchivePath(file.path, cutFolderOverride) || isCutClassFile(app, file)) {
+		return false;
+	}
+	if (scope.sourceFolder && !isPathInFolderScope(file.path, scope.sourceFolder)) {
+		return false;
+	}
+	if (scope.structured) {
+		return isSceneClassFile(app, file);
+	}
+	return true;
+}
+
 export function getSceneIdForFile(app: App, file: TFile): string | undefined {
 	const frontmatter = app.metadataCache.getFileCache(file)?.frontmatter;
 	const values = getFrontmatterStringValues(frontmatter, [

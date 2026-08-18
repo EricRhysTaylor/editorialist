@@ -169,6 +169,7 @@ export class ReviewWorkflowService {
 			currentNoteIndex: guidedSweep.currentNoteIndex,
 			notePaths: [...guidedSweep.notePaths],
 			startedAt: guidedSweep.startedAt,
+			hasSweepStart: true,
 			totalSuggestions: entry?.totalSuggestions ?? 0,
 		});
 		this.store.setGuidedSweep(null);

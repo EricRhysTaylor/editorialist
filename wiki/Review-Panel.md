@@ -146,6 +146,8 @@ Only the single most-recently applied change can be undone, and only for as long
 
 A sweep finishes only when every suggestion in the batch has a resolved status (accepted, rejected, or rewritten). If pending, unresolved, or deferred items remain, Editorialist pauses and tells you what's left. On completion, the batch is recorded: per-scene polish frontmatter (`Editorialist.revision`, `Editorialist.revision_updated`), contributor acceptance stats, and the activity history all update.
 
+A completion duration is shown only for a sweep that recorded a real start time. A pass that finished as a single-scene session has no such timestamp, so it reports no duration rather than an approximate one.
+
 The **All revisions complete** card keeps the scene's memos and any [Editorialisms](#editorialisms) beneath it, so the reviewer's framing is still readable after the pass rather than only during it. A comments card you collapsed while sweeping is reopened when the pass completes; collapsing it again in the completion view stays collapsed. **Review changes** re-enters the batch to walk what you accepted, and the memos stay in view there too.
 
 ## Pending-edits review

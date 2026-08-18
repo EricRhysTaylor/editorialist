@@ -37,10 +37,9 @@ import { buildReviewTemplate, type ReviewTemplateContext } from "./core/ReviewTe
 import {
 	getFrontmatterStringValues,
 	getSceneIdForFile,
-	isCutArchivePath,
-	isCutClassFile,
 	isPathInFolderScope,
 	isSceneClassFile,
+	isSceneNoteForScope,
 } from "./core/VaultScope";
 import { buildSceneTokens, sceneNumberFromName, type SceneRelevanceContext } from "./core/SceneRelevance";
 import { SuggestionParser } from "./core/SuggestionParser";
@@ -86,6 +85,7 @@ import {
 	type EditorialismAnchor,
 	type EditorialismItem,
 } from "./models/Editorialism";
+import { selectCompletedSweepDurationLabel } from "./core/review/CompletedSweepDuration";
 import { collectSceneDirectives, type SceneDirective } from "./core/SceneDirectives";
 import { isLocated, locateAnchor } from "./core/EditorialismAnchorLocator";
 import { buildAnchorFragments, formatAnchorBody } from "./core/EditorialismParser";
@@ -701,6 +701,24 @@ export default class EditorialistPlugin extends Plugin {
 			return null;
 		}
 
+		// Only an actual scene of the active book can carry scene relevance.
+		// Without this, any note whose name starts with digits impersonated a
+		// scene (`29.01 Crossing the Threshold`, Class: Beat, read as scene 29),
+		// and the token-only path below let an unnumbered note with Character /
+		// Subplot frontmatter match subplot-scoped directives from anywhere in
+		// the vault. Shares one predicate with resolveAnchorSceneFile so the two
+		// cannot drift apart again.
+		if (
+			!isSceneNoteForScope(
+				this.app,
+				file,
+				this.registry.getActiveBookScopeInfo(),
+				this.registry.getCutFolderOverride(),
+			)
+		) {
+			return null;
+		}
+
 		const sceneNumber = sceneNumberFromName(file.basename);
 		const frontmatter = this.app.metadataCache.getFileCache(file)?.frontmatter;
 		const characters = getFrontmatterStringValues(frontmatter, ["Character", "Characters", "character", "characters"]);
@@ -933,13 +951,14 @@ export default class EditorialistPlugin extends Plugin {
 		// signal; the cut checks are the guard for vaults where it is absent.
 		let unclassified: TFile | null = null;
 		for (const file of this.app.vault.getMarkdownFiles()) {
-			if (scope.sourceFolder && !isPathInFolderScope(file.path, scope.sourceFolder)) {
-				continue;
-			}
 			if (sceneNumberFromName(file.basename) !== sceneNumber) {
 				continue;
 			}
-			if (isCutArchivePath(file.path, cutFolderOverride) || isCutClassFile(this.app, file)) {
+			// Same admissibility rule scene relevance uses. In a structured
+			// scope the predicate already requires Class: Scene, so the
+			// unclassified fallback below stays null there — preserving the
+			// prior behavior exactly.
+			if (!isSceneNoteForScope(this.app, file, scope, cutFolderOverride)) {
 				continue;
 			}
 			if (isSceneClassFile(this.app, file)) {
@@ -3690,6 +3709,9 @@ export default class EditorialistPlugin extends Plugin {
 				currentNoteIndex: 0,
 				notePaths: [currentSession.notePath],
 				startedAt: currentSession.parsedAt,
+				// `parsedAt` is when the note was parsed, not when the author
+				// started revising, so this path has no duration to report.
+				hasSweepStart: false,
 				totalSuggestions: currentSession.suggestions.length,
 			};
 		}
@@ -3727,24 +3749,15 @@ export default class EditorialistPlugin extends Plugin {
 			currentNoteIndex,
 			notePaths,
 			startedAt: latestCompletedSweep.importedAt,
+			// importedAt is the canonical sweep start — openExistingSweep seeds a
+			// guided sweep's startedAt from this same field.
+			hasSweepStart: true,
 			totalSuggestions: latestCompletedSweep.totalSuggestions,
 		};
 	}
 
 	private getCompletedSweepDurationLabel(completedSweep: CompletedSweepState): string | undefined {
-		const elapsedMs = completedSweep.completedAt - completedSweep.startedAt;
-		if (!Number.isFinite(elapsedMs) || elapsedMs < 60_000) {
-			return undefined;
-		}
-
-		const totalMinutes = Math.round(elapsedMs / 60_000);
-		if (totalMinutes < 60) {
-			return `Completed in ${totalMinutes}m`;
-		}
-
-		const hours = Math.floor(totalMinutes / 60);
-		const minutes = totalMinutes % 60;
-		return minutes > 0 ? `Completed in ${hours}h ${minutes}m` : `Completed in ${hours}h`;
+		return selectCompletedSweepDurationLabel(completedSweep);
 	}
 
 

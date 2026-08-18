@@ -25,6 +25,10 @@ export interface CompletedSweepState {
 	currentNoteIndex: number;
 	notePaths: string[];
 	startedAt: number;
+	// Whether `startedAt` is a genuine sweep start. A guided sweep records one;
+	// the per-session completion fallback does not — it only knows when the note
+	// was parsed. Consumers must not report a duration when this is false.
+	hasSweepStart: boolean;
 	totalSuggestions: number;
 }
 

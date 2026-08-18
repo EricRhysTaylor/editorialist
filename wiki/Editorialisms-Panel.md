@@ -51,6 +51,8 @@ When you are working in a scene, Editorialist marks related Editorialism items w
 
 <p align="center"><img src="images/panel-side-editorialism-active-rounded.png" alt="Editorialism item with a green current-scene accent for the Cesena thread" width="655"></p>
 
+Highlighting applies only to scene notes of the active book. Cut archives are always excluded, and in a Radial Timeline vault a note must carry `Class: Scene` — so a numbered Beat or outline note such as `29.01` does not light up as scene 29. Vaults without `Class` frontmatter are unaffected: there, any note in the book folder counts.
+
 Rows light up when their `[scope:: …]` matches the current scene:
 
 - A scene scope matches that scene number.
