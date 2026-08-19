@@ -26,12 +26,9 @@ Example: finish a revision pass, then read the reviewer's memo about what is wor
 
 - Memos were unreachable once a sweep completed. The completion view returned before the comments card rendered, so a memo disappeared at the end of a pass and did not come back when **Review changes** re-entered the batch.
 - Editorialism status controls now share one definition across the Editorialisms panel and the review panel, so the five-state cycle behaves identically in both.
-
-### Fixes in this release
-
 - Scene relevance no longer fires on notes that are not scenes. A numbered Beat or outline note (`29.01 Crossing the Threshold`) no longer reads as scene 29, cut archives are excluded, and notes from another book no longer match. Vaults without `Class` frontmatter keep working as before.
 - The completion card no longer reports a duration it cannot know. A pass that finished as a single-scene session shows no duration instead of a figure derived from when the note was parsed.
+- **Reset one batch** could erase a different batch's decisions. When one scene held review blocks from several imports, every decision in that scene was filed under a single batch — so resetting one batch's history could take another batch's accepts, rejects and rewrites with it, while leaving the reset batch's own decisions in place. Your manuscript was never affected, but the suggestions involved came back as pending the next time the scene was opened.
+- Per-batch accept / reject / rewrite counts in **Recent reviews** read 0 for batches you had worked in, and moved between batches each time the scene was reopened. Same misfiling as above, showing up in the statistics rather than in your decisions.
 
-## Known issues
-
-- Per-batch accept / reject / rewrite counts in **Recent reviews** can read 0 for a batch you worked in, when one scene holds review blocks from several batches. The decisions themselves are stored correctly and your manuscript is unaffected — only the per-batch attribution is wrong.
+Each suggestion now carries the import it came from, so both problems are fixed at the source. Records already written are repaired automatically, once, the first time this version loads — nothing is deleted, and a batch whose review blocks have already been cleaned from the note is left as it is.
