@@ -70,6 +70,18 @@ describe("ReviewerStatsProjector.createSignalRecord", () => {
 		(noReviewer.contributor as { reviewerId?: string }).reviewerId = undefined;
 		expect(projector.createSignalRecord("k", noReviewer)).toBeNull();
 	});
+
+	it("stamps the suggestion's own batch, falling back to the session batch only when it has none", () => {
+		const { projector } = makeProjector([]);
+		const own = suggestion("r1", "accepted");
+		own.source.batchId = "batch-from-block";
+		expect(projector.createSignalRecord("k", own, "note-level-batch")?.sessionId).toBe(
+			"batch-from-block",
+		);
+		expect(projector.createSignalRecord("k", suggestion("r1", "accepted"), "note-level-batch")?.sessionId).toBe(
+			"note-level-batch",
+		);
+	});
 });
 
 describe("ReviewerStatsProjector.sameSignalRecord", () => {

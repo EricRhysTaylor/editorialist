@@ -519,6 +519,14 @@ export default class EditorialistPlugin extends Plugin {
 		// file the button points at. Deferred to layout-ready because `create`
 		// fires once per file while the vault index is warming up.
 		this.app.workspace.onLayoutReady(() => {
+			// One-time repair of reviewer-signal batch attribution for vaults whose
+			// data.json predates per-suggestion batch ids. Deferred to layout-ready
+			// because it reads tracked notes, and fire-and-forget because nothing
+			// in startup depends on it — a failure leaves the old (wrong but
+			// harmless) attribution in place rather than blocking load.
+			void this.registry.migrateReviewerSignalBatchAttribution().catch((err: unknown) => {
+				console.error("Editorialist: reviewer-signal attribution migration failed", err);
+			});
 			this.registerEvent(
 				this.app.vault.on("create", (file) => {
 					this.refreshReviewPanelIfActiveSceneCutFile(file.path);

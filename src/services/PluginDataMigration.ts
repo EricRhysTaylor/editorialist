@@ -34,6 +34,21 @@ import {
 
 export const EDITORIALIST_PLUGIN_DATA_VERSION = 1 as const;
 
+// Current shape of reviewer-signal batch attribution. Version 1 is the first
+// shape where each signal carries the batch of the review block its suggestion
+// was parsed from (rather than one note-level batch for every signal in the
+// note) and where the batch is part of the signal key. Persisted data below
+// this version gets the one-time repair pass in
+// ReviewRegistryService.migrateReviewerSignalBatchAttribution().
+export const REVIEWER_SIGNAL_ATTRIBUTION_VERSION = 1 as const;
+
+// Absent / garbage reads as 0 — "never migrated" — which is exactly right for
+// every data.json written before the attribution fix. A fresh install starts at
+// the current version (see emptyPluginData) so it never runs the repair.
+export function normalizeSignalAttributionVersion(value: unknown): number {
+	return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : 0;
+}
+
 export interface MigrationLogger {
 	warn(message: string): void;
 }
@@ -106,6 +121,7 @@ export function normalizeEditorialistSettings(raw: unknown): EditorialistSetting
 export function emptyPluginData(): EditorialistPluginData {
 	return {
 		version: EDITORIALIST_PLUGIN_DATA_VERSION,
+		signalAttributionVersion: REVIEWER_SIGNAL_ATTRIBUTION_VERSION,
 		reviewerProfiles: [],
 		reviewerSignalIndex: {},
 		reviewDecisionIndex: {},
@@ -157,6 +173,7 @@ function normalizeIntoCurrent(raw: Record<string, unknown>): EditorialistPluginD
 
 	return {
 		version: EDITORIALIST_PLUGIN_DATA_VERSION,
+		signalAttributionVersion: normalizeSignalAttributionVersion(raw.signalAttributionVersion),
 		reviewerProfiles,
 		reviewerSignalIndex: normalizeReviewerSignalIndex(
 			pickObject(raw.reviewerSignalIndex) as Record<string, ReviewerSignalRecord> | undefined,

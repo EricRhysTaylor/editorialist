@@ -4,6 +4,7 @@ import {
 	extractReviewBlocks,
 	findImportedReviewBlocks,
 	findUnimportedReviewBlock,
+	getReviewBlockBatchId,
 } from "./ReviewBlockFormat";
 
 // A raw review block as an AI would write it straight into a note: real metadata
@@ -84,6 +85,25 @@ describe("ReviewBlockFormat — imported block detection", () => {
 			"```",
 		].join("\n");
 		expect(findImportedReviewBlocks(note)).toHaveLength(0);
+	});
+
+	it("reads a block's own batch id only when it is fully stamped", () => {
+		const imported = extractReviewBlocks(importedNote())[0];
+		expect(getReviewBlockBatchId(imported.bodyText)).toBe("batch-abc123");
+
+		// Raw block: no stamp at all.
+		expect(getReviewBlockBatchId(extractReviewBlocks(rawBlock())[0].bodyText)).toBeUndefined();
+
+		// Half-stamped block: a BatchId with someone else's ImportedBy never
+		// claims batch membership.
+		const foreign = [
+			"BatchId: batch-xyz",
+			"ImportedBy: SomeoneElse",
+			"=== EDIT ===",
+			"Original: a",
+			"Revised: b",
+		].join("\n");
+		expect(getReviewBlockBatchId(foreign)).toBeUndefined();
 	});
 });
 

@@ -16,7 +16,7 @@ import type {
 } from "../models/ReviewSuggestion";
 import type { ParsedContributorReference } from "../models/ContributorProfile";
 import type { ContributorDirectory } from "../state/ContributorDirectory";
-import { extractReviewBlocks } from "./ReviewBlockFormat";
+import { extractReviewBlocks, getReviewBlockBatchId } from "./ReviewBlockFormat";
 import {
 	REVIEW_FIELD_PATTERN as FIELD_PATTERN,
 	REVIEW_SECTION_HEADER_PATTERN as SECTION_HEADER_PATTERN,
@@ -36,6 +36,10 @@ interface SectionBuffer {
 
 interface BlockMetadata {
 	rawReviewer: ParsedContributorReference;
+	// The enclosing block's import batch, or undefined for a raw block. Carried
+	// onto every entry's ReviewSourceRef so downstream attribution (reviewer
+	// signals, per-batch decision stats) is per-suggestion rather than per-note.
+	batchId?: string;
 }
 
 type SectionParser = (
@@ -106,7 +110,10 @@ export class SuggestionParser {
 			const bodyStart = block.startOffset;
 			const blockEnd = block.endOffset;
 			const lines = getLinesWithOffsets(rawBody, bodyStart);
-			const metadata = this.parseBlockMetadata(lines, blockIndex);
+			const metadata = {
+				...this.parseBlockMetadata(lines, blockIndex),
+				batchId: getReviewBlockBatchId(rawBody),
+			};
 			const sections = this.extractSections(lines, blockEnd);
 
 			sections.forEach((section) => {
@@ -234,17 +241,27 @@ export class SuggestionParser {
 		return sections;
 	}
 
+	// Single construction point for a section's ReviewSourceRef so every entry
+	// kind (suggestion, memo, query) is stamped with the same block coordinates
+	// AND the same batch attribution. `batchId` is omitted entirely when the
+	// block carries no import stamp, keeping the persisted shape unchanged for
+	// raw blocks.
+	private sourceRefFor(section: SectionBuffer, blockIndex: number, metadata: BlockMetadata): ReviewSourceRef {
+		return {
+			blockIndex,
+			entryIndex: section.entryIndex - 1,
+			startOffset: section.startOffset,
+			endOffset: section.endOffset,
+			...(metadata.batchId ? { batchId: metadata.batchId } : {}),
+		};
+	}
+
 	private parseSection(section: SectionBuffer, blockIndex: number, metadata: BlockMetadata): ReviewSuggestion | null {
 		if (section.kind === "memo" || section.kind === "query") {
 			return null;
 		}
 		const fields = this.collectFields(section.lines);
-		const source: ReviewSourceRef = {
-			blockIndex,
-			entryIndex: section.entryIndex - 1,
-			startOffset: section.startOffset,
-			endOffset: section.endOffset,
-		};
+		const source: ReviewSourceRef = this.sourceRefFor(section, blockIndex, metadata);
 		const suggestionId = `review-${blockIndex + 1}-${section.entryIndex}`;
 		return this.sectionParsers[section.kind](fields, suggestionId, source, metadata);
 	}
@@ -269,12 +286,7 @@ export class SuggestionParser {
 				id: `memo-${blockIndex + 1}-${section.entryIndex}`,
 				kind: "memo",
 				contributor: this.reviewerDirectory.resolveContributor(metadata.rawReviewer),
-				source: {
-					blockIndex,
-					entryIndex: section.entryIndex - 1,
-					startOffset: section.startOffset,
-					endOffset: section.endOffset,
-				},
+				source: this.sourceRefFor(section, blockIndex, metadata),
 				routing,
 				body: inlineBody,
 			};
@@ -284,12 +296,7 @@ export class SuggestionParser {
 			id: `memo-${blockIndex + 1}-${section.entryIndex}`,
 			kind: "memo",
 			contributor: this.reviewerDirectory.resolveContributor(metadata.rawReviewer),
-			source: {
-				blockIndex,
-				entryIndex: section.entryIndex - 1,
-				startOffset: section.startOffset,
-				endOffset: section.endOffset,
-			},
+			source: this.sourceRefFor(section, blockIndex, metadata),
 			routing,
 			strengths,
 			issues,
@@ -319,12 +326,7 @@ export class SuggestionParser {
 			id: `query-${blockIndex + 1}-${section.entryIndex}`,
 			kind: "query",
 			contributor: this.reviewerDirectory.resolveContributor(metadata.rawReviewer),
-			source: {
-				blockIndex,
-				entryIndex: section.entryIndex - 1,
-				startOffset: section.startOffset,
-				endOffset: section.endOffset,
-			},
+			source: this.sourceRefFor(section, blockIndex, metadata),
 			routing: this.parseRouting(fields),
 			question,
 			answer,
