@@ -166,14 +166,14 @@ export interface AuthorQueryDecisionRecord {
 
 export interface EditorialistPluginData {
 	version: number;
-	// Schema marker for the reviewer-signal index's batch attribution. 0 (or
-	// absent) means the index predates per-suggestion batch ids: its records are
-	// keyed without a batch segment and stamped with a single note-level
-	// sessionId. Bumped to REVIEWER_SIGNAL_ATTRIBUTION_VERSION once the one-time
-	// repair pass has run. Kept separate from `version` because `version` is
-	// stamped by every save, whereas this must only advance when the repair has
-	// actually completed.
-	signalAttributionVersion: number;
+	// Schema marker for per-batch attribution in the reviewer-signal index AND
+	// the review-decision index. 0 (or absent) means those indexes predate
+	// per-suggestion batch ids: their records are stamped with a single
+	// note-level sessionId (and signals are keyed without a batch segment).
+	// Bumped to BATCH_ATTRIBUTION_VERSION once the one-time repair pass has run.
+	// Kept separate from `version` because `version` is stamped by every save,
+	// whereas this must only advance when the repair has actually completed.
+	batchAttributionVersion: number;
 	reviewerProfiles: ContributorProfile[];
 	reviewerSignalIndex: Record<string, ReviewerSignalRecord>;
 	reviewDecisionIndex: Record<string, PersistedReviewDecisionRecord>;

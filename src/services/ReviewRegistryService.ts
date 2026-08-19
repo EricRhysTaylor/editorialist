@@ -44,10 +44,10 @@ import { SceneInventoryBuilder } from "./registry/SceneInventoryBuilder";
 import { tallyReviewStatuses } from "../core/review/SweepCompletion";
 import {
 	EDITORIALIST_PLUGIN_DATA_VERSION,
-	REVIEWER_SIGNAL_ATTRIBUTION_VERSION,
+	BATCH_ATTRIBUTION_VERSION,
 	defaultEditorialistSettings,
 	normalizeEditorialistSettings,
-	normalizeSignalAttributionVersion,
+	normalizeBatchAttributionVersion,
 	positiveNumber,
 } from "./PluginDataMigration";
 
@@ -93,7 +93,7 @@ export class ReviewRegistryService {
 	private reviewerSignalIndex: Record<string, ReviewerSignalRecord> = {};
 	private sceneReviewIndex: Record<string, SceneReviewRecord> = {};
 	private sweepRegistry: Record<string, ReviewSweepRegistryEntry> = {};
-	private signalAttributionVersion = 0;
+	private batchAttributionVersion = 0;
 	private settings: EditorialistSettings = defaultEditorialistSettings();
 	private readonly statsProjector: ReviewerStatsProjector;
 	private readonly sweepManager: SweepRegistryManager;
@@ -141,7 +141,7 @@ export class ReviewRegistryService {
 		this.reviewerSignalIndex = normalizeReviewerSignalIndex(savedData?.reviewerSignalIndex);
 		this.sceneReviewIndex = normalizeSceneReviewIndex(savedData?.sceneReviewIndex);
 		this.sweepRegistry = normalizeSweepRegistry(savedData?.sweepRegistry);
-		this.signalAttributionVersion = normalizeSignalAttributionVersion(savedData?.signalAttributionVersion);
+		this.batchAttributionVersion = normalizeBatchAttributionVersion(savedData?.batchAttributionVersion);
 		this.settings = normalizeEditorialistSettings(savedData?.settings);
 	}
 
@@ -215,7 +215,7 @@ export class ReviewRegistryService {
 	buildPluginData(reviewerProfiles: ContributorProfile[]): EditorialistPluginData {
 		return {
 			version: EDITORIALIST_PLUGIN_DATA_VERSION,
-			signalAttributionVersion: this.signalAttributionVersion,
+			batchAttributionVersion: this.batchAttributionVersion,
 			reviewerProfiles,
 			reviewerSignalIndex: this.reviewerSignalIndex,
 			reviewDecisionIndex: this.reviewDecisionIndex,
@@ -521,31 +521,39 @@ export class ReviewRegistryService {
 		}
 	}
 
-	// One-time repair of reviewer-signal batch attribution for data written
-	// before suggestions carried their own batch id.
+	// One-time repair of per-batch attribution for data written before
+	// suggestions carried their own batch id. Repairs BOTH indexes in a single
+	// pass over the tracked notes — reviewer signals (per-batch stats) and
+	// review decisions (the author's accept/reject/rewrite/defer, which
+	// resetBatchHistory deletes by batch). One pass, because both repairs need
+	// exactly the same expensive input: the note re-read, re-parsed, and
+	// hydrated. Splitting them would read every tracked note twice at startup
+	// and give the two indexes two chances to disagree about a batch.
 	//
 	// What it recovers: every note that is still tracked AND still holds its
 	// imported review blocks. For those, the note is re-parsed (so each
 	// suggestion carries the batch of the block it actually came from) and
-	// hydrated from reviewDecisionIndex — the durable, unaffected record of what
-	// the author decided — and each existing signal is moved onto its own
-	// batch's key.
+	// hydrated from reviewDecisionIndex — the durable record of what the author
+	// decided — and each existing record is moved onto its own batch.
 	//
 	// What it cannot recover, by design:
 	//   - batches whose review blocks have been cleaned out of the note. The
 	//     block structure that tied an entry to a batch is gone; guessing would
 	//     be worse than leaving the old stamp, so those records are untouched.
-	//   - notes that were deleted or renamed since the signals were written.
+	//   - notes that were deleted or renamed since the records were written.
 	//   - notes that were never tracked (no scene record, no sweep entry).
 	//
-	// Nothing is invented and no status is rewritten, so contributor directory
+	// Nothing is invented and nothing is deleted: no record is created, no
+	// status is rewritten, and no decision key changes, so contributor directory
 	// totals are identical before and after — the closing authoritative rebuild
-	// asserts that in practice. Guarded by signalAttributionVersion so it runs
-	// at most once, and idempotent even if it runs again.
-	async migrateReviewerSignalBatchAttribution(
+	// asserts that in practice. A decision that carried no batch at all keeps
+	// carrying none, so a repair can never make a previously undeletable record
+	// deletable. Guarded by batchAttributionVersion so it runs at most once, and
+	// idempotent even if it runs again.
+	async migrateBatchAttribution(
 		options?: { persist?: boolean },
 	): Promise<{ migrated: boolean; repairedNotes: number }> {
-		if (this.signalAttributionVersion >= REVIEWER_SIGNAL_ATTRIBUTION_VERSION) {
+		if (this.batchAttributionVersion >= BATCH_ATTRIBUTION_VERSION) {
 			return { migrated: false, repairedNotes: 0 };
 		}
 
@@ -574,14 +582,20 @@ export class ReviewRegistryService {
 				],
 				{ sessionId: this.resolveCurrentBatchId(null, noteText) ?? undefined },
 			);
+			const restampedDecisions = this.decisionIndex.restampSessionBatchAttribution(
+				this.reviewDecisionIndex,
+				session,
+			);
 			if (didChange) {
 				index = nextIndex;
+			}
+			if (didChange || restampedDecisions > 0) {
 				repairedNotes += 1;
 			}
 		}
 
 		this.reviewerSignalIndex = index;
-		this.signalAttributionVersion = REVIEWER_SIGNAL_ATTRIBUTION_VERSION;
+		this.batchAttributionVersion = BATCH_ATTRIBUTION_VERSION;
 		this.rebuildReviewerStatsFromSignals();
 		if (options?.persist !== false) {
 			await this.persistData();
@@ -854,12 +868,23 @@ export class ReviewRegistryService {
 		return injectedCount;
 	}
 
+	// Erases one batch's saved history. Both indexes delete by `sessionId`, which
+	// is now the batch of the suggestion's OWN review block (see
+	// ReviewDecisionIndex.batchIdFor / ReviewerStatsProjector.batchIdFor) — so a
+	// note holding blocks from several imports loses exactly the chosen batch's
+	// records and keeps every other batch's. While attribution was note-level
+	// this deleted the decisions of every OTHER batch in the note and spared the
+	// erased batch's own.
+	//
+	// An unattributed record — one whose suggestion belongs to no batch and that
+	// was decided outside any sweep — is deliberately immune: no batch erase
+	// claims it. "Reset all revision history" is the only thing that clears it.
 	async resetBatchHistory(batchId: string): Promise<{ removedDecisions: number; removedSignals: number; removedSweep: boolean }> {
 		let removedDecisions = 0;
 		let removedSignals = 0;
 
 		for (const [key, record] of Object.entries(this.reviewDecisionIndex)) {
-			if (record.sessionId !== batchId) {
+			if (!record.sessionId || record.sessionId !== batchId) {
 				continue;
 			}
 

@@ -107,7 +107,7 @@ Bulk operations. Cleanup actions ask for confirmation before removing review blo
 
 - **Clean all scenes/notes** — remove imported review blocks from tracked scenes or notes. Accepted manuscript edits and saved history stay in place.
 - **Clean completed scenes/notes** — remove imported review blocks only from completed scenes or notes.
-- **Reset one batch** — remove saved decisions and stats for one batch. Review blocks still present in notes are discovered again.
+- **Reset one batch** — remove saved decisions and stats for one batch. Only that batch's decisions go: when a note holds review blocks from several imports, the other batches keep theirs. Review blocks still present in notes are discovered again.
 - **Reset all history** — clear saved batch history and decision stats. Review blocks still present in notes are discovered again.
 
 ---

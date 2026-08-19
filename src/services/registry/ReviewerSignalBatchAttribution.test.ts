@@ -17,7 +17,7 @@ import { ReviewEngine } from "../../core/ReviewEngine";
 import { SuggestionParser } from "../../core/SuggestionParser";
 import { MatchEngine } from "../../core/MatchEngine";
 import { getSuggestionSignatureParts } from "../../core/OperationSupport";
-import { REVIEWER_SIGNAL_ATTRIBUTION_VERSION } from "../PluginDataMigration";
+import { BATCH_ATTRIBUTION_VERSION } from "../PluginDataMigration";
 import type { ReviewSession, ReviewSuggestion } from "../../models/ReviewSuggestion";
 import type {
 	ContributorProfile,
@@ -306,7 +306,7 @@ describe("migration of pre-fix signal records", () => {
 			sceneReviewIndex: {
 				[NOTE_PATH]: { notePath: NOTE_PATH, batchIds: ["batch-a", "batch-b"] },
 			} as never,
-			signalAttributionVersion: 0,
+			batchAttributionVersion: 0,
 		};
 	}
 
@@ -329,7 +329,7 @@ describe("migration of pre-fix signal records", () => {
 			rewritten: 0,
 		});
 
-		const result = await service.migrateReviewerSignalBatchAttribution({ persist: false });
+		const result = await service.migrateBatchAttribution({ persist: false });
 		expect(result).toEqual({ migrated: true, repairedNotes: 1 });
 
 		expect(service.getBatchDecisionStats("batch-a")).toEqual({
@@ -355,7 +355,7 @@ describe("migration of pre-fix signal records", () => {
 		const before = statsSnapshot(directory);
 		const recordCountBefore = Object.keys(signalIndexOf(service)).length;
 
-		await service.migrateReviewerSignalBatchAttribution({ persist: false });
+		await service.migrateBatchAttribution({ persist: false });
 
 		expect(statsSnapshot(directory)).toEqual(before);
 		expect(Object.keys(signalIndexOf(service))).toHaveLength(recordCountBefore);
@@ -366,20 +366,20 @@ describe("migration of pre-fix signal records", () => {
 		const { service, directory, engine } = makeStack(noteText);
 		service.load(legacyData(service, engine, noteText));
 
-		await service.migrateReviewerSignalBatchAttribution({ persist: false });
+		await service.migrateBatchAttribution({ persist: false });
 		const afterFirst = JSON.stringify(signalIndexOf(service));
 		const statsAfterFirst = statsSnapshot(directory);
 
 		// The version stamp short-circuits a second run...
-		expect(await service.migrateReviewerSignalBatchAttribution({ persist: false })).toEqual({
+		expect(await service.migrateBatchAttribution({ persist: false })).toEqual({
 			migrated: false,
 			repairedNotes: 0,
 		});
 
 		// ...and forcing the pass to run again (as a re-imported data.json with a
 		// reset stamp would) still finds nothing to move.
-		service.load({ ...service.buildPluginData([]), signalAttributionVersion: 0 });
-		const forced = await service.migrateReviewerSignalBatchAttribution({ persist: false });
+		service.load({ ...service.buildPluginData([]), batchAttributionVersion: 0 });
+		const forced = await service.migrateBatchAttribution({ persist: false });
 		expect(forced).toEqual({ migrated: true, repairedNotes: 0 });
 		expect(JSON.stringify(signalIndexOf(service))).toBe(afterFirst);
 		expect(statsSnapshot(directory)).toEqual(statsAfterFirst);
@@ -390,10 +390,10 @@ describe("migration of pre-fix signal records", () => {
 		const { service, engine } = makeStack(noteText);
 		service.load(legacyData(service, engine, noteText));
 
-		await service.migrateReviewerSignalBatchAttribution({ persist: false });
+		await service.migrateBatchAttribution({ persist: false });
 
-		expect(service.buildPluginData([]).signalAttributionVersion).toBe(
-			REVIEWER_SIGNAL_ATTRIBUTION_VERSION,
+		expect(service.buildPluginData([]).batchAttributionVersion).toBe(
+			BATCH_ATTRIBUTION_VERSION,
 		);
 	});
 
@@ -405,10 +405,10 @@ describe("migration of pre-fix signal records", () => {
 			sceneReviewIndex: {
 				[NOTE_PATH]: { notePath: NOTE_PATH, batchIds: ["batch-a", "batch-b"] },
 			} as never,
-			signalAttributionVersion: 0,
+			batchAttributionVersion: 0,
 		});
 
-		await service.migrateReviewerSignalBatchAttribution({ persist: false });
+		await service.migrateBatchAttribution({ persist: false });
 
 		expect(Object.keys(signalIndexOf(service))).toHaveLength(0);
 		expect(directory.getProfileById("caroline")?.stats?.totalSuggestions).toBe(0);
@@ -424,7 +424,7 @@ describe("migration of pre-fix signal records", () => {
 		service.load(legacy);
 
 		const orphanKeys = Object.keys(legacy.reviewerSignalIndex ?? {}).slice(1);
-		await service.migrateReviewerSignalBatchAttribution({ persist: false });
+		await service.migrateBatchAttribution({ persist: false });
 
 		const index = signalIndexOf(service);
 		for (const key of orphanKeys) {
