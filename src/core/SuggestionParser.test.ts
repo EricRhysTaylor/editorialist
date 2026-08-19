@@ -35,14 +35,14 @@ describe("SuggestionParser — MEMO section", () => {
 
 		const parsed = parser.parse(note);
 		expect(parsed.memos).toHaveLength(1);
-		const memo = parsed.memos[0];
+		const memo = parsed.memos[0]!;
 		expect(memo.strengths).toContain("opening hook lands cleanly");
 		expect(memo.issues).toContain("midpoint loses momentum");
 		expect(memo.body).toBeUndefined();
 		expect(memo.contributor).toBeDefined();
 		expect(memo.contributor.reviewerType).toMatch(/ai/);
 		expect(parsed.suggestions).toHaveLength(1);
-		expect(parsed.suggestions[0].operation).toBe("edit");
+		expect(parsed.suggestions[0]!.operation).toBe("edit");
 	});
 
 	it("treats a freeform memo body (no Strengths/Issues fields) as body text", () => {
@@ -58,7 +58,7 @@ describe("SuggestionParser — MEMO section", () => {
 
 		const parsed = parser.parse(note);
 		expect(parsed.memos).toHaveLength(1);
-		const memo = parsed.memos[0];
+		const memo = parsed.memos[0]!;
 		expect(memo.strengths).toBeUndefined();
 		expect(memo.issues).toBeUndefined();
 		expect(memo.body).toContain("reads beautifully");
@@ -112,8 +112,8 @@ describe("SuggestionParser — MEMO section", () => {
 
 		const parsed = parser.parse(note);
 		expect(parsed.memos).toHaveLength(2);
-		expect(parsed.memos[0].routing?.sceneId).toBe("scn_5b1e6328");
-		expect(parsed.memos[1].routing).toBeUndefined();
+		expect(parsed.memos[0]!.routing?.sceneId).toBe("scn_5b1e6328");
+		expect(parsed.memos[1]!.routing).toBeUndefined();
 	});
 
 	it("captures multiple memos from multiple review blocks", () => {
@@ -134,8 +134,8 @@ describe("SuggestionParser — MEMO section", () => {
 
 		const parsed = parser.parse(note);
 		expect(parsed.memos).toHaveLength(2);
-		expect(parsed.memos[0].contributor.displayName).toBe("Caroline");
-		expect(parsed.memos[1].contributor.displayName).toBe("Maria");
+		expect(parsed.memos[0]!.contributor.displayName).toBe("Caroline");
+		expect(parsed.memos[1]!.contributor.displayName).toBe("Maria");
 	});
 });
 
@@ -156,7 +156,7 @@ describe("SuggestionParser — CONDENSE anchors", () => {
 	it("parses a quoted opening → closing anchor pair", () => {
 		const parsed = makeParser().parse(condenseNote("\"She wonders, briefly\" → \"isn't reaching her.\""));
 		expect(parsed.suggestions).toHaveLength(1);
-		const s = parsed.suggestions[0];
+		const s = parsed.suggestions[0]!;
 		expect(s.operation).toBe("condense");
 		if (s.operation !== "condense") return;
 		expect(s.payload.targetAnchors).toEqual({
@@ -167,7 +167,7 @@ describe("SuggestionParser — CONDENSE anchors", () => {
 
 	it("accepts ASCII -> as the arrow", () => {
 		const parsed = makeParser().parse(condenseNote("\"opening fragment\" -> \"closing fragment\""));
-		const s = parsed.suggestions[0];
+		const s = parsed.suggestions[0]!;
 		expect(s.operation).toBe("condense");
 		if (s.operation !== "condense") return;
 		expect(s.payload.targetAnchors).toEqual({ start: "opening fragment", end: "closing fragment" });
@@ -175,7 +175,7 @@ describe("SuggestionParser — CONDENSE anchors", () => {
 
 	it("accepts single-quoted anchors", () => {
 		const parsed = makeParser().parse(condenseNote("'opening' → 'closing'"));
-		const s = parsed.suggestions[0];
+		const s = parsed.suggestions[0]!;
 		expect(s.operation).toBe("condense");
 		if (s.operation !== "condense") return;
 		expect(s.payload.targetAnchors).toEqual({ start: "opening", end: "closing" });
@@ -183,7 +183,7 @@ describe("SuggestionParser — CONDENSE anchors", () => {
 
 	it("leaves targetAnchors undefined for legacy descriptive Target text", () => {
 		const parsed = makeParser().parse(condenseNote("The two paragraphs where she wonders why she hasn't been rescued."));
-		const s = parsed.suggestions[0];
+		const s = parsed.suggestions[0]!;
 		expect(s.operation).toBe("condense");
 		if (s.operation !== "condense") return;
 		expect(s.payload.targetAnchors).toBeUndefined();
@@ -207,7 +207,7 @@ describe("SuggestionParser — EXPAND", () => {
 			]),
 		);
 		expect(parsed.suggestions).toHaveLength(1);
-		const s = parsed.suggestions[0];
+		const s = parsed.suggestions[0]!;
 		expect(s.operation).toBe("expand");
 		if (s.operation !== "expand") return;
 		expect(s.executionMode).toBe("direct");
@@ -225,7 +225,7 @@ describe("SuggestionParser — EXPAND", () => {
 			]),
 		);
 		expect(parsed.suggestions).toHaveLength(1);
-		const s = parsed.suggestions[0];
+		const s = parsed.suggestions[0]!;
 		expect(s.operation).toBe("expand");
 		if (s.operation !== "expand") return;
 		expect(s.executionMode).toBe("advisory");
@@ -256,7 +256,7 @@ describe("SuggestionParser — QUERY section", () => {
 		const parsed = parser.parse(note);
 		expect(parsed.suggestions).toHaveLength(0);
 		expect(parsed.memos).toHaveLength(1);
-		const query = parsed.memos[0];
+		const query = parsed.memos[0]!;
 		expect(query.kind).toBe("query");
 		expect(query.question).toContain("too abrupt");
 		expect(query.answer).toContain("one more line");
@@ -338,7 +338,7 @@ describe("SuggestionParser — QUERY section", () => {
 		);
 		const memos = parser.parse(note).memos;
 		expect(memos).toHaveLength(1);
-		expect(memos[0].kind).toBe("query");
-		expect(memos[0].answer).toContain("it lands");
+		expect(memos[0]!.kind).toBe("query");
+		expect(memos[0]!.answer).toContain("it lands");
 	});
 });

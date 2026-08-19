@@ -433,6 +433,7 @@ describe("ReviewActionsOrchestrator", () => {
 				currentNoteIndex: 0,
 				notePaths: ["a.md"],
 				startedAt: 0,
+				hasSweepStart: false,
 				totalSuggestions: 0,
 			});
 			const listener = vi.fn();

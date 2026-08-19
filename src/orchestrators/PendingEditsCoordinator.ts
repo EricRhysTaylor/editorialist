@@ -33,7 +33,7 @@ import {
 } from "../core/PendingEditsSegments";
 import { InquiryBriefResolver, type InquiryBriefContext } from "../core/InquiryBriefContext";
 import type { PendingEditSegment, PendingEditsSession } from "../models/PendingEditSegment";
-import type { ToolbarState } from "../ui/Toolbar";
+import type { PendingEditsReviewToolbarState } from "../ui/Toolbar";
 
 // Per-scene preview retained for the idle panel's expandable pending-edits
 // block. `firstExcerpt` is a whitespace-collapsed, truncated snippet of the
@@ -387,7 +387,10 @@ export class PendingEditsCoordinator {
 		return session.scenes.flatMap((scene) => scene.segments);
 	}
 
-	getPendingEditsToolbarState(): ToolbarState | null {
+	// Returns the pending-edits variant specifically, not the whole ToolbarState
+	// union: every return below is a "pending_edits_review" state, and the wider
+	// type meant callers could not reach `briefContext` without narrowing.
+	getPendingEditsToolbarState(): PendingEditsReviewToolbarState | null {
 		const session = this.pendingEditsSession;
 		if (!session || session.scenes.length === 0) {
 			return null;

@@ -216,8 +216,8 @@ describe("SceneInventoryBuilder.buildFullInventory", () => {
 		};
 		const b = new SceneInventoryBuilder(makeDeps({ getSceneReviewIndex: () => ({ "old.md": cleaned }) }));
 		const { nextIndex } = await b.buildFullInventory();
-		expect(nextIndex["old.md"].cleanedAt).toBe(42);
-		expect(nextIndex["old.md"].lastUpdated).toBe(42);
+		expect(nextIndex["old.md"]!.cleanedAt).toBe(42);
+		expect(nextIndex["old.md"]!.lastUpdated).toBe(42);
 	});
 });
 

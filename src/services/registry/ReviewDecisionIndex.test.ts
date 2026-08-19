@@ -53,8 +53,8 @@ describe("ReviewDecisionIndex.keysFor", () => {
 		const keys = i.keysFor("n.md", suggestion());
 		expect(keys.length).toBe(4); // 2 identities x (canonical + legacy)
 		expect(new Set(keys).size).toBe(keys.length);
-		expect(keys[0].startsWith("scene:S1::")).toBe(true);
-		expect(keys[2].startsWith("n.md::")).toBe(true);
+		expect(keys[0]!.startsWith("scene:S1::")).toBe(true);
+		expect(keys[2]!.startsWith("n.md::")).toBe(true);
 	});
 
 	it("collapses canonical and legacy keys when they are identical strings", () => {
@@ -101,8 +101,8 @@ describe("ReviewDecisionIndex.persist", () => {
 		const i = makeIndex();
 		const sug = suggestion();
 		const allKeys = i.keysFor("n.md", sug);
-		const canonical = allKeys[0];
-		const legacy = allKeys[1]; // distinct from canonical
+		const canonical = allKeys[0]!;
+		const legacy = allKeys[1]!; // distinct from canonical
 		expect(legacy).not.toBe(canonical);
 
 		const index: Record<string, PersistedReviewDecisionRecord> = {
@@ -118,11 +118,11 @@ describe("ReviewDecisionIndex.persist", () => {
 		const sug = suggestion();
 		const allKeys = i.keysFor("n.md", sug);
 		const index: Record<string, PersistedReviewDecisionRecord> = {
-			[allKeys[1]]: { key: allKeys[1], status: "deferred", updatedAt: 1 },
+			[allKeys[1]!]: { key: allKeys[1]!, status: "deferred", updatedAt: 1 },
 		};
 		expect(i.persist(index, "n.md", sug, "accepted")).toBe(true);
-		expect(index[allKeys[1]]).toBeUndefined();
-		expect(index[allKeys[0]]).toMatchObject({ status: "accepted", updatedAt: FIXED_NOW });
+		expect(index[allKeys[1]!]).toBeUndefined();
+		expect(index[allKeys[0]!]).toMatchObject({ status: "accepted", updatedAt: FIXED_NOW });
 	});
 });
 
@@ -132,8 +132,8 @@ describe("ReviewDecisionIndex.clear", () => {
 		const sug = suggestion();
 		const keys = i.keysFor("n.md", sug);
 		const index: Record<string, PersistedReviewDecisionRecord> = {
-			[keys[0]]: { key: keys[0], status: "accepted", updatedAt: 1 },
-			[keys[1]]: { key: keys[1], status: "accepted", updatedAt: 1 },
+			[keys[0]!]: { key: keys[0]!, status: "accepted", updatedAt: 1 },
+			[keys[1]!]: { key: keys[1]!, status: "accepted", updatedAt: 1 },
 		};
 		expect(i.clear(index, "n.md", sug)).toBe(true);
 		expect(Object.keys(index)).toHaveLength(0);
@@ -149,18 +149,18 @@ describe("ReviewDecisionIndex.applyTo / getRecord", () => {
 		const aKeys = i.keysFor("n.md", a);
 		const bKeys = i.keysFor("n.md", b);
 		const index: Record<string, PersistedReviewDecisionRecord> = {
-			[aKeys[0]]: { key: aKeys[0], status: "rejected", updatedAt: 1 },
-			[bKeys[0]]: { key: bKeys[0], status: "rewritten", updatedAt: 1 },
+			[aKeys[0]!]: { key: aKeys[0]!, status: "rejected", updatedAt: 1 },
+			[bKeys[0]!]: { key: bKeys[0]!, status: "rewritten", updatedAt: 1 },
 		};
 		const out = i.applyTo(index, session("n.md", [a, b]));
-		expect(out.suggestions[0].status).toBe("rejected");
-		expect(out.suggestions[1].status).toBe("rewritten");
+		expect(out.suggestions[0]!.status).toBe("rejected");
+		expect(out.suggestions[1]!.status).toBe("rewritten");
 	});
 
 	it("getRecord prefers the canonical key but falls back to the legacy variant", () => {
 		const i = makeIndex();
 		const sug = suggestion();
 		const keys = i.keysFor("n.md", sug);
-		expect(i.getRecord({ [keys[1]]: { key: keys[1], status: "deferred", updatedAt: 1 } }, "n.md", sug)?.status).toBe("deferred");
+		expect(i.getRecord({ [keys[1]!]: { key: keys[1]!, status: "deferred", updatedAt: 1 } }, "n.md", sug)?.status).toBe("deferred");
 	});
 });

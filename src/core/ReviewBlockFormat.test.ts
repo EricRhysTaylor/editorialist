@@ -59,19 +59,19 @@ describe("ReviewBlockFormat — imported block detection", () => {
 		const note = importedNote();
 		const extracted = extractReviewBlocks(note);
 		expect(extracted).toHaveLength(1);
-		expect(extracted[0].source).toBe("fenced");
+		expect(extracted[0]!.source).toBe("fenced");
 
 		const imported = findImportedReviewBlocks(note);
 		expect(imported).toHaveLength(1);
-		expect(imported[0].batchId).toBe("batch-abc123");
-		expect(imported[0].importedBy).toBe("Editorialist");
+		expect(imported[0]!.batchId).toBe("batch-abc123");
+		expect(imported[0]!.importedBy).toBe("Editorialist");
 	});
 
 	it("tolerates an unknown leading header key without dropping the block", () => {
 		const note = importedNote("CustomFutureKey: whatever");
 		const imported = findImportedReviewBlocks(note);
 		expect(imported).toHaveLength(1);
-		expect(imported[0].batchId).toBe("batch-abc123");
+		expect(imported[0]!.batchId).toBe("batch-abc123");
 	});
 
 	it("filters out a fenced block not stamped by Editorialist", () => {
@@ -88,11 +88,11 @@ describe("ReviewBlockFormat — imported block detection", () => {
 	});
 
 	it("reads a block's own batch id only when it is fully stamped", () => {
-		const imported = extractReviewBlocks(importedNote())[0];
+		const imported = extractReviewBlocks(importedNote())[0]!;
 		expect(getReviewBlockBatchId(imported.bodyText)).toBe("batch-abc123");
 
 		// Raw block: no stamp at all.
-		expect(getReviewBlockBatchId(extractReviewBlocks(rawBlock())[0].bodyText)).toBeUndefined();
+		expect(getReviewBlockBatchId(extractReviewBlocks(rawBlock())[0]!.bodyText)).toBeUndefined();
 
 		// Half-stamped block: a BatchId with someone else's ImportedBy never
 		// claims batch membership.

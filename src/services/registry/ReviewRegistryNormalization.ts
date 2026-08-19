@@ -25,11 +25,16 @@ import {
 } from "../../core/status/ReviewStatusModel";
 
 export function normalizeReviewDecisionIndex(
+	// `status` is widened to include the legacy "later" value this function
+	// exists to coerce. It has to be Omit-ed out of the Partial first: in an
+	// intersection a property must satisfy every member, so
+	// `Partial<PersistedReviewDecisionRecord> & { status?: ... | "later" }`
+	// silently forbids the very value the widening was added for.
 	index:
 		| Partial<
 				Record<
 					string,
-					Partial<PersistedReviewDecisionRecord> & {
+					Omit<Partial<PersistedReviewDecisionRecord>, "status"> & {
 						status?: PersistedReviewDecisionRecord["status"] | "later";
 					}
 				>
@@ -93,7 +98,7 @@ export function normalizeSceneReviewIndex(
 		| Partial<
 				Record<
 					string,
-					Partial<SceneReviewRecord> & {
+					Omit<Partial<SceneReviewRecord>, "status"> & {
 						resolvedCount?: number;
 						status?: SceneReviewRecord["status"] | "not_started";
 					}
@@ -136,7 +141,7 @@ export function normalizeSweepRegistry(
 		| Partial<
 				Record<
 					string,
-					Partial<ReviewSweepRegistryEntry> & {
+					Omit<Partial<ReviewSweepRegistryEntry>, "status"> & {
 						status?: ReviewSweepRegistryEntry["status"] | "cleaned_up" | "imported";
 					}
 				>

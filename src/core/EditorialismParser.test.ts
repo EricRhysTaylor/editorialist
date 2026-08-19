@@ -102,11 +102,11 @@ describe("parseEditorialism", () => {
 		expect(result.created).toBe("2026-01-01");
 		expect(result.sections).toHaveLength(1);
 
-		const section = result.sections[0];
+		const section = result.sections[0]!;
 		expect(section.heading).toBe("Pacing");
 		expect(section.items).toHaveLength(1);
 
-		const item = section.items[0];
+		const item = section.items[0]!;
 		expect(item.status).toBe("open");
 		expect(item.text).toBe("tighten the opening");
 		expect(item.scope).toEqual({ kind: "range", start: "12", end: "15", raw: "12-15" });
@@ -119,29 +119,29 @@ describe("parseEditorialism", () => {
 		const result = parseEditorialism("x/agenda.md", md);
 		expect(result.title).toBe("Heading Title");
 		expect(result.sections).toHaveLength(1);
-		expect(result.sections[0].heading).toBe("Section A");
-		expect(result.sections[0].items[0].status).toBe("done");
+		expect(result.sections[0]!.heading).toBe("Section A");
+		expect(result.sections[0]!.items[0]!.status).toBe("done");
 	});
 
 	it("falls back to the file basename for the title", () => {
 		const result = parseEditorialism("Editorialist/Book/My File.md", "- [ ] orphan task");
 		expect(result.title).toBe("My File");
-		expect(result.sections[0].heading).toBe("Items");
-		expect(result.sections[0].items).toHaveLength(1);
+		expect(result.sections[0]!.heading).toBe("Items");
+		expect(result.sections[0]!.items).toHaveLength(1);
 	});
 
 	it("ignores non-task, non-heading lines", () => {
 		const md = ["## S", "some prose", "- [/] real task", "more prose"].join("\n");
 		const result = parseEditorialism("a.md", md);
-		expect(result.sections[0].items).toHaveLength(1);
-		expect(result.sections[0].items[0].status).toBe("in-progress");
+		expect(result.sections[0]!.items).toHaveLength(1);
+		expect(result.sections[0]!.items[0]!.status).toBe("in-progress");
 	});
 
 	it("treats an unterminated frontmatter fence as body", () => {
 		const md = ["---", "title: Nope", "## Section", "- [ ] task"].join("\n");
 		const result = parseEditorialism("base.md", md);
 		expect(result.title).toBe("base");
-		expect(result.sections[0].heading).toBe("Section");
+		expect(result.sections[0]!.heading).toBe("Section");
 	});
 });
 
@@ -219,10 +219,10 @@ describe("parseEditorialism — anchors", () => {
 		].join("\n");
 
 		const result = parseEditorialism("a.md", md);
-		const items = result.sections[0].items;
+		const items = result.sections[0]!.items;
 		expect(items).toHaveLength(2);
 
-		const anchors = items[0].anchors;
+		const anchors = items[0]!.anchors;
 		expect(anchors).toHaveLength(2);
 		expect(anchors[0]).toMatchObject({
 			lineIndex: 2,
@@ -238,13 +238,13 @@ describe("parseEditorialism — anchors", () => {
 			opening: "Marla laughed",
 			closing: "nobody was laughing.",
 		});
-		expect(items[1].anchors).toEqual([]);
+		expect(items[1]!.anchors).toEqual([]);
 	});
 
 	it("leaves flat editorialisms with no anchors", () => {
 		const md = ["## S", "- [ ] one", "- [ ] two"].join("\n");
 		const result = parseEditorialism("a.md", md);
-		expect(result.sections[0].items.map((entry) => entry.anchors)).toEqual([[], []]);
+		expect(result.sections[0]!.items.map((entry) => entry.anchors)).toEqual([[], []]);
 	});
 
 	// The cold-cutover guarantee: indentation alone never reclassifies a line.
@@ -257,11 +257,11 @@ describe("parseEditorialism — anchors", () => {
 		].join("\n");
 
 		const result = parseEditorialism("a.md", md);
-		const items = result.sections[0].items;
+		const items = result.sections[0]!.items;
 		expect(items).toHaveLength(2);
-		expect(items[0].anchors).toEqual([]);
-		expect(items[1].text).toBe("organizational sub-item");
-		expect(items[1].scope).toEqual({ kind: "scene", scene: "12", raw: "12" });
+		expect(items[0]!.anchors).toEqual([]);
+		expect(items[1]!.text).toBe("organizational sub-item");
+		expect(items[1]!.scope).toEqual({ kind: "scene", scene: "12", raw: "12" });
 	});
 
 	it("does not bind an anchor across a section heading", () => {
@@ -273,16 +273,16 @@ describe("parseEditorialism — anchors", () => {
 		].join("\n");
 
 		const result = parseEditorialism("a.md", md);
-		expect(result.sections[0].items[0].anchors).toEqual([]);
-		expect(result.sections[1].items).toHaveLength(1);
-		expect(result.sections[1].items[0].anchors).toEqual([]);
+		expect(result.sections[0]!.items[0]!.anchors).toEqual([]);
+		expect(result.sections[1]!.items).toHaveLength(1);
+		expect(result.sections[1]!.items[0]!.anchors).toEqual([]);
 	});
 
 	it("treats tabs as indentation", () => {
 		const md = ["## S", "- [ ] directive", '\t- [ ] 14 "fragment"'].join("\n");
 		const result = parseEditorialism("a.md", md);
-		expect(result.sections[0].items).toHaveLength(1);
-		expect(result.sections[0].items[0].anchors).toHaveLength(1);
+		expect(result.sections[0]!.items).toHaveLength(1);
+		expect(result.sections[0]!.items[0]!.anchors).toHaveLength(1);
 	});
 });
 

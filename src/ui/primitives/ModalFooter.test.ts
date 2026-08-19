@@ -25,13 +25,19 @@ function fakeParent() {
 	return { parent, created };
 }
 
-// The mock ButtonComponent records text/cta/disabled/class/onClick.
+// The mock ButtonComponent records text/cta/disabled/class/onClick, plus the
+// spans prepended through buttonEl.prepend. prependedSpans exists only on the
+// stub in tests/mocks/obsidian.ts, so it has to be declared here — the
+// `ButtonComponent` type above comes from the real package, where it does not
+// exist, and omitting it left every read off it error-typed.
+type RecordedSpan = { cls: string; icon: string | null };
 type RecordedButton = ButtonComponent & {
 	text: string;
 	cta: boolean;
 	disabled: boolean;
 	clickHandler: (() => void) | null;
 	classes: Set<string>;
+	prependedSpans: RecordedSpan[];
 };
 
 describe("buildModalFooter", () => {
@@ -56,13 +62,13 @@ describe("buildModalFooter", () => {
 			],
 		});
 		const [save, cancelBtn] = footer.buttons as RecordedButton[];
-		expect(save.text).toBe("Save");
-		expect(save.cta).toBe(true);
-		expect(cancelBtn.text).toBe("Cancel");
-		expect(cancelBtn.cta).toBe(false);
+		expect(save!.text).toBe("Save");
+		expect(save!.cta).toBe(true);
+		expect(cancelBtn!.text).toBe("Cancel");
+		expect(cancelBtn!.cta).toBe(false);
 
-		save.clickHandler?.();
-		cancelBtn.clickHandler?.();
+		save!.clickHandler?.();
+		cancelBtn!.clickHandler?.();
 		expect(confirm).toHaveBeenCalledTimes(1);
 		expect(cancel).toHaveBeenCalledTimes(1);
 	});
@@ -94,17 +100,17 @@ describe("buildModalFooter", () => {
 		});
 		const [confirm, cancel] = footer.buttons as RecordedButton[];
 		// Initial sync ran inside buildModalFooter.
-		expect(confirm.disabled).toBe(true);
+		expect(confirm!.disabled).toBe(true);
 		// A button with no enableWhen is never toggled.
-		expect(cancel.disabled).toBe(false);
+		expect(cancel!.disabled).toBe(false);
 
 		valid = true;
 		footer.syncDisabled();
-		expect(confirm.disabled).toBe(false);
+		expect(confirm!.disabled).toBe(false);
 
 		valid = false;
 		footer.syncDisabled();
-		expect(confirm.disabled).toBe(true);
+		expect(confirm!.disabled).toBe(true);
 	});
 
 	it("supports N value-buttons with no CTA/cancel (choice-modal shape)", () => {

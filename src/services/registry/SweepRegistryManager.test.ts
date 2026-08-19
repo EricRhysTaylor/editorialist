@@ -45,7 +45,7 @@ function sceneRecord(over: Partial<SceneReviewRecord> = {}): SceneReviewRecord {
 	};
 }
 
-const noScope: ActiveBookScopeInfo = { label: null, sourceFolder: null };
+const noScope: ActiveBookScopeInfo = { label: null, sourceFolder: null, structured: false };
 
 function makeManager(
 	sceneIndex: Record<string, SceneReviewRecord> = {},
@@ -162,7 +162,7 @@ describe("SweepRegistryManager — updatedAt idempotency (Pass-2 fix)", () => {
 		const presence = new Map([["b1", new Set(["s1.md"])]]);
 
 		const next = m.buildFromSceneInventory(reg, presence, { "s1.md": scene }, 777);
-		expect(next.b1.updatedAt).toBe(100); // preserved, NOT bumped to 777
+		expect(next.b1!.updatedAt).toBe(100); // preserved, NOT bumped to 777
 	});
 
 	it("stamps the new clock value when a material field changes", () => {
@@ -172,8 +172,8 @@ describe("SweepRegistryManager — updatedAt idempotency (Pass-2 fix)", () => {
 		const presence = new Map([["b1", new Set(["s1.md"])]]);
 
 		const next = m.buildFromSceneInventory(reg, presence, { "s1.md": scene }, 777);
-		expect(next.b1.acceptedCount).toBe(5);
-		expect(next.b1.updatedAt).toBe(777);
+		expect(next.b1!.acceptedCount).toBe(5);
+		expect(next.b1!.updatedAt).toBe(777);
 	});
 
 	it("resurrects a stale 'cleaned' entry when its block reappears in a scene", () => {
@@ -185,17 +185,17 @@ describe("SweepRegistryManager — updatedAt idempotency (Pass-2 fix)", () => {
 		const presence = new Map([["b1", new Set(["s1.md"])]]);
 
 		const next = m.buildFromSceneInventory(reg, presence, { "s1.md": scene }, 777);
-		expect(next.b1.status).toBe("completed");
-		expect(next.b1.cleanedAt).toBeUndefined();
-		expect(next.b1.acceptedCount).toBe(3);
+		expect(next.b1!.status).toBe("completed");
+		expect(next.b1!.cleanedAt).toBeUndefined();
+		expect(next.b1!.acceptedCount).toBe(3);
 	});
 
 	it("marks a batch with no remaining scenes as cleaned", () => {
 		const m = makeManager({});
 		const reg = { b1: entry({ status: "in_progress", updatedAt: 100 }) };
 		const next = m.buildFromSceneInventory(reg, new Map(), {}, 777);
-		expect(next.b1.status).toBe("cleaned");
-		expect(next.b1.importedNotePaths).toEqual([]);
+		expect(next.b1!.status).toBe("cleaned");
+		expect(next.b1!.importedNotePaths).toEqual([]);
 	});
 });
 

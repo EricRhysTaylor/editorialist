@@ -51,11 +51,11 @@ function drainEmittableOps(): Set<HostOp> {
 	host.syncActiveEditorDecorations();
 	host.resyncSessionForActiveNote();
 	void host.focusResolvedTarget();
-	ctx.view.editor.replaceRange("", null, null);
-	ctx.view.editor.setSelection(null, null);
-	ctx.view.editor.scrollIntoView(null, true);
-	ctx.view.editor.focus();
-	ctx.view.editor.getValue();
+	ctx.view.editor.replaceRange!("", null, null);
+	ctx.view.editor.setSelection!(null, null);
+	ctx.view.editor.scrollIntoView!(null, true);
+	ctx.view.editor.focus!();
+	ctx.view.editor.getValue!();
 	host.lastAppliedChange = null;
 	host.setActiveHighlight();
 	return new Set(host.ops);

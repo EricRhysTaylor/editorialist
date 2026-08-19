@@ -10,7 +10,7 @@ function makeView(values: string[]): { view: UndoableView; undo: ReturnType<type
 	});
 	const view: UndoableView = {
 		editor: {
-			getValue: () => values[index],
+			getValue: () => values[index]!,
 			undo,
 		},
 	};

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { ReviewStore } from "./ReviewStore";
+import { ReviewStore, type ReviewStoreState } from "./ReviewStore";
 import type { ReviewSession, ReviewSuggestion } from "../models/ReviewSuggestion";
 
 // Minimal session factory: batch() only inspects suggestion id/status, so the
@@ -41,7 +41,7 @@ function makeSession(notePath = "note.md"): ReviewSession {
 describe("ReviewStore.batch", () => {
 	it("emits once for a single mutation outside of a batch", () => {
 		const store = new ReviewStore();
-		const listener = vi.fn();
+		const listener = vi.fn<(state: ReviewStoreState) => void>();
 		// subscribe() fires once synchronously with the initial state.
 		store.subscribe(listener);
 		listener.mockClear();
@@ -54,7 +54,7 @@ describe("ReviewStore.batch", () => {
 	it("emits exactly once when multiple mutations run inside a batch", () => {
 		const store = new ReviewStore();
 		store.setSession(makeSession());
-		const listener = vi.fn();
+		const listener = vi.fn<(state: ReviewStoreState) => void>();
 		store.subscribe(listener);
 		listener.mockClear();
 
@@ -79,7 +79,7 @@ describe("ReviewStore.batch", () => {
 	it("nested batches still emit only once", () => {
 		const store = new ReviewStore();
 		store.setSession(makeSession());
-		const listener = vi.fn();
+		const listener = vi.fn<(state: ReviewStoreState) => void>();
 		store.subscribe(listener);
 		listener.mockClear();
 
@@ -110,7 +110,7 @@ describe("ReviewStore.batch", () => {
 		const store = new ReviewStore();
 		store.setSession(makeSession());
 		store.selectSuggestion("sug-1");
-		const listener = vi.fn();
+		const listener = vi.fn<(state: ReviewStoreState) => void>();
 		store.subscribe(listener);
 		listener.mockClear();
 
@@ -128,7 +128,7 @@ describe("ReviewStore.batch", () => {
 		const store = new ReviewStore();
 		// appliedReview is null at construction; setAppliedReview(null) is a
 		// no-op per the store's own equality guard, so emit() never runs.
-		const listener = vi.fn();
+		const listener = vi.fn<(state: ReviewStoreState) => void>();
 		store.subscribe(listener);
 		listener.mockClear();
 
@@ -143,7 +143,7 @@ describe("ReviewStore.batch", () => {
 	it("does not re-notify when a rebuilt session changes only parsedAt or offsets", () => {
 		const store = new ReviewStore();
 		store.setSession(makeSession());
-		const listener = vi.fn();
+		const listener = vi.fn<(state: ReviewStoreState) => void>();
 		store.subscribe(listener);
 		listener.mockClear();
 
@@ -164,7 +164,7 @@ describe("ReviewStore.batch", () => {
 	it("re-notifies when a rebuilt session changes a suggestion status", () => {
 		const store = new ReviewStore();
 		store.setSession(makeSession());
-		const listener = vi.fn();
+		const listener = vi.fn<(state: ReviewStoreState) => void>();
 		store.subscribe(listener);
 		listener.mockClear();
 
@@ -179,7 +179,7 @@ describe("ReviewStore.batch", () => {
 	it("exits safely when the batched function throws", () => {
 		const store = new ReviewStore();
 		store.setSession(makeSession());
-		const listener = vi.fn();
+		const listener = vi.fn<(state: ReviewStoreState) => void>();
 		store.subscribe(listener);
 		listener.mockClear();
 

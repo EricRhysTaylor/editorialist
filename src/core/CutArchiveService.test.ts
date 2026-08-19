@@ -64,6 +64,9 @@ function makeService(
 	const scope: ActiveBookScopeInfo = {
 		label: options.sourceFolder ? "Book" : null,
 		sourceFolder: options.sourceFolder ?? null,
+		// Plain folder scope, not a Radial Timeline book: membership is
+		// folder-only and notes are not required to carry Class: Scene.
+		structured: false,
 	};
 	const app = {
 		vault,

@@ -38,6 +38,20 @@ import {
 	normalizeSceneReviewIndex,
 	normalizeSweepRegistry,
 } from "./registry/ReviewRegistryNormalization";
+
+// What load() actually receives: whatever was on disk, including the legacy and
+// partial record shapes each normalizer is written to repair. Typing the
+// parameter as Partial<EditorialistPluginData> demanded already-valid records
+// and made that tolerance unreachable. Deriving the loose fields from the
+// normalizers themselves keeps this in step with them.
+export type PersistedEditorialistData = Omit<
+	Partial<EditorialistPluginData>,
+	"reviewDecisionIndex" | "sceneReviewIndex" | "sweepRegistry"
+> & {
+	reviewDecisionIndex?: Parameters<typeof normalizeReviewDecisionIndex>[0];
+	sceneReviewIndex?: Parameters<typeof normalizeSceneReviewIndex>[0];
+	sweepRegistry?: Parameters<typeof normalizeSweepRegistry>[0];
+};
 import { authorQueryKey } from "../core/AuthorQueryMarker";
 import { SweepRegistryManager } from "./registry/SweepRegistryManager";
 import { SceneInventoryBuilder } from "./registry/SceneInventoryBuilder";
@@ -172,7 +186,7 @@ export class ReviewRegistryService {
 		return changed;
 	}
 
-	load(savedData: Partial<EditorialistPluginData> | null): void {
+	load(savedData: PersistedEditorialistData | null): void {
 		this.reviewDecisionIndex = normalizeReviewDecisionIndex(savedData?.reviewDecisionIndex);
 		this.authorQueryDecisions = normalizeAuthorQueryDecisions(savedData?.authorQueryDecisions);
 		this.reviewerSignalIndex = normalizeReviewerSignalIndex(savedData?.reviewerSignalIndex);

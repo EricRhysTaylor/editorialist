@@ -361,6 +361,7 @@ describe("SessionOrchestrator", () => {
 					currentNoteIndex: 0,
 					notePaths: ["a.md", "b.md", "c.md"],
 					startedAt: 0,
+					hasSweepStart: false,
 					totalSuggestions: 0,
 				},
 				recordsByPath: {
@@ -384,6 +385,7 @@ describe("SessionOrchestrator", () => {
 					currentNoteIndex: 0,
 					notePaths: ["a.md", "b.md"],
 					startedAt: 0,
+					hasSweepStart: false,
 					totalSuggestions: 0,
 				},
 				priorSession: sweepSession,

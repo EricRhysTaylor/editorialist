@@ -70,6 +70,7 @@ function makeSweep(notePaths: string[], currentNoteIndex = 0): CompletedSweepSta
 		currentNoteIndex,
 		notePaths,
 		startedAt: 0,
+		hasSweepStart: false,
 		totalSuggestions: 0,
 	};
 }

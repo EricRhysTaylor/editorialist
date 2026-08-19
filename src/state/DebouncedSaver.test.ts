@@ -25,7 +25,7 @@ describe("DebouncedSaver", () => {
 	});
 
 	it("resolves an awaited request after the write completes", async () => {
-		let resolveWrite: (() => void) | null = null;
+		let resolveWrite!: () => void;
 		const write = vi.fn(() => new Promise<void>((r) => { resolveWrite = r; }));
 		const saver = new DebouncedSaver(write, 250);
 
@@ -38,7 +38,7 @@ describe("DebouncedSaver", () => {
 		expect(write).toHaveBeenCalledTimes(1);
 		expect(resolved).toBe(false);
 
-		resolveWrite?.();
+		resolveWrite();
 		await pending;
 		expect(resolved).toBe(true);
 	});
@@ -57,7 +57,7 @@ describe("DebouncedSaver", () => {
 	});
 
 	it("flush() awaits an in-flight write when nothing is queued", async () => {
-		let resolveWrite: (() => void) | null = null;
+		let resolveWrite!: () => void;
 		const write = vi.fn(() => new Promise<void>((r) => { resolveWrite = r; }));
 		const saver = new DebouncedSaver(write, 100);
 
@@ -73,7 +73,7 @@ describe("DebouncedSaver", () => {
 		await Promise.resolve();
 		expect(flushed).toBe(false);
 
-		resolveWrite?.();
+		resolveWrite();
 		await flushPromise;
 		expect(flushed).toBe(true);
 		// No second write should have been triggered — the in-flight one was
@@ -128,7 +128,7 @@ describe("DebouncedSaver", () => {
 	});
 
 	it("a request arriving during an in-flight write triggers its own later write", async () => {
-		let resolveFirst: (() => void) | null = null;
+		let resolveFirst!: () => void;
 		const write = vi
 			.fn<() => Promise<void>>()
 			.mockImplementationOnce(() => new Promise<void>((r) => { resolveFirst = r; }))
@@ -143,7 +143,7 @@ describe("DebouncedSaver", () => {
 		// already-running write (which captured stale data) — it gets its own
 		// future write.
 		const r2 = saver.request();
-		resolveFirst?.();
+		resolveFirst();
 		await vi.advanceTimersByTimeAsync(100);
 		await expect(r2).resolves.toBeUndefined();
 		expect(write).toHaveBeenCalledTimes(2);

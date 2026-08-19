@@ -98,8 +98,8 @@ describe("ImportEngine — fallback to active note for descriptive targets", () 
 
 		const batch = await engine.inspectBatch(PASTE, { activeNotePath: SCENE_PATH });
 		expect(batch.groups).toHaveLength(1);
-		expect(batch.groups[0].isReady).toBe(true);
-		expect(batch.groups[0].suggestions).toHaveLength(3);
+		expect(batch.groups[0]!.isReady).toBe(true);
+		expect(batch.groups[0]!.suggestions).toHaveLength(3);
 
 		await engine.importBatch(batch);
 
@@ -172,7 +172,7 @@ describe("ImportEngine — fallback to active note for descriptive targets", () 
 		expect(batch.groups).toHaveLength(2);
 		for (const group of batch.groups) {
 			expect(group.memos).toHaveLength(1);
-			expect(group.memos[0].strengths).toContain("strong voice");
+			expect(group.memos[0]!.strengths).toContain("strong voice");
 		}
 
 		await engine.importBatch(batch);
@@ -231,7 +231,7 @@ describe("ImportEngine — fallback to active note for descriptive targets", () 
 		const groupB = batch.groups.find((g) => g.filePath === sceneB);
 		expect(groupA?.memos).toHaveLength(0);
 		expect(groupB?.memos).toHaveLength(1);
-		expect(groupB?.memos[0].issues).toContain("Beta-specific");
+		expect(groupB?.memos[0]!.issues).toContain("Beta-specific");
 	});
 
 	it("does NOT fall back when the active note is outside the scene scope", async () => {

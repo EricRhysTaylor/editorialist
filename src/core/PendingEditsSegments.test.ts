@@ -65,7 +65,7 @@ describe("parsePendingEditsField", () => {
 			sceneTitle: title,
 			sceneOrder: order,
 		});
-		expect(segments[0].lines).toEqual([
+		expect(segments[0]!.lines).toEqual([
 			"Tighten opening.",
 			"Check POV consistency.",
 		]);
@@ -79,7 +79,7 @@ describe("parsePendingEditsField", () => {
 		const segments = parsePendingEditsField(path, title, order, field);
 		expect(segments).toHaveLength(2);
 		expect(segments.every((s) => s.kind === "inquiry")).toBe(true);
-		expect(segments[0].id).not.toEqual(segments[1].id);
+		expect(segments[0]!.id).not.toEqual(segments[1]!.id);
 	});
 
 	it("orders human segment before Inquiry segments when both exist", () => {
@@ -91,7 +91,7 @@ describe("parsePendingEditsField", () => {
 		].join("\n");
 		const segments = parsePendingEditsField(path, title, order, field);
 		expect(segments.map((s) => s.kind)).toEqual(["human", "inquiry", "inquiry"]);
-		expect(segments[0].lines).toEqual([
+		expect(segments[0]!.lines).toEqual([
 			"Tighten dialogue.",
 			"More prose from human.",
 		]);
@@ -101,7 +101,7 @@ describe("parsePendingEditsField", () => {
 		const field = "Line one.\n\n\nLine two.";
 		const segments = parsePendingEditsField(path, title, order, field);
 		expect(segments).toHaveLength(1);
-		expect(segments[0].lines).toEqual(["Line one.", "Line two."]);
+		expect(segments[0]!.lines).toEqual(["Line one.", "Line two."]);
 	});
 });
 
@@ -117,7 +117,7 @@ describe("computeFieldAfterDrain", () => {
 			"[[Inquiry Brief — 2026-01-15 abc|Briefing]] — rework opening",
 		].join("\n");
 		const [humanSegment] = parsePendingEditsField(path, title, order, field);
-		const result = computeFieldAfterDrain(field, humanSegment);
+		const result = computeFieldAfterDrain(field, humanSegment!);
 		expect(result.outcome).toBe("written");
 		expect(result.nextValue).toBe("[[Inquiry Brief — 2026-01-15 abc|Briefing]] — rework opening");
 	});
@@ -142,7 +142,7 @@ describe("computeFieldAfterDrain", () => {
 	it("returns an empty value when the last segment is drained", () => {
 		const field = "Only note.";
 		const [human] = parsePendingEditsField(path, title, order, field);
-		const result = computeFieldAfterDrain(field, human);
+		const result = computeFieldAfterDrain(field, human!);
 		expect(result.outcome).toBe("written");
 		expect(result.nextValue).toBe("");
 	});
@@ -150,7 +150,7 @@ describe("computeFieldAfterDrain", () => {
 	it("returns not_found when the target Inquiry line is missing", () => {
 		const field = "Tighten dialogue.";
 		const segments = parsePendingEditsField("other", title, order, "[[Inquiry Brief — stale|Briefing]] — gone");
-		const staleInquiry = segments[0];
+		const staleInquiry = segments[0]!;
 		const result = computeFieldAfterDrain(field, staleInquiry);
 		expect(result.outcome).toBe("not_found");
 		expect(result.nextValue).toBe(field);
@@ -164,7 +164,7 @@ describe("formatPendingEditForDisplay", () => {
 
 	it("returns human segment text as-is with no prefix", () => {
 		const [segment] = parsePendingEditsField(path, title, order, "Tighten the opening paragraph.");
-		const display = formatPendingEditForDisplay(segment);
+		const display = formatPendingEditForDisplay(segment!);
 		expect(display.mutedPrefix).toBeUndefined();
 		expect(display.actionText).toBe("Tighten the opening paragraph.");
 	});
@@ -172,7 +172,7 @@ describe("formatPendingEditForDisplay", () => {
 	it("splits an Inquiry line into muted wiki-link prefix + action text", () => {
 		const field = "[[Inquiry Brief — Pay4: Premature Resolution Apr 15 2026 @ 3.36pm|Briefing]] — Revise Trisan's first conscious post-crisis contact with 'her'.";
 		const segments = parsePendingEditsField(path, title, order, field);
-		const inquirySegment = segments[0];
+		const inquirySegment = segments[0]!;
 		const display = formatPendingEditForDisplay(inquirySegment);
 		expect(display.mutedPrefix).toBe("[[Inquiry Brief — Pay4: Premature Resolution Apr 15 2026 @ 3.36pm|Briefing]] — ");
 		expect(display.actionText).toBe("Revise Trisan's first conscious post-crisis contact with 'her'.");
@@ -181,7 +181,7 @@ describe("formatPendingEditForDisplay", () => {
 	it("falls back to full text when Inquiry line is malformed (no ]] separator)", () => {
 		const field = "[[Inquiry Brief — malformed without closing";
 		const segments = parsePendingEditsField(path, title, order, field);
-		const segment = segments[0];
+		const segment = segments[0]!;
 		const display = formatPendingEditForDisplay(segment);
 		expect(display.mutedPrefix).toBeUndefined();
 		expect(display.actionText).toBe(field);
@@ -190,7 +190,7 @@ describe("formatPendingEditForDisplay", () => {
 	it("falls back when action text is missing after separator", () => {
 		const field = "[[Inquiry Brief — abc|Briefing]] — ";
 		const segments = parsePendingEditsField(path, title, order, field);
-		const segment = segments[0];
+		const segment = segments[0]!;
 		const display = formatPendingEditForDisplay(segment);
 		expect(display.mutedPrefix).toBeUndefined();
 		expect(display.actionText).toBe(field);
@@ -205,17 +205,17 @@ describe("extractInquiryBriefLinkTarget", () => {
 	it("returns the wiki-link target for an Inquiry line", () => {
 		const field = "[[Inquiry Brief — Pay4: Premature Resolution Apr 15 2026 @ 3.36pm|Briefing]] — Revise the opening.";
 		const [segment] = parsePendingEditsField(path, title, order, field);
-		expect(extractInquiryBriefLinkTarget(segment)).toBe("Inquiry Brief — Pay4: Premature Resolution Apr 15 2026 @ 3.36pm");
+		expect(extractInquiryBriefLinkTarget(segment!)).toBe("Inquiry Brief — Pay4: Premature Resolution Apr 15 2026 @ 3.36pm");
 	});
 
 	it("returns null for a human segment", () => {
 		const [segment] = parsePendingEditsField(path, title, order, "Tighten dialogue.");
-		expect(extractInquiryBriefLinkTarget(segment)).toBeNull();
+		expect(extractInquiryBriefLinkTarget(segment!)).toBeNull();
 	});
 
 	it("returns null for a malformed Inquiry line missing the wiki-link", () => {
 		const segments = parsePendingEditsField(path, title, order, "[[Inquiry Brief — broken without close");
-		expect(extractInquiryBriefLinkTarget(segments[0])).toBeNull();
+		expect(extractInquiryBriefLinkTarget(segments[0]!)).toBeNull();
 	});
 });
 
