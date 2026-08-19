@@ -7,6 +7,32 @@ Applies to all coding agents (Claude Code, Codex — AGENTS.md is a symlink to t
 Main repo: `/Users/ericrhystaylor/Documents/Radial Timeline LLC/Plugin/Editorialist`
 Primary branch: `main`
 
+## GitHub issues are inbound only — never file your own
+
+**Do not open GitHub issues.** Not for bugs you find, not for design proposals,
+not for triage notes, not "filed for triage, not a commitment to scope." The
+issue tracker is where *other people* report problems and where we respond to
+them. It is not our record-keeping system.
+
+This repo is **public**. An agent-drafted ticket there publishes our internal
+root-cause analysis, file paths, and unshipped design thinking to anyone
+reading — and it buries real user reports under our own noise.
+
+Where findings actually go:
+
+- **A bug you can fix** → fix it. The analysis belongs in the PR that carries
+  the fix, where it is attached to the change and disappears when merged.
+- **A bug you should not fix unilaterally** → report it to Eric in the session.
+  He decides whether it becomes work.
+- **Design proposals and open questions** → the session, or a doc in
+  `docs/`. Never an issue.
+- **Cross-session state worth persisting** → the repo's running state log, not
+  the tracker.
+
+Responding to issues opened by other people is expected and welcome. Opening
+them is not. This rule was added after five agent-authored issues (#1–#5) were
+filed on this public repo and had to be closed.
+
 ## Code standards
 
 Before writing or refactoring code in this repo, read
