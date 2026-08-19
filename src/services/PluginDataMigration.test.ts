@@ -171,6 +171,7 @@ describe("migratePluginData", () => {
 				"reviewerSignalIndex",
 				"sceneReviewIndex",
 				"settings",
+				"signalAttributionVersion",
 				"sweepRegistry",
 				"version",
 			].sort(),

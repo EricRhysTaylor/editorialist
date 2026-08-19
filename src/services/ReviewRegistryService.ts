@@ -44,8 +44,10 @@ import { SceneInventoryBuilder } from "./registry/SceneInventoryBuilder";
 import { tallyReviewStatuses } from "../core/review/SweepCompletion";
 import {
 	EDITORIALIST_PLUGIN_DATA_VERSION,
+	REVIEWER_SIGNAL_ATTRIBUTION_VERSION,
 	defaultEditorialistSettings,
 	normalizeEditorialistSettings,
+	normalizeSignalAttributionVersion,
 	positiveNumber,
 } from "./PluginDataMigration";
 
@@ -91,6 +93,7 @@ export class ReviewRegistryService {
 	private reviewerSignalIndex: Record<string, ReviewerSignalRecord> = {};
 	private sceneReviewIndex: Record<string, SceneReviewRecord> = {};
 	private sweepRegistry: Record<string, ReviewSweepRegistryEntry> = {};
+	private signalAttributionVersion = 0;
 	private settings: EditorialistSettings = defaultEditorialistSettings();
 	private readonly statsProjector: ReviewerStatsProjector;
 	private readonly sweepManager: SweepRegistryManager;
@@ -138,6 +141,7 @@ export class ReviewRegistryService {
 		this.reviewerSignalIndex = normalizeReviewerSignalIndex(savedData?.reviewerSignalIndex);
 		this.sceneReviewIndex = normalizeSceneReviewIndex(savedData?.sceneReviewIndex);
 		this.sweepRegistry = normalizeSweepRegistry(savedData?.sweepRegistry);
+		this.signalAttributionVersion = normalizeSignalAttributionVersion(savedData?.signalAttributionVersion);
 		this.settings = normalizeEditorialistSettings(savedData?.settings);
 	}
 
@@ -211,6 +215,7 @@ export class ReviewRegistryService {
 	buildPluginData(reviewerProfiles: ContributorProfile[]): EditorialistPluginData {
 		return {
 			version: EDITORIALIST_PLUGIN_DATA_VERSION,
+			signalAttributionVersion: this.signalAttributionVersion,
 			reviewerProfiles,
 			reviewerSignalIndex: this.reviewerSignalIndex,
 			reviewDecisionIndex: this.reviewDecisionIndex,
@@ -514,6 +519,75 @@ export class ReviewRegistryService {
 				await this.persistData();
 			}
 		}
+	}
+
+	// One-time repair of reviewer-signal batch attribution for data written
+	// before suggestions carried their own batch id.
+	//
+	// What it recovers: every note that is still tracked AND still holds its
+	// imported review blocks. For those, the note is re-parsed (so each
+	// suggestion carries the batch of the block it actually came from) and
+	// hydrated from reviewDecisionIndex — the durable, unaffected record of what
+	// the author decided — and each existing signal is moved onto its own
+	// batch's key.
+	//
+	// What it cannot recover, by design:
+	//   - batches whose review blocks have been cleaned out of the note. The
+	//     block structure that tied an entry to a batch is gone; guessing would
+	//     be worse than leaving the old stamp, so those records are untouched.
+	//   - notes that were deleted or renamed since the signals were written.
+	//   - notes that were never tracked (no scene record, no sweep entry).
+	//
+	// Nothing is invented and no status is rewritten, so contributor directory
+	// totals are identical before and after — the closing authoritative rebuild
+	// asserts that in practice. Guarded by signalAttributionVersion so it runs
+	// at most once, and idempotent even if it runs again.
+	async migrateReviewerSignalBatchAttribution(
+		options?: { persist?: boolean },
+	): Promise<{ migrated: boolean; repairedNotes: number }> {
+		if (this.signalAttributionVersion >= REVIEWER_SIGNAL_ATTRIBUTION_VERSION) {
+			return { migrated: false, repairedNotes: 0 };
+		}
+
+		let index = this.reviewerSignalIndex;
+		let repairedNotes = 0;
+
+		for (const notePath of this.getTrackedNotePaths()) {
+			const file = this.app.vault.getAbstractFileByPath(notePath);
+			if (!(file instanceof TFile)) {
+				continue;
+			}
+
+			const noteText = this.openNoteTextResolver(notePath) ?? (await this.app.vault.cachedRead(file));
+			if (findImportedReviewBlocks(noteText).length === 0) {
+				continue;
+			}
+
+			const session = this.applyPersistedReviewState(
+				this.reviewEngine.buildSession(notePath, noteText, null),
+			);
+			const { nextIndex, didChange } = this.statsProjector.migrateSessionSignalAttribution(
+				index,
+				session,
+				(path) => [
+					...new Set([...this.getNoteIdentityKeys(path), ...this.getHistoricalNoteIdentityKeys(path)]),
+				],
+				{ sessionId: this.resolveCurrentBatchId(null, noteText) ?? undefined },
+			);
+			if (didChange) {
+				index = nextIndex;
+				repairedNotes += 1;
+			}
+		}
+
+		this.reviewerSignalIndex = index;
+		this.signalAttributionVersion = REVIEWER_SIGNAL_ATTRIBUTION_VERSION;
+		this.rebuildReviewerStatsFromSignals();
+		if (options?.persist !== false) {
+			await this.persistData();
+		}
+
+		return { migrated: true, repairedNotes };
 	}
 
 	async reassignReviewerSignals(
@@ -925,6 +999,30 @@ export class ReviewRegistryService {
 		}
 
 		return [`scene:${sceneId}`, notePath];
+	}
+
+	// Every note the registry has ever tracked: the scene inventory covers notes
+	// that carry (or carried) imported blocks, and the sweep registry adds the
+	// paths a batch was imported into even when the inventory has since retired
+	// them. Signals only ever exist for notes in this set, so it bounds the
+	// attribution repair to what it can actually fix — no full-vault scan.
+	private getTrackedNotePaths(): string[] {
+		const paths = new Set<string>(Object.keys(this.sceneReviewIndex));
+		for (const record of Object.values(this.sceneReviewIndex)) {
+			paths.add(record.notePath);
+		}
+		for (const entry of Object.values(this.sweepRegistry)) {
+			for (const path of entry.importedNotePaths) {
+				paths.add(path);
+			}
+			for (const path of entry.sceneOrder) {
+				paths.add(path);
+			}
+			if (entry.currentNotePath) {
+				paths.add(entry.currentNotePath);
+			}
+		}
+		return [...paths];
 	}
 
 	private getHistoricalNoteIdentityKeys(notePath: string): string[] {

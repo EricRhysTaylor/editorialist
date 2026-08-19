@@ -54,6 +54,14 @@ export interface ReviewSourceRef {
 	entryIndex: number;
 	startOffset?: number;
 	endOffset?: number;
+	// The import batch this entry was parsed out of, stamped at parse time from
+	// the enclosing review block's `BatchId:` metadata. A scene note may hold
+	// blocks from several batches at once, so per-suggestion attribution is the
+	// only correct source for "which sweep does this decision belong to" —
+	// asking the note for a single current batch collapses every decision onto
+	// one batch. Undefined for a raw (never-imported) block, which carries no
+	// batch stamp at all.
+	batchId?: string;
 }
 
 export interface ReviewTargetRef {

@@ -144,6 +144,21 @@ export function findImportedReviewBlocks(noteText: string, batchId?: string): Im
 		});
 }
 
+// The batch a single extracted block belongs to, read straight from its own
+// metadata stamp. Returns undefined unless the block is fully registered
+// (`ImportedBy: Editorialist` AND a non-empty `BatchId`) — the same bar
+// findImportedReviewBlocks applies — so a raw or half-stamped block never
+// claims batch membership. Parse-time attribution uses this so every entry
+// knows which import it came from, even when one note holds several blocks.
+export function getReviewBlockBatchId(bodyText: string): string | undefined {
+	const metadata = getReviewBlockMetadata(bodyText);
+	if (metadata.importedby !== "Editorialist") {
+		return undefined;
+	}
+
+	return metadata.batchid?.trim() || undefined;
+}
+
 // The standing of a single review block found inside a note, judged purely from
 // its metadata stamp:
 //   registered  — carries `ImportedBy: Editorialist` AND a `BatchId`. A block

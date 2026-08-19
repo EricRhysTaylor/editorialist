@@ -128,6 +128,17 @@ export class ReviewerStatsProjector {
 		this.directory.setStats(record.reviewerId, stats);
 	}
 
+	// The batch a suggestion belongs to. The suggestion's own stamp (written at
+	// parse time from its enclosing review block) always wins: one scene note
+	// may hold blocks from several imports, so the session-level id — which is
+	// whatever batch happens to be "current" for the note — is only a fallback
+	// for suggestions that genuinely carry no batch of their own (a guided-sweep
+	// suggestion outside an imported block, or a raw unstamped block). Dropping
+	// the fallback would silently discard those signals.
+	private batchIdFor(suggestion: ReviewSuggestion, sessionId?: string): string | undefined {
+		return suggestion.source.batchId ?? sessionId;
+	}
+
 	// Pure. (was ReviewRegistryService.createReviewerSignalRecord)
 	createSignalRecord(
 		key: string,
@@ -156,7 +167,7 @@ export class ReviewerStatsProjector {
 							? "deferred"
 							: "unresolved",
 			operation: suggestion.operation,
-			sessionId,
+			sessionId: this.batchIdFor(suggestion, sessionId),
 			sessionStartedAt,
 		};
 	}
@@ -186,7 +197,43 @@ export class ReviewerStatsProjector {
 
 	// Pure given the note identities. (was ReviewRegistryService.createReviewerSignalKeys,
 	// with getNoteIdentityKeys lifted to the injected resolver.)
-	private signalKeysFor(noteIdentities: string[], suggestion: ReviewSuggestion): string[] {
+	//
+	// The batch segment sits immediately after the note identity so a record can
+	// never migrate between batches: without it, re-syncing a note while a
+	// different batch was current rewrote the same key with a new sessionId,
+	// silently moving prior decisions onto whatever batch happened to be open.
+	// Note-identity prefix scans (`<identity>::`) still work — the identity is
+	// still the first segment.
+	private signalKeysFor(noteIdentities: string[], suggestion: ReviewSuggestion, sessionId?: string): string[] {
+		return this.signalKeysForBatch(noteIdentities, suggestion, this.batchIdFor(suggestion, sessionId));
+	}
+
+	// Key builder for an already-resolved batch. The migration resolves the
+	// batch differently (it may keep what an existing record claims), and its
+	// key must agree with the sessionId it writes — otherwise the next sync
+	// would churn the record straight back out.
+	private signalKeysForBatch(
+		noteIdentities: string[],
+		suggestion: ReviewSuggestion,
+		batchId: string | undefined,
+	): string[] {
+		return noteIdentities.map((noteIdentity) =>
+			[
+				noteIdentity,
+				`batch:${batchId ?? ""}`,
+				suggestion.source.blockIndex,
+				suggestion.source.entryIndex,
+				suggestion.operation,
+				suggestion.executionMode,
+				...getSuggestionSignatureParts(suggestion),
+			].join("::"),
+		);
+	}
+
+	// The pre-batch key shape, kept ONLY so the one-time attribution migration
+	// can find records written before batch ids entered the key. Never used to
+	// write a new record.
+	private legacySignalKeysFor(noteIdentities: string[], suggestion: ReviewSuggestion): string[] {
 		return noteIdentities.map((noteIdentity) =>
 			[
 				noteIdentity,
@@ -217,7 +264,7 @@ export class ReviewerStatsProjector {
 		const noteIdentities = resolveNoteIdentities(session.notePath);
 
 		for (const suggestion of session.suggestions) {
-			const candidateKeys = this.signalKeysFor(noteIdentities, suggestion);
+			const candidateKeys = this.signalKeysFor(noteIdentities, suggestion, options?.sessionId);
 			const key = candidateKeys[0];
 			if (!key) {
 				continue;
@@ -260,6 +307,16 @@ export class ReviewerStatsProjector {
 			}
 		}
 
+		// Prune by note identity: every signal filed under this note that the
+		// session no longer produces is dropped. That includes the signals of a
+		// batch whose review block has been cleaned out of the note, so a cleaned
+		// batch's per-batch stats fall back to the sweep registry's frozen counts.
+		// Deliberately unchanged by the batch-attribution fix (issue #5, Cause 3):
+		// whether a cleaned batch's decision history should outlive its block is a
+		// product question, not a bug, and it is what also clears genuinely stale
+		// records. Note this loop is what retires pre-batch key shapes when an old
+		// note is next synced — it removes exactly the record the loop above
+		// re-added under the batch key, so contributor totals net out.
 		const keyPrefixes = noteIdentities.map((identity) => `${identity}::`);
 		for (const [key, existingRecord] of Object.entries(nextIndex)) {
 			if (!keyPrefixes.some((prefix) => key.startsWith(prefix)) || activeKeys.has(key)) {
@@ -268,6 +325,84 @@ export class ReviewerStatsProjector {
 
 			this.applyDelta(existingRecord, -1);
 			delete nextIndex[key];
+			didChange = true;
+		}
+
+		return { nextIndex, didChange };
+	}
+
+	// One-time repair of batch attribution for a single note, run against a
+	// session hydrated from the persisted decision index. Deliberately NOT a
+	// reconcile:
+	//
+	//   - it never creates a record. A note whose suggestions were never synced
+	//     has no signals, and inventing "pending" signals for it would inflate
+	//     every contributor's totals. Only records that already exist are moved.
+	//   - it never changes a record's reviewerId, status or operation, so the
+	//     contributor aggregates are provably untouched by the rewrite itself.
+	//     The only deltas applied are for duplicate records collapsed across two
+	//     note identities — the same dedupe reconcileSession already performs.
+	//   - it never guesses. A suggestion with no batch stamp of its own keeps
+	//     whatever sessionId the old record carried; the note-level fallback is
+	//     only used when the record had none.
+	//
+	// Records under batches whose blocks have been cleaned out of the note are
+	// not visited at all (no session suggestion resolves to them), so their
+	// historical attribution survives untouched.
+	//
+	// Idempotent: after the first pass every record already sits at its batch
+	// key with the right sessionId, so the second pass reports no change.
+	migrateSessionSignalAttribution(
+		currentIndex: Record<string, ReviewerSignalRecord>,
+		session: ReviewSession,
+		resolveNoteIdentities: (notePath: string) => string[],
+		options?: { sessionId?: string },
+	): ReconcileSessionResult {
+		let didChange = false;
+		const nextIndex = {
+			...currentIndex,
+		};
+		const noteIdentities = resolveNoteIdentities(session.notePath);
+
+		for (const suggestion of session.suggestions) {
+			const lookupKeys = [
+				...this.signalKeysFor(noteIdentities, suggestion, options?.sessionId),
+				...this.legacySignalKeysFor(noteIdentities, suggestion),
+			];
+			const candidateKeys = lookupKeys.filter((candidate, index) => lookupKeys.indexOf(candidate) === index);
+			const existingRecords = candidateKeys
+				.map((candidate) => nextIndex[candidate])
+				.filter((record): record is ReviewerSignalRecord => Boolean(record));
+			const existingRecord = existingRecords[0];
+			if (!existingRecord) {
+				continue;
+			}
+
+			// Suggestion-level stamp wins; otherwise keep what the record already
+			// claims, and only fall back to the note-level batch when it claims
+			// nothing at all. The key is built from the same resolved batch so the
+			// two never disagree.
+			const batchId = suggestion.source.batchId ?? existingRecord.sessionId ?? options?.sessionId;
+			const key = this.signalKeysForBatch(noteIdentities, suggestion, batchId)[0];
+			if (!key) {
+				continue;
+			}
+
+			if (existingRecords.length === 1 && existingRecord.key === key && existingRecord.sessionId === batchId) {
+				continue;
+			}
+
+			for (const duplicate of existingRecords.slice(1)) {
+				this.applyDelta(duplicate, -1);
+				delete nextIndex[duplicate.key];
+			}
+
+			delete nextIndex[existingRecord.key];
+			nextIndex[key] = {
+				...existingRecord,
+				key,
+				sessionId: batchId,
+			};
 			didChange = true;
 		}
 
