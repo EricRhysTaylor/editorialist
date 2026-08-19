@@ -5,7 +5,10 @@
 // mutation. Note-identity resolution (vault/workspace coupled) is injected
 // so this module stays free of Obsidian. Behavior — including the legacy
 // fallback key, the in-place key migration when only the key shape changed,
-// and the dedupe of identical key shapes — is byte-identical.
+// and the dedupe of identical key shapes — is byte-identical, with one
+// deliberate later change: a record's `sessionId` is now the batch of the
+// suggestion's OWN review block (see batchIdFor) rather than the note-level
+// batch, because resetBatchHistory deletes by that field.
 //
 // The protecting tests are the Pass-2 service invariants
 // (ReviewRegistryService.invariants.test.ts: every decision key resolves
@@ -106,6 +109,70 @@ export class ReviewDecisionIndex {
 		};
 	}
 
+	// The batch a decision belongs to. The suggestion's own stamp — written at
+	// parse time from the `BatchId:` of the review block it was parsed out of —
+	// always wins. One scene note may hold blocks from several imports, so the
+	// session-level id (whatever batch is "current" for the note: the active
+	// guided sweep's, else the note's FIRST imported block's) attributes every
+	// decision in the note to one batch, which is what let "Reset one batch"
+	// delete another batch's decisions. It survives only as the fallback for a
+	// suggestion that genuinely carries no batch of its own — a raw,
+	// never-imported block, or a guided-sweep suggestion outside an imported
+	// block. Dropping the fallback would leave those decisions unattributed;
+	// stamping them with a batch they do not belong to would lose them.
+	private batchIdFor(suggestion: ReviewSuggestion, sessionId?: string): string | undefined {
+		return suggestion.source.batchId ?? sessionId;
+	}
+
+	// One-time repair of batch attribution for the decisions of a single note,
+	// run against a session parsed from the note as it stands now (so every
+	// suggestion carries the batch of the block it actually came from).
+	// Mutates `index` in place; returns how many records were re-stamped.
+	//
+	// The key is deliberately untouched: unlike the reviewer-signal key, the
+	// decision key carries no batch segment and needs none — nothing rewrites a
+	// record's sessionId on re-sync (persist only writes a fresh stamp when the
+	// author's decision actually CHANGES, and hydration is read-only), so a
+	// correctly stamped record cannot drift onto another batch.
+	//
+	// Three refusals, all in service of never losing an authored decision:
+	//   - it never creates a record. Only records that already exist are moved.
+	//   - it never changes a status, an updatedAt or a key.
+	//   - it never stamps a record that carried NO batch id. Such a record is
+	//     immune to every batch erase today; giving it a batch would make it
+	//     deletable, which is precisely the data loss this fix exists to stop.
+	//     Same reason a suggestion with no batch stamp of its own is skipped
+	//     rather than filled in from the note-level fallback — that would be a
+	//     guess, and a guess here deletes an author's work.
+	//
+	// Records whose blocks have been cleaned out of the note are never visited
+	// (no session suggestion resolves to them), so they keep their old stamp.
+	//
+	// Idempotent: after the first pass every visited record already carries its
+	// own batch, so a second pass re-stamps nothing.
+	restampSessionBatchAttribution(index: Index, session: ReviewSession): number {
+		let restamped = 0;
+		for (const suggestion of session.suggestions) {
+			const batchId = suggestion.source.batchId;
+			if (!batchId) {
+				continue;
+			}
+
+			const record = this.getRecord(index, session.notePath, suggestion);
+			if (!record || !record.sessionId || record.sessionId === batchId) {
+				continue;
+			}
+
+			index[record.key] = {
+				...record,
+				sessionId: batchId,
+			};
+			restamped += 1;
+		}
+
+		return restamped;
+	}
+
 	// Mutates `index` in place; returns whether the caller should persist.
 	// Three branches preserved exactly:
 	//   - no key derivable -> no-op (false)
@@ -150,7 +217,7 @@ export class ReviewDecisionIndex {
 			key,
 			status,
 			updatedAt: this.now(),
-			sessionId: options?.sessionId,
+			sessionId: this.batchIdFor(suggestion, options?.sessionId),
 			sessionStartedAt: options?.sessionStartedAt,
 		};
 		return true;
