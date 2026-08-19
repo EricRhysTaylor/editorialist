@@ -5,7 +5,7 @@
 		"inlineSourceMap": true,
 		"inlineSources": true,
 		"module": "ESNext",
-		"target": "ES6",
+		"target": "ES2018",
 		"allowJs": true,
 		"noImplicitAny": true,
 		"noImplicitThis": true,
@@ -18,8 +18,17 @@
 		"strictBindCallApply": true,
 		"allowSyntheticDefaultImports": true,
 		"useUnknownInCatchVariables": true,
+		// Must cover every ES built-in the source actually uses (Object.entries/values,
+		// padStart, trimEnd, flatMap, Object.fromEntries, matchAll). Previously this
+		// stopped at ES7/ES2016 and only type-checked because @types/node transitively
+		// pulls in newer lib declarations. Any type-aware tool that does not inherit
+		// @types/node — including Obsidian's release scanner — saw those built-ins as
+		// missing, which made the surrounding expressions error-typed and produced
+		// hundreds of spurious @typescript-eslint/no-unsafe-* findings.
+		// target matches esbuild.config.mjs (es2018); lib is what the code needs.
 		"lib": [
 			"DOM",
+			"DOM.Iterable",
 			"ES2020"
 		]
 	},
