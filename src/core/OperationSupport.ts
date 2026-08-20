@@ -38,6 +38,17 @@ interface OperationSupport<T extends ReviewSuggestion> {
 	getSignatureParts: (suggestion: T) => string[];
 }
 
+// CONDENSE and EXPAND carry an optional `suggestion` payload; without it the
+// parser marks them advisory (SuggestionParser.parse{Condense,Expand}Suggestion)
+// and canApply is false *permanently* — there is no replacement prose for the
+// plugin to write, however well the target resolves. The old wording ("not
+// directly applicable yet") implied a resolution worth waiting for and left
+// authors hunting for an Apply that never arrives, so the reason names the two
+// terminal exits instead: rewrite it yourself, or reject it.
+function advisoryReason(targetReason: string | undefined, guidance: string): string {
+	return targetReason ? `${targetReason} ${guidance}` : guidance;
+}
+
 const operationSupport: {
 	[K in ReviewSuggestion["operation"]]: OperationSupport<Extract<ReviewSuggestion, { operation: K }>>;
 } = {
@@ -269,9 +280,10 @@ const operationSupport: {
 		getPrimaryTarget: (suggestion: CondenseSuggestion) => suggestion.location.target,
 		getReason: (suggestion: CondenseSuggestion) => {
 			if (suggestion.executionMode === "advisory") {
-				return suggestion.location.target?.reason
-					? `${suggestion.location.target.reason} Advisory condense guidance is not directly applicable yet.`
-					: "Advisory condense guidance is not directly applicable yet.";
+				return advisoryReason(
+					suggestion.location.target?.reason,
+					"No tightened prose to apply — condense the passage yourself and mark it rewritten, or reject it.",
+				);
 			}
 
 			return suggestion.location.target?.reason ?? "Awaiting condense resolution.";
@@ -329,9 +341,10 @@ const operationSupport: {
 		getPrimaryTarget: (suggestion: ExpandSuggestion) => suggestion.location.target,
 		getReason: (suggestion: ExpandSuggestion) => {
 			if (suggestion.executionMode === "advisory") {
-				return suggestion.location.target?.reason
-					? `${suggestion.location.target.reason} Advisory expand guidance is not directly applicable yet.`
-					: "Advisory expand guidance is not directly applicable yet.";
+				return advisoryReason(
+					suggestion.location.target?.reason,
+					"No expanded prose to apply — develop the beat yourself and mark it rewritten, or reject it.",
+				);
 			}
 
 			return suggestion.location.target?.reason ?? "Awaiting expand resolution.";

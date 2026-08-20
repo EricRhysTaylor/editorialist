@@ -231,9 +231,16 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		const cleanButton = titleRow.createEl("button", {
 			cls: `editorialist-panel__settings-button editorialist-panel__clean-button${cleanableCount > 0 ? " is-active" : ""}`,
 			attr: {
+				// The disabled label states the rule rather than just the outcome:
+				// "No resolved batches to clean" tells an author nothing about
+				// what to go do, and a greyed button is where they otherwise
+				// discover the block. Deliberately not a live count of what is
+				// open — that would be a second derivation of the gate in
+				// SweepCompletion.isBatchReadyToClean and could disagree with
+				// the button's own enabled state.
 				"aria-label": cleanableCount > 0
 					? `Clean ${cleanableCount} resolved batch${cleanableCount === 1 ? "" : "es"} from their scenes`
-					: "No resolved batches to clean",
+					: "Nothing to clean yet — a batch clears once every suggestion in it is accepted, rejected, or rewritten",
 				type: "button",
 				...(cleanableCount === 0 ? { disabled: "true" } : {}),
 			},
@@ -2138,6 +2145,18 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 				case "move":
 					return "Source missing";
 			}
+		}
+
+		// An advisory suggestion carries guidance, not replacement prose, so
+		// canApplySuggestionDirectly is false for its whole life — Apply never
+		// lights up no matter how the target resolves. Labelling it "Pending"
+		// alongside genuinely applicable work sends authors looking for an
+		// Apply that cannot exist, and the sweep stalls until they find the
+		// footer's "Mark as rewritten". Only the pending state is renamed:
+		// deferred / unresolved carry their own meaning for the completion
+		// gate (see SweepCompletion) and must keep their labels.
+		if (status === "pending" && suggestion.executionMode === "advisory") {
+			return "Advisory";
 		}
 
 		return this.toSentenceCase(status);
