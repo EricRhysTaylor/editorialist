@@ -66,6 +66,29 @@ npm run release -- patch # bump, rebuild, print tag/upload instructions
 The compliance script (`scripts/obsidian-compliance.mjs`) runs on every build
 and `check`, so submission blockers are caught before a commit ever lands.
 
+## Commit policy — always commit, never push
+
+**Commit your work without being asked.** Every finished unit of work gets a
+commit; do not leave changes sitting in the working tree waiting for a
+"commit this" from Eric, and do not ask whether to commit. An uncommitted
+working tree is the failure mode this rule exists to prevent — it loses work
+and makes it impossible to see what an agent actually changed.
+
+The rules around that:
+
+- **Commit directly to `main`.** This repo has a linear, direct-to-main
+  history and no PR workflow. Do not open branches for ordinary work.
+- **Never push.** `git push` is Eric's call, always, and he does it himself.
+  The repo is public, so pushing makes work visible the moment it lands, and
+  `scripts/release.mjs` deliberately leaves push/tag/Release manual "so we
+  verify the artifacts and release notes before anything becomes public"
+  (`docs/CODE-STANDARDS.md` §2). Commit freely; leave the pushing alone.
+- **`npm run check` must pass before you commit.** It is the gate that keeps
+  submission blockers out of the history — see Build / check / release above.
+- **One commit per coherent change**, with a message that explains *why* the
+  change was made, not just what moved. Match the existing history's voice:
+  an imperative subject line, then prose paragraphs.
+
 ## Release artifacts
 
 GitHub Release assets for an Obsidian release are exactly three files,
