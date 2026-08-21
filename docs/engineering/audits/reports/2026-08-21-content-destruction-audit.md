@@ -179,15 +179,31 @@ one does not. Given F1–F3, this is the most likely accidental trigger in the p
 `isSceneClassFile` refusal. The path is plugin-owned so real risk is low, but the
 guard is inconsistent with the pattern established for cut files.
 
-### F9 — INFORMATIONAL · Frontmatter is re-serialized by Obsidian
+### F9 — INFORMATIONAL · Frontmatter is re-serialized by Obsidian — DISCLOSED (`0c5a535`); import half FIXED
 
-`injectStableNoteIds` and the revision counter write user frontmatter through
-`processFrontMatter`. The writes are additive, but Obsidian re-serializes the whole
-YAML block — dropping comments and normalizing quote style. Worth one honest line in
-the wiki, since the plugin does modify scene YAML. Relatedly,
-**both** append implementations call `trimEnd()`, so either import path strips
-trailing blank lines: `ImportEngine.appendImportBlock` (routed import) and
-`ReviewBatchProcessor.importReviewBatchToActiveNote:192` (active-note import).
+Two unrelated halves were filed together here.
+
+**Frontmatter re-serialization — not fixable, now disclosed.** Four writers touch
+scene YAML through `processFrontMatter`: the revision counter and `injectStableNoteIds`
+(`ReviewRegistryService`), and the two pending-edits field writers
+(`PendingEditsSegments`). The keys they touch are correctly scoped. The mechanism is
+what shows: `processFrontMatter` parses the whole YAML block, applies the mutation, and
+re-serializes the block — so a single-key write can also drop YAML comments, normalize
+quote style, or reorder keys.
+
+This is not specific to Editorialist. It is how frontmatter is edited in Obsidian
+generally: the built-in Properties editor and any other plugin using the same API
+re-serialize identically. It is also the sanctioned API — hand-editing the YAML text
+would be considerably worse. So there is no fix here, only disclosure, which now lives
+in `wiki/Settings-Reference.md` under Tracking: which keys are written, when, and what
+the rewrite can incidentally change.
+
+**Import stripping the end of the note — fixed.** Both append paths called `trimEnd()`
+on the note first, discarding trailing blank lines and trailing spaces on the last
+line. Same class as F3, at end-of-file and only on import, so leaving one fixed and not
+the other was inconsistent. Both paths now share `appendBlockToNote`, which inserts
+ahead of the trailing newline run and re-attaches it verbatim. Asserted as a round
+trip: import a block, clean it, and the note comes back byte-identical.
 
 ### F10 — HIGH · Formalizing an unrecognized block can capture manuscript prose, which a later Clean then deletes
 
@@ -230,7 +246,8 @@ Missed in the first pass of this audit — it was found in review.
 
 ## Remediation status (2026-08-21)
 
-All confirmed manuscript-deletion paths are closed. Commits are on `main`, unpushed.
+Every finding is closed. F9's frontmatter half is disclosed rather than fixed, because
+the behaviour belongs to Obsidian's frontmatter API rather than to this plugin.
 
 | # | Finding | Status |
 |---|---|---|
@@ -242,7 +259,7 @@ All confirmed manuscript-deletion paths are closed. Commits are on `main`, unpus
 | F6 | Wiki claims accepting a Cut archives it | **Fixed** in wiki (`1950506`), brief (Web `9f0f8ac`), release draft (`cfb4400`); **website corrected and published** — radialtimeline.com/editorialist now reads "Cut files: back it up before it goes". The wiki fix is committed but unpushed, so the *public* wiki still shows the old sentence |
 | F7 | Clean actions fire without confirmation | **Fixed** — `43318d0` (per-scene), `c8604c0` (Recent Reviews, clean-all). Every Clean control now confirms, but via three paths, not one: the panel routes through `confirmReviewBlockRemoval`, Settings uses its own `confirmDestructiveAction`, and completed-sweep cleanup has its own modal that also lists the affected scenes |
 | F8 | Editorialism save overwrites without a scene guard | **Fixed** — `43318d0`; depends on the metadata cache, so not an absolute guarantee |
-| F9 | Frontmatter re-serialization, import `trimEnd()` | **Open** — informational only; both append paths do it, and `processFrontMatter` is Obsidian's sanctioned API |
+| F9 | Frontmatter re-serialization, import `trimEnd()` | **Closed** — `0c5a535`. Import no longer touches the end of the note. The YAML re-serialization is inherent to Obsidian's frontmatter API (its own Properties editor and other plugins behave identically) and is now disclosed in the wiki rather than fixed |
 | F10 | Formalize captures prose, later Clean deletes it | **Fixed** — `d36e4fa` |
 | F11 | Move never verifies its destination | **Fixed** — `43318d0` |
 
@@ -269,7 +286,7 @@ Behaviour deliberately narrowed: a bare unfenced block in a note can no longer b
 formalized. Its extent is unknowable, so the action refuses rather than guesses —
 `detectFileWrittenReviewBlocks` (default off) now requires the AI to fence its block.
 
-Test coverage went from 793 to 836. The governing invariant — removal deletes the
+Test coverage went from 793 to 842. The governing invariant — removal deletes the
 ranges it reports and nothing else, with only the seam's newline run allowed to
 shorten — is in `src/core/ReviewBlockFormat.removalSafety.test.ts`. It compares the
 surviving segments byte-for-byte and is applied to the formatting-rich fixtures, not

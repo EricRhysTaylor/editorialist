@@ -91,6 +91,27 @@ Shows which tracking mode is active and why:
 
 When path-based tracking is active, **Inject stable note IDs** adds an `editorial_id` frontmatter field to tracked notes that do not already have one.
 
+#### What Editorialist writes to frontmatter
+
+Three things, and only these keys:
+
+| Key | When |
+|---|---|
+| `Editorialist.revision`, `Editorialist.revision_updated` | A review sweep completes |
+| `editorial_id` | You run **Inject stable note IDs** |
+| The pending-edits field | You work an item in the [Pending Edits](Pending-Edits) queue |
+
+Frontmatter is written through Obsidian's own properties API, which rewrites the
+whole YAML block rather than editing single lines. So a write can also drop YAML
+comments, change quote style, or reorder keys. This is how frontmatter is edited in
+Obsidian generally — the built-in Properties editor and other plugins that write
+frontmatter behave the same way — but it is worth knowing if you keep comments or a
+hand-ordered layout in your scene YAML.
+
+Note *body* text is never reformatted. Importing a review block appends it and
+leaves the rest of the file, including trailing blank lines, exactly as it was;
+cleaning one removes the block and repairs only the join.
+
 ### Cut location
 
 A cut file is a general-purpose archive, reachable wherever you are working:
