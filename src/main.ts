@@ -3995,9 +3995,11 @@ export default class EditorialistPlugin extends Plugin {
 
 		const context = this.getNoteContextByPath(notePath);
 		let removedCount = 0;
+		let skippedUnfencedCount = 0;
 
 		if (context) {
 			const removed = removeImportedReviewBlocks(context.view.editor.getValue());
+			skippedUnfencedCount = removed.skippedUnfencedCount;
 			if (removed.removedCount > 0) {
 				context.view.editor.setValue(removed.text);
 				removedCount = removed.removedCount;
@@ -4011,16 +4013,23 @@ export default class EditorialistPlugin extends Plugin {
 			await this.app.vault.process(file, (currentText) => {
 				const removed = removeImportedReviewBlocks(currentText);
 				removedCount = removed.removedCount;
+				skippedUnfencedCount = removed.skippedUnfencedCount;
 				return removed.removedCount > 0 ? removed.text : currentText;
 			});
 		}
 
 		await this.syncSceneReviewIndex();
 		this.resyncSessionForActiveNote();
+		// An unfenced stamped block is reported, never quietly tolerated: the note
+		// still holds a review block the user believes was just cleaned.
+		const skippedSuffix =
+			skippedUnfencedCount > 0
+				? ` ${skippedUnfencedCount} unfenced block${skippedUnfencedCount === 1 ? "" : "s"} had no closing fence and must be removed by hand.`
+				: "";
 		new Notice(
-			removedCount > 0
+			(removedCount > 0
 				? `Cleaned ${removedCount} imported review block${removedCount === 1 ? "" : "s"} from this note.`
-				: "No imported review blocks were found in this note.",
+				: "No imported review blocks were found in this note.") + skippedSuffix,
 		);
 	}
 

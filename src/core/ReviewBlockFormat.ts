@@ -14,6 +14,11 @@ const REVIEW_METADATA_PATTERN =
 // `═══`). Detected as a line of punctuation/symbol characters with no letters
 // or digits — skipped without terminating the raw block.
 const DIVIDER_LINE_PATTERN = /^[^\p{L}\p{N}]+$/u;
+// A code-fence delimiter. Checked BEFORE DIVIDER_LINE_PATTERN, which would
+// otherwise classify ``` as decorative punctuation and skip straight past it —
+// the reason the raw scanner used to swallow a block's own closing fence and
+// every line of manuscript that followed it.
+const FENCE_LINE_PATTERN = /^`{3,}/;
 
 export interface ExtractedReviewBlock {
 	bodyText: string;
@@ -30,6 +35,12 @@ export interface ImportedReviewBlock extends ExtractedReviewBlock {
 export interface RemoveImportedReviewBlocksResult {
 	batchIds: string[];
 	removedCount: number;
+	/**
+	 * Stamped blocks that were found but deliberately left alone because they are
+	 * not fenced, so their extent cannot be established safely. Callers surface
+	 * this rather than reporting a clean sweep that silently left a block behind.
+	 */
+	skippedUnfencedCount: number;
 	text: string;
 }
 
@@ -38,15 +49,8 @@ export interface StripReviewBlocksResult {
 	text: string;
 }
 
-export function createReviewBlockPattern(): RegExp {
-	return new RegExp(
-		`(?:^|\\n)\`\`\`${REVIEW_BLOCK_FENCE}[^\\S\\r\\n]*\\r?\\n([\\s\\S]*?)\\r?\\n\`\`\``,
-		"g",
-	);
-}
-
 function createGenericFencePattern(): RegExp {
-	return /(?:^|\n)```([^\r\n`]*)[^\S\r\n]*\r?\n([\s\S]*?)\r?\n```/g;
+	return /(?:^|\r?\n)```([^\r\n`]*)[^\S\r\n]*\r?\n([\s\S]*?)\r?\n```/g;
 }
 
 export function createReviewBlock(bodyText: string): string {
@@ -109,9 +113,11 @@ export function getReviewBlockMetadata(bodyText: string): Record<string, string>
 	return metadata;
 }
 
+// Offsets returned here are ALWAYS relative to `noteText` as passed in. The raw
+// scanner used to run against a trimmed/unwrapped copy while callers spliced the
+// original, so any leading whitespace shifted every cut by that many characters.
 export function extractReviewBlocks(noteText: string): ExtractedReviewBlock[] {
-	const trimmed = noteText.trim();
-	if (!trimmed) {
+	if (!noteText.trim()) {
 		return [];
 	}
 
@@ -120,8 +126,7 @@ export function extractReviewBlocks(noteText: string): ExtractedReviewBlock[] {
 		return fencedBlocks;
 	}
 
-	const unfencedBody = unwrapPlainCodeFence(trimmed);
-	const rawBlock = extractRawTopReviewBlock(unfencedBody);
+	const rawBlock = extractRawTopReviewBlock(noteText);
 	return rawBlock ? [rawBlock] : [];
 }
 
@@ -190,7 +195,14 @@ function classifyReviewBlock(block: ExtractedReviewBlock): ReviewBlockRegistrati
 export type NoteReviewBlockState = "none" | "registered" | "unimported" | "ambiguous";
 
 export function classifyNoteReviewBlocks(noteText: string): NoteReviewBlockState {
-	const kinds = extractReviewBlocks(noteText).map(classifyReviewBlock);
+	// Fenced only. Formalizing rewrites the block's whole range in place, and an
+	// unfenced block's range runs to wherever the scanner gives up — which is how
+	// trailing manuscript prose ended up stamped inside a review block, and then
+	// deleted by the next cleanup. If we cannot act on it safely, do not advertise
+	// it as actionable either.
+	const kinds = extractReviewBlocks(noteText)
+		.filter((block) => block.source === "fenced")
+		.map(classifyReviewBlock);
 	if (kinds.length === 0) {
 		return "none";
 	}
@@ -214,15 +226,28 @@ export function findUnimportedReviewBlock(noteText: string): ExtractedReviewBloc
 	if (classifyNoteReviewBlocks(noteText) !== "unimported") {
 		return null;
 	}
-	return extractReviewBlocks(noteText).find((block) => classifyReviewBlock(block) === "unimported") ?? null;
+	return (
+		extractReviewBlocks(noteText).find(
+			(block) => block.source === "fenced" && classifyReviewBlock(block) === "unimported",
+		) ?? null
+	);
 }
 
+// Deletes ONLY fenced blocks. An unfenced block has no closing delimiter, so its
+// end is a guess — and a wrong guess here takes manuscript prose with it. When a
+// stamped block is found unfenced we count it and leave it in place; the caller
+// tells the user to remove it by hand rather than silently reporting success.
 export function removeImportedReviewBlocks(noteText: string, batchId?: string): RemoveImportedReviewBlocksResult {
-	const blocks = findImportedReviewBlocks(noteText, batchId).sort((left, right) => right.startOffset - left.startOffset);
+	const stamped = findImportedReviewBlocks(noteText, batchId);
+	const blocks = stamped
+		.filter((block) => block.source === "fenced")
+		.sort((left, right) => right.startOffset - left.startOffset);
+	const skippedUnfencedCount = stamped.length - blocks.length;
 	if (blocks.length === 0) {
 		return {
 			batchIds: [],
 			removedCount: 0,
+			skippedUnfencedCount,
 			text: noteText,
 		};
 	}
@@ -235,10 +260,16 @@ export function removeImportedReviewBlocks(noteText: string, batchId?: string): 
 	return {
 		batchIds: [...new Set(blocks.map((block) => block.batchId).filter((value): value is string => Boolean(value)))],
 		removedCount: blocks.length,
+		skippedUnfencedCount,
 		text: normalizeRemovedReviewSpacing(nextText),
 	};
 }
 
+// NOT restricted to fenced blocks, unlike removeImportedReviewBlocks. This never
+// writes to a note: ImportEngine uses it in memory to keep review-block text out
+// of the corpus that suggestions are matched against. Narrowing it would let
+// unfenced block text back into that corpus and let suggestions match review
+// syntax instead of prose.
 export function stripAllReviewBlocks(noteText: string): StripReviewBlocksResult {
 	const blocks = extractReviewBlocks(noteText).sort((left, right) => right.startOffset - left.startOffset);
 	if (blocks.length === 0) {
@@ -257,11 +288,6 @@ export function stripAllReviewBlocks(noteText: string): StripReviewBlocksResult 
 		removedCount: blocks.length,
 		text: normalizeRemovedReviewSpacing(nextText),
 	};
-}
-
-function unwrapPlainCodeFence(rawText: string): string {
-	const match = rawText.match(/^```(?:[^\n`]*)?\r?\n([\s\S]*?)\r?\n```$/);
-	return match?.[1]?.trim() ?? rawText;
 }
 
 function extractFencedBlocks(noteText: string): ExtractedReviewBlock[] {
@@ -316,6 +342,9 @@ function extractRawTopReviewBlock(noteText: string): ExtractedReviewBlock | null
 		}
 
 		const firstTrimmed = firstLine.text.trim();
+		if (FENCE_LINE_PATTERN.test(firstTrimmed)) {
+			continue;
+		}
 		if (!REVIEW_METADATA_PATTERN.test(firstTrimmed) && !REVIEW_SECTION_PATTERN.test(firstTrimmed)) {
 			continue;
 		}
@@ -332,6 +361,12 @@ function extractRawTopReviewBlock(noteText: string): ExtractedReviewBlock | null
 			}
 
 			const trimmed = line.text.trim();
+			// A fence ends the block, full stop. Nothing past a block's closing
+			// ``` belongs to it.
+			if (FENCE_LINE_PATTERN.test(trimmed)) {
+				break;
+			}
+
 			if (trimmed === "") {
 				// Inside a section body, blank lines are paragraph breaks — they do
 				// NOT terminate the field continuation. Keeping currentField intact

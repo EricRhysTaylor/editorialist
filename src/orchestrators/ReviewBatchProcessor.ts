@@ -75,6 +75,13 @@ export interface ReviewBatchProcessorHost {
 	cleanupCurrentBatch(noteText?: string): Promise<boolean>;
 }
 
+// A stamped block with no fence cannot be removed safely — its end is a guess,
+// and a wrong guess deletes manuscript prose. Say so plainly instead of letting
+// a "cleaned" notice imply the note is clear.
+function describeSkippedUnfencedBlocks(count: number): string {
+	return `${count} unfenced review block${count === 1 ? " was" : "s were"} left in place — ${count === 1 ? "it has" : "they have"} no closing fence, so remove ${count === 1 ? "it" : "them"} by hand.`;
+}
+
 export class ReviewBatchProcessor {
 	constructor(private readonly host: ReviewBatchProcessorHost) {}
 
@@ -463,14 +470,21 @@ export class ReviewBatchProcessor {
 
 		const removed = removeImportedReviewBlocks(context.view.editor.getValue());
 		if (removed.removedCount === 0) {
-			new Notice("No imported Editorialist review blocks found in this note.");
+			new Notice(
+				removed.skippedUnfencedCount > 0
+					? describeSkippedUnfencedBlocks(removed.skippedUnfencedCount)
+					: "No imported Editorialist review blocks found in this note.",
+			);
 			return;
 		}
 
 		context.view.editor.setValue(removed.text);
 		await this.host.syncSceneInventory();
 		this.host.resyncSessionForActiveNote();
-		new Notice(`Removed ${removed.removedCount} imported review block${removed.removedCount === 1 ? "" : "s"} from this note.`);
+		new Notice(
+			`Removed ${removed.removedCount} imported review block${removed.removedCount === 1 ? "" : "s"} from this note.` +
+				(removed.skippedUnfencedCount > 0 ? ` ${describeSkippedUnfencedBlocks(removed.skippedUnfencedCount)}` : ""),
+		);
 	}
 
 	// Builds the per-scene list shown in the "Clean review blocks?" modal so the
