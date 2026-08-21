@@ -6,6 +6,8 @@ It took an unusual block to trigger — one whose opening or closing marker had 
 
 Cleaning a block also leaves the rest of the note alone. Line breaks, blank lines between scenes, and the end of the file stay exactly as you wrote them.
 
+Also fixed: a Move suggestion could drop the passage somewhere other than where the reviewer pointed, if the scene had changed since the review arrived.
+
 ## Develop this beat
 
 A Condense or Expand note sometimes arrives as direction rather than a rewrite. There is nothing to apply, so the card is labelled **Advisory** — write the passage yourself and mark it rewritten, or reject it. Now covered in the wiki.
