@@ -239,8 +239,8 @@ All confirmed manuscript-deletion paths are closed. Commits are on `main`, unpus
 | F3 | Cleanup reformats the whole note | **Fixed** — `d2a3df8` |
 | F4 | Backtick in payload truncates the block | **Open** — deferred; pollution, not deletion |
 | F5 | CRLF orphan `\r` | **Fixed** — `d36e4fa` |
-| F6 | Wiki claims accepting a Cut archives it | **Fixed** in wiki (`1950506`), brief (Web `9f0f8ac`), release draft (`cfb4400`); website corrected on Framer branch `hjockgxvd`, **unpublished** |
-| F7 | Clean actions fire without confirmation | **Fixed** — `43318d0` (per-scene), `c8604c0` (Recent Reviews, clean-all); all four entry points now share one confirm |
+| F6 | Wiki claims accepting a Cut archives it | **Fixed** in wiki (`1950506`), brief (Web `9f0f8ac`), release draft (`cfb4400`); **website corrected and published** — radialtimeline.com/editorialist now reads "Cut files: back it up before it goes". The wiki fix is committed but unpushed, so the *public* wiki still shows the old sentence |
+| F7 | Clean actions fire without confirmation | **Fixed** — `43318d0` (per-scene), `c8604c0` (Recent Reviews, clean-all). Every Clean control now confirms, but via three paths, not one: the panel routes through `confirmReviewBlockRemoval`, Settings uses its own `confirmDestructiveAction`, and completed-sweep cleanup has its own modal that also lists the affected scenes |
 | F8 | Editorialism save overwrites without a scene guard | **Fixed** — `43318d0`; depends on the metadata cache, so not an absolute guarantee |
 | F9 | Frontmatter re-serialization, import `trimEnd()` | **Open** — informational; both append paths do it |
 | F10 | Formalize captures prose, later Clean deletes it | **Fixed** — `d36e4fa` |
@@ -264,7 +264,11 @@ formalized. Its extent is unknowable, so the action refuses rather than guesses 
 
 Test coverage went from 793 to 822. The governing invariant — removal deletes the
 ranges it reports and nothing else, with only the seam's newline run allowed to
-shorten — is in `src/core/ReviewBlockFormat.removalSafety.test.ts`.
+shorten — is in `src/core/ReviewBlockFormat.removalSafety.test.ts`. It compares the
+surviving segments byte-for-byte and is applied to the formatting-rich fixtures, not
+only to a plain one; both facts were checked by reintroducing the old document-wide
+normalizer and confirming the invariant fails on its own, independently of the
+explicit hard-break and blank-line assertions.
 
 ## Recommended remediation, in priority order
 

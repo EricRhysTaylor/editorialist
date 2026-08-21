@@ -13,6 +13,7 @@ import type { ReviewSweepRegistryEntry } from "../models/ReviewImport";
 import type { EditorialistEffortSettings, SceneReviewRecord } from "../models/ContributorProfile";
 import type EditorialistPlugin from "../main";
 import { openEditorialistChoiceModal } from "./EditorialistChoiceModal";
+import { describeUnremovedBlocksSuffix } from "../orchestrators/ReviewBatchProcessor";
 import { RADIAL_TIMELINE_ICON_ID } from "./RadialTimelineLogoIcon";
 
 // Deliberately imperative: the declarative settings API (getSettingDefinitions,
@@ -1337,12 +1338,12 @@ export class EditorialistSettingTab extends PluginSettingTab {
 				return;
 			}
 
-			const removed = await this.plugin.cleanupAllSceneReviewNotes(this.activeBookOnly);
+			const outcome = await this.plugin.cleanupAllSceneReviewNotes(this.activeBookOnly);
 			void this.displayAsync(false);
 			new Notice(
-				removed > 0
-					? `Cleaned ${removed} imported review block${removed === 1 ? "" : "s"} across ${vocabulary.pluralLabelLower}.`
-					: "No imported review blocks were found to clean.",
+				(outcome.removedCount > 0
+					? `Cleaned ${outcome.removedCount} imported review block${outcome.removedCount === 1 ? "" : "s"} across ${vocabulary.pluralLabelLower}.`
+					: "No imported review blocks were found to clean.") + describeUnremovedBlocksSuffix(outcome.skippedUnfencedCount),
 			);
 		});
 		this.createActionButton(cleanupActions, "archive-x", `Clean completed ${vocabulary.pluralLabelLower}`, async () => {
@@ -1354,12 +1355,13 @@ export class EditorialistSettingTab extends PluginSettingTab {
 				return;
 			}
 
-			const removed = await this.plugin.cleanupCompletedSceneReviewNotes(this.activeBookOnly);
+			const outcome = await this.plugin.cleanupCompletedSceneReviewNotes(this.activeBookOnly);
 			void this.displayAsync(false);
 			new Notice(
-				removed > 0
-					? `Cleaned ${removed} imported review block${removed === 1 ? "" : "s"} from completed ${vocabulary.pluralLabelLower}.`
-					: `No completed ${vocabulary.pluralLabelLower} were ready for cleanup.`,
+				(outcome.removedCount > 0
+					? `Cleaned ${outcome.removedCount} imported review block${outcome.removedCount === 1 ? "" : "s"} from completed ${vocabulary.pluralLabelLower}.`
+					: `No completed ${vocabulary.pluralLabelLower} were ready for cleanup.`) +
+					describeUnremovedBlocksSuffix(outcome.skippedUnfencedCount),
 			);
 		});
 

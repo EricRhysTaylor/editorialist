@@ -23,19 +23,21 @@ function block(...body: string[]): string {
 
 const SIMPLE_BLOCK = block("=== EDIT ===", "Original: hello", "Revised: goodbye");
 
-// Everything outside the reported block ranges must survive byte-for-byte, with
-// one tolerance: the run of NEWLINES at each seam may shorten, because joining
-// the two sides of a removal necessarily merges their blank-line separators.
-// Spaces and tabs are compared exactly — that is the point. Two trailing spaces
-// are a Markdown hard line break, and a document-wide whitespace strip silently
-// destroys them nowhere near the block being removed.
+// The governing invariant. Everything outside the removed ranges must survive
+// BYTE-FOR-BYTE, with exactly one tolerance: the run of newlines immediately
+// adjacent to a seam may shorten, because joining the two sides of a removal
+// merges the blank-line separators each side contributed around the block.
+//
+// It works by checking the surviving segments individually rather than
+// collapsing whitespace across the whole document. An earlier version collapsed
+// every newline run everywhere, which could not tell a seam repair apart from a
+// document-wide rewrite — precisely the failure (F3) these tests exist to catch.
+// Segments are compared exactly, so a stripped hard line break, a lost indent,
+// or a blank-line run collapsed far from the block all fail here.
 function expectOnlyBlocksRemoved(noteText: string, batchId?: string): void {
-	const blocks = removeImportedReviewBlocks(noteText, batchId);
-	const reported = extractReviewBlocks(noteText);
+	const result = removeImportedReviewBlocks(noteText, batchId);
 
-	// Rebuild what the note should look like: the input with exactly the removed
-	// ranges cut out, nothing else touched.
-	const removedRanges = reported
+	const removedRanges = extractReviewBlocks(noteText)
 		.filter((candidate) => {
 			const slice = noteText.slice(candidate.startOffset, candidate.endOffset);
 			if (!slice.includes("ImportedBy: Editorialist")) {
@@ -43,17 +45,47 @@ function expectOnlyBlocksRemoved(noteText: string, batchId?: string): void {
 			}
 			return batchId ? slice.includes(`BatchId: ${batchId}`) : true;
 		})
-		.sort((left, right) => right.startOffset - left.startOffset);
+		.sort((left, right) => left.startOffset - right.startOffset);
 
-	let expected = noteText;
+	// The text between (and around) the removed ranges.
+	const segments: string[] = [];
+	let cursor = 0;
 	for (const range of removedRanges) {
-		expected = expected.slice(0, range.startOffset) + expected.slice(range.endOffset);
+		segments.push(noteText.slice(cursor, range.startOffset));
+		cursor = range.endOffset;
+	}
+	segments.push(noteText.slice(cursor));
+
+	// Trim only the newline run touching a seam — the one thing removal is
+	// allowed to change. Everything else in the segment must appear verbatim.
+	const expectedSegments = segments
+		.map((segment, index) => {
+			let out = segment;
+			if (index > 0) {
+				out = out.replace(/^(?:\r?\n)+/, "");
+			}
+			if (index < segments.length - 1) {
+				out = out.replace(/(?:\r?\n)+$/, "");
+			}
+			return out;
+		})
+		.filter((segment) => segment.length > 0);
+
+	let searchFrom = 0;
+	for (const segment of expectedSegments) {
+		const at = result.text.indexOf(segment, searchFrom);
+		expect(at, `segment not preserved byte-for-byte: ${JSON.stringify(segment)}`).toBeGreaterThanOrEqual(0);
+		searchFrom = at + segment.length;
 	}
 
-	// Collapse newline RUNS only. Horizontal whitespace is left untouched, so a
-	// stripped hard line break or a lost indent fails this comparison.
-	const collapseNewlineRuns = (value: string): string => value.replace(/(?:\r?\n)+/g, "\n");
-	expect(collapseNewlineRuns(blocks.text)).toBe(collapseNewlineRuns(expected));
+	// Nothing may survive from inside a removed range, and nothing may be
+	// invented: the result is the surviving segments plus seam newlines only.
+	const survivingLength = expectedSegments.reduce((total, segment) => total + segment.length, 0);
+	const seamNewlines = result.text.length - survivingLength;
+	expect(seamNewlines).toBeGreaterThanOrEqual(0);
+	expect(result.text.replace(/(?:\r?\n)/g, "").length).toBe(
+		expectedSegments.join("").replace(/(?:\r?\n)/g, "").length,
+	);
 }
 
 describe("removal safety — no prose outside a block is ever deleted", () => {
@@ -333,18 +365,21 @@ describe("removal preserves formatting elsewhere in the note", () => {
 		const result = removeImportedReviewBlocks(note, "b1");
 		expect(result.removedCount).toBe(1);
 		expect(result.text).toContain("Line one with a hard break  \nLine two.");
+		expectOnlyBlocksRemoved(note, "b1");
 	});
 
 	it("keeps a deliberate run of blank lines used as a scene separator", () => {
 		const note = ["Before the break.", "", "", "", "After the break.", "", SIMPLE_BLOCK, ""].join("\n");
 		const result = removeImportedReviewBlocks(note, "b1");
 		expect(result.text).toContain("Before the break.\n\n\n\nAfter the break.");
+		expectOnlyBlocksRemoved(note, "b1");
 	});
 
 	it("keeps trailing blank lines at end of file", () => {
 		const note = `${SIMPLE_BLOCK}\n\nProse.\n\n\n`;
 		const result = removeImportedReviewBlocks(note, "b1");
 		expect(result.text.endsWith("Prose.\n\n\n")).toBe(true);
+		expectOnlyBlocksRemoved(note, "b1");
 	});
 
 	it("keeps indentation on surrounding lines", () => {
@@ -352,6 +387,7 @@ describe("removal preserves formatting elsewhere in the note", () => {
 		const result = removeImportedReviewBlocks(note, "b1");
 		expect(result.text).toContain("- a list item\n\t- an indented child");
 		expect(result.text).toContain("  two-space indent");
+		expectOnlyBlocksRemoved(note, "b1");
 	});
 
 	it("joins the seam to a single blank line, exactly", () => {
@@ -373,5 +409,6 @@ describe("removal preserves formatting elsewhere in the note", () => {
 		expect(result.text).toContain("Prose A.");
 		expect(result.text).toContain("Prose B.");
 		expect(result.text).not.toMatch(/\r(?!\n)/);
+		expectOnlyBlocksRemoved(note, "b1");
 	});
 });

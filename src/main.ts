@@ -100,7 +100,10 @@ import { createReviewDecorationsExtension, syncReviewDecorations } from "./ui/De
 import { createReviewToolbarElement, type ToolbarState } from "./ui/Toolbar";
 import { ToolbarKeyTracker } from "./ui/toolbar/ToolbarKeyTracker";
 import { ToolbarOverlayController } from "./orchestrators/ToolbarOverlayController";
-import { ReviewBatchProcessor } from "./orchestrators/ReviewBatchProcessor";
+import { ReviewBatchProcessor,
+	describeUnremovedBlocksSuffix,
+	type CleanupOutcome,
+} from "./orchestrators/ReviewBatchProcessor";
 import { PendingEditsCoordinator, type PendingEditsSummary } from "./orchestrators/PendingEditsCoordinator";
 import { buildToolbarState } from "./ui/viewmodels/ToolbarViewModel";
 import type { ReviewBranchInputs, ToolbarStateInputs } from "./ui/viewmodels/ToolbarStateInputs";
@@ -2035,12 +2038,16 @@ export default class EditorialistPlugin extends Plugin {
 			return 0;
 		}
 		let blocksRemoved = 0;
+		let skippedUnfencedCount = 0;
 		for (const batchId of batchIds) {
-			blocksRemoved += await this.batchProcessor.cleanupReviewBatchById(batchId, { notify: false });
+			const outcome = await this.batchProcessor.cleanupReviewBatch(batchId, { notify: false });
+			blocksRemoved += outcome.removedCount;
+			skippedUnfencedCount += outcome.skippedUnfencedCount;
 		}
 		this.refreshReviewPanel();
 		new Notice(
-			`Cleaned ${batchIds.length} batch${batchIds.length === 1 ? "" : "es"} (${blocksRemoved} review block${blocksRemoved === 1 ? "" : "s"}) from their scenes.`,
+			`Cleaned ${batchIds.length} batch${batchIds.length === 1 ? "" : "es"} (${blocksRemoved} review block${blocksRemoved === 1 ? "" : "s"}) from their scenes.` +
+				describeUnremovedBlocksSuffix(skippedUnfencedCount),
 		);
 		return batchIds.length;
 	}
@@ -4037,10 +4044,7 @@ export default class EditorialistPlugin extends Plugin {
 		this.resyncSessionForActiveNote();
 		// An unfenced stamped block is reported, never quietly tolerated: the note
 		// still holds a review block the user believes was just cleaned.
-		const skippedSuffix =
-			skippedUnfencedCount > 0
-				? ` ${skippedUnfencedCount} unfenced block${skippedUnfencedCount === 1 ? "" : "s"} had no closing fence and must be removed by hand.`
-				: "";
+		const skippedSuffix = describeUnremovedBlocksSuffix(skippedUnfencedCount);
 		new Notice(
 			(removedCount > 0
 				? `Cleaned ${removedCount} imported review block${removedCount === 1 ? "" : "s"} from this note.`
@@ -4048,12 +4052,14 @@ export default class EditorialistPlugin extends Plugin {
 		);
 	}
 
-	async cleanupSceneReviewNotes(notePaths: string[]): Promise<number> {
+	async cleanupSceneReviewNotes(notePaths: string[]): Promise<CleanupOutcome> {
 		let removedCount = 0;
+		let skippedUnfencedCount = 0;
 		for (const notePath of notePaths) {
 			const context = this.getNoteContextByPath(notePath);
 			if (context) {
 				const removed = removeImportedReviewBlocks(context.view.editor.getValue());
+				skippedUnfencedCount += removed.skippedUnfencedCount;
 				if (removed.removedCount > 0) {
 					context.view.editor.setValue(removed.text);
 					removedCount += removed.removedCount;
@@ -4070,6 +4076,7 @@ export default class EditorialistPlugin extends Plugin {
 			await this.app.vault.process(file, (currentText) => {
 				const removed = removeImportedReviewBlocks(currentText);
 				currentRemovedCount = removed.removedCount;
+				skippedUnfencedCount += removed.skippedUnfencedCount;
 				return removed.removedCount > 0 ? removed.text : currentText;
 			});
 			removedCount += currentRemovedCount;
@@ -4077,17 +4084,17 @@ export default class EditorialistPlugin extends Plugin {
 
 		await this.syncSceneReviewIndex();
 		this.resyncSessionForActiveNote();
-		return removedCount;
+		return { removedCount, skippedUnfencedCount };
 	}
 
-	async cleanupCompletedSceneReviewNotes(activeBookOnly = false): Promise<number> {
+	async cleanupCompletedSceneReviewNotes(activeBookOnly = false): Promise<CleanupOutcome> {
 		const notePaths = this.getSceneReviewRecords({ activeBookOnly })
 			.filter((record) => record.status === "completed")
 			.map((record) => record.notePath);
 		return this.cleanupSceneReviewNotes(notePaths);
 	}
 
-	async cleanupAllSceneReviewNotes(activeBookOnly = false): Promise<number> {
+	async cleanupAllSceneReviewNotes(activeBookOnly = false): Promise<CleanupOutcome> {
 		const notePaths = this.getSceneReviewRecords({ activeBookOnly })
 			.filter((record) => record.batchCount > 0)
 			.map((record) => record.notePath);

@@ -81,9 +81,14 @@ export interface CleanupOutcome {
 	skippedUnfencedCount: number;
 }
 
-// A stamped block with no fence cannot be removed safely — its end is a guess,
-// and a wrong guess deletes manuscript prose. Say so plainly instead of letting
-// a "cleaned" notice imply the note is clear.
+// Appended to every cleanup notice, wherever cleanup is triggered from. A stamped
+// block with no fence cannot be removed safely — its end is a guess, and a wrong
+// guess deletes manuscript prose — so a bare "Cleaned N" would tell the user the
+// note is clear while a block is still sitting in it.
+export function describeUnremovedBlocksSuffix(count: number): string {
+	return count > 0 ? ` ${describeSkippedUnfencedBlocks(count)}` : "";
+}
+
 function describeSkippedUnfencedBlocks(count: number): string {
 	return `${count} unfenced review block${count === 1 ? " was" : "s were"} left in place — ${count === 1 ? "it has" : "they have"} no closing fence, so remove ${count === 1 ? "it" : "them"} by hand.`;
 }
