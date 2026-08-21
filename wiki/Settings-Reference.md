@@ -139,6 +139,12 @@ Bulk operations. Cleanup actions ask for confirmation before removing review blo
 - **Reset one batch** — remove saved decisions and stats for one batch. Only that batch's decisions go: when a note holds review blocks from several imports, the other batches keep theirs. Review blocks still present in notes are discovered again.
 - **Reset all history** — clear saved batch history and decision stats. Review blocks still present in notes are discovered again.
 
+Cleanup removes review blocks that carry a recognizable closing fence, and only those. A block whose fence has gone missing — edited away by hand, mangled by a sync conflict, or indented into a list — has no knowable end, so Editorialist leaves it where it is rather than guessing how far it runs. It is counted and named in the notice instead:
+
+> 1 unfenced review block was left in place — it has no closing fence, so remove it by hand.
+
+That count reaches every cleanup route, including **Clean all scenes**, so a sweep never reports success over a note it has only partly cleared. Delete the block by hand and the note is clear.
+
 ---
 
 ## Good to know

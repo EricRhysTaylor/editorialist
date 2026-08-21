@@ -44,6 +44,22 @@ Starting a workflow card (or importing a review batch) begins a **guided review 
 | **Expand** | Add development, pacing, interiority, or connective tissue. |
 | **Memo** | Capture general scene thoughts, strengths, issues, or reviewer context without applying a line edit. |
 
+### Advisory suggestions
+
+**Condense** and **Expand** are the two operations that can arrive either way: with replacement prose, or with only a direction to write in. A reviewer who supplies the tightened paragraph gives you something Editorialist can apply. A reviewer who says *"develop this beat"* has given you an assignment.
+
+The second kind is **advisory**. There is no replacement text, so **Apply** never lights up — not because the passage failed to match, but because there is nothing to write. The card says so on its face:
+
+<p align="center"><img src="images/panel-side-develop.png" alt="An advisory Expand suggestion in the review panel: an Advisory chip, the passage to expand, the reviewer's suggested direction, and the reason line naming mark-as-rewritten or reject as the two ways out" width="380"></p>
+
+An advisory card carries the same context as any other — the passage it is about, the reviewer's direction, and the **Why** — and its reason line names the two ways out rather than implying an Apply is pending:
+
+> No expanded prose to apply — develop the beat yourself and mark it rewritten, or reject it.
+
+So there are two ways to resolve one, and both count as resolved for [sweep completion](#sweep-completion): rewrite the passage yourself and click **Mark as rewritten**, or **Reject** it. Deferring works too, and holds the sweep open until you come back to it.
+
+> Whether a suggestion is advisory is decided by what the reviewer sent, not by how well it matched. An advisory Expand stays advisory even when its target resolves to an exact match. If you want prose you can apply, ask for it in the review handoff — the launcher's template tells reviewers to include the replacement text whenever they have one.
+
 ### Navigation and filters
 
 - **Previous / next** moves through suggestions; the sweep hands off to the next scene when the current one is resolved.
@@ -137,6 +153,8 @@ pending ──→ accepted
        ──→ deferred    (decide later; blocks sweep completion until resolved)
        ──→ unresolved  (couldn't be matched or needs attention)
 ```
+
+A pending [advisory](#advisory-suggestions) suggestion is labelled **Advisory** rather than **Pending**, because no amount of waiting will make it applicable. It is still pending underneath, and still has to be resolved before the sweep can finish.
 
 ### Undo
 
