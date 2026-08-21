@@ -75,6 +75,12 @@ export interface ReviewBatchProcessorHost {
 	cleanupCurrentBatch(noteText?: string): Promise<boolean>;
 }
 
+export interface CleanupOutcome {
+	removedCount: number;
+	/** Stamped blocks left in place because they carry no fence. See ReviewBlockFormat. */
+	skippedUnfencedCount: number;
+}
+
 // A stamped block with no fence cannot be removed safely — its end is a guess,
 // and a wrong guess deletes manuscript prose. Say so plainly instead of letting
 // a "cleaned" notice imply the note is clear.
@@ -428,7 +434,7 @@ export class ReviewBatchProcessor {
 	}
 
 	async cleanupReviewBatchById(batchId: string, options?: { notify?: boolean }): Promise<number> {
-		return this.cleanupReviewBatch(batchId, options);
+		return (await this.cleanupReviewBatch(batchId, options)).removedCount;
 	}
 
 	async cleanupCompletedSweepReviewBlocks(): Promise<void> {
@@ -525,21 +531,26 @@ export class ReviewBatchProcessor {
 		return rows;
 	}
 
-	async cleanupReviewBatch(batchId: string, options?: { notify?: boolean }): Promise<number> {
+	async cleanupReviewBatch(
+		batchId: string,
+		options?: { notify?: boolean },
+	): Promise<CleanupOutcome> {
 		const notify = options?.notify ?? true;
 		const entry = this.host.getSweepRegistryEntry(batchId);
 		if (!entry) {
 			if (notify) {
 				new Notice("Review batch registry entry not found.");
 			}
-			return 0;
+			return { removedCount: 0, skippedUnfencedCount: 0 };
 		}
 
 		let removedCount = 0;
+		let skippedUnfencedCount = 0;
 		for (const notePath of entry.importedNotePaths) {
 			const context = this.host.getNoteContextByPath(notePath);
 			if (context) {
 				const removed = removeImportedReviewBlocks(context.view.editor.getValue(), batchId);
+				skippedUnfencedCount += removed.skippedUnfencedCount;
 				if (removed.removedCount > 0) {
 					context.view.editor.setValue(removed.text);
 					removedCount += removed.removedCount;
@@ -556,6 +567,7 @@ export class ReviewBatchProcessor {
 			await this.host.app.vault.process(file, (currentText) => {
 				const removed = removeImportedReviewBlocks(currentText, batchId);
 				currentRemovedCount = removed.removedCount;
+				skippedUnfencedCount += removed.skippedUnfencedCount;
 				return removed.removedCount > 0 ? removed.text : currentText;
 			});
 			removedCount += currentRemovedCount;
@@ -576,11 +588,12 @@ export class ReviewBatchProcessor {
 		this.host.resyncSessionForActiveNote();
 		if (notify) {
 			new Notice(
-				removedCount > 0
+				(removedCount > 0
 					? `Cleaned ${removedCount} imported review block${removedCount === 1 ? "" : "s"}.`
-					: "No imported review blocks were found for this batch.",
+					: "No imported review blocks were found for this batch.") +
+					(skippedUnfencedCount > 0 ? ` ${describeSkippedUnfencedBlocks(skippedUnfencedCount)}` : ""),
 			);
 		}
-		return removedCount;
+		return { removedCount, skippedUnfencedCount };
 	}
 }

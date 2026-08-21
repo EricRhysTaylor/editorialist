@@ -36,9 +36,12 @@ export interface RemoveImportedReviewBlocksResult {
 	batchIds: string[];
 	removedCount: number;
 	/**
-	 * Stamped blocks that were found but deliberately left alone because they are
-	 * not fenced, so their extent cannot be established safely. Callers surface
-	 * this rather than reporting a clean sweep that silently left a block behind.
+	 * Stamped blocks still sitting in the returned text that removal refused to
+	 * touch because they are not fenced, so their extent cannot be established
+	 * safely. Measured on the RESULT rather than inferred from what was removed:
+	 * extractReviewBlocks reports fenced blocks *or* raw ones, never both, so a
+	 * note holding one of each would otherwise report zero while a stamped block
+	 * plainly remained. Callers surface this instead of reporting a clean sweep.
 	 */
 	skippedUnfencedCount: number;
 	text: string;
@@ -74,14 +77,31 @@ export function normalizeImportedReviewText(rawText: string): string | null {
 			continue;
 		}
 
-		if (firstBlock.source === "fenced") {
+		// Keep a paste that already uses our own fence exactly as it is: it may
+		// carry several blocks, and a routed import needs all of them.
+		if (firstBlock.source === "fenced" && usesReviewFence(candidate, firstBlock)) {
 			return candidate.trim();
 		}
 
+		// Anything else — a bare block, or one wrapped in a generic ``` fence by a
+		// chat UI — is rebuilt with our fence. addImportedBlockMetadata stamps
+		// BatchId/ImportedBy by matching that fence line, so a block left under a
+		// generic fence imports unstamped: invisible to registry attribution and to
+		// every later cleanup.
 		return createReviewBlock(firstBlock.bodyText);
 	}
 
 	return null;
+}
+
+// Whether an extracted fenced block opens with OUR fence label rather than a
+// bare ``` or some other language tag. Reads the opening fence line exactly,
+// so it does not depend on how long the block body happens to be.
+function usesReviewFence(noteText: string, block: ExtractedReviewBlock): boolean {
+	const fenceStart = noteText.startsWith("\n", block.startOffset) ? block.startOffset + 1 : block.startOffset;
+	const lineEnd = noteText.indexOf("\n", fenceStart);
+	const fenceLine = (lineEnd === -1 ? noteText.slice(fenceStart) : noteText.slice(fenceStart, lineEnd)).trim();
+	return fenceLine.replace(/^`+/, "").trim().toLowerCase() === REVIEW_BLOCK_FENCE;
 }
 
 export function getReviewBlockFenceLabel(): string {
@@ -238,16 +258,14 @@ export function findUnimportedReviewBlock(noteText: string): ExtractedReviewBloc
 // stamped block is found unfenced we count it and leave it in place; the caller
 // tells the user to remove it by hand rather than silently reporting success.
 export function removeImportedReviewBlocks(noteText: string, batchId?: string): RemoveImportedReviewBlocksResult {
-	const stamped = findImportedReviewBlocks(noteText, batchId);
-	const blocks = stamped
+	const blocks = findImportedReviewBlocks(noteText, batchId)
 		.filter((block) => block.source === "fenced")
 		.sort((left, right) => right.startOffset - left.startOffset);
-	const skippedUnfencedCount = stamped.length - blocks.length;
 	if (blocks.length === 0) {
 		return {
 			batchIds: [],
 			removedCount: 0,
-			skippedUnfencedCount,
+			skippedUnfencedCount: countUnfencedStamps(noteText),
 			text: noteText,
 		};
 	}
@@ -257,11 +275,12 @@ export function removeImportedReviewBlocks(noteText: string, batchId?: string): 
 		nextText = nextText.slice(0, block.startOffset) + nextText.slice(block.endOffset);
 	}
 
+	const text = normalizeRemovedReviewSpacing(nextText);
 	return {
 		batchIds: [...new Set(blocks.map((block) => block.batchId).filter((value): value is string => Boolean(value)))],
 		removedCount: blocks.length,
-		skippedUnfencedCount,
-		text: normalizeRemovedReviewSpacing(nextText),
+		skippedUnfencedCount: countUnfencedStamps(text),
+		text,
 	};
 }
 
@@ -288,6 +307,29 @@ export function stripAllReviewBlocks(noteText: string): StripReviewBlocksResult 
 		removedCount: blocks.length,
 		text: normalizeRemovedReviewSpacing(nextText),
 	};
+}
+
+// Counts `ImportedBy: Editorialist` stamps that sit OUTSIDE every fenced block —
+// i.e. stamped blocks removal cannot safely delete. Deliberately scans the text
+// directly rather than going through extractReviewBlocks, which returns fenced
+// blocks or raw ones but never both, and so cannot see the unfenced remainder in
+// a note that holds one of each.
+const IMPORTED_STAMP_LINE_PATTERN = /^[^\S\r\n]*ImportedBy[^\S\r\n]*:[^\S\r\n]*Editorialist[^\S\r\n]*$/gim;
+
+function countUnfencedStamps(text: string): number {
+	const fencedRanges = extractFencedBlocks(text).map((block) => [block.startOffset, block.endOffset] as const);
+	let count = 0;
+	for (const match of text.matchAll(IMPORTED_STAMP_LINE_PATTERN)) {
+		const index = match.index;
+		if (index === undefined) {
+			continue;
+		}
+		const insideFence = fencedRanges.some(([start, end]) => index >= start && index < end);
+		if (!insideFence) {
+			count += 1;
+		}
+	}
+	return count;
 }
 
 function extractFencedBlocks(noteText: string): ExtractedReviewBlock[] {

@@ -2027,6 +2027,13 @@ export default class EditorialistPlugin extends Plugin {
 			new Notice("No resolved batches are ready to clean.");
 			return 0;
 		}
+		if (
+			!(await this.confirmReviewBlockRemoval(
+				`This removes the imported review blocks of ${batchIds.length} resolved batch${batchIds.length === 1 ? "" : "es"} from their scenes.`,
+			))
+		) {
+			return 0;
+		}
 		let blocksRemoved = 0;
 		for (const batchId of batchIds) {
 			blocksRemoved += await this.batchProcessor.cleanupReviewBatchById(batchId, { notify: false });
@@ -3975,21 +3982,29 @@ export default class EditorialistPlugin extends Plugin {
 		await this.sessionOrchestrator.parseReviewContext(context, true);
 	}
 
+	// Every Clean entry point routes through here. There are four — the panel's
+	// per-scene Clean, the Recent Reviews per-batch Clean, the header's clean-all,
+	// and the settings bulk actions — and settings was the only one that asked
+	// before writing to a manuscript.
+	private async confirmReviewBlockRemoval(description: string): Promise<boolean> {
+		const choice = await openEditorialistChoiceModal(this.app, {
+			title: "Clean review blocks?",
+			description: `${description} Accepted edits and saved history stay in place.`,
+			choices: [
+				{ label: "Clean review blocks", value: "confirm" },
+				{ label: "Cancel", value: "cancel" },
+			],
+		});
+		return choice === "confirm";
+	}
+
 	async cleanSceneReviewNote(notePath: string): Promise<void> {
 		// The panel's per-scene Clean writes to a manuscript note, so it confirms
 		// like every other cleanup does. Settings' bulk cleanups already gate on
 		// confirmDestructiveAction; this single-scene path was the one destructive
 		// action in the product that fired straight off the click.
 		const sceneName = notePath.split("/").pop()?.replace(/\.md$/i, "")?.trim() || notePath;
-		const choice = await openEditorialistChoiceModal(this.app, {
-			title: "Clean review blocks?",
-			description: `This removes the imported review blocks from “${sceneName}”. Accepted edits and saved history stay in place.`,
-			choices: [
-				{ label: "Clean review blocks", value: "confirm" },
-				{ label: "Cancel", value: "cancel" },
-			],
-		});
-		if (choice !== "confirm") {
+		if (!(await this.confirmReviewBlockRemoval(`This removes the imported review blocks from “${sceneName}”.`))) {
 			return;
 		}
 
@@ -4173,6 +4188,10 @@ export default class EditorialistPlugin extends Plugin {
 	}
 
 	async cleanupReviewBatchById(batchId: string): Promise<void> {
+		// Recent Reviews' per-batch Clean lands here.
+		if (!(await this.confirmReviewBlockRemoval("This removes this batch's imported review blocks from their scenes."))) {
+			return;
+		}
 		await this.batchProcessor.cleanupReviewBatchById(batchId);
 		// Refresh so the Recent Reviews row that triggered this (and its Clean
 		// action) reflects the now-cleaned batch immediately.

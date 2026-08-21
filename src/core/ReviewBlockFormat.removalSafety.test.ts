@@ -23,7 +23,11 @@ function block(...body: string[]): string {
 
 const SIMPLE_BLOCK = block("=== EDIT ===", "Original: hello", "Revised: goodbye");
 
-// Every character outside the reported block ranges must survive byte-identical.
+// Every non-whitespace character outside the reported block ranges must survive,
+// in order. Deliberately whitespace-insensitive for now: cleanup still runs a
+// document-wide spacing normalizer (audit finding F3), so a byte-exact assertion
+// would fail for reasons unrelated to what these tests cover. Phase 3 removes
+// that normalizer and this should tighten to byte-exact then.
 function expectOnlyBlocksRemoved(noteText: string, batchId?: string): void {
 	const blocks = removeImportedReviewBlocks(noteText, batchId);
 	const reported = extractReviewBlocks(noteText);
@@ -51,7 +55,7 @@ function expectOnlyBlocksRemoved(noteText: string, batchId?: string): void {
 	expect(strip(blocks.text)).toBe(strip(expected));
 }
 
-describe("removal safety — nothing outside a block is ever deleted", () => {
+describe("removal safety — no prose outside a block is ever deleted", () => {
 	it("keeps prose that follows a block whose fence body has a stray leading line", () => {
 		const note = [
 			"# Chapter One",
@@ -155,19 +159,38 @@ describe("formalize safety — a raw block never swallows the manuscript", () =>
 			"This is later manuscript prose.",
 		].join("\n");
 
-		const found = findUnimportedReviewBlock(note);
-		if (found) {
-			expect(found.bodyText).not.toContain("This is later manuscript prose.");
-		}
+		// An unfenced block has no knowable end, so formalize must refuse outright
+		// rather than guess. Asserted directly: guarding this behind `if (found)`
+		// made the test vacuous the moment the refusal started working.
+		expect(findUnimportedReviewBlock(note)).toBeNull();
+	});
 
-		// And the full round trip: formalize, then clean, must not eat the prose.
-		if (found) {
-			const stamped = createReviewBlock([...STAMP, found.bodyText.trim()].join("\n"));
-			const formalized = note.slice(0, found.startOffset) + stamped + note.slice(found.endOffset);
-			const cleaned = removeImportedReviewBlocks(formalized, "b1");
-			expect(cleaned.text).toContain("This is later manuscript prose.");
-			expect(cleaned.text).toContain("Opening paragraph that should survive.");
-		}
+	it("still formalizes a properly fenced unimported block", () => {
+		const note = [
+			"# Chapter",
+			"",
+			"Prose.",
+			"",
+			"```editorialist-review",
+			"=== EDIT ===",
+			"Original: hello",
+			"Revised: goodbye",
+			"```",
+			"",
+			"Later prose.",
+		].join("\n");
+
+		const found = findUnimportedReviewBlock(note);
+		expect(found).not.toBeNull();
+		expect(found?.bodyText).not.toContain("Later prose.");
+
+		// Round trip: formalizing then cleaning leaves the manuscript whole.
+		const stamped = createReviewBlock([...STAMP, (found?.bodyText ?? "").trim()].join("\n"));
+		const formalized = note.slice(0, found?.startOffset) + stamped + note.slice(found?.endOffset);
+		const cleaned = removeImportedReviewBlocks(formalized, "b1");
+		expect(cleaned.removedCount).toBe(1);
+		expect(cleaned.text).toContain("Prose.");
+		expect(cleaned.text).toContain("Later prose.");
 	});
 });
 
@@ -188,6 +211,31 @@ describe("unfenced stamped blocks are reported, not silently skipped", () => {
 		expect(result.skippedUnfencedCount).toBe(1);
 		// Nothing was cut, so the prose is necessarily intact.
 		expect(result.text).toBe(note);
+	});
+
+	// The case the first attempt at this counter got wrong. extractReviewBlocks
+	// returns fenced blocks OR raw ones, never both, so inferring the skipped
+	// count from what extraction returned reported zero here — while a stamped
+	// block sat in the note in plain sight.
+	it("counts an unfenced block even when a fenced one was removed from the same note", () => {
+		const note = [
+			"# Chapter",
+			"",
+			SIMPLE_BLOCK,
+			"",
+			"Prose that must survive.",
+			"",
+			...STAMP,
+			"=== EDIT ===",
+			"Original: b",
+		].join("\n");
+
+		const result = removeImportedReviewBlocks(note, "b1");
+		expect(result.removedCount).toBe(1);
+		expect(result.skippedUnfencedCount).toBe(1);
+		expect(result.text).toContain("Prose that must survive.");
+		// The unfenced remainder is still there — which is exactly why it is reported.
+		expect(result.text).toContain("Original: b");
 	});
 
 	it("reports zero skipped for an ordinary fenced note", () => {
@@ -226,10 +274,41 @@ describe("clipboard input still accepts unfenced reviewer output", () => {
 		expect(normalized).toContain("Original: hello");
 	});
 
-	it("still handles a paste wrapped in a plain ``` fence", () => {
+	// A generic ``` fence must be rebuilt with OUR fence label, not merely
+	// preserved. addImportedBlockMetadata stamps BatchId/ImportedBy by matching
+	// the `editorialist-review` fence line, so a block left under a plain fence
+	// imports unstamped — invisible to registry attribution and to every later
+	// cleanup. Asserting only that the prose survived is what hid this.
+	it("rebuilds a paste wrapped in a plain ``` fence with the review fence", () => {
 		const pasted = ["```", ...STAMP, "=== EDIT ===", "Original: hello", "```"].join("\n");
 		const normalized = normalizeImportedReviewText(pasted);
 		expect(normalized).not.toBeNull();
 		expect(normalized).toContain("Original: hello");
+		expect(normalized?.startsWith("```editorialist-review")).toBe(true);
+	});
+
+	it("leaves a multi-block editorialist paste intact", () => {
+		const second = SIMPLE_BLOCK.replace("BatchId: b1", "BatchId: b2");
+		const pasted = `${SIMPLE_BLOCK}\n\n${second}`;
+		const normalized = normalizeImportedReviewText(pasted);
+		expect(normalized).toContain("BatchId: b1");
+		expect(normalized).toContain("BatchId: b2");
+	});
+
+	// The end-to-end consequence of the above: what lands in the note carries the
+	// stamp, so cleanup can find it again.
+	it("a normalized plain-fence paste can be stamped and then cleaned", () => {
+		const pasted = ["```", "=== EDIT ===", "Original: hello", "```"].join("\n");
+		const normalized = normalizeImportedReviewText(pasted) ?? "";
+		const stamped = normalized.replace(
+			"```editorialist-review",
+			"```editorialist-review\nBatchId: b9\nImportedBy: Editorialist",
+		);
+		const note = `Prose before.\n\n${stamped}\n\nProse after.\n`;
+		const cleaned = removeImportedReviewBlocks(note, "b9");
+		expect(cleaned.removedCount).toBe(1);
+		expect(cleaned.skippedUnfencedCount).toBe(0);
+		expect(cleaned.text).toContain("Prose before.");
+		expect(cleaned.text).toContain("Prose after.");
 	});
 });
