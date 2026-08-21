@@ -30,7 +30,7 @@ Removing a block now raises exactly one spacing question — the join left where
 
 The panel labelled these **Pending** anyway, and the reason line said the guidance was "not directly applicable yet". Both pointed at an Apply that was never coming, and a sweep would stall on a card that looked actionable. Pending advisory cards now read **Advisory**, and the reason names the two ways out: *"No expanded prose to apply — develop the beat yourself and mark it rewritten, or reject it."*
 
-<p align="center"><img src="https://raw.githubusercontent.com/wiki/EricRhysTaylor/editorialist/images/panel-side-develop.png" alt="An advisory Expand suggestion in the review panel: an Advisory chip, the passage to expand, the reviewer's suggested direction, and the reason line naming mark-as-rewritten or reject as the two ways out" width="380"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/wiki/EricRhysTaylor/editorialist/images/panel-side-develop.png" alt="An advisory Expand suggestion in the review panel: the passage to expand, the reviewer's suggested direction and reasoning, and Mark as rewritten in the footer" width="380"></p>
 
 Nothing about what can be applied changed — only what the card tells you. Deferred and unresolved keep their own labels, which carry meaning for the completion gate. The disabled **Clean** button now states the rule instead of the outcome: *"Nothing to clean yet — a batch clears once every suggestion in it is accepted, rejected, or rewritten."*
 

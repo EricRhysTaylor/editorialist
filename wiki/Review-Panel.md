@@ -50,7 +50,7 @@ Starting a workflow card (or importing a review batch) begins a **guided review 
 
 The second kind is **advisory**. There is no replacement text, so **Apply** never lights up — not because the passage failed to match, but because there is nothing to write. The card says so on its face:
 
-<p align="center"><img src="images/panel-side-develop.png" alt="An advisory Expand suggestion in the review panel: an Advisory chip, the passage to expand, the reviewer's suggested direction, and the reason line naming mark-as-rewritten or reject as the two ways out" width="380"></p>
+<p align="center"><img src="images/panel-side-develop.png" alt="An advisory Expand suggestion in the review panel: the passage to expand, the reviewer's suggested direction and reasoning, and Mark as rewritten in the footer" width="380"></p>
 
 An advisory card carries the same context as any other — the passage it is about, the reviewer's direction, and the **Why** — and its reason line names the two ways out rather than implying an Apply is pending:
 
