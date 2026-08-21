@@ -45,10 +45,25 @@ class FakeVault {
 	}
 }
 
-function makeService(): { service: EditorialismService; vault: FakeVault } {
+function makeService(): {
+	service: EditorialismService;
+	vault: FakeVault;
+	markAsScene: (path: string) => void;
+} {
 	const vault = new FakeVault();
-	const service = new EditorialismService({ vault } as unknown as App);
-	return { service, vault };
+	const sceneFrontmatter = new Map<string, Record<string, unknown>>();
+	const metadataCache = {
+		getFileCache(file: TFile) {
+			const frontmatter = sceneFrontmatter.get(file.path);
+			return frontmatter ? { frontmatter } : null;
+		},
+	};
+	const service = new EditorialismService({ vault, metadataCache } as unknown as App);
+	const markAsScene = (path: string): void => {
+		void vault.create(path, "existing manuscript prose");
+		sceneFrontmatter.set(path, { Class: "Scene" });
+	};
+	return { service, vault, markAsScene };
 }
 
 describe("EditorialismService.saveEditorialismFile", () => {
@@ -109,5 +124,28 @@ describe("EditorialismService.saveEditorialismFile", () => {
 		const { service, vault } = makeService();
 		const result = await service.saveEditorialismFile({ content: "no newline", title: "T", book: null });
 		expect(vault.contents.get(result.filePath)).toBe("no newline\n");
+	});
+
+	// The cut archive refuses to write into a manuscript note; this path had no
+	// such guard, so a title collision could overwrite a scene wholesale.
+	it("refuses to overwrite a note that is a manuscript scene", async () => {
+		const { service, vault, markAsScene } = makeService();
+		const scenePath = "Editorialist/Book One/Act 2.md";
+		markAsScene(scenePath);
+
+		await expect(
+			service.saveEditorialismFile({ content: "agenda body", title: "Act 2", book: "Book One" }),
+		).rejects.toThrow(/scene note/i);
+
+		// The manuscript text is untouched.
+		expect(vault.contents.get(scenePath)).toBe("existing manuscript prose");
+	});
+
+	it("still overwrites an ordinary editorialism file at the same path", async () => {
+		const { service, vault } = makeService();
+		const first = await service.saveEditorialismFile({ content: "v1", title: "Act 2", book: "Book One" });
+		const second = await service.saveEditorialismFile({ content: "v2", title: "Act 2", book: "Book One" });
+		expect(second.created).toBe(false);
+		expect(vault.contents.get(first.filePath)).toContain("v2");
 	});
 });

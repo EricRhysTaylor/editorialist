@@ -3976,6 +3976,23 @@ export default class EditorialistPlugin extends Plugin {
 	}
 
 	async cleanSceneReviewNote(notePath: string): Promise<void> {
+		// The panel's per-scene Clean writes to a manuscript note, so it confirms
+		// like every other cleanup does. Settings' bulk cleanups already gate on
+		// confirmDestructiveAction; this single-scene path was the one destructive
+		// action in the product that fired straight off the click.
+		const sceneName = notePath.split("/").pop()?.replace(/\.md$/i, "")?.trim() || notePath;
+		const choice = await openEditorialistChoiceModal(this.app, {
+			title: "Clean review blocks?",
+			description: `This removes the imported review blocks from “${sceneName}”. Accepted edits and saved history stay in place.`,
+			choices: [
+				{ label: "Clean review blocks", value: "confirm" },
+				{ label: "Cancel", value: "cancel" },
+			],
+		});
+		if (choice !== "confirm") {
+			return;
+		}
+
 		const context = this.getNoteContextByPath(notePath);
 		let removedCount = 0;
 

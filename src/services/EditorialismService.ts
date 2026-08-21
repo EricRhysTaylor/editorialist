@@ -1,4 +1,5 @@
 import { normalizePath, TFile, TFolder, type App } from "obsidian";
+import { isSceneClassFile } from "../core/VaultScope";
 import {
 	insertAnchorLine,
 	parseEditorialism,
@@ -115,6 +116,13 @@ export class EditorialismService {
 
 		const existing = this.app.vault.getAbstractFileByPath(filePath);
 		if (existing instanceof TFile) {
+			// Manuscript safety, mirroring CutArchiveService.backup: the path here is
+			// derived from a user-supplied title, so a collision could resolve onto a
+			// real scene note — and `modify` overwrites the whole file. Refuse rather
+			// than replace a manuscript with an agenda.
+			if (isSceneClassFile(this.app, existing)) {
+				throw new Error(`Editorialism path resolves to a scene note: ${filePath}`);
+			}
 			await this.app.vault.modify(existing, body);
 			return { filePath, created: false };
 		}

@@ -127,6 +127,21 @@ const operationSupport: {
 				return null;
 			}
 
+			// Verify the DESTINATION too, not just the source. A move rewrites the
+			// whole document, so a stale anchor silently drops the passage beside
+			// whatever text now occupies those offsets — the one way an apply could
+			// land somewhere the reviewer never pointed at. Tolerate the same
+			// quote/dash/whitespace drift the other operations do: the match engine
+			// may itself have resolved this anchor fuzzily, and a strict compare
+			// would reject every such move.
+			const anchorText = noteText.slice(anchorStart, anchorEnd);
+			if (
+				anchorText !== suggestion.payload.anchor
+				&& normalizeMatchText(anchorText) !== normalizeMatchText(suggestion.payload.anchor)
+			) {
+				return null;
+			}
+
 			const removedLength = targetEnd - targetStart;
 			const withoutTarget = noteText.slice(0, targetStart) + noteText.slice(targetEnd);
 			let adjustedAnchorStart = anchorStart;
