@@ -228,6 +228,44 @@ it does not hold for a Move's destination.
 
 Missed in the first pass of this audit — it was found in review.
 
+## Remediation status (2026-08-21)
+
+All confirmed manuscript-deletion paths are closed. Commits are on `main`, unpushed.
+
+| # | Finding | Status |
+|---|---|---|
+| F1 | Raw scanner runs to EOF, cleanup deletes prose | **Fixed** — `d36e4fa` |
+| F2 | Raw offsets measured against trimmed text | **Fixed** — `d36e4fa` |
+| F3 | Cleanup reformats the whole note | **Fixed** — `d2a3df8` |
+| F4 | Backtick in payload truncates the block | **Open** — deferred; pollution, not deletion |
+| F5 | CRLF orphan `\r` | **Fixed** — `d36e4fa` |
+| F6 | Wiki claims accepting a Cut archives it | **Fixed** in wiki (`1950506`), brief (Web `9f0f8ac`), release draft (`cfb4400`); website corrected on Framer branch `hjockgxvd`, **unpublished** |
+| F7 | Clean actions fire without confirmation | **Fixed** — `43318d0` (per-scene), `c8604c0` (Recent Reviews, clean-all); all four entry points now share one confirm |
+| F8 | Editorialism save overwrites without a scene guard | **Fixed** — `43318d0`; depends on the metadata cache, so not an absolute guarantee |
+| F9 | Frontmatter re-serialization, import `trimEnd()` | **Open** — informational; both append paths do it |
+| F10 | Formalize captures prose, later Clean deletes it | **Fixed** — `d36e4fa` |
+| F11 | Move never verifies its destination | **Fixed** — `43318d0` |
+
+Found while fixing, not yet addressed:
+
+- **Plain-fenced pastes imported unstamped.** A paste wrapped in a generic ``` fence
+  kept that fence, and only our own fence line gets the `BatchId`/`ImportedBy` stamp,
+  so the block was invisible to attribution and to every later cleanup. Pre-existing,
+  not a regression — verified against the pre-Phase-2 code, which produces
+  byte-identical output. Fixed in `c8604c0`.
+- **`normalizeMatchText` folds curly quotes but not dash variants**, while the fuzzy
+  *finder* folds both. A suggestion located via dash tolerance is therefore rejected
+  at apply time. Fails closed, so a surprise rather than a hazard, but the two should
+  agree. **Open.**
+
+Behaviour deliberately narrowed: a bare unfenced block in a note can no longer be
+formalized. Its extent is unknowable, so the action refuses rather than guesses —
+`detectFileWrittenReviewBlocks` (default off) now requires the AI to fence its block.
+
+Test coverage went from 793 to 822. The governing invariant — removal deletes the
+ranges it reports and nothing else, with only the seam's newline run allowed to
+shorten — is in `src/core/ReviewBlockFormat.removalSafety.test.ts`.
+
 ## Recommended remediation, in priority order
 
 1. **Bound the raw scanner, then restrict what may act on it.** Two separate steps,
