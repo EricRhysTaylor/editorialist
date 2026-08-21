@@ -23,11 +23,12 @@ function block(...body: string[]): string {
 
 const SIMPLE_BLOCK = block("=== EDIT ===", "Original: hello", "Revised: goodbye");
 
-// Every non-whitespace character outside the reported block ranges must survive,
-// in order. Deliberately whitespace-insensitive for now: cleanup still runs a
-// document-wide spacing normalizer (audit finding F3), so a byte-exact assertion
-// would fail for reasons unrelated to what these tests cover. Phase 3 removes
-// that normalizer and this should tighten to byte-exact then.
+// Everything outside the reported block ranges must survive byte-for-byte, with
+// one tolerance: the run of NEWLINES at each seam may shorten, because joining
+// the two sides of a removal necessarily merges their blank-line separators.
+// Spaces and tabs are compared exactly — that is the point. Two trailing spaces
+// are a Markdown hard line break, and a document-wide whitespace strip silently
+// destroys them nowhere near the block being removed.
 function expectOnlyBlocksRemoved(noteText: string, batchId?: string): void {
 	const blocks = removeImportedReviewBlocks(noteText, batchId);
 	const reported = extractReviewBlocks(noteText);
@@ -49,10 +50,10 @@ function expectOnlyBlocksRemoved(noteText: string, batchId?: string): void {
 		expected = expected.slice(0, range.startOffset) + expected.slice(range.endOffset);
 	}
 
-	// Compare ignoring only whitespace-run differences at the seams; any surviving
-	// non-whitespace character must be present, in order, exactly once.
-	const strip = (value: string): string => value.replace(/\s+/g, "");
-	expect(strip(blocks.text)).toBe(strip(expected));
+	// Collapse newline RUNS only. Horizontal whitespace is left untouched, so a
+	// stripped hard line break or a lost indent fails this comparison.
+	const collapseNewlineRuns = (value: string): string => value.replace(/(?:\r?\n)+/g, "\n");
+	expect(collapseNewlineRuns(blocks.text)).toBe(collapseNewlineRuns(expected));
 }
 
 describe("removal safety — no prose outside a block is ever deleted", () => {
@@ -310,5 +311,67 @@ describe("clipboard input still accepts unfenced reviewer output", () => {
 		expect(cleaned.skippedUnfencedCount).toBe(0);
 		expect(cleaned.text).toContain("Prose before.");
 		expect(cleaned.text).toContain("Prose after.");
+	});
+});
+
+describe("removal preserves formatting elsewhere in the note", () => {
+	it("keeps a Markdown hard line break (two trailing spaces) far from the block", () => {
+		const note = [
+			"---",
+			"title: Scene 1",
+			"---",
+			"",
+			"Line one with a hard break  ",
+			"Line two.",
+			"",
+			SIMPLE_BLOCK,
+			"",
+			"Closing prose.",
+			"",
+		].join("\n");
+
+		const result = removeImportedReviewBlocks(note, "b1");
+		expect(result.removedCount).toBe(1);
+		expect(result.text).toContain("Line one with a hard break  \nLine two.");
+	});
+
+	it("keeps a deliberate run of blank lines used as a scene separator", () => {
+		const note = ["Before the break.", "", "", "", "After the break.", "", SIMPLE_BLOCK, ""].join("\n");
+		const result = removeImportedReviewBlocks(note, "b1");
+		expect(result.text).toContain("Before the break.\n\n\n\nAfter the break.");
+	});
+
+	it("keeps trailing blank lines at end of file", () => {
+		const note = `${SIMPLE_BLOCK}\n\nProse.\n\n\n`;
+		const result = removeImportedReviewBlocks(note, "b1");
+		expect(result.text.endsWith("Prose.\n\n\n")).toBe(true);
+	});
+
+	it("keeps indentation on surrounding lines", () => {
+		const note = ["- a list item", "\t- an indented child", "", SIMPLE_BLOCK, "", "  two-space indent"].join("\n");
+		const result = removeImportedReviewBlocks(note, "b1");
+		expect(result.text).toContain("- a list item\n\t- an indented child");
+		expect(result.text).toContain("  two-space indent");
+	});
+
+	it("joins the seam to a single blank line, exactly", () => {
+		const note = `Prose A.\n\n${SIMPLE_BLOCK}\n\nProse B.\n`;
+		const result = removeImportedReviewBlocks(note, "b1");
+		expect(result.text).toBe("Prose A.\n\nProse B.\n");
+	});
+
+	it("leaves a note that was only a block empty", () => {
+		const result = removeImportedReviewBlocks(`${SIMPLE_BLOCK}\n`, "b1");
+		expect(result.text.trim()).toBe("");
+	});
+
+	it("preserves CRLF line endings in surrounding prose", () => {
+		const crlfBlock = SIMPLE_BLOCK.replace(/\n/g, "\r\n");
+		const note = `Prose A.\r\n\r\n${crlfBlock}\r\n\r\nProse B.\r\n`;
+		const result = removeImportedReviewBlocks(note, "b1");
+		expect(result.removedCount).toBe(1);
+		expect(result.text).toContain("Prose A.");
+		expect(result.text).toContain("Prose B.");
+		expect(result.text).not.toMatch(/\r(?!\n)/);
 	});
 });

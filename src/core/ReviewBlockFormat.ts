@@ -270,12 +270,11 @@ export function removeImportedReviewBlocks(noteText: string, batchId?: string): 
 		};
 	}
 
-	let nextText = noteText;
+	let text = noteText;
 	for (const block of blocks) {
-		nextText = nextText.slice(0, block.startOffset) + nextText.slice(block.endOffset);
+		text = joinAcrossRemoval(text.slice(0, block.startOffset), text.slice(block.endOffset));
 	}
 
-	const text = normalizeRemovedReviewSpacing(nextText);
 	return {
 		batchIds: [...new Set(blocks.map((block) => block.batchId).filter((value): value is string => Boolean(value)))],
 		removedCount: blocks.length,
@@ -298,14 +297,14 @@ export function stripAllReviewBlocks(noteText: string): StripReviewBlocksResult 
 		};
 	}
 
-	let nextText = noteText;
+	let text = noteText;
 	for (const block of blocks) {
-		nextText = nextText.slice(0, block.startOffset) + nextText.slice(block.endOffset);
+		text = joinAcrossRemoval(text.slice(0, block.startOffset), text.slice(block.endOffset));
 	}
 
 	return {
 		removedCount: blocks.length,
-		text: normalizeRemovedReviewSpacing(nextText),
+		text,
 	};
 }
 
@@ -497,10 +496,34 @@ function looksLikeReviewBody(text: string): boolean {
 	return rawBlock !== null && rawBlock.startOffset === 0 && rawBlock.bodyText.trim() === text.trim();
 }
 
-function normalizeRemovedReviewSpacing(text: string): string {
-	const collapsed = text
-		.replace(/[ \t]+\n/g, "\n")
-		.replace(/\n{3,}/g, "\n\n");
+// Joins the two sides of a removal. Touches ONLY the newline run at the seam:
+// each side contributed its own blank-line separator around the block, and
+// concatenating them would leave the sum. Keeping the larger of the two restores
+// the separation the note would have had without the block, without deciding
+// anything about spacing anywhere else.
+//
+// This replaced a document-wide normalizer that stripped trailing whitespace from
+// every line and collapsed every run of three-plus newlines in the note. That
+// destroyed Markdown hard line breaks (two trailing spaces) and deliberate
+// multi-blank-line scene separators, on every cleanup, nowhere near the block.
+function joinAcrossRemoval(before: string, after: string): string {
+	if (!before || !after) {
+		return before + after;
+	}
 
-	return collapsed.trimEnd().length > 0 ? `${collapsed.trimEnd()}\n` : "";
+	const trailingRun = /(?:\r?\n)+$/.exec(before)?.[0] ?? "";
+	const leadingRun = /^(?:\r?\n)+/.exec(after)?.[0] ?? "";
+	if (!trailingRun || !leadingRun) {
+		return before + after;
+	}
+
+	const trailingCount = (trailingRun.match(/\r?\n/g) ?? []).length;
+	const leadingCount = (leadingRun.match(/\r?\n/g) ?? []).length;
+	const newline = trailingRun.includes("\r\n") || leadingRun.includes("\r\n") ? "\r\n" : "\n";
+
+	return (
+		before.slice(0, before.length - trailingRun.length) +
+		newline.repeat(Math.max(trailingCount, leadingCount)) +
+		after.slice(leadingRun.length)
+	);
 }
