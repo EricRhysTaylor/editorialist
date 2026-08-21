@@ -58,18 +58,30 @@ function expectOnlyBlocksRemoved(noteText: string, batchId?: string): void {
 
 	// Trim only the newline run touching a seam — the one thing removal is
 	// allowed to change. Everything else in the segment must appear verbatim.
-	const expectedSegments = segments
-		.map((segment, index) => {
-			let out = segment;
-			if (index > 0) {
-				out = out.replace(/^(?:\r?\n)+/, "");
-			}
-			if (index < segments.length - 1) {
-				out = out.replace(/(?:\r?\n)+$/, "");
-			}
-			return out;
-		})
-		.filter((segment) => segment.length > 0);
+	const trimmedSegments = segments.map((segment, index) => {
+		let out = segment;
+		if (index > 0) {
+			out = out.replace(/^(?:\r?\n)+/, "");
+		}
+		if (index < segments.length - 1) {
+			out = out.replace(/(?:\r?\n)+$/, "");
+		}
+		return out;
+	});
+	const expectedSegments = trimmedSegments.filter((segment) => segment.length > 0);
+
+	// Anchor the document edges. Locating segments with indexOf alone would let an
+	// extra newline slip in before the first or after the last one. Only anchor
+	// when that outer segment actually survives: a block removed at the very start
+	// or end of a note legitimately leaves the seam newlines exposed at that edge.
+	const first = trimmedSegments[0];
+	const last = trimmedSegments[trimmedSegments.length - 1];
+	if (first) {
+		expect(result.text.startsWith(first), "content before the first block shifted").toBe(true);
+	}
+	if (last) {
+		expect(result.text.endsWith(last), "content after the last block shifted").toBe(true);
+	}
 
 	let searchFrom = 0;
 	for (const segment of expectedSegments) {
