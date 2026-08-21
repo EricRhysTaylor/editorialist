@@ -19,8 +19,21 @@ export function findExactMatches(noteText: string, text: string): number[] {
 	return matches;
 }
 
+// Typographic folding used whenever two pieces of text are compared for "is this
+// the same passage" — most importantly at apply time, where a plan re-verifies
+// the span it is about to replace.
+//
+// The dash class MUST stay in step with buildFuzzyMatchPattern below, which folds
+// the same variants when LOCATING a passage. While it did not, a suggestion the
+// engine found through dash tolerance was rejected here as unsafe to apply: the
+// author saw a matched suggestion that refused to go in, with no way to act on it.
 export function normalizeMatchText(value: string): string {
-	return value.replace(/[“”]/g, "\"").replace(/[‘’]/g, "'").replace(/\s+/g, " ").trim();
+	return value
+		.replace(/[“”]/g, "\"")
+		.replace(/[‘’]/g, "'")
+		.replace(/[–—−]/g, "-")
+		.replace(/\s+/g, " ")
+		.trim();
 }
 
 interface FuzzyMatchRange {

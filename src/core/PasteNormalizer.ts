@@ -1,4 +1,4 @@
-import { REVIEW_BLOCK_FENCE } from "./ReviewBlockFormat";
+import { createReviewBlock, REVIEW_BLOCK_FENCE } from "./ReviewBlockFormat";
 import {
 	REVIEW_METADATA_KEYS as METADATA_KEYS,
 	REVIEW_OPERATION_KEYWORDS as OPERATION_KEYWORDS,
@@ -233,7 +233,8 @@ function coerceStructuredDocument(value: unknown): StructuredDocument | null {
 }
 
 function serializeStructuredDocument(document: StructuredDocument, operations: unknown[]): string {
-	const lines: string[] = ["```" + REVIEW_BLOCK_FENCE];
+	// Body only; createReviewBlock owns the fence and its length.
+	const lines: string[] = [];
 	pushString(lines, "Template", document.template);
 	pushString(lines, "TemplateYear", document.templateYear);
 	pushSupportedOperations(lines, document.supportedOperations);
@@ -277,8 +278,7 @@ function serializeStructuredDocument(document: StructuredDocument, operations: u
 		return "";
 	}
 
-	lines.push("```");
-	return lines.join("\n");
+	return createReviewBlock(lines.join("\n"));
 }
 
 function pushString(lines: string[], key: string, value: unknown): void {

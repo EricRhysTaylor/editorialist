@@ -5,6 +5,7 @@ import { MatchEngine } from "./MatchEngine";
 import { SuggestionParser } from "./SuggestionParser";
 import { ContributorDirectory } from "../state/ContributorDirectory";
 import { createMockApp, type MockApp } from "../../tests/mocks/vault";
+import { extractReviewBlocks, removeImportedReviewBlocks } from "./ReviewBlockFormat";
 
 function createImportEngine(app: MockApp): ImportEngine {
 	const reviewers = new ContributorDirectory();
@@ -317,5 +318,67 @@ describe("ImportEngine — configured book-folder scope confines Note/Path hints
 		const engine = createScopedEngine(app, "Book");
 		const batch = await engine.inspectBatch(NOTE_HINT_PASTE);
 		expect(batch.groups.map((group) => group.filePath)).toContain("Book/Chapter 1.md");
+	});
+});
+
+describe("ImportEngine — payloads containing a code fence", () => {
+	// A manuscript line, or a reviewer memo, may contain three backticks. With a
+	// fixed ``` fence the serialized block closed early: cleanup removed the first
+	// half and left the rest as bare review syntax in the manuscript, unstamped and
+	// therefore permanently unremovable. Escaping the payload is not an option —
+	// Original has to stay byte-identical to the scene or matching breaks — so the
+	// fence grows instead.
+	const SCENE_WITH_FENCE = [
+		"She loses her exultant feeling quickly, replaced by a sense of disquiet.",
+		"",
+		"He seemed to be recovering when she checked on him at the medi.",
+	].join("\n");
+
+	const PASTE_WITH_FENCE = [
+		"Reviewer: GPT-5.4",
+		"ReviewerType: ai-editor",
+		"",
+		"=== MEMO ===",
+		"SceneId: scn_fence_01",
+		"Notes: the scene's terminal output should be fenced, like:",
+		"```",
+		"> launch --sequence",
+		"```",
+		"Otherwise it reads as prose.",
+		"",
+		"=== EDIT ===",
+		"SceneId: scn_fence_01",
+		"Original: He seemed to be recovering when she checked on him at the medi.",
+		"Revised: He was recovering when she checked on him at the medi.",
+		"Why: Tighten.",
+		"",
+	].join("\n");
+
+	it("writes one intact block that can be re-read and cleaned", async () => {
+		const path = "Book/Scenes/Fence Scene.md";
+		const app = createMockApp([{ path, body: SCENE_WITH_FENCE, frontmatter: { Class: "Scene" } }]);
+		const engine = createImportEngine(app);
+
+		const batch = await engine.inspectBatch(PASTE_WITH_FENCE, { activeNotePath: path });
+		await engine.importBatch(batch);
+
+		const written = app.peek(path);
+		// The manuscript is untouched and the quoted fence survived verbatim.
+		expect(written).toContain("She loses her exultant feeling quickly");
+		expect(written).toContain("> launch --sequence");
+
+		// Exactly one block, and it holds the whole payload — not a truncated half.
+		const blocks = extractReviewBlocks(written);
+		expect(blocks).toHaveLength(1);
+		expect(blocks[0]?.bodyText).toContain("> launch --sequence");
+		expect(blocks[0]?.bodyText).toContain("Original: He seemed to be recovering");
+
+		// And cleanup takes all of it, leaving no orphaned review syntax behind.
+		const cleaned = removeImportedReviewBlocks(written, batch.batchId);
+		expect(cleaned.removedCount).toBe(1);
+		expect(cleaned.skippedUnfencedCount).toBe(0);
+		expect(cleaned.text).not.toContain("=== EDIT ===");
+		expect(cleaned.text).not.toContain("> launch --sequence");
+		expect(cleaned.text).toContain("She loses her exultant feeling quickly");
 	});
 });

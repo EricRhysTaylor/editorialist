@@ -3,7 +3,7 @@ import {
 	getSuggestionPrimaryTarget,
 	isMoveSuggestion,
 } from "./OperationSupport";
-import { normalizeImportedReviewText, REVIEW_BLOCK_FENCE, stripAllReviewBlocks } from "./ReviewBlockFormat";
+import { createReviewBlock, normalizeImportedReviewText, stripAllReviewBlocks } from "./ReviewBlockFormat";
 import {
 	getActiveNoteScopeRoot,
 	getSceneIdForFile,
@@ -842,7 +842,10 @@ export class ImportEngine {
 
 	private serializeGroup(batchId: string, createdAt: number, group: ReviewImportNoteGroup): string {
 		const metadata = this.extractMetadata(group.suggestions);
-		const lines: string[] = [`\`\`\`${REVIEW_BLOCK_FENCE}`];
+		// Body only — createReviewBlock adds the fence, sizing it past any backtick
+		// run a payload happens to carry. Assembling the fence here would reopen the
+		// truncation this centralizing fixed.
+		const lines: string[] = [];
 
 		lines.push(`BatchId: ${batchId}`);
 		lines.push("ImportedBy: Editorialist");
@@ -947,8 +950,7 @@ export class ImportEngine {
 			}
 		}
 
-		lines.push("```");
-		return lines.join("\n");
+		return createReviewBlock(lines.join("\n"));
 	}
 
 	private extractMetadata(results: ReviewImportSuggestionResult[]): ReviewMetadata {

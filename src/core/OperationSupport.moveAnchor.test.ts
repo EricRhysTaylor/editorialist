@@ -66,12 +66,12 @@ describe("move apply plan — destination verification", () => {
 		expect(createSuggestionApplyPlan(drifted, suggestion)).toBeNull();
 	});
 
-	// Quote drift only. normalizeMatchText folds curly quotes but NOT dash
-	// variants, so a dash-only difference is correctly rejected — keep this
-	// fixture to the tolerance the verifier actually has.
-	it("still applies when the destination differs only by curly quotes", () => {
-		const straight = `They said "we take our jobs seriously" and they meant it.`;
-		const curly = `They said “we take our jobs seriously” and they meant it.`;
+	// Typographic drift only. normalizeMatchText folds curly quotes and dash
+	// variants alike, matching what the fuzzy finder folds when it locates a
+	// passage, so neither kind of drift should block a move.
+	it("still applies when the destination differs only by typographic punctuation", () => {
+		const straight = `They said "we take our jobs seriously" - and they meant it.`;
+		const curly = `They said “we take our jobs seriously” — and they meant it.`;
 
 		const note = buildNote(straight);
 		const suggestion = new MatchEngine().matchSuggestion(note, buildMoveSuggestion(TARGET, straight));

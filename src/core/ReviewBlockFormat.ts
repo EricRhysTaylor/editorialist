@@ -52,12 +52,32 @@ export interface StripReviewBlocksResult {
 	text: string;
 }
 
+// Fences may be longer than three backticks (createReviewBlock grows them when a
+// payload contains one), so the opening run is captured and the close must match
+// it via backreference. Groups: 1 = fence, 2 = language, 3 = body.
 function createGenericFencePattern(): RegExp {
-	return /(?:^|\r?\n)```([^\r\n`]*)[^\S\r\n]*\r?\n([\s\S]*?)\r?\n```/g;
+	return /(?:^|\r?\n)(`{3,})([^\r\n`]*)[^\S\r\n]*\r?\n([\s\S]*?)\r?\n\1`*(?=[^\S\r\n]*(?:\r?\n|$))/g;
 }
 
+// The single place a review block's fence is built. The body carries manuscript
+// prose verbatim (Original/Revised/Target must stay byte-identical or matching
+// breaks) and reviewer memos, either of which may contain a line of backticks —
+// so the fence grows past the longest run in the body rather than the payload
+// being escaped.
 export function createReviewBlock(bodyText: string): string {
-	return `\`\`\`${REVIEW_BLOCK_FENCE}\n${bodyText.trim()}\n\`\`\``;
+	const body = bodyText.trim();
+	const fence = "`".repeat(resolveFenceLength(body));
+	return `${fence}${REVIEW_BLOCK_FENCE}\n${body}\n${fence}`;
+}
+
+// Only runs at the start of a line can close a fence, so inline `code` spans in
+// prose are ignored.
+function resolveFenceLength(body: string): number {
+	let longest = 0;
+	for (const match of body.matchAll(/^[^\S\r\n]*(`{3,})/gm)) {
+		longest = Math.max(longest, (match[1] ?? "").length);
+	}
+	return Math.max(3, longest + 1);
 }
 
 export function noteContainsReviewBlock(noteText: string): boolean {
@@ -71,7 +91,7 @@ export function normalizeImportedReviewText(rawText: string): string | null {
 			continue;
 		}
 
-		const extractedBlocks = extractReviewBlocks(candidate);
+		const extractedBlocks = extractReviewBlocks(candidate, { stopAtFence: false });
 		const firstBlock = extractedBlocks[0];
 		if (!firstBlock) {
 			continue;
@@ -136,7 +156,17 @@ export function getReviewBlockMetadata(bodyText: string): Record<string, string>
 // Offsets returned here are ALWAYS relative to `noteText` as passed in. The raw
 // scanner used to run against a trimmed/unwrapped copy while callers spliced the
 // original, so any leading whitespace shifted every cut by that many characters.
-export function extractReviewBlocks(noteText: string): ExtractedReviewBlock[] {
+//
+// `stopAtFence` controls the unfenced fallback and defaults to note semantics: a
+// fence line ends the block. Callers parsing INPUT — clipboard text, which is
+// documented as allowed to arrive unfenced and may quote a code fence inside a
+// memo — pass false, so a quoted ``` does not truncate everything after it. That
+// is safe because the destructive paths (removal, formalize) act only on
+// `source: "fenced"` blocks regardless of what the scanner returns.
+export function extractReviewBlocks(
+	noteText: string,
+	options?: { stopAtFence?: boolean },
+): ExtractedReviewBlock[] {
 	if (!noteText.trim()) {
 		return [];
 	}
@@ -146,7 +176,7 @@ export function extractReviewBlocks(noteText: string): ExtractedReviewBlock[] {
 		return fencedBlocks;
 	}
 
-	const rawBlock = extractRawTopReviewBlock(noteText);
+	const rawBlock = extractRawTopReviewBlock(noteText, { stopAtFence: options?.stopAtFence ?? true });
 	return rawBlock ? [rawBlock] : [];
 }
 
@@ -336,7 +366,7 @@ function extractFencedBlocks(noteText: string): ExtractedReviewBlock[] {
 	const seenRanges = new Set<string>();
 
 	for (const blockMatch of noteText.matchAll(createGenericFencePattern())) {
-		const rawBody = blockMatch[2];
+		const rawBody = blockMatch[3];
 		const fullMatch = blockMatch[0];
 		const blockStart = blockMatch.index;
 		if (rawBody === undefined || !fullMatch || blockStart === undefined) {
@@ -370,7 +400,16 @@ function extractFencedBlocks(noteText: string): ExtractedReviewBlock[] {
 	return blocks;
 }
 
-function extractRawTopReviewBlock(noteText: string): ExtractedReviewBlock | null {
+// `stopAtFence` distinguishes the two callers. Scanning a NOTE, a fence line ends
+// the block — without that the scanner ran past a block's closing ``` and took the
+// rest of the manuscript with it. Validating a fence BODY, the extent is already
+// known from the fence itself, so an inner ``` is ordinary content (a reviewer
+// quoting a code sample) and must not truncate anything.
+function extractRawTopReviewBlock(
+	noteText: string,
+	options?: { stopAtFence?: boolean },
+): ExtractedReviewBlock | null {
+	const stopAtFence = options?.stopAtFence ?? true;
 	const lines = getLinesWithOffsets(noteText, 0);
 	if (lines.length === 0) {
 		return null;
@@ -383,7 +422,7 @@ function extractRawTopReviewBlock(noteText: string): ExtractedReviewBlock | null
 		}
 
 		const firstTrimmed = firstLine.text.trim();
-		if (FENCE_LINE_PATTERN.test(firstTrimmed)) {
+		if (stopAtFence && FENCE_LINE_PATTERN.test(firstTrimmed)) {
 			continue;
 		}
 		if (!REVIEW_METADATA_PATTERN.test(firstTrimmed) && !REVIEW_SECTION_PATTERN.test(firstTrimmed)) {
@@ -403,8 +442,9 @@ function extractRawTopReviewBlock(noteText: string): ExtractedReviewBlock | null
 
 			const trimmed = line.text.trim();
 			// A fence ends the block, full stop. Nothing past a block's closing
-			// ``` belongs to it.
-			if (FENCE_LINE_PATTERN.test(trimmed)) {
+			// ``` belongs to it. Inside a fence body the extent is already known,
+			// so this does not apply — see stopAtFence above.
+			if (stopAtFence && FENCE_LINE_PATTERN.test(trimmed)) {
 				break;
 			}
 
@@ -492,7 +532,7 @@ function looksLikeReviewBody(text: string): boolean {
 		return false;
 	}
 
-	const rawBlock = extractRawTopReviewBlock(text);
+	const rawBlock = extractRawTopReviewBlock(text, { stopAtFence: false });
 	return rawBlock !== null && rawBlock.startOffset === 0 && rawBlock.bodyText.trim() === text.trim();
 }
 

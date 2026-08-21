@@ -103,7 +103,10 @@ export class SuggestionParser {
 	parse(noteText: string): ParsedReviewDocument {
 		const suggestions: ReviewSuggestion[] = [];
 		const memos: SceneMemo[] = [];
-		const blocks = extractReviewBlocks(noteText);
+		// Input semantics: raw reviewer text is allowed to be unfenced and may quote
+		// a code fence inside a memo, which must not truncate the suggestions after
+		// it. Parsing is read-only — nothing here decides what gets deleted.
+		const blocks = extractReviewBlocks(noteText, { stopAtFence: false });
 
 		blocks.forEach((block, blockIndex) => {
 			const rawBody = block.bodyText;
