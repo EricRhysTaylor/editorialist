@@ -2,7 +2,7 @@
 
 It is for writers who get notes from human editors, beta readers, or AI and want to work through those notes without losing control of the manuscript. Editorialist gives the Ed side panel three modes: scene-level review batches, manuscript-wide Editorialisms, and pending edits gathered from author notes or Radial Timeline Inquiry.
 
-The plugin does not rewrite your prose on import. Line edits, memos, author questions, and pending-edit notes stay reviewable until you decide what to do with them. Cut passages can be backed up to per-scene cut files before you accept them, and completed sweeps update revision history, contributor stats, and per-scene progress.
+The plugin does not rewrite your prose on import. Line edits, memos, author questions, and pending-edit notes stay reviewable until you decide what to do with them. Any passage can be archived to a per-scene cut file at any time — mid-sweep, or straight from the editor's right-click menu with no review running — and completed sweeps update revision history, contributor stats, and per-scene progress.
 
 > [!IMPORTANT]
 > **Radial Timeline + Editorialist**  
