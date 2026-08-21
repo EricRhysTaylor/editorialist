@@ -93,7 +93,9 @@ When path-based tracking is active, **Inject stable note IDs** adds an `editoria
 
 ### Cut location
 
-When you accept a **Cut** suggestion (or use **Backup to cut file** from the suggestion toolbar), the removed text is archived to a per-scene cut file — one cut file per scene, named after the scene and tagged with its own `Class: Cut` frontmatter. Each archived block stores source, scene, and backup timestamp, plus operation, suggestion ID, contributor, and reason when they are available. Cut files are separate from review status and acceptance decisions.
+Backing text up to a cut file is a manual step — accepting a **Cut** does not do it for you. Use **Backup to cut file** from the suggestion toolbar (or **Backup selection to cut file** with text selected in the editor) *before* you accept. Accepting a Cut removes the passage from the manuscript immediately, and the only way back is the single-step, same-note [Undo](Review-Panel#undo).
+
+The archive is a per-scene cut file — one per scene, named after the scene and tagged with its own `Class: Cut` frontmatter. Each archived block stores source, scene, and backup timestamp, plus operation, suggestion ID, contributor, and reason when they are available. Cut files are separate from review status and acceptance decisions: backing a passage up never changes a suggestion's status.
 
 <p align="center"><img src="images/panel-side-cut-closeup-rounded.png" alt="Closeup of a scene cut file with Class: Cut frontmatter and Editorialist backup metadata" width="520"></p>
 
