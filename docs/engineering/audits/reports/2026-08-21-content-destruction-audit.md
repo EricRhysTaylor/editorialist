@@ -9,26 +9,34 @@ Baseline: `npx vitest run` — 62 files, 793 tests, all passing.
 
 ## Verdict
 
-The **decision machinery is sound**. Accept / reject / apply-to-all cannot land on
-the wrong text, the plugin never deletes or renames a file, and frontmatter writes
-are surgical. The wiki's strongest safety claim — "nothing is ever applied against
-the wrong text" — holds up under inspection.
+The **decision machinery is largely sound**. The plugin never deletes or renames a
+file, frontmatter writes are key-scoped, and every apply plan re-verifies the text it
+is about to replace. One exception (F11): Move never re-verifies its *destination*, so
+the wiki's blanket "nothing is ever applied against the wrong text" is over-broad —
+true for edit/cut/condense/expand, not for a Move's anchor.
 
-The **cleanup machinery is not sound**. `removeImportedReviewBlocks` — the
-"remove batch" / "Clean" path — has two confirmed ways to delete manuscript prose
-outside the review block, and one whole-note reformatting side effect that fires on
-every single run. Separately, one wiki sentence about Cut backups is factually wrong
-in the dangerous direction.
+The **cleanup machinery is not sound**, and the root cause reaches further than
+cleanup. An unbounded raw block scanner with a broken offset coordinate system feeds
+both `removeImportedReviewBlocks` (F1, F2) and the formalize path (F10); together
+these give three confirmed ways to delete manuscript prose. A whole-note reformatting
+side effect fires on every single cleanup (F3). Separately, one wiki sentence about
+Cut backups was factually wrong in the dangerous direction (F6).
+
+**Revision note (2026-08-21, same day):** F10 and F11 were missed in the first pass
+and added after external review, along with corrections to three "verified safe"
+statements that were stated too absolutely. F1–F3, F5, F7, and F8 stand at their
+original severity; F4's impact is narrowed to content pollution rather than deletion.
 
 ## Verified safe
 
 1. **No file is ever deleted, trashed, or renamed.** There is no `vault.delete`,
    `vault.trash`, `fileManager.trashFile`, or `vault.rename` anywhere in `src/`.
    Every `.delete()` in the codebase is a `Map`/`Set` operation.
-2. **Apply is conservative by construction.** Every operation's `createApplyPlan`
+2. **Apply re-verifies the text it replaces.** Every operation's `createApplyPlan`
    in `src/core/OperationSupport.ts` re-reads `noteText.slice(from, to)` and refuses
    to produce a plan unless it equals the expected original (byte-exact, or equal
    after quote/dash/whitespace normalization). Stale offsets fail closed.
+   **Qualified by F10** — Move verifies its *source* but never its *destination*.
 3. **No stale-snapshot writes.** Every `editor.setValue` / `replaceRange` derives
    from an `editor.getValue()` read with no intervening `await`.
    `formalizeAuthoredReviewBlockInActiveNote` goes further and re-locates the block
@@ -37,12 +45,17 @@ in the dangerous direction.
 4. **Apply-to-all is safe.** `applyAndReviewSceneSuggestions` loops the same guarded
    single-apply path, re-reading live text each iteration; suggestions whose offsets
    have drifted fail their verification and are skipped rather than misapplied.
-5. **The cut archive cannot corrupt a manuscript.** `CutArchiveService.backup`
+5. **The cut archive does not corrupt manuscripts.** `CutArchiveService.backup`
    throws if the resolved path is the scene itself or any `Class: Scene` note, and
-   appends through `vault.process` — never overwrites.
-6. **Frontmatter writes are additive and scoped.** `processFrontMatter` callers only
-   touch `Editorialist`, `editorial_id`, and the pending-edits key. No user key is
-   removed. (Caveat in F9.)
+   appends through `vault.process` — never overwrites. Two qualifications: the scene
+   guard reads the metadata cache, so it is only as good as cache availability at
+   call time; and `formatCutBlock` strips trailing whitespace, so the archived text
+   is not byte-verbatim.
+6. **Frontmatter writes are key-scoped.** `processFrontMatter` callers only touch
+   `Editorialist`, `editorial_id`, and the pending-edits key; no unrelated user key is
+   touched. They are *not* purely additive: the revision counter deletes the legacy
+   `editorial` key as part of its rename migration, and the pending-edits workflow
+   deliberately clears field content. (Caveat in F9.)
 7. **The `%%ai:…%%` marker strip is precise** — built from the specific question,
    non-global, single occurrence, and it notifies the user when it finds nothing
    rather than guessing.
@@ -109,7 +122,8 @@ payloads raw, and the fence matcher is non-greedy. A triple-backtick line inside
 payload closes the block early. Cleanup then removes the first half and leaves the
 second half — bare `=== EDIT ===` / `Original:` lines — sitting in the manuscript.
 That remainder carries no `BatchId`/`ImportedBy`, so **cleanup can never remove it
-again**. Confirmed.
+again**. Confirmed. To be precise about impact: this is orphaned review syntax
+polluting the note, **not** manuscript deletion — no author prose is lost here.
 
 ### F5 — LOW · CRLF notes leave an orphan `\r`
 
@@ -117,6 +131,10 @@ The fence pattern anchors on `\n`, so the preceding `\r` survives the cut.
 Confirmed: `"Prose A\r\n\r\r\n\r\nProse B\n"`.
 
 ### F6 — TRUTHFULNESS · The wiki says accepting a Cut archives to the cut file. It does not.
+
+**Status: wiki corrected locally (commit `1950506`); other copy tracked below.** The
+correction is committed but **not pushed** — pushing is Eric's call — so the public
+wiki still shows the old sentence until he does.
 
 `wiki/Settings-Reference.md:96` — "When you accept a **Cut** suggestion (or use
 **Backup to cut file** …), the removed text is archived to a per-scene cut file".
@@ -132,9 +150,20 @@ The rest of the wiki is correct and contradicts this line: `Home.md:35` "with
 **optional** backup", `Review-Panel.md:42` "**optionally** backing it up",
 `Importing-Reviews.md:80` "Accepted cuts **can be** backed up".
 
-Website (`Web/EDITORIALIST-PAGE-BRIEF.md`, feature card 3) has the same problem in
-its headline: "**Cut files: never lose a line**". The clause that follows it — "one
-click backs a line up before anything changes" — is accurate; the headline is not.
+The same overclaim appeared in three other places, all verified and now handled:
+
+- `Web/EDITORIALIST-PAGE-BRIEF.md` feature card 3 — corrected (Web repo `9f0f8ac`).
+- **radialtimeline.com/editorialist, live** — verified live on 2026-08-21; the page
+  carried the headline "Cut files: never lose a line". Corrected on Framer branch
+  `hjockgxvd` ("Correct cut-file and undo claims"); **not yet published**.
+- `docs/releases/draft-for-release-1.0.0.md` — "accepted cuts are archived per scene
+  with full attribution, never destroyed" — corrected in this commit.
+
+Still outstanding, and **blocked on the code fix rather than a rewording**:
+`EditorialistSettingTab.ts:1312` tells users in-product that "Editorialist adds and
+removes review blocks inside your notes, but your actual writing is only changed when
+you accept edits." F1–F3 contradict that sentence. The honest remedy is to make it
+true by fixing removal, not to soften the promise.
 
 ### F7 — LOW/UX · The panel's per-scene "Clean" is unconfirmed and fires on pointerdown
 
@@ -156,16 +185,61 @@ guard is inconsistent with the pattern established for cut files.
 `processFrontMatter`. The writes are additive, but Obsidian re-serializes the whole
 YAML block — dropping comments and normalizing quote style. Worth one honest line in
 the wiki, since the plugin does modify scene YAML. Relatedly,
-`ImportEngine.appendImportBlock` does `currentText.trimEnd()`, so import also strips
-trailing blank lines.
+**both** append implementations call `trimEnd()`, so either import path strips
+trailing blank lines: `ImportEngine.appendImportBlock` (routed import) and
+`ReviewBatchProcessor.importReviewBatchToActiveNote:192` (active-note import).
+
+### F10 — HIGH · Formalizing an unrecognized block can capture manuscript prose, which a later Clean then deletes
+
+`findUnimportedReviewBlock` feeds off the same unbounded raw scanner as F1. A raw
+block sitting mid-note consumes every line through EOF, so
+`formalizeAuthoredReviewBlockInActiveNote` (`ReviewBatchProcessor.ts:225`) stamps that
+entire range — trailing manuscript prose included — as an imported, fenced review
+block. The prose is now *inside* the block. A later Clean removes the block and the
+prose with it.
+
+Reproduced end to end: a note whose last paragraph was "This is later manuscript
+prose." was formalized, then cleaned, and came back as nothing but its opening
+paragraph. This is worse than F1 in one respect — the damage is latent. Formalizing
+looks harmless at the time; the deletion happens on a separate action, later, when
+the connection is no longer obvious.
+
+Mitigating: the feature is gated by `detectFileWrittenReviewBlocks`, which
+`PluginDataMigration` defaults to **false**. That lowers likelihood, not impact.
+
+Missed in the first pass of this audit — it was found in review. See
+`ReviewBlockFormat.ts:306` and `ReviewBatchProcessor.ts:225`.
+
+### F11 — MEDIUM · Move verifies its source but never its destination
+
+`operationSupport.move.createApplyPlan` (`OperationSupport.ts:109`) checks that
+`noteText.slice(targetStart, targetEnd)` still equals `payload.target` before building
+a plan — but it never checks that `anchorStart..anchorEnd` still holds
+`payload.anchor`. Text inserted between the source and the anchor before the session
+resync fires leaves the source offsets valid and the anchor offsets stale, and the
+resulting whole-document plan drops the passage beside unrelated text.
+
+No text is lost — the document is rebuilt from live text and the moved passage is
+preserved — but it lands in the wrong place. This is the one operation of the five
+that can genuinely misplace content, and it means the blanket claim **"nothing is
+ever applied against the wrong text"** (`wiki/Review-Panel.md:143`, and the same
+promise on the website) is over-broad. It holds for edit, cut, condense, and expand;
+it does not hold for a Move's destination.
+
+Missed in the first pass of this audit — it was found in review.
 
 ## Recommended remediation, in priority order
 
-1. **Never take the raw path for removal.** `removeImportedReviewBlocks` /
-   `stripAllReviewBlocks` should only ever act on `source: "fenced"` blocks. The raw
-   scanner exists to parse *clipboard* input (a documented feature — the importer
-   accepts unfenced AI output); it has no business deciding delete ranges in a note.
-   This closes F1 and F2 together.
+1. **Bound the raw scanner, then restrict what may act on it.** Two separate steps,
+   in this order:
+   a. Fix the offset coordinate system globally (see 2) — every consumer benefits.
+   b. Restrict **`removeImportedReviewBlocks`** and the **formalize** path
+      (`findUnimportedReviewBlock`) to safely bounded ranges — in practice,
+      `source: "fenced"` blocks. That closes F1 and F10.
+   **Do not blindly make `stripAllReviewBlocks` fenced-only.** It is not a mutation
+   path: `ImportEngine.ts:678` uses it in memory to exclude review-block text from
+   match candidates. Narrowing it there would let unfenced block text back into the
+   matchable corpus and let suggestions match against review syntax instead of prose.
 2. **Fix the offset frame regardless.** Have `extractReviewBlocks` pass the original
    `noteText` to the raw scanner, or add the trim/unwrap delta back onto the returned
    offsets. Add a regression test asserting

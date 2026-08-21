@@ -7,7 +7,7 @@ A new Obsidian plugin designed to support robust multi-modal editorial review an
 - **Editorialisms panel** — structural guidance documents and a checklist workflow for manuscript-wide concerns that don't map to a single line edit.
 - **Review import formats** — a documented review block format and Editorialism file format; suggestions are matched conservatively against note content, so nothing lands in the wrong place silently.
 - **Pending-edits review** — walk every outstanding edit across an entire book in one sequenced flow.
-- **Cut files** — accepted cuts are archived per scene with full attribution, never destroyed; includes a `Backup selection to cut file` command and editor right-click action.
+- **Cut files** — a passage can be archived per scene with full attribution *before* you accept the cut, via the suggestion toolbar's `Backup to cut file` or the `Backup selection to cut file` command and editor right-click action. The archive is manual: accepting a cut without backing it up first removes the passage outright.
 - **Progress and contributor stats** — per-scene review progress, per-contributor acceptance rates, and revision history.
 - **Settings** — three tabs (Core, Contributors, Configuration) covering revision progress, scene inventory, cut-file behavior, and the Radial Timeline card.
 - **Radial Timeline integration** — optional coupling with the companion plugin for long-form manuscript visualization and management.
