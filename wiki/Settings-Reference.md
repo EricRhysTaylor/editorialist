@@ -93,9 +93,13 @@ When path-based tracking is active, **Inject stable note IDs** adds an `editoria
 
 ### Cut location
 
-A cut file is a general-purpose archive, not a review-batch feature. Select any passage in any note, right-click, and **Ed — backup selection to cut file** stores it — no review session, batch, or suggestion required. The `Backup selection to cut file` command does the same from the palette. During a sweep, the suggestion toolbar's **Backup to cut file** archives the suggestion's target passage instead.
+A cut file is a general-purpose archive, reachable wherever you are working:
 
-Archiving is always a deliberate act: accepting a **Cut** does *not* archive for you. It removes the passage from the manuscript immediately, and the only way back is the single-step, same-note [Undo](Review-Panel#undo) — so back it up first if you want a copy kept.
+- **Editor right-click** — select any passage and choose **Ed — backup selection to cut file**. The `Backup selection to cut file` command does the same from the palette.
+- **Suggestion toolbar** — **Backup to cut file** archives the suggestion's target passage; Shift + click opens the cut file instead.
+- **Side panel header** — the scissors button opens the active scene's cut file in the split below the panel.
+
+Back a passage up before you accept a **Cut** if you want a copy kept. Accepting removes the passage from the manuscript immediately, and the only way back is the single-step, same-note [Undo](Review-Panel#undo).
 
 The archive is a per-scene cut file — one per scene, named after the scene and tagged with its own `Class: Cut` frontmatter. Each archived block stores source, scene, and backup timestamp, plus operation, suggestion ID, contributor, and reason when they are available. Cut files are separate from review status and acceptance decisions: backing a passage up never changes a suggestion's status.
 
