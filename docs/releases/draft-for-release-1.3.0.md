@@ -24,15 +24,11 @@ For a manuscript that matters. Two trailing spaces are a Markdown hard line brea
 
 Removing a block now raises exactly one spacing question — the join left where the block was — and only that join is repaired. Horizontal whitespace is never examined. Notes with CRLF line endings keep them. Importing a block leaves the end of the file alone as well, so importing a block and then cleaning it hands the note back byte for byte.
 
-### Advisory suggestions say that they are advisory
+### Advisory suggestions
 
-`CONDENSE` and `EXPAND` can arrive with replacement prose or without it. Without it they are guidance — there is nothing for Editorialist to write, so **Apply** never lights up, however cleanly the passage matches.
-
-The panel labelled these **Pending** anyway, and the reason line said the guidance was "not directly applicable yet". Both pointed at an Apply that was never coming, and a sweep would stall on a card that looked actionable. Pending advisory cards now read **Advisory**, and the reason names the two ways out: *"No expanded prose to apply — develop the beat yourself and mark it rewritten, or reject it."*
+A **Condense** or **Expand** that arrives as direction rather than replacement prose has nothing for Editorialist to apply, so it is now labelled **Advisory** rather than Pending — resolve it by rewriting the passage and marking it rewritten, or by rejecting it.
 
 <p align="center"><img src="https://raw.githubusercontent.com/wiki/EricRhysTaylor/editorialist/images/panel-side-develop.png" alt="An advisory Expand suggestion in the review panel: the passage to expand, the reviewer's suggested direction and reasoning, and Mark as rewritten in the footer" width="380"></p>
-
-Nothing about what can be applied changed — only what the card tells you. Deferred and unresolved keep their own labels, which carry meaning for the completion gate. The disabled **Clean** button now states the rule instead of the outcome: *"Nothing to clean yet — a batch clears once every suggestion in it is accepted, rejected, or rewritten."*
 
 ## Fixes
 
