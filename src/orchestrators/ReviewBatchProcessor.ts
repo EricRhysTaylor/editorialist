@@ -13,6 +13,7 @@
 import { Notice, TFile, type App, type MarkdownView } from "obsidian";
 import {
 	REVIEW_BLOCK_FENCE,
+	appendBlockToNote,
 	createReviewBlock,
 	findUnimportedReviewBlock,
 	getReviewBlockFenceLabel,
@@ -207,11 +208,7 @@ export class ReviewBatchProcessor {
 		const batchText = this.addImportedBlockMetadata(normalizedText, batch.batchId);
 
 		const currentText = context.view.editor.getValue();
-		const trimmedCurrentText = currentText.trimEnd();
-		const trimmedBatch = batchText.trim();
-		const separator = trimmedCurrentText.length > 0 ? "\n\n" : "";
-		const nextText = `${trimmedCurrentText}${separator}${trimmedBatch}\n`;
-		context.view.editor.setValue(nextText);
+		context.view.editor.setValue(appendBlockToNote(currentText, batchText.trim()));
 		await this.host.recordImportedBatch(
 			batch,
 			[this.buildActiveNoteGroup(batch, context)],

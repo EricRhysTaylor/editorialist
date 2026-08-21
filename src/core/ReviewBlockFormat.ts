@@ -80,6 +80,24 @@ function resolveFenceLength(body: string): number {
 	return Math.max(3, longest + 1);
 }
 
+// Appends a review block to a note without disturbing the end of the file.
+//
+// Both import paths used to trimEnd() the note first, which silently discarded
+// trailing blank lines and trailing spaces on the last line. That is the same
+// class of unrequested reformatting as the document-wide spacing normalizer that
+// used to run on cleanup — smaller in blast radius, identical in principle.
+//
+// The block goes in ahead of the note's trailing newline run, and that run is
+// re-attached verbatim, so importing and then cleaning returns the original note
+// byte for byte.
+export function appendBlockToNote(noteText: string, block: string): string {
+	const trailingNewlines = /(?:\r?\n)*$/.exec(noteText)?.[0] ?? "";
+	const body = noteText.slice(0, noteText.length - trailingNewlines.length);
+	const tail = trailingNewlines || "\n";
+
+	return body.trim() ? `${body}\n\n${block}${tail}` : `${block}${tail}`;
+}
+
 export function noteContainsReviewBlock(noteText: string): boolean {
 	return extractReviewBlocks(noteText).length > 0;
 }

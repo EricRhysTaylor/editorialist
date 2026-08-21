@@ -3,7 +3,12 @@ import {
 	getSuggestionPrimaryTarget,
 	isMoveSuggestion,
 } from "./OperationSupport";
-import { createReviewBlock, normalizeImportedReviewText, stripAllReviewBlocks } from "./ReviewBlockFormat";
+import {
+	appendBlockToNote,
+	createReviewBlock,
+	normalizeImportedReviewText,
+	stripAllReviewBlocks,
+} from "./ReviewBlockFormat";
 import {
 	getActiveNoteScopeRoot,
 	getSceneIdForFile,
@@ -125,7 +130,7 @@ export class ImportEngine {
 			}
 
 			const block = this.serializeGroup(batch.batchId, batch.createdAt, group);
-			await this.app.vault.process(file, (currentText) => this.appendImportBlock(currentText, block));
+			await this.app.vault.process(file, (currentText) => appendBlockToNote(currentText, block));
 			importedGroups.push(group);
 		}
 
@@ -965,10 +970,6 @@ export class ImportEngine {
 		};
 	}
 
-	private appendImportBlock(currentText: string, block: string): string {
-		const trimmedText = currentText.trimEnd();
-		return trimmedText.length > 0 ? `${trimmedText}\n\n${block}\n` : `${block}\n`;
-	}
 
 	private createContentHash(value: string): string {
 		let hash = 2166136261;
