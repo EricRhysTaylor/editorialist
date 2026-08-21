@@ -115,7 +115,7 @@ fires on every clean, including "Clean all scenes". `wiki/Settings-Reference.md:
 ("keeps accepted edits and saved history") is true about edits and silent about
 formatting.
 
-### F4 — MEDIUM · A ``` inside a block payload truncates the block and orphans the rest
+### F4 — MEDIUM · A ``` inside a block payload truncates the block and orphans the rest — FIXED (`08f89a8`)
 
 `ImportEngine.serializeGroup` interpolates `Original:` / `Revised:` / `Notes:`
 payloads raw, and the fence matcher is non-greedy. A triple-backtick line inside a
@@ -237,12 +237,12 @@ All confirmed manuscript-deletion paths are closed. Commits are on `main`, unpus
 | F1 | Raw scanner runs to EOF, cleanup deletes prose | **Fixed** — `d36e4fa` |
 | F2 | Raw offsets measured against trimmed text | **Fixed** — `d36e4fa` |
 | F3 | Cleanup reformats the whole note | **Fixed** — `d2a3df8` |
-| F4 | Backtick in payload truncates the block | **Open** — deferred; pollution, not deletion |
+| F4 | Backtick in payload truncates the block | **Fixed** — `08f89a8`; fences grow past the longest backtick run in the body, and `createReviewBlock` is now the only place that builds one |
 | F5 | CRLF orphan `\r` | **Fixed** — `d36e4fa` |
 | F6 | Wiki claims accepting a Cut archives it | **Fixed** in wiki (`1950506`), brief (Web `9f0f8ac`), release draft (`cfb4400`); **website corrected and published** — radialtimeline.com/editorialist now reads "Cut files: back it up before it goes". The wiki fix is committed but unpushed, so the *public* wiki still shows the old sentence |
 | F7 | Clean actions fire without confirmation | **Fixed** — `43318d0` (per-scene), `c8604c0` (Recent Reviews, clean-all). Every Clean control now confirms, but via three paths, not one: the panel routes through `confirmReviewBlockRemoval`, Settings uses its own `confirmDestructiveAction`, and completed-sweep cleanup has its own modal that also lists the affected scenes |
 | F8 | Editorialism save overwrites without a scene guard | **Fixed** — `43318d0`; depends on the metadata cache, so not an absolute guarantee |
-| F9 | Frontmatter re-serialization, import `trimEnd()` | **Open** — informational; both append paths do it |
+| F9 | Frontmatter re-serialization, import `trimEnd()` | **Open** — informational only; both append paths do it, and `processFrontMatter` is Obsidian's sanctioned API |
 | F10 | Formalize captures prose, later Clean deletes it | **Fixed** — `d36e4fa` |
 | F11 | Move never verifies its destination | **Fixed** — `43318d0` |
 
@@ -253,16 +253,23 @@ Found while fixing, not yet addressed:
   so the block was invisible to attribution and to every later cleanup. Pre-existing,
   not a regression — verified against the pre-Phase-2 code, which produces
   byte-identical output. Fixed in `c8604c0`.
-- **`normalizeMatchText` folds curly quotes but not dash variants**, while the fuzzy
-  *finder* folds both. A suggestion located via dash tolerance is therefore rejected
-  at apply time. Fails closed, so a surprise rather than a hazard, but the two should
-  agree. **Open.**
+- **`normalizeMatchText` folded curly quotes but not dash variants**, while the fuzzy
+  *finder* folded both, so a suggestion located via dash tolerance was rejected at
+  apply time. Failed closed, so a surprise rather than a hazard. **Fixed** — `08f89a8`.
+- **Phase 2 regression, found while fixing F4 and fixed with it.** Teaching the raw
+  scanner to stop at a fence is right for scanning a note, but the same scanner parses
+  raw clipboard text, where unfenced input is documented and a memo may quote a code
+  sample. Every suggestion after a quoted fence was silently dropped at parse time.
+  Input callers now opt out of the fence-stop; removal and formalize are unaffected
+  because they act only on fenced blocks. Caught by writing the end-to-end
+  `ImportEngine` test rather than testing `createReviewBlock` in isolation, which
+  would have passed while the paste path stayed broken.
 
 Behaviour deliberately narrowed: a bare unfenced block in a note can no longer be
 formalized. Its extent is unknowable, so the action refuses rather than guesses —
 `detectFileWrittenReviewBlocks` (default off) now requires the AI to fence its block.
 
-Test coverage went from 793 to 822. The governing invariant — removal deletes the
+Test coverage went from 793 to 836. The governing invariant — removal deletes the
 ranges it reports and nothing else, with only the seam's newline run allowed to
 shorten — is in `src/core/ReviewBlockFormat.removalSafety.test.ts`. It compares the
 surviving segments byte-for-byte and is applied to the formatting-rich fixtures, not
