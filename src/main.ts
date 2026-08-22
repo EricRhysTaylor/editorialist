@@ -73,7 +73,10 @@ import { openContributorStrengthsModal } from "./ui/ContributorStrengthsModal";
 import { EDITORIALISM_PANEL_VIEW_TYPE, EditorialismPanel } from "./ui/EditorialismPanel";
 import { PENDING_EDITS_PANEL_VIEW_TYPE, PendingEditsPanel } from "./ui/PendingEditsPanel";
 import { AuthorQueryModal } from "./ui/modals/AuthorQueryModal";
-import { buildAuthorQueryMarkerPattern } from "./core/AuthorQueryMarker";
+import {
+	stripAuthorQueryMarkerFromText,
+	type AuthorQueryStripOutcome,
+} from "./core/AuthorQueryMarker";
 import {
 	effortParamsFromSettings,
 	estimateEditorialismEffort,
@@ -1742,20 +1745,32 @@ export default class EditorialistPlugin extends Plugin {
 		if (!(file instanceof TFile)) {
 			return;
 		}
-		// The pattern is built from the AI-echoed question, which may be a
-		// paraphrase of the original %%ai:…%% marker. When it finds nothing, say
-		// so — a silently surviving marker gets re-asked on every future export.
-		const pattern = buildAuthorQueryMarkerPattern(question);
-		let stripped = false;
-		await this.app.vault.process(file, (text) => {
-			stripped = pattern.test(text);
-			return stripped ? text.replace(pattern, "") : text;
-		});
-		if (!stripped) {
+		// Warn only when the scene actually holds a marker we failed to match — a
+		// reviewer can raise a QUERY the author never asked for, and there is
+		// nothing to strip for one of those. Warning on that case told authors to
+		// go delete a marker that had never existed, which read as the resolve
+		// having failed when it had not.
+		if ((await this.applyAuthorQueryMarkerStrip(file, question)) === "unmatched") {
 			new Notice(
 				"Query resolved, but its `%%ai:…%%` marker was not found in the scene (the review may have reworded the question). Remove the marker manually so it is not re-asked.",
 			);
 		}
+	}
+
+	// Split out so the outcome crosses an annotated boundary: TypeScript narrows a
+	// local to its initializer because it cannot see the vault.process callback
+	// assign to it, which makes the comparison above look impossible.
+	private async applyAuthorQueryMarkerStrip(
+		file: TFile,
+		question: string,
+	): Promise<AuthorQueryStripOutcome> {
+		let outcome: AuthorQueryStripOutcome = "no_marker_present";
+		await this.app.vault.process(file, (text) => {
+			const result = stripAuthorQueryMarkerFromText(text, question);
+			outcome = result.outcome;
+			return result.text;
+		});
+		return outcome;
 	}
 
 	private resolveCutBackupSource(preferDisplayedSuggestion: boolean): CutBackupSource | null {
