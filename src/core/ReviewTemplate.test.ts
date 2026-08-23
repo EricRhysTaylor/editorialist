@@ -78,3 +78,33 @@ describe("buildReviewTemplate — author queries", () => {
 		expect(out).not.toContain("AUTHOR QUERIES");
 	});
 });
+
+describe("buildReviewTemplate — direct vs advisory", () => {
+	// Both CONDENSE and EXPAND accept an optional `Suggestion:`; omitting it is how
+	// a reviewer says "your call" instead of inventing prose. The template used to
+	// document that for EXPAND only and show CONDENSE's Suggestion as though it
+	// were required, so models always supplied one — including when they had no
+	// good wording, which is the one case the advisory mode exists for.
+	const out = buildReviewTemplate("Plain prose.");
+
+	it("marks Suggestion optional on BOTH condense and expand", () => {
+		const condense = out.slice(out.indexOf("=== CONDENSE ==="), out.indexOf("=== EXPAND ==="));
+		const expand = out.slice(out.indexOf("=== EXPAND ==="), out.indexOf("=== MOVE ==="));
+		expect(condense).toMatch(/Suggestion: Optional\./);
+		expect(expand).toMatch(/Suggestion: Optional\./);
+	});
+
+	it("names what the author actually sees for an advisory entry", () => {
+		expect(out).toContain("Develop this beat");
+		expect(out).toContain("Condense this paragraph");
+	});
+
+	it("tells the reviewer advisory is a legitimate answer, not a failure", () => {
+		expect(out).toMatch(/Advisory is a first-class outcome/);
+		expect(out).toMatch(/fabricated/i);
+	});
+
+	it("still explains the condense anchor-pair target format", () => {
+		expect(out).toMatch(/Target: "<opening>" → "<closing>"/);
+	});
+});
