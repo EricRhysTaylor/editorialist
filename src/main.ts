@@ -4210,13 +4210,29 @@ export default class EditorialistPlugin extends Plugin {
 	}
 
 	async cleanupReviewBatchById(batchId: string): Promise<void> {
-		// Recent Reviews' per-batch Clean lands here.
-		if (!(await this.confirmReviewBlockRemoval("This removes this batch's imported review blocks from their scenes."))) {
+		await this.cleanupReviewBatchesById([batchId]);
+	}
+
+	// Recent Reviews' per-row Clean lands here. A row collapses every import
+	// pass against one scene, so it can carry more than one uncleaned batch —
+	// they are confirmed together, as the single gesture the user made, rather
+	// than prompting once per batch.
+	async cleanupReviewBatchesById(batchIds: readonly string[]): Promise<void> {
+		if (batchIds.length === 0) {
 			return;
 		}
-		await this.batchProcessor.cleanupReviewBatchById(batchId);
+		const prompt =
+			batchIds.length === 1
+				? "This removes this batch's imported review blocks from their scenes."
+				: `This removes ${batchIds.length} batches' imported review blocks from their scenes.`;
+		if (!(await this.confirmReviewBlockRemoval(prompt))) {
+			return;
+		}
+		for (const batchId of batchIds) {
+			await this.batchProcessor.cleanupReviewBatchById(batchId);
+		}
 		// Refresh so the Recent Reviews row that triggered this (and its Clean
-		// action) reflects the now-cleaned batch immediately.
+		// action) reflects the now-cleaned batches immediately.
 		this.refreshReviewPanel();
 	}
 

@@ -397,6 +397,88 @@ export function renderWorkflowsDisclosure(
 
 // ── recent activity block ────────────────────────────────────────────────
 
+// One Recent Reviews row: every batch imported against the same scene set,
+// newest pass first. Re-importing a scene produces a fresh batch each time, so
+// a single evening of iterating on one scene used to fill the whole five-row
+// list with what looked like five separate review sessions.
+export interface RecentReviewGroup<Entry> {
+	key: string;
+	// Most recent pass by import time. Supplies the row title, the status
+	// modifier, and the timestamp.
+	latest: Entry;
+	// Every pass against this scene set, newest first.
+	passes: Entry[];
+	lastImportedAt: number;
+	firstImportedAt: number;
+}
+
+// Groups batches by the scenes they cover and orders both the groups and the
+// passes inside them by IMPORT time — when the review actually happened.
+//
+// The previous ordering key was `cleanedAt ?? importedAt`, which is when the
+// inventory sync first saw the batch's block gone. That is not activity: a
+// burst of cleanups stamps near-identical times on passes whose imports were
+// hours apart, so the list both misdated and misordered real work.
+export function groupRecentReviews<
+	Entry extends {
+		sceneOrder: readonly string[];
+		importedNotePaths: readonly string[];
+		importedAt: number;
+	},
+>(entries: readonly Entry[], scopeFolder: string | null = null): RecentReviewGroup<Entry>[] {
+	const groups = new Map<string, RecentReviewGroup<Entry>>();
+	for (const entry of entries) {
+		// Sorted so two passes that listed the same scenes in a different order
+		// still land in one group.
+		const key = [...resolveRecentReviewPaths(entry, scopeFolder)].sort().join(" ");
+		const existing = groups.get(key);
+		if (existing) {
+			existing.passes.push(entry);
+			continue;
+		}
+		groups.set(key, {
+			key,
+			latest: entry,
+			passes: [entry],
+			lastImportedAt: entry.importedAt,
+			firstImportedAt: entry.importedAt,
+		});
+	}
+
+	const ordered = [...groups.values()];
+	for (const group of ordered) {
+		group.passes.sort((left, right) => right.importedAt - left.importedAt);
+		group.latest = group.passes[0] ?? group.latest;
+		group.lastImportedAt = group.passes[0]?.importedAt ?? group.lastImportedAt;
+		group.firstImportedAt =
+			group.passes[group.passes.length - 1]?.importedAt ?? group.firstImportedAt;
+	}
+	ordered.sort((left, right) => right.lastImportedAt - left.lastImportedAt);
+	return ordered;
+}
+
+// Sums decision counts across every pass in a group, so the chips report what
+// was decided on the scene rather than what survived in the final import.
+export function sumGroupStats(
+	passes: readonly { batchId: string }[],
+	getStats: (batchId: string) => {
+		accepted: number;
+		rejected: number;
+		rewritten: number;
+		deferred: number;
+	},
+): { accepted: number; rejected: number; rewritten: number; deferred: number } {
+	const total = { accepted: 0, rejected: 0, rewritten: 0, deferred: 0 };
+	for (const pass of passes) {
+		const stats = getStats(pass.batchId);
+		total.accepted += stats.accepted;
+		total.rejected += stats.rejected;
+		total.rewritten += stats.rewritten;
+		total.deferred += stats.deferred;
+	}
+	return total;
+}
+
 export function renderRecentActivityBlock(
 	plugin: EditorialistPlugin,
 	parent: HTMLElement,
@@ -406,23 +488,24 @@ export function renderRecentActivityBlock(
 		return;
 	}
 
-	const sortKey = (entry: typeof allEntries[number]): number =>
-		entry.cleanedAt ?? entry.importedAt;
-	const entries = allEntries
-		.slice()
-		.sort((left, right) => sortKey(right) - sortKey(left))
-		.slice(0, 5);
+	const scopeFolder = plugin.getActiveBookScopeInfo().sourceFolder;
+	const allGroups = groupRecentReviews(allEntries, scopeFolder);
+	const groups = allGroups.slice(0, 5);
+
 	const section = parent.createDiv({ cls: "editorialist-panel__history" });
 	const heading = section.createDiv({ cls: "editorialist-panel__section-header" });
 	heading.createDiv({ cls: "editorialist-panel__section-title", text: "Recent reviews" });
+	// Counts scenes reviewed, not import batches. A batch count reads as a
+	// session count and inflates with every re-import of the same scene.
 	heading.createDiv({
 		cls: "editorialist-panel__section-meta",
-		text: `${allEntries.length} total`,
+		text: `${allGroups.length} total`,
 	});
 
-	const scopeFolder = plugin.getActiveBookScopeInfo().sourceFolder;
 	const list = section.createDiv({ cls: "editorialist-panel__history-list" });
-	for (const entry of entries) {
+	for (const group of groups) {
+		const entry = group.latest;
+		const passCount = group.passes.length;
 		const row = list.createDiv({ cls: "editorialist-panel__history-row" });
 		const main = row.createDiv({ cls: "editorialist-panel__history-main" });
 
@@ -433,17 +516,22 @@ export function renderRecentActivityBlock(
 		});
 
 		const metaParts: string[] = [];
+		if (passCount > 1) {
+			metaParts.push(`${passCount} passes`);
+		}
 		if (entry.totalSuggestions > 0) {
 			metaParts.push(`${entry.totalSuggestions} ${entry.totalSuggestions === 1 ? "suggestion" : "suggestions"}`);
 		}
-		const displayTimestamp = entry.cleanedAt ?? entry.importedAt;
-		metaParts.push(formatRelativeTime(displayTimestamp));
-		main.createDiv({
+		metaParts.push(formatRelativeTime(group.lastImportedAt));
+		const meta = main.createDiv({
 			cls: "editorialist-panel__history-meta",
 			text: metaParts.join(" · "),
 		});
+		// The suggestion count names the latest pass only; the tooltip says so
+		// and spans the group so a collapsed row is never read as a single import.
+		meta.setAttr("title", formatGroupTooltip(passCount, entry.totalSuggestions, group.firstImportedAt, group.lastImportedAt));
 
-		const stats = plugin.getBatchDecisionStats(entry.batchId);
+		const stats = sumGroupStats(group.passes, (batchId) => plugin.getBatchDecisionStats(batchId));
 		const statusModifier = entry.status.replace(/_/g, "-");
 		const chip = row.createDiv({
 			cls: `editorialist-panel__history-stats editorialist-panel__history-stats--${statusModifier}`,
@@ -458,10 +546,22 @@ export function renderRecentActivityBlock(
 			renderStatChip(chip, "circle-pause", stats.deferred, "deferred");
 		}
 
-		if (isBatchReadyToClean(entry, stats)) {
+		// Cleanable-ness is per batch, and each batch owns its own block, so the
+		// group's button cleans every pass that still has one. Already-cleaned
+		// passes fail isBatchReadyToClean and are skipped.
+		const cleanablePasses = group.passes.filter((pass) =>
+			isBatchReadyToClean(pass, plugin.getBatchDecisionStats(pass.batchId)),
+		);
+		if (cleanablePasses.length > 0) {
 			const cleanButton = row.createEl("button", {
 				cls: "editorialist-panel__review-state-row-clean",
-				attr: { type: "button", "aria-label": "Clean this batch's review block from the scene" },
+				attr: {
+					type: "button",
+					"aria-label":
+						cleanablePasses.length === 1
+							? "Clean this batch's review block from the scene"
+							: `Clean ${cleanablePasses.length} review blocks from this scene`,
+				},
 			});
 			const cleanIcon = cleanButton.createSpan({ cls: "editorialist-panel__review-state-row-clean-icon" });
 			setIcon(cleanIcon, "eraser");
@@ -470,10 +570,29 @@ export function renderRecentActivityBlock(
 				text: "Clean",
 			});
 			cleanButton.addEventListener("click", () => {
-				void plugin.cleanupReviewBatchById(entry.batchId);
+				void plugin.cleanupReviewBatchesById(cleanablePasses.map((pass) => pass.batchId));
 			});
 		}
 	}
+}
+
+// Spells out what a collapsed row covers: how many passes, what the suggestion
+// count refers to, and the span of the work.
+export function formatGroupTooltip(
+	passCount: number,
+	latestSuggestions: number,
+	firstImportedAt: number,
+	lastImportedAt: number,
+	now: number = Date.now(),
+): string {
+	if (passCount <= 1) {
+		return `Imported ${formatRelativeTime(lastImportedAt, now)}`;
+	}
+	return [
+		`${passCount} import passes on this scene`,
+		`Latest pass: ${latestSuggestions} ${latestSuggestions === 1 ? "suggestion" : "suggestions"}, imported ${formatRelativeTime(lastImportedAt, now)}`,
+		`First pass imported ${formatRelativeTime(firstImportedAt, now)}`,
+	].join("\n");
 }
 
 // ── contributors block ───────────────────────────────────────────────────
@@ -581,25 +700,40 @@ export function formatStatsTooltip(stats: {
 // Builds the row title from the scenes a batch touched. One scene shows its
 // basename. Two or three list them comma-separated. Four or more truncate
 // to the first two plus a "+N more" suffix.
+// The scenes a batch is displayed as covering. Single source of truth for both
+// the row title and the Recent Reviews grouping key — if these two disagreed,
+// two rows carrying the same visible title could refuse to collapse.
+//
+// When `scopeFolder` is set, only scenes inside it count, so a batch that
+// happened to touch a note outside the active book (e.g. a content log) is
+// named by its in-scope scenes alone. A null scope (no Radial Timeline book and
+// no configured manuscript folder) keeps every path. If filtering would empty
+// the list, the unfiltered paths are used so a fully out-of-scope batch never
+// resolves to nothing.
+export function resolveRecentReviewPaths(
+	entry: {
+		sceneOrder: readonly string[];
+		importedNotePaths: readonly string[];
+	},
+	scopeFolder: string | null = null,
+): readonly string[] {
+	const allPaths = entry.sceneOrder.length > 0 ? entry.sceneOrder : entry.importedNotePaths;
+	if (!scopeFolder) {
+		return allPaths;
+	}
+	const scopedPaths = allPaths.filter((path) => isPathInFolderScope(path, scopeFolder));
+	return scopedPaths.length > 0 ? scopedPaths : allPaths;
+}
+
 export function formatRecentReviewSceneTitle(
 	entry: {
 		sceneOrder: readonly string[];
 		importedNotePaths: readonly string[];
 		activeBookLabel?: string;
 	},
-	// When set, only scenes inside this folder are named — so a batch that
-	// happened to touch a note outside the active book (e.g. a content log)
-	// shows just its in-scope scenes. A null scope (no Radial Timeline book and
-	// no configured manuscript folder) names every path, preserving prior
-	// behavior. If filtering would empty the list, the unfiltered paths are
-	// used so a fully out-of-scope batch never renders as a blank title.
 	scopeFolder: string | null = null,
 ): string {
-	const allPaths = entry.sceneOrder.length > 0 ? entry.sceneOrder : entry.importedNotePaths;
-	const scopedPaths = scopeFolder
-		? allPaths.filter((path) => isPathInFolderScope(path, scopeFolder))
-		: allPaths;
-	const paths = scopedPaths.length > 0 ? scopedPaths : allPaths;
+	const paths = resolveRecentReviewPaths(entry, scopeFolder);
 	const titles = paths
 		.map((path) => path.split("/").pop()?.replace(/\.md$/i, "")?.trim())
 		.filter((title): title is string => Boolean(title));

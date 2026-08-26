@@ -3,7 +3,10 @@ import {
 	formatRecentReviewSceneTitle,
 	formatRelativeTime,
 	formatStatsTooltip,
+	groupRecentReviews,
 	isBatchReadyToClean,
+	resolveRecentReviewPaths,
+	sumGroupStats,
 } from "./ReviewPanelIdleSections";
 
 describe("formatRelativeTime", () => {
@@ -214,5 +217,114 @@ describe("isBatchReadyToClean", () => {
 
 	it("is not ready for a batch with no suggestions", () => {
 		expect(isBatchReadyToClean({ status: "completed", totalSuggestions: 0 }, stats())).toBe(false);
+	});
+});
+
+describe("groupRecentReviews", () => {
+	// A batch shaped like a real registry entry. `cleanedAt` is deliberately
+	// wired to fight `importedAt` in these fixtures: the bug this suite pins was
+	// Recent Reviews ordering and dating rows by clean time, which is when the
+	// inventory sync noticed a block was gone, not when the review happened.
+	const batch = (
+		batchId: string,
+		importedAt: number,
+		scenes: string[],
+		extra: Record<string, unknown> = {},
+	) => ({
+		batchId,
+		importedAt,
+		sceneOrder: scenes,
+		importedNotePaths: scenes,
+		status: "cleaned",
+		totalSuggestions: 3,
+		updatedAt: importedAt,
+		...extra,
+	});
+
+	it("collapses repeated imports of one scene into a single row", () => {
+		const groups = groupRecentReviews([
+			batch("b1", 100, ["Book/36.5 Sixteen.md"]),
+			batch("b2", 200, ["Book/36.5 Sixteen.md"]),
+			batch("b3", 300, ["Book/36.5 Sixteen.md"]),
+		]);
+		expect(groups).toHaveLength(1);
+		expect(groups[0]?.passes).toHaveLength(3);
+	});
+
+	it("keeps distinct scenes in distinct rows", () => {
+		const groups = groupRecentReviews([
+			batch("b1", 100, ["Book/one.md"]),
+			batch("b2", 200, ["Book/two.md"]),
+		]);
+		expect(groups).toHaveLength(2);
+	});
+
+	it("orders groups and passes by import time, never by clean time", () => {
+		// `older` was imported first but cleaned last — a burst cleanup. Ordering
+		// by cleanedAt would float it to the top and date it as the newest work.
+		const groups = groupRecentReviews([
+			batch("older", 100, ["Book/a.md"], { cleanedAt: 9_000 }),
+			batch("newer", 500, ["Book/a.md"], { cleanedAt: 600 }),
+			batch("other", 300, ["Book/b.md"], { cleanedAt: 8_000 }),
+		]);
+		expect(groups.map((group) => group.key.split("/").pop())).toEqual(["a.md", "b.md"]);
+		expect(groups[0]?.passes.map((pass) => pass.batchId)).toEqual(["newer", "older"]);
+		expect(groups[0]?.latest.batchId).toBe("newer");
+		expect(groups[0]?.lastImportedAt).toBe(500);
+		expect(groups[0]?.firstImportedAt).toBe(100);
+	});
+
+	it("groups scene sets regardless of the order the paths were listed in", () => {
+		const groups = groupRecentReviews([
+			batch("b1", 100, ["Book/a.md", "Book/b.md"]),
+			batch("b2", 200, ["Book/b.md", "Book/a.md"]),
+		]);
+		expect(groups).toHaveLength(1);
+	});
+
+	it("groups by the same scoped paths the row title is built from", () => {
+		// Two passes on one scene, one of which also touched an out-of-scope log.
+		// The title names only the in-scope scene, so the rows must collapse.
+		const entries = [
+			batch("b1", 100, ["Book/36.5 Sixteen.md"]),
+			batch("b2", 200, ["Book/36.5 Sixteen.md", "Logs/content.md"]),
+		];
+		const groups = groupRecentReviews(entries, "Book");
+		expect(groups).toHaveLength(1);
+		expect(formatRecentReviewSceneTitle(entries[0]!, "Book")).toBe(
+			formatRecentReviewSceneTitle(entries[1]!, "Book"),
+		);
+	});
+});
+
+describe("resolveRecentReviewPaths", () => {
+	it("falls back to importedNotePaths when sceneOrder is empty", () => {
+		expect(
+			resolveRecentReviewPaths({ sceneOrder: [], importedNotePaths: ["a.md"] }),
+		).toEqual(["a.md"]);
+	});
+
+	it("keeps every path when the batch is entirely out of scope", () => {
+		expect(
+			resolveRecentReviewPaths(
+				{ sceneOrder: ["Other/a.md"], importedNotePaths: ["Other/a.md"] },
+				"Book",
+			),
+		).toEqual(["Other/a.md"]);
+	});
+});
+
+describe("sumGroupStats", () => {
+	it("totals decisions across every pass in the group", () => {
+		const stats: Record<string, { accepted: number; rejected: number; rewritten: number; deferred: number }> = {
+			b1: { accepted: 2, rejected: 1, rewritten: 0, deferred: 0 },
+			b2: { accepted: 1, rejected: 0, rewritten: 3, deferred: 2 },
+		};
+		expect(sumGroupStats([{ batchId: "b1" }, { batchId: "b2" }], (id) => stats[id]!)).toEqual({
+			accepted: 3,
+			rejected: 1,
+			rewritten: 3,
+			deferred: 2,
+		});
 	});
 });
