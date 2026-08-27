@@ -10,6 +10,7 @@ import {
 	isSweepCompleteFromTally,
 	tallyReviewStatuses,
 	tallySuggestionStatuses,
+	buildCompletedSweepNextSteps,
 } from "./SweepCompletion";
 
 function buildEditSuggestion(status: ReviewStatus): ReviewSuggestion {
@@ -258,5 +259,45 @@ describe("SweepCompletion — derived status", () => {
 		expect(summary.complete).toBe(isSweepComplete(suggestions));
 		expect(summary.complete).toBe(false);
 		expect(summary.status).toBe("in_progress");
+	});
+});
+
+describe("buildCompletedSweepNextSteps", () => {
+	// The completion card marks its FIRST step primary, so this order is also the
+	// emphasis. Cleaning comes first: it is what finishing a pass actually means,
+	// and importing a new batch on top of the previous one's blocks leaves two
+	// sweeps' worth of review syntax in the same scenes.
+	const steps = (isCleaned: boolean, hasImportedNotes = true) =>
+		buildCompletedSweepNextSteps({ isCleaned, hasImportedNotes }).map((step) => step.action);
+
+	it("puts cleaning first so it is the primary action", () => {
+		expect(steps(false)[0]).toBe("clean");
+	});
+
+	it("offers importing only after cleaning", () => {
+		const order = steps(false);
+		expect(order.indexOf("clean")).toBeLessThan(order.indexOf("import"));
+	});
+
+	it("keeps the audit walk-through available, since cleaning destroys it", () => {
+		expect(steps(false)).toContain("start");
+	});
+
+	it("orders clean, then review changes, then import", () => {
+		expect(steps(false)).toEqual(["clean", "start", "import"]);
+	});
+
+	it("drops clean and the audit once the batch is already cleaned", () => {
+		expect(steps(true)).toEqual(["import"]);
+	});
+
+	it("omits clean when the batch touched no notes, leaving the audit primary", () => {
+		expect(steps(false, false)).toEqual(["start", "import"]);
+	});
+
+	it("labels every step", () => {
+		for (const step of buildCompletedSweepNextSteps({ isCleaned: false, hasImportedNotes: true })) {
+			expect(step.label.length).toBeGreaterThan(0);
+		}
 	});
 });

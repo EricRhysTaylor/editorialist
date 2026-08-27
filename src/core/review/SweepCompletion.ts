@@ -146,3 +146,42 @@ export function deriveSweepSummary(
 		status: getSweepStatus(counts),
 	};
 }
+
+export type CompletedSweepStepAction = "clean" | "import" | "start";
+
+export interface CompletedSweepNextStep {
+	action: CompletedSweepStepAction;
+	label: string;
+}
+
+// The actions offered on the "All revisions complete" card, in the order they
+// are shown. The card marks its FIRST entry primary, so this order IS the
+// emphasis — there is no separate weighting to set.
+//
+// Cleaning leads. Finishing a pass means the review blocks come out of the
+// scenes, and the previous order buried that under "Import new revision notes",
+// which invited starting a second batch on top of the first one's blocks and
+// left two sweeps of review syntax in the same notes.
+//
+// "Review changes" stays directly beneath it rather than being dropped: it is
+// the audit walk-through, it only works while the blocks are still there, and
+// cleaning destroys it. The clean confirmation says exactly that before
+// anything is removed.
+export function buildCompletedSweepNextSteps(input: {
+	isCleaned: boolean;
+	hasImportedNotes: boolean;
+}): CompletedSweepNextStep[] {
+	// Once cleaned there is nothing left to remove and no block data for the
+	// audit to render, so only the forward-looking action remains.
+	if (input.isCleaned) {
+		return [{ action: "import", label: "Import new revision notes" }];
+	}
+
+	const steps: CompletedSweepNextStep[] = [];
+	if (input.hasImportedNotes) {
+		steps.push({ action: "clean", label: "Clean review blocks" });
+	}
+	steps.push({ action: "start", label: "Review changes" });
+	steps.push({ action: "import", label: "Import new revision notes" });
+	return steps;
+}

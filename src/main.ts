@@ -16,7 +16,9 @@ import {
 	getSuggestionPrimaryTarget,
 	isSuggestionOpen as isSuggestionOpenShared,
 } from "./core/OperationSupport";
-import { isBatchReadyToClean, isSweepComplete as isSweepCompleteShared } from "./core/review/SweepCompletion";
+import { isBatchReadyToClean, isSweepComplete as isSweepCompleteShared,
+	buildCompletedSweepNextSteps,
+} from "./core/review/SweepCompletion";
 import {
 	canRevealSuggestionInManuscript as canRevealSuggestionInManuscriptShared,
 	getAdjacentRevealableSuggestionId as getAdjacentRevealableSuggestionIdShared,
@@ -2286,19 +2288,14 @@ export default class EditorialistPlugin extends Plugin {
 			completedSweep.notePaths.length,
 			completedSweep.notePaths[0],
 		);
-		// Once a sweep is cleaned, the review blocks are gone from the notes —
-		// "Review changes" cannot re-enter audit mode (no live data), and
-		// "Clean review blocks" has nothing left to remove. Show only the
-		// forward-looking action (import) and the close link.
+		// Order (and therefore emphasis — the card marks its first step primary)
+		// is decided in SweepCompletion alongside the rest of the sweep-state
+		// rules, so it stays testable and cannot drift from isBatchReadyToClean.
 		const isCleaned = entry?.status === "cleaned";
-		const nextSteps: CompletedSweepPanelState["nextSteps"] = [];
-		if (!isCleaned) {
-			nextSteps.push({ action: "start", label: "Review changes" });
-		}
-		nextSteps.push({ action: "import", label: "Import new revision notes" });
-		if (!isCleaned && (entry?.importedNotePaths.length ?? 0) > 0) {
-			nextSteps.push({ action: "clean", label: "Clean review blocks" });
-		}
+		const nextSteps: CompletedSweepPanelState["nextSteps"] = buildCompletedSweepNextSteps({
+			isCleaned,
+			hasImportedNotes: (entry?.importedNotePaths.length ?? 0) > 0,
+		});
 
 		return {
 			batchId: completedSweep.batchId,
