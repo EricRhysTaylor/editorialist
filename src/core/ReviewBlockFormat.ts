@@ -102,8 +102,65 @@ export function noteContainsReviewBlock(noteText: string): boolean {
 	return extractReviewBlocks(noteText).length > 0;
 }
 
+// BatchId / ImportedBy / ImportedAt are written by Editorialist when it imports
+// a batch. They are never valid in incoming reviewer text — but they survive in
+// Radial Timeline content logs, so a model that has seen one imitates the shape
+// and invents its own. Two things went wrong when it did:
+//
+//   * the invented id ended up in the written block. Metadata reads the LAST
+//     value for a key, so the block reported a batch that exists nowhere, and
+//     cleanup — which searches by the real batch id — could never remove it.
+//   * the invented id is part of the content hash, so regenerating the same
+//     review with a fresh fake id produced a different hash and slipped past
+//     duplicate detection.
+//
+// So incoming text is not trusted with these fields. Stripping is confined to
+// each block's header — the run before its first `=== SECTION ===` — which is
+// the only place they carry meaning, leaving memo prose that happens to begin
+// with the word alone.
+const IMPORT_STAMP_FIELD_PATTERN = /^[^\S\r\n]*(?:BatchId|ImportedBy|ImportedAt)[^\S\r\n]*:/i;
+
+export interface StripImportStampsResult {
+	removedCount: number;
+	text: string;
+}
+
+export function stripImportStamps(text: string): StripImportStampsResult {
+	const lines = text.split(/\r?\n/);
+	const newline = text.includes("\r\n") ? "\r\n" : "\n";
+	const kept: string[] = [];
+	let inHeader = true;
+	let removedCount = 0;
+
+	for (const line of lines) {
+		const trimmed = line.trim();
+		// A fence opens a new block, so its header region starts again.
+		if (FENCE_LINE_PATTERN.test(trimmed)) {
+			inHeader = true;
+			kept.push(line);
+			continue;
+		}
+		if (REVIEW_SECTION_PATTERN.test(trimmed)) {
+			inHeader = false;
+			kept.push(line);
+			continue;
+		}
+		if (inHeader && IMPORT_STAMP_FIELD_PATTERN.test(line)) {
+			removedCount += 1;
+			continue;
+		}
+		kept.push(line);
+	}
+
+	return { removedCount, text: kept.join(newline) };
+}
+
 export function normalizeImportedReviewText(rawText: string): string | null {
-	const candidates = [rawText, normalizeReviewPaste(rawText)];
+	// Strip plugin-owned stamps FIRST, so everything downstream — the content
+	// hash, the block that gets written, the parser — sees text the reviewer
+	// actually wrote rather than fields it copied the look of.
+	const cleanedText = stripImportStamps(rawText).text;
+	const candidates = [cleanedText, normalizeReviewPaste(cleanedText)];
 	for (const candidate of candidates) {
 		if (!candidate || !candidate.trim()) {
 			continue;

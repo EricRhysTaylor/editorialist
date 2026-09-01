@@ -332,12 +332,17 @@ describe("clipboard input still accepts unfenced reviewer output", () => {
 		expect(normalized?.startsWith("```editorialist-review")).toBe(true);
 	});
 
+	// Both blocks must survive — a routed import needs all of them. Distinguished
+	// by content rather than by BatchId: incoming stamps are now stripped, since
+	// a reviewer inventing one put the written block beyond cleanup's reach.
 	it("leaves a multi-block editorialist paste intact", () => {
-		const second = SIMPLE_BLOCK.replace("BatchId: b1", "BatchId: b2");
+		const second = SIMPLE_BLOCK.replace("Original: hello", "Original: farewell");
 		const pasted = `${SIMPLE_BLOCK}\n\n${second}`;
-		const normalized = normalizeImportedReviewText(pasted);
-		expect(normalized).toContain("BatchId: b1");
-		expect(normalized).toContain("BatchId: b2");
+		const normalized = normalizeImportedReviewText(pasted) ?? "";
+		expect(normalized).toContain("Original: hello");
+		expect(normalized).toContain("Original: farewell");
+		// And neither carries an inherited stamp.
+		expect(normalized).not.toMatch(/^BatchId:/m);
 	});
 
 	// The end-to-end consequence of the above: what lands in the note carries the

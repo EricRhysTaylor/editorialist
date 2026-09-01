@@ -108,3 +108,20 @@ describe("buildReviewTemplate — direct vs advisory", () => {
 		expect(out).toMatch(/Target: "<opening>" → "<closing>"/);
 	});
 });
+
+describe("buildReviewTemplate — plugin-owned fields", () => {
+	// A reviewer that has seen a real block (they survive in Radial Timeline
+	// content logs) imitates the shape and invents a BatchId. The template showed
+	// a sample block without these fields but never said they were forbidden.
+	it("forbids the import stamps by name", () => {
+		const out = buildReviewTemplate("Prose.");
+		expect(out).toMatch(/Never write `BatchId:`, `ImportedBy:` or `ImportedAt:`/);
+	});
+
+	it("keeps them out of the sample block", () => {
+		const out = buildReviewTemplate("Prose.");
+		const block = out.slice(out.indexOf("```editorialist-review"), out.indexOf("=== MOVE ==="));
+		expect(block).not.toMatch(/^BatchId:/m);
+		expect(block).not.toMatch(/^ImportedBy:/m);
+	});
+});
