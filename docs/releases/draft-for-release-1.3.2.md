@@ -1,6 +1,6 @@
 ## Editorialist 1.3.2
 
-Recent reviews now names the batch you last finished, above the list. It is the same batch ID the review blocks in your scenes carry, so you can match one against the other.
+Recent reviews now names the batch you last finished, above the list. It is the same batch ID the review blocks in your scenes carry, so before you import you can tell whether what you are holding is a new batch or the one you just worked through.
 
 ## Fixes
 
