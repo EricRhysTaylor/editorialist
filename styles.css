@@ -6204,7 +6204,13 @@
    a Notice that has already faded. */
 .editorialist-editorialism-panel__anchor--unlocated .editorialist-editorialism-panel__anchor-fragment {
 	color: color-mix(in srgb, var(--text-error) 80%, var(--text-muted));
-	text-decoration: underline wavy color-mix(in srgb, var(--text-error) 55%, transparent);
+
+	/* Longhands rather than the shorthand: the `underline wavy <color>` form is
+	   only partially supported in older Obsidian versions, while each longhand
+	   is not. Same rendering, no compatibility warning. */
+	text-decoration-line: underline;
+	text-decoration-style: wavy;
+	text-decoration-color: color-mix(in srgb, var(--text-error) 55%, transparent);
 }
 
 .editorialist-editorialism-panel__anchor-warning {
