@@ -79,6 +79,19 @@ export const REVIEW_TEMPLATE_BLOCK = [
 	"```",
 ].join("\n");
 
+// True when `text` is the formatting instructions themselves rather than an
+// AI's reply to them. The copied prompt embeds REVIEW_TEMPLATE_BLOCK verbatim,
+// and that placeholder block parses as a real batch (`Original: ...` matches
+// any ellipsis in a scene), so without this gate the launcher offers to import
+// the instructions the user just copied. A genuine review never carries the
+// untouched placeholder block, so a verbatim match is the whole test.
+export function isReviewTemplateText(text: string): boolean {
+	if (!text) {
+		return false;
+	}
+	return text.replace(/\r\n?/g, "\n").includes(REVIEW_TEMPLATE_BLOCK);
+}
+
 const REVIEW_TEMPLATE_GUIDANCE = [
 	"Editorialist accepts two output formats. Choose the one that fits the work, or",
 	"produce both in the same response when the manuscript needs line-level edits AND",

@@ -20,6 +20,7 @@ import {
 	normalizeImportedReviewText,
 	removeImportedReviewBlocks,
 } from "../core/ReviewBlockFormat";
+import { isReviewTemplateText } from "../core/ReviewTemplate";
 import { openEditorialistChoiceModal } from "../ui/EditorialistChoiceModal";
 import { buildDuplicateImportPrompt } from "../core/review/DuplicateImportPrompt";
 import type { ClipboardReviewBatch } from "../ui/EditorialistModal";
@@ -106,6 +107,12 @@ export class ReviewBatchProcessor {
 
 		try {
 			const rawText = await navigator.clipboard.readText();
+			// The user just clicked "Copy formatting instructions": the clipboard
+			// holds the prompt, not a review. Treat it as empty so the launcher
+			// keeps offering the copy/paste cards instead of an import.
+			if (isReviewTemplateText(rawText)) {
+				return null;
+			}
 			const normalizedText = normalizeImportedReviewText(rawText);
 			if (!normalizedText) {
 				return null;

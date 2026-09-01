@@ -5,6 +5,7 @@ import {
 	ADVANCED_REVIEW_TEMPLATE_TITLE,
 	REVIEW_TEMPLATE_BLOCK,
 	SUPPORTED_REVIEW_OPERATION_SUMMARY,
+	isReviewTemplateText,
 } from "../core/ReviewTemplate";
 import type { ReviewImportBatch, ReviewImportSuggestionResult } from "../models/ReviewImport";
 
@@ -768,6 +769,20 @@ export class EditorialistModal extends Modal {
 		const myToken = ++this.manualValidationToken;
 		const rawText = this.manualText.trim();
 		if (!rawText) {
+			return;
+		}
+
+		if (isReviewTemplateText(rawText)) {
+			this.manualBatch = null;
+			this.manualValidationState = "error";
+			this.manualImportError = {
+				headline: "This is the formatting instructions, not revision notes",
+				details: [
+					"The paste is the prompt Editorialist copied for your AI. Its placeholder blocks are not real edits.",
+				],
+				hint: "Paste the instructions into your AI along with the passage, then paste the AI's reply here.",
+			};
+			this.render();
 			return;
 		}
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildReviewTemplate } from "./ReviewTemplate";
+import { buildReviewTemplate, isReviewTemplateText } from "./ReviewTemplate";
 
 // The injected contract + query listing live between the "AUTHOR QUERIES"
 // banner and the trailing "Passage:" label. Scope assertions to that region so
@@ -123,5 +123,41 @@ describe("buildReviewTemplate — plugin-owned fields", () => {
 		const block = out.slice(out.indexOf("```editorialist-review"), out.indexOf("=== MOVE ==="));
 		expect(block).not.toMatch(/^BatchId:/m);
 		expect(block).not.toMatch(/^ImportedBy:/m);
+	});
+});
+
+describe("isReviewTemplateText", () => {
+	it("recognises the copied prompt, with or without scene context and a passage", () => {
+		expect(isReviewTemplateText(buildReviewTemplate())).toBe(true);
+		expect(
+			isReviewTemplateText(
+				buildReviewTemplate("Some prose.", {
+					activeSceneId: "scn_abc123",
+					bookLabel: "Book",
+					sceneIds: [{ id: "scn_abc123", title: "Scene" }],
+				}),
+			),
+		).toBe(true);
+	});
+
+	it("survives Windows line endings on the clipboard", () => {
+		expect(isReviewTemplateText(buildReviewTemplate().replace(/\n/g, "\r\n"))).toBe(true);
+	});
+
+	it("does not flag a real review that uses the same header", () => {
+		const review = [
+			"```editorialist-review",
+			"Template: Editorialist advanced",
+			"Reviewer: GPT-5.4",
+			"",
+			"=== EDIT ===",
+			"SceneId: scn_abc123",
+			"Original: She crossed the bridge.",
+			"Revised: She crossed the bridge at a run.",
+			"Why: Pace.",
+			"```",
+		].join("\n");
+		expect(isReviewTemplateText(review)).toBe(false);
+		expect(isReviewTemplateText("")).toBe(false);
 	});
 });

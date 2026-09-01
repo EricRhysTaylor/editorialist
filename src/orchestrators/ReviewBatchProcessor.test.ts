@@ -6,6 +6,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { ReviewBatchProcessor, type ReviewBatchProcessorHost } from "./ReviewBatchProcessor";
 import type { ReviewImportBatch, ReviewImportNoteGroup } from "../models/ReviewImport";
+import { buildReviewTemplate } from "../core/ReviewTemplate";
 
 function makeHost(overrides: Partial<ReviewBatchProcessorHost> = {}) {
 	const calls: string[] = [];
@@ -326,5 +327,20 @@ describe("ReviewBatchProcessor.removeImportedReviewBlocksInCurrentNote", () => {
 		expect(written).not.toBeNull();
 		expect(written).not.toContain("editorialist-review");
 		expect(calls).toEqual(["syncSceneInventory", "resync"]);
+	});
+});
+
+describe("ReviewBatchProcessor.loadClipboardReviewBatch", () => {
+	it("treats the copied formatting instructions as an empty clipboard", async () => {
+		const { host, importEngine } = makeHost();
+		const readText = vi.fn(async () => buildReviewTemplate("Passage.", { activeSceneId: "scn_abc123" }));
+		vi.stubGlobal("navigator", { clipboard: { readText } });
+		try {
+			const result = await new ReviewBatchProcessor(host).loadClipboardReviewBatch();
+			expect(result).toBeNull();
+			expect(importEngine.inspectBatch).not.toHaveBeenCalled();
+		} finally {
+			vi.unstubAllGlobals();
+		}
 	});
 });
