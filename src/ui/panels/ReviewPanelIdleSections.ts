@@ -14,6 +14,7 @@
 // (src/ui/viewmodels/ReviewPanelViewModel.ts) already pins which branch
 // fires; this module owns the render bodies the panel dispatches to.
 
+import type { ReviewSweepRegistryEntry } from "../../models/ReviewImport";
 import { setIcon } from "obsidian";
 import { renderContributorBrandMark, resolveContributorAvatarKind } from "../../core/ContributorBrandMarks";
 import { formatReviewerTypeLabel } from "../../core/ContributorIdentity";
@@ -479,6 +480,19 @@ export function sumGroupStats(
 	return total;
 }
 
+// The most recently finished sweep — completed or cleaned. `in_progress` is
+// deliberately excluded: the point of the line is to say where the author left
+// off, and a batch still being worked is not somewhere they left off.
+function findLastFinishedSweep(
+	entries: readonly ReviewSweepRegistryEntry[],
+): ReviewSweepRegistryEntry | null {
+	return (
+		entries
+			.filter((entry) => entry.status === "completed" || entry.status === "cleaned")
+			.sort((left, right) => right.updatedAt - left.updatedAt)[0] ?? null
+	);
+}
+
 export function renderRecentActivityBlock(
 	plugin: EditorialistPlugin,
 	parent: HTMLElement,
@@ -501,6 +515,24 @@ export function renderRecentActivityBlock(
 		cls: "editorialist-panel__section-meta",
 		text: `${allGroups.length} total`,
 	});
+
+	// The batch the author most recently finished, named above the list. Recent
+	// reviews is grouped by scene, so nothing in the rows themselves says which
+	// import a pass belonged to — and the id is what the duplicate-import warning
+	// and the review blocks in the notes both quote.
+	const lastFinished = findLastFinishedSweep(allEntries);
+	if (lastFinished) {
+		const batchLine = section.createDiv({ cls: "editorialist-panel__history-batch" });
+		batchLine.createSpan({
+			cls: "editorialist-panel__history-batch-label",
+			text: lastFinished.status === "cleaned" ? "Last cleaned" : "Last completed",
+		});
+		batchLine.createSpan({
+			cls: "editorialist-panel__history-batch-id",
+			text: lastFinished.batchId,
+			attr: { title: `${lastFinished.batchId} — ${formatRelativeTime(lastFinished.updatedAt)}` },
+		});
+	}
 
 	const list = section.createDiv({ cls: "editorialist-panel__history-list" });
 	for (const group of groups) {

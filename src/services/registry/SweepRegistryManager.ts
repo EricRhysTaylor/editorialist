@@ -53,15 +53,27 @@ export class SweepRegistryManager {
 		return registry[batchId] ?? null;
 	}
 
-	// Resume detection for the import/Begin flow. Only an `in_progress` sweep is
-	// genuinely resumable; a `completed` sweep is finished work and a `cleaned`
-	// sweep no longer has blocks. Re-importing identical content whose sweep is
-	// already completed therefore starts a fresh pass instead of reopening it.
+	// Duplicate detection for the import/Begin flow: has this exact content been
+	// imported before, whatever became of it?
+	//
+	// This deliberately matches every status. It once matched `in_progress` only,
+	// because that is the only state a sweep can be resumed from — but that
+	// conflated "can I reopen this?" with "have I already done this?", and left
+	// re-importing a finished or cleaned batch completely unwarned. Whether to
+	// offer resuming is the caller's decision, made from the returned status.
+	//
+	// An open sweep wins when several match, so the resumable one is offered
+	// rather than an older finished pass over the same content.
 	findDuplicate(registry: SweepRegistry, batch: ReviewImportBatch): ReviewSweepRegistryEntry | null {
+		const matches = Object.values(registry).filter((entry) => entry.contentHash === batch.contentHash);
+		if (matches.length === 0) {
+			return null;
+		}
+
 		return (
-			Object.values(registry).find(
-				(entry) => entry.contentHash === batch.contentHash && entry.status === "in_progress",
-			) ?? null
+			matches.find((entry) => entry.status === "in_progress") ??
+			matches.sort((left, right) => right.updatedAt - left.updatedAt)[0] ??
+			null
 		);
 	}
 

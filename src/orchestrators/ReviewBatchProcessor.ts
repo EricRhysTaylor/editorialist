@@ -21,6 +21,7 @@ import {
 	removeImportedReviewBlocks,
 } from "../core/ReviewBlockFormat";
 import { openEditorialistChoiceModal } from "../ui/EditorialistChoiceModal";
+import { buildDuplicateImportPrompt } from "../core/review/DuplicateImportPrompt";
 import type { ClipboardReviewBatch } from "../ui/EditorialistModal";
 import type { ImportEngine } from "../core/ImportEngine";
 import type {
@@ -66,6 +67,7 @@ export interface ReviewBatchProcessorHost {
 		options?: { persist?: boolean },
 	): Promise<void>;
 	syncSceneInventory(): Promise<void>;
+	formatRelativeTime(timestamp: number): string;
 	getSceneReviewRecords(): SceneReviewRecord[];
 	resetBatchHistoryInRegistry(
 		batchId: string,
@@ -128,23 +130,8 @@ export class ReviewBatchProcessor {
 	}
 
 	async importReviewBatch(batch: ReviewImportBatch, startReview: boolean): Promise<void> {
-		const duplicateSweep = this.host.findDuplicateSweep(batch);
-		if (duplicateSweep) {
-			const choice = await openEditorialistChoiceModal(this.host.app, {
-				title: "Possible existing review batch detected",
-				description: "This review batch appears to match an existing imported sweep. Open it, import again, or cancel.",
-				choices: [
-					{ label: "Open existing sweep", value: "open" },
-					{ label: "Import anyway", value: "import" },
-					{ label: "Cancel", value: "cancel" },
-				],
-			});
-			if (choice === "open") {
-				await this.host.openExistingSweep(duplicateSweep);
-			}
-			if (choice !== "import") {
-				return;
-			}
+		if (!(await this.confirmDuplicateImport(batch))) {
+			return;
 		}
 
 		const importedGroups = await this.host.getImportEngine().importBatch(batch);
@@ -186,23 +173,8 @@ export class ReviewBatchProcessor {
 		}
 
 		const batch = await this.inspectReviewBatch(rawText, { activeNotePath: context.filePath });
-		const duplicateSweep = this.host.findDuplicateSweep(batch);
-		if (duplicateSweep) {
-			const choice = await openEditorialistChoiceModal(this.host.app, {
-				title: "Possible existing review batch detected",
-				description: "This review batch appears to match an existing imported sweep. Open it, import again, or cancel.",
-				choices: [
-					{ label: "Open existing sweep", value: "open" },
-					{ label: "Import anyway", value: "import" },
-					{ label: "Cancel", value: "cancel" },
-				],
-			});
-			if (choice === "open") {
-				await this.host.openExistingSweep(duplicateSweep);
-			}
-			if (choice !== "import") {
-				return;
-			}
+		if (!(await this.confirmDuplicateImport(batch))) {
+			return;
 		}
 
 		const batchText = this.addImportedBlockMetadata(normalizedText, batch.batchId);
@@ -269,23 +241,8 @@ export class ReviewBatchProcessor {
 			return;
 		}
 
-		const duplicateSweep = this.host.findDuplicateSweep(batch);
-		if (duplicateSweep) {
-			const choice = await openEditorialistChoiceModal(this.host.app, {
-				title: "Possible existing review batch detected",
-				description: "This review batch appears to match an existing imported sweep. Open it, import again, or cancel.",
-				choices: [
-					{ label: "Open existing sweep", value: "open" },
-					{ label: "Import anyway", value: "import" },
-					{ label: "Cancel", value: "cancel" },
-				],
-			});
-			if (choice === "open") {
-				await this.host.openExistingSweep(duplicateSweep);
-			}
-			if (choice !== "import") {
-				return;
-			}
+		if (!(await this.confirmDuplicateImport(batch))) {
+			return;
 		}
 
 		// Re-locate against the LIVE buffer: inspectReviewBatch and the duplicate
@@ -366,6 +323,38 @@ export class ReviewBatchProcessor {
 			new RegExp(`^\\\`\\\`\\\`${REVIEW_BLOCK_FENCE}\\s*$`, "m"),
 			(match) => `${match}\nBatchId: ${batchId}\nImportedBy: Editorialist`,
 		);
+	}
+
+
+	// One prompt for every import entry point. These three call sites carried
+	// byte-identical copies of the old modal, which is part of why the warning
+	// was never strengthened — it would have had to be edited in three places.
+	//
+	// Returns true when the import should proceed.
+	private async confirmDuplicateImport(batch: ReviewImportBatch): Promise<boolean> {
+		const duplicateSweep = this.host.findDuplicateSweep(batch);
+		if (!duplicateSweep) {
+			return true;
+		}
+
+		const prompt = buildDuplicateImportPrompt({
+			status: duplicateSweep.status,
+			batchId: duplicateSweep.batchId,
+			importedAtLabel: this.host.formatRelativeTime(duplicateSweep.importedAt),
+			sceneCount: duplicateSweep.importedNotePaths.length,
+			decisions: this.getBatchDecisionStats(duplicateSweep.batchId),
+		});
+
+		const choice = await openEditorialistChoiceModal(this.host.app, {
+			title: prompt.title,
+			description: prompt.description,
+			details: prompt.details,
+			choices: prompt.choices,
+		});
+		if (choice === "open") {
+			await this.host.openExistingSweep(duplicateSweep);
+		}
+		return choice === "import";
 	}
 
 	async inspectReviewBatch(

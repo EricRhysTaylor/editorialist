@@ -71,12 +71,40 @@ describe("SweepRegistryManager — entries & duplicate detection", () => {
 		expect(m.getEntry({ b1: entry() }, "b1")?.batchId).toBe("b1");
 	});
 
-	it("findDuplicate only matches an in_progress sweep with the same contentHash", () => {
+	// Was "only matches an in_progress sweep". That answered "can I resume this?"
+	// rather than "have I already imported this?", so re-importing a batch the
+	// author had already finished — or finished and cleaned — matched nothing and
+	// warned about nothing. Whether resuming is offered is now the caller's call,
+	// made from the status on the entry this returns.
+	it("findDuplicate matches the same contentHash whatever became of the sweep", () => {
 		const m = makeManager();
 		const batch = { contentHash: "h1" } as ReviewImportBatch;
-		expect(m.findDuplicate({ b1: entry({ status: "in_progress" }) }, batch)?.batchId).toBe("b1");
-		expect(m.findDuplicate({ b1: entry({ status: "completed" }) }, batch)).toBeNull();
-		expect(m.findDuplicate({ b1: entry({ status: "cleaned" }) }, batch)).toBeNull();
+		for (const status of ["in_progress", "completed", "cleaned"] as const) {
+			expect(m.findDuplicate({ b1: entry({ status }) }, batch)?.batchId, status).toBe("b1");
+		}
+	});
+
+	it("findDuplicate still returns null when nothing matches the contentHash", () => {
+		const m = makeManager();
+		expect(m.findDuplicate({ b1: entry({ status: "completed" }) }, { contentHash: "other" } as ReviewImportBatch)).toBeNull();
+	});
+
+	it("findDuplicate prefers a resumable sweep when several share the contentHash", () => {
+		const m = makeManager();
+		const registry = {
+			done: entry({ batchId: "done", status: "completed", updatedAt: 900 }),
+			open: entry({ batchId: "open", status: "in_progress", updatedAt: 100 }),
+		};
+		expect(m.findDuplicate(registry, { contentHash: "h1" } as ReviewImportBatch)?.batchId).toBe("open");
+	});
+
+	it("findDuplicate falls back to the most recent finished sweep", () => {
+		const m = makeManager();
+		const registry = {
+			older: entry({ batchId: "older", status: "completed", updatedAt: 100 }),
+			newer: entry({ batchId: "newer", status: "cleaned", updatedAt: 900 }),
+		};
+		expect(m.findDuplicate(registry, { contentHash: "h1" } as ReviewImportBatch)?.batchId).toBe("newer");
 	});
 });
 

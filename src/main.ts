@@ -69,6 +69,7 @@ import { migratePluginData } from "./services/PluginDataMigration";
 import { ReviewRegistryService } from "./services/ReviewRegistryService";
 import { ReviewWorkflowService } from "./services/ReviewWorkflowService";
 import { EditorialistModal } from "./ui/EditorialistModal";
+import { formatRelativeTime } from "./ui/panels/ReviewPanelIdleSections";
 import { openEditorialistChoiceModal } from "./ui/EditorialistChoiceModal";
 import { openContributorReassignmentModal, type ContributorReassignmentMode } from "./ui/ContributorReassignmentModal";
 import { openContributorStrengthsModal } from "./ui/ContributorStrengthsModal";
@@ -320,6 +321,7 @@ export default class EditorialistPlugin extends Plugin {
 		updateSweepRegistry: (batchId, updates, options) =>
 			this.registry.updateSweepRegistry(batchId, updates, options),
 		syncSceneInventory: () => this.registry.syncSceneInventory(),
+		formatRelativeTime: (timestamp: number) => formatRelativeTime(timestamp),
 		getSceneReviewRecords: () => this.registry.getSceneReviewRecords(),
 		resetBatchHistoryInRegistry: (batchId) => this.registry.resetBatchHistory(batchId),
 		openExistingSweep: (entry) => this.workflow.openExistingSweep(entry),

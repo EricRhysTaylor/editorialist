@@ -5,6 +5,9 @@ import { buildModalFooter } from "./primitives/ModalFooter";
 interface ChoiceOption<T extends string> {
 	label: string;
 	value: T;
+	// Emphasize this option. Used when the safe answer is not the obvious one —
+	// e.g. re-importing a batch the author already finished.
+	cta?: boolean;
 }
 
 interface EditorialistChoiceModalOptions<T extends string> {
@@ -53,6 +56,7 @@ class EditorialistChoiceModal<T extends string> extends PromiseModal<T> {
 			buttons: this.options.choices.map((choice) => ({
 				text: choice.label,
 				className: "editorialist-choice-modal__button",
+				cta: choice.cta,
 				onClick: () => this.finish(choice.value),
 			})),
 		});

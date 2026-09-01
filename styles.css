@@ -5244,6 +5244,31 @@
 	margin: var(--editorialist-space-lg) 0 0.85rem;
 }
 
+.editorialist-panel__history-batch {
+	display: flex;
+	align-items: baseline;
+	gap: 0.4rem;
+	margin-bottom: 0.4rem;
+	font-family: var(--font-monospace);
+	font-size: calc(var(--font-ui-smaller) * 0.94);
+	color: var(--text-faint);
+	letter-spacing: 0.02em;
+	white-space: nowrap;
+	overflow: hidden;
+}
+
+.editorialist-panel__history-batch-label {
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--text-muted);
+}
+
+.editorialist-panel__history-batch-id {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	user-select: text;
+}
+
 .editorialist-panel__history-list {
 	display: flex;
 	flex-direction: column;
