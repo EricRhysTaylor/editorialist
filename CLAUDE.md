@@ -60,8 +60,14 @@ npm run dev              # watch build
 npm run check            # typecheck + lint + css + qa-audit + compliance
 npm run build            # full check + production bundle + copy-to-vault
 npm run release:check    # check + tests + css-drift + build
-npm run release -- patch # bump, rebuild, print tag/upload instructions
+npm run release -- patch # bump, rebuild, commit, tag, PUSH, open a draft GitHub Release
+npm run release          # finish: CI build + asset upload, asks before publishing
+npm run backup           # commits everything and PUSHES main — Eric's tool, never an agent's
 ```
+
+`npm run build` no longer runs the hourly auto-backup; it builds and copies
+to the dev vault and stops there. The only scripts that push are `release`
+and `backup`, and both are Eric's to run.
 
 The compliance script (`scripts/obsidian-compliance.mjs`) runs on every build
 and `check`, so submission blockers are caught before a commit ever lands.
@@ -79,10 +85,10 @@ The rules around that:
 - **Commit directly to `main`.** This repo has a linear, direct-to-main
   history and no PR workflow. Do not open branches for ordinary work.
 - **Never push.** `git push` is Eric's call, always, and he does it himself.
-  The repo is public, so pushing makes work visible the moment it lands, and
-  `scripts/release.mjs` deliberately leaves push/tag/Release manual "so we
-  verify the artifacts and release notes before anything becomes public"
-  (`docs/CODE-STANDARDS.md` §2). Commit freely; leave the pushing alone.
+  The repo is public, so pushing makes work visible the moment it lands. The
+  two scripts that push — `npm run release` and `npm run backup` — are his
+  to run, never an agent's; `npm run build` does not push (see Build / check
+  / release above). Commit freely; leave the pushing alone.
 - **`npm run check` must pass before you commit.** It is the gate that keeps
   submission blockers out of the history — see Build / check / release above.
 - **One commit per coherent change**, with a message that explains *why* the

@@ -17,10 +17,11 @@ without changing intended behavior.
 
 3. Default to REPORT-ONLY. Produce the prioritized audit report and get
    approval before editing. Verify only with `npm run check` /
-   `npx tsc --noEmit` / `npx vitest run` / `npm run build-only` — never
-   `npm run build` mid-audit (it copies into the vault and the backup hook
-   commits + pushes to `master`). The closing build-and-commit is a single
-   deliberate final step once approved fixes have landed.
+   `npx tsc --noEmit` / `npx vitest run` / `npm run build-only` — not
+   `npm run build` mid-audit (it copies into the dev vault). Never run
+   `npm run backup`; it commits everything and pushes `main`. The closing
+   build-and-commit is a single deliberate final step once approved fixes
+   have landed.
 
 4. Work the 9 audit dimensions + the Product Doctrine Check, and produce the
    required output sections exactly as defined in `feature-audit-playbook.md`.

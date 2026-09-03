@@ -167,14 +167,23 @@ npm run check              # typecheck + lint + css + qa-audit + compliance
 # Full pre-release gate.
 npm run release:check      # check + test + css-drift + build
 
-# Bump version, sync manifest+versions+package.json, rebuild. Prints
-# post-release manual steps (tag, push, GitHub Release, asset upload).
+# Phase 1: bump version, sync manifest+versions+package.json, rebuild,
+# commit, tag (bare version), push main and the tag, and open a DRAFT
+# GitHub Release with the generated changelog.
 npm run release -- patch   # or: minor | major | x.y.z
+
+# Phase 2: build, attest, and upload the three assets in CI, then ask
+# before publishing the draft.
+npm run release
 ```
 
-`scripts/release.mjs` deliberately does **not** push commits, create tags, or
-publish a GitHub Release. Those steps stay manual so we verify the artifacts
-and release notes before anything becomes public.
+`scripts/release.mjs` is two-phase. Phase 1 commits, tags, and pushes, then
+creates the GitHub Release as a **draft** and opens it in the browser; the
+release notes are edited there and the draft is saved, not published. Phase 2
+dispatches the CI build, waits for the assets, and asks before publishing.
+Publishing is the only step that makes a release public, and it always asks
+first. Note that phase 1 does push: it is the one sanctioned push in the
+repo's workflow, and it is Eric's to run.
 
 ### 2.1 GitHub Release requirements
 

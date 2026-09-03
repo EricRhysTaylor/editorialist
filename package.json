@@ -6,7 +6,7 @@
 	"type": "module",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
-		"build": "npm run typecheck && npm run lint && npm run css-check && npm run css-audit && npm run qa-audit && npm run compliance && node esbuild.config.mjs production && npm run copy:dev && node scripts/backup-if-stale.mjs",
+		"build": "npm run typecheck && npm run lint && npm run css-check && npm run css-audit && npm run qa-audit && npm run compliance && node esbuild.config.mjs production && npm run copy:dev",
 		"build-only": "node esbuild.config.mjs production",
 		"copy:dev": "node scripts/copy-to-vault.mjs",
 		"build:dev": "npm run build",
