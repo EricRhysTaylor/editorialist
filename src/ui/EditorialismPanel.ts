@@ -204,7 +204,7 @@ export class EditorialismPanel extends ItemView {
 	private renderDetail(parent: HTMLElement, editorialism: Editorialism): void {
 		// Tell the plugin which agenda the anchor commands act on, so "next
 		// anchor" works from the keyboard before the author has clicked one.
-		this.plugin.setActiveEditorialismPath(editorialism.filePath);
+		this.plugin.anchors.setActiveEditorialismPath(editorialism.filePath);
 		const detail = parent.createDiv({ cls: "editorialist-editorialism-panel__detail" });
 
 		const back = detail.createEl("button", {
@@ -217,7 +217,7 @@ export class EditorialismPanel extends ItemView {
 		back.addEventListener("click", () => {
 			this.activeFilePath = null;
 			this.activeEditorialism = null;
-			this.plugin.setActiveEditorialismPath(null);
+			this.plugin.anchors.setActiveEditorialismPath(null);
 			this.render();
 		});
 
@@ -390,8 +390,8 @@ export class EditorialismPanel extends ItemView {
 		item: EditorialismItem,
 		anchor: EditorialismAnchor,
 	): void {
-		const unlocatedReason = this.plugin.getUnlocatedAnchorReason(editorialism.filePath, anchor);
-		const isCurrent = this.plugin.isCurrentAnchor(editorialism.filePath, anchor);
+		const unlocatedReason = this.plugin.anchors.getUnlocatedAnchorReason(editorialism.filePath, anchor);
+		const isCurrent = this.plugin.anchors.isCurrentAnchor(editorialism.filePath, anchor);
 		const modifiers = [
 			`editorialist-editorialism-panel__anchor--${anchor.status}`,
 			...(unlocatedReason ? ["editorialist-editorialism-panel__anchor--unlocated"] : []),
@@ -480,12 +480,12 @@ export class EditorialismPanel extends ItemView {
 		item: EditorialismItem,
 		anchor: EditorialismAnchor,
 	): Promise<void> {
-		await this.plugin.openEditorialismAnchor(editorialism.filePath, item, anchor);
+		await this.plugin.anchors.openEditorialismAnchor(editorialism.filePath, item, anchor);
 		this.render();
 	}
 
 	private async advanceAnchorStatus(filePath: string, anchor: EditorialismAnchor): Promise<void> {
-		await this.plugin.setEditorialismAnchorStatus(filePath, anchor, nextStatusInCycle(anchor.status));
+		await this.plugin.anchors.setEditorialismAnchorStatus(filePath, anchor, nextStatusInCycle(anchor.status));
 		await this.refresh();
 	}
 

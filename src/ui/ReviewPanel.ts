@@ -943,10 +943,10 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			text: formatAnchorFragment(anchor),
 		});
 		this.bindImmediateAction(jump, () => {
-			void this.plugin.openEditorialismAnchor(directive.editorialismPath, directive.item, anchor);
+			void this.plugin.anchors.openEditorialismAnchor(directive.editorialismPath, directive.item, anchor);
 		});
 
-		const unlocated = this.plugin.getUnlocatedAnchorReason(directive.editorialismPath, anchor);
+		const unlocated = this.plugin.anchors.getUnlocatedAnchorReason(directive.editorialismPath, anchor);
 		if (unlocated) {
 			row.createDiv({
 				cls: "editorialist-panel__directive-anchor-warning",
@@ -972,7 +972,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		// Advancing an anchor never touches the parent directive's status, even
 		// when this is the last open passage. Whether the underlying concern is
 		// addressed is the author's call, not an inference from the anchors.
-		await this.plugin.setEditorialismAnchorStatus(
+		await this.plugin.anchors.setEditorialismAnchorStatus(
 			directive.editorialismPath,
 			anchor,
 			nextStatusInCycle(anchor.status),

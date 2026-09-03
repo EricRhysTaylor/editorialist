@@ -73,7 +73,7 @@ export function registerCommands(plugin: EditorialistPlugin): void {
 		id: "anchor-selection-to-editorialism",
 		name: "Anchor selection to editorialism directive",
 		editorCallback: () => {
-			void plugin.anchorSelectionToEditorialismItem();
+			void plugin.anchors.anchorSelectionToEditorialismItem();
 		},
 	});
 
@@ -83,7 +83,7 @@ export function registerCommands(plugin: EditorialistPlugin): void {
 		id: "go-to-next-anchor",
 		name: "Go to next unprocessed anchor",
 		callback: () => {
-			void plugin.goToNextEditorialismAnchor();
+			void plugin.anchors.goToNextEditorialismAnchor();
 		},
 	});
 
@@ -91,7 +91,7 @@ export function registerCommands(plugin: EditorialistPlugin): void {
 		id: "mark-anchor-processed",
 		name: "Mark anchor processed and go to next",
 		callback: () => {
-			void plugin.markCurrentEditorialismAnchorProcessed();
+			void plugin.anchors.markCurrentEditorialismAnchorProcessed();
 		},
 	});
 }
