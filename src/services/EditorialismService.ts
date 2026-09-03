@@ -5,12 +5,12 @@ import {
 	parseEditorialism,
 	rewriteTaskMarker,
 } from "../core/EditorialismParser";
-import type {
-	Editorialism,
-	EditorialismItemStatus,
-	EditorialismSummary,
+import {
+	EDITORIALISM_TYPE_VALUE,
+	type Editorialism,
+	type EditorialismItemStatus,
+	type EditorialismSummary,
 } from "../models/Editorialism";
-import { EDITORIALISM_TYPE_VALUE } from "../models/Editorialism";
 
 export const EDITORIALISM_FOLDER_NAME = "Editorialist";
 
