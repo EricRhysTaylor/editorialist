@@ -2,6 +2,11 @@
 // Lives as a markdown file under `Editorialist/<Book>/<Title>.md`.
 // The author's source of truth is the markdown; Editorialist parses + renders.
 
+// The frontmatter `type:` value that marks a note as an editorialism. Owned
+// here, beside the shape it identifies, so core parsers and the service that
+// saves the files read the same word.
+export const EDITORIALISM_TYPE_VALUE = "editorialism";
+
 export type EditorialismItemStatus =
 	| "open"
 	| "in-progress"

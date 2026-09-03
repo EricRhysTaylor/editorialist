@@ -183,6 +183,13 @@ export function deriveContributorIdentitySeed(raw: ParsedContributorReference): 
 	};
 }
 
+// What a parser needs from the contributor directory: the ability to turn a
+// raw reviewer reference into a contributor. Typed here, in core, so the
+// parser depends on the capability and not on the directory class in state.
+export interface ContributorResolver {
+	resolveContributor(raw: ParsedContributorReference): ReviewContributor;
+}
+
 // The one slug rule for contributor ids. Both the directory's profile ids
 // and the synthetic ids of unresolved contributors derive from it, so a raw
 // reviewer name always maps to the same id whichever path parsed it.

@@ -1,6 +1,6 @@
 import { REVIEW_BLOCK_FENCE } from "./ReviewBlockFormat";
 import { AUTHOR_QUERY_PATTERN } from "./AuthorQueryMarker";
-import { EDITORIALISM_TYPE_VALUE } from "../services/EditorialismService";
+import { EDITORIALISM_TYPE_VALUE } from "../models/Editorialism";
 import {
 	SUPPORTED_REVIEW_OPERATION_LABELS,
 	SUPPORTED_REVIEW_OPERATIONS,

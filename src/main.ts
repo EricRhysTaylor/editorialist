@@ -63,7 +63,7 @@ import { migratePluginData } from "./services/PluginDataMigration";
 import { ReviewRegistryService } from "./services/ReviewRegistryService";
 import { ReviewWorkflowService } from "./services/ReviewWorkflowService";
 import { EditorialistModal } from "./ui/EditorialistModal";
-import { formatRelativeTime } from "./ui/panels/ReviewPanelIdleSections";
+import { formatRelativeTime } from "./core/RelativeTime";
 import { openEditorialistChoiceModal } from "./ui/EditorialistChoiceModal";
 import { openContributorReassignmentModal } from "./ui/ContributorReassignmentModal";
 import { openContributorStrengthsModal } from "./ui/ContributorStrengthsModal";

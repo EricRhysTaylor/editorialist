@@ -10,9 +10,9 @@ import type {
 	EditorialismItemStatus,
 	EditorialismSummary,
 } from "../models/Editorialism";
+import { EDITORIALISM_TYPE_VALUE } from "../models/Editorialism";
 
 export const EDITORIALISM_FOLDER_NAME = "Editorialist";
-export const EDITORIALISM_TYPE_VALUE = "editorialism";
 
 export interface SaveEditorialismResult {
 	filePath: string;

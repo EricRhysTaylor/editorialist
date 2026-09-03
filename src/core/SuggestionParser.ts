@@ -15,7 +15,7 @@ import type {
 	SceneMemo,
 } from "../models/ReviewSuggestion";
 import type { ParsedContributorReference } from "../models/ContributorProfile";
-import type { ContributorDirectory } from "../state/ContributorDirectory";
+import type { ContributorResolver } from "./ContributorIdentity";
 import { extractReviewBlocks, getReviewBlockBatchId } from "./ReviewBlockFormat";
 import {
 	REVIEW_FIELD_PATTERN as FIELD_PATTERN,
@@ -98,7 +98,7 @@ export class SuggestionParser {
 			this.parseExpandSuggestion(fields, suggestionId, source, metadata),
 	};
 
-	constructor(private readonly reviewerDirectory: ContributorDirectory) {}
+	constructor(private readonly reviewerDirectory: ContributorResolver) {}
 
 	parse(noteText: string): ParsedReviewDocument {
 		const suggestions: ReviewSuggestion[] = [];

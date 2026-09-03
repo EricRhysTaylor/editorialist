@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
+import { formatRelativeTime } from "../../core/RelativeTime";
 import {
 	formatRecentReviewSceneTitle,
-	formatRelativeTime,
 	formatStatsTooltip,
 	groupRecentReviews,
 	isBatchReadyToClean,

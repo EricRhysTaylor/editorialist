@@ -11,7 +11,7 @@
 //      code fences on copy, so the unfenced path keeps the feature working —
 //      the trade-off is that trailing chat commentary after the file can be
 //      swept in, which the author trims after the file is created.
-import { EDITORIALISM_TYPE_VALUE } from "../services/EditorialismService";
+import { EDITORIALISM_TYPE_VALUE } from "../models/Editorialism";
 
 export const EDITORIALISM_FENCE = "editorialism";
 
