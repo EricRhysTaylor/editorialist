@@ -23,8 +23,10 @@ import {
 // and the fixture-gated test suite.
 import {
 	selectPanelPrimarySuggestionId,
+	selectReviewPanelBranch,
 	shouldAutoExpandCompletedMemos,
 	shouldShowReviewerFilters,
+	type ReviewPanelStateInputs,
 } from "./viewmodels/ReviewPanelViewModel";
 // Idle / completion / workspace section renderers extracted from the
 // !session branch of render(). DOM/classes/callbacks are preserved exactly;
@@ -194,15 +196,35 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		// — the second has prior activity to surface. hasReviewActivityHistory
 		// captures every signal that distinguishes them so the compact
 		// onboarding card stays reserved for genuinely new users.
+		const pendingEditSegmentCount = this.plugin.getPendingEditsSummary()?.segmentCount ?? 0;
 		const hasReviewActivityHistory =
 			this.plugin.getSweepRegistryEntries().length > 0
-			|| (this.plugin.getPendingEditsSummary()?.segmentCount ?? 0) > 0
+			|| pendingEditSegmentCount > 0
 			|| this.plugin.getSortedReviewerProfiles().length > 0
 			|| this.plugin.getReviewStateOverview() !== null;
-		const showCompactOnboardingCard = !session && !completedSweep
-			&& Boolean(postCompletionIdle)
-			&& !hasReviewActivityHistory;
-		const launchTarget = !session && !completedSweep && !postCompletionIdle
+		// Reviewer filters exist only while more than one contributor is in
+		// play. A stale filter is cleared before the branch is chosen so the
+		// "does anything survive the filter" input is answered against the
+		// same filter state the list below renders with.
+		const showReviewerFilters = session ? shouldShowReviewerFilters(session.suggestions) : false;
+		if (session && !showReviewerFilters) {
+			this.reviewerFilterId = null;
+			this.starredOnly = false;
+		}
+		const inputs: ReviewPanelStateInputs = {
+			hasCompletedSweep: Boolean(completedSweep),
+			hasSession: session !== null,
+			hasPostCompletionIdle: Boolean(postCompletionIdle),
+			hasReviewActivityHistory,
+			pendingEditSegmentCount,
+			suggestionsLength: session?.suggestions.length ?? 0,
+			hasHandoff: session ? Boolean(this.plugin.getGuidedSweepHandoffState()) : false,
+			hasFilteredSuggestions: session ? this.getFilteredSuggestions(session.suggestions).length > 0 : false,
+		};
+		// The fixture-pinned selector decides which layout renders. The code
+		// below only asks which branch it chose and never re-derives it.
+		const branch = selectReviewPanelBranch(inputs);
+		const launchTarget = branch === "idle:workspace" && !postCompletionIdle
 			? this.plugin.getNextLogicalReviewLaunchTarget()
 			: null;
 
@@ -333,7 +355,10 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			this.plugin.openSettings();
 		});
 
-		if (completedSweep) {
+		if (branch === "completed_sweep") {
+			if (!completedSweep) {
+				throw new Error("ReviewPanel: completed_sweep branch selected without a completed sweep state.");
+			}
 			renderCompletedSweepCard(this, this.plugin, this.contentEl, completedSweep);
 
 			// Finishing a pass is exactly when the reviewer's framing is worth
@@ -367,16 +392,19 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			return;
 		}
 
-		if (!session) {
-			// Compact "No active review" onboarding card fires only for a
-			// genuinely empty workspace. Any prior activity (sweep history,
-			// pending edits, contributors, review-state overview) preempts
-			// it and falls through to the richer workspace composition.
-			if (showCompactOnboardingCard && postCompletionIdle) {
-				renderIdleStateCard(this, this.plugin, this.contentEl, postCompletionIdle);
-				return;
+		if (branch === "idle:post-completion") {
+			// Compact "No active review" onboarding card, reserved for a
+			// genuinely empty workspace. The selector routes every other idle
+			// case to the richer workspace composition below.
+			if (!postCompletionIdle) {
+				throw new Error("ReviewPanel: idle:post-completion branch selected without an idle state.");
 			}
+			renderIdleStateCard(this, this.plugin, this.contentEl, postCompletionIdle);
+			return;
+		}
 
+		if (!session) {
+			// branch === "idle:workspace"
 			const overview = this.plugin.getReviewStateOverview();
 			const hasHistory =
 				this.plugin.getSweepRegistryEntries().length > 0 ||
@@ -432,7 +460,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		this.ensureSceneDirectivesLoaded();
 		this.renderSceneDirectivesCard();
 
-		if (session.suggestions.length === 0) {
+		if (branch === "session:no-suggestions") {
 			if (memos.length === 0) {
 				this.contentEl.createDiv({
 					cls: "editorialist-panel__empty",
@@ -442,8 +470,11 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			return;
 		}
 
-		const handoff = this.plugin.getGuidedSweepHandoffState();
-		if (handoff) {
+		if (branch === "session:handoff") {
+			const handoff = this.plugin.getGuidedSweepHandoffState();
+			if (!handoff) {
+				throw new Error("ReviewPanel: session:handoff branch selected without a handoff state.");
+			}
 			this.renderSweepHandoffCard(handoff);
 			return;
 		}
@@ -462,16 +493,13 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			this.renderUnmatchedReconcileCard(getUnmatchedOpenSuggestionIds(session.suggestions).length);
 		}
 
-		if (shouldShowReviewerFilters(session.suggestions)) {
+		if (showReviewerFilters) {
 			this.renderFilters();
-		} else {
-			this.reviewerFilterId = null;
-			this.starredOnly = false;
 		}
 
 		const list = this.contentEl.createDiv({ cls: "editorialist-suggestion-list" });
 		const filteredSuggestions = this.getFilteredSuggestions(session.suggestions);
-		if (filteredSuggestions.length === 0) {
+		if (branch === "session:filtered-empty") {
 			list.createDiv({
 				cls: "editorialist-panel__empty",
 				text: "No suggestions match the current reviewer filter.",
