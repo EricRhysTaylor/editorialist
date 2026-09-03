@@ -32,7 +32,6 @@ import type {
 	ReviewSweepRegistryEntry,
 	ReviewSweepStatus,
 } from "../models/ReviewImport";
-import type { SceneReviewRecord } from "../models/ContributorProfile";
 import type { CompletedSweepState, GuidedSweepState } from "../state/ReviewStore";
 
 export interface BatchNoteContext {
