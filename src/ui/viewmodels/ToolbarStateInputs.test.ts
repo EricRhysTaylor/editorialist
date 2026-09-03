@@ -54,7 +54,7 @@ const REQUIRED_KEYS: Record<ToolbarState["mode"], string[]> = {
 	applied_review: ["mode", "canUndo", "currentIndexLabel", "title"],
 	completed_review: ["mode", "canNext", "canPrevious", "canUndo", "title"],
 	accepted_review: ["mode", "canNext", "canPrevious", "canUndo", "currentIndexLabel", "title"],
-	handoff: ["mode", "currentLabel", "isFinal", "primaryActionLabel", "progressLabel", "title"],
+	handoff: ["mode", "isFinal", "primaryActionLabel", "progressLabel", "title"],
 	panel: ["mode", "remainingLabel", "title"],
 	bulk_confirm: ["mode", "countLabel", "title"],
 	review: [
@@ -68,14 +68,12 @@ const REQUIRED_KEYS: Record<ToolbarState["mode"], string[]> = {
 		"canUndoLastAccept",
 		"acceptedCount",
 		"deferredCount",
-		"hasReviewBlock",
 		"operation",
 		"operationLabel",
 		"pendingCount",
 		"rejectedCount",
 		"rewrittenCount",
 		"selectedIndexLabel",
-		"selectedLabel",
 		"unresolvedCount",
 	],
 };

@@ -351,7 +351,7 @@ export class EditorialismPanel extends ItemView {
 
 		const chips = main.createDiv({ cls: "editorialist-editorialism-panel__item-chips" });
 		if (item.scope) {
-			this.renderScopeChip(chips, item, editorialism);
+			this.renderScopeChip(chips, item);
 		}
 		for (const tag of item.tags) {
 			const chip = chips.createSpan({ cls: "editorialist-editorialism-panel__tag-chip" });
@@ -489,7 +489,7 @@ export class EditorialismPanel extends ItemView {
 		await this.refresh();
 	}
 
-	private renderScopeChip(parent: HTMLElement, item: EditorialismItem, editorialism: Editorialism): void {
+	private renderScopeChip(parent: HTMLElement, item: EditorialismItem): void {
 		if (!item.scope) {
 			return;
 		}
@@ -502,13 +502,10 @@ export class EditorialismPanel extends ItemView {
 		// scope-chip--{kind} modifier; unknown kinds fall back to a zero-width fill.
 		bar.createSpan({ cls: "editorialist-editorialism-panel__scope-bar-fill" });
 		const label = chip.createSpan({ cls: "editorialist-editorialism-panel__scope-label" });
-		label.setText(this.formatScopeLabel(scope, editorialism));
+		label.setText(this.formatScopeLabel(scope));
 	}
 
-	private formatScopeLabel(
-		scope: NonNullable<EditorialismItem["scope"]>,
-		_editorialism: Editorialism,
-	): string {
+	private formatScopeLabel(scope: NonNullable<EditorialismItem["scope"]>): string {
 		switch (scope.kind) {
 			case "manuscript":
 				return "Manuscript";

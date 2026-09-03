@@ -895,8 +895,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		}
 
 		if (activeBookLabel) {
-			const titleRow = this.getSectionTitleRow(body);
-			const host = titleRow ?? body.createDiv({ cls: "editorialist-settings__inventory-toolbar" });
+			const host = this.getSectionTitleRow(body);
 			const filterButton = this.createActionButton(
 				host,
 				"book-open",
@@ -907,9 +906,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 				},
 			);
 			filterButton.addClass("editorialist-settings__inventory-filter");
-			if (titleRow) {
-				filterButton.addClass("editorialist-settings__section-header-action");
-			}
+			filterButton.addClass("editorialist-settings__section-header-action");
 			if (this.activeBookOnly) {
 				filterButton.addClass("is-active");
 			}
@@ -1200,7 +1197,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 				cls: "editorialist-settings__contributor-role",
 				text: formatReviewerTypeLabel(profile.reviewerType),
 			});
-			this.renderContributorUseIcons(roleLine, profile, { inline: true });
+			this.renderContributorUseIcons(roleLine, profile);
 
 			card.createDiv({
 				cls: "editorialist-settings__contributor-stats",
@@ -1520,22 +1517,22 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		});
 		const header = section.createDiv({ cls: "editorialist-settings__section-header" });
 		this.createSectionTitleRow(header, icon, title);
-		const heading = header.createDiv({ cls: "editorialist-settings__section-heading" });
-		heading.createDiv({ cls: "editorialist-settings__section-description", text: description });
+		header.createDiv({ cls: "editorialist-settings__section-description", text: description });
 
 		return section.createDiv({ cls: "editorialist-settings__section-body" });
 	}
 
-	private getSectionTitleRow(body: HTMLElement): HTMLElement | null {
-		const section = body.parentElement;
-		if (!section) {
-			return null;
+	// Every section body comes from createSection, which always builds the
+	// header and its title row, so a missing row is a programming error rather
+	// than a state to fall back from.
+	private getSectionTitleRow(body: HTMLElement): HTMLElement {
+		const titleRow = body.parentElement
+			?.querySelector(".editorialist-settings__section-header")
+			?.querySelector<HTMLElement>(".editorialist-settings__section-title-row");
+		if (!titleRow) {
+			throw new Error("Section body is not inside a createSection() section.");
 		}
-		const header = section.querySelector(".editorialist-settings__section-header");
-		if (!header) {
-			return null;
-		}
-		return header.querySelector(".editorialist-settings__section-title-row");
+		return titleRow;
 	}
 
 	private createSectionTitleRow(parent: HTMLElement, icon: string, title: string): HTMLElement {
@@ -1724,15 +1721,14 @@ export class EditorialistSettingTab extends PluginSettingTab {
 	private renderContributorUseIcons(
 		parent: HTMLElement,
 		profile: ReturnType<EditorialistPlugin["getSortedReviewerProfiles"]>[number],
-		options?: { inline?: boolean },
 	): void {
 		const icons = parent.createDiv({
-			cls: `editorialist-settings__contributor-use-icons${options?.inline ? " editorialist-settings__contributor-use-icons--inline" : ""}`,
+			cls: "editorialist-settings__contributor-use-icons editorialist-settings__contributor-use-icons--inline",
 		});
 		const roleDefinition = CONTRIBUTOR_ROLE_DEFINITIONS.find((definition) => definition.value === profile.reviewerType);
 		if (roleDefinition) {
 			const roleIcon = icons.createSpan({
-				cls: `editorialist-settings__contributor-use-icon${options?.inline ? " editorialist-settings__contributor-use-icon--inline" : " editorialist-settings__contributor-use-icon--role-button"}`,
+				cls: "editorialist-settings__contributor-use-icon editorialist-settings__contributor-use-icon--inline",
 				attr: {
 					"aria-label": roleDefinition.label,
 					title: roleDefinition.label,
@@ -1752,7 +1748,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			}
 
 			const strengthIcon = icons.createSpan({
-				cls: `editorialist-settings__contributor-use-icon${options?.inline ? " editorialist-settings__contributor-use-icon--inline" : ""}`,
+				cls: "editorialist-settings__contributor-use-icon editorialist-settings__contributor-use-icon--inline",
 				attr: {
 					"aria-label": definition.label,
 					title: definition.label,

@@ -1494,7 +1494,6 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 
 		this.renderStructureMiniHeader(sourceColumn, "Move this text", {
 			icon: "arrow-right-left",
-			align: "start",
 		});
 		this.renderStructureBlock(sourceColumn, "", suggestion.payload.target, {
 			accent: "source",
@@ -1513,7 +1512,6 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 
 		this.renderStructureMiniHeader(destinationColumn, placementLabel, {
 			icon: direction === "up" ? "arrow-up" : direction === "down" ? "arrow-down" : placementIcon,
-			align: "start",
 		});
 		this.renderStructureBlock(destinationColumn, "", suggestion.payload.anchor, {
 			accent: "anchor",
@@ -1566,7 +1564,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			hideHeader?: boolean;
 			icon?: string;
 			onActivate?: () => void;
-			state?: "insert" | "delete";
+			state?: "delete";
 			tone: "active" | "ghost" | "muted";
 			unresolved?: boolean;
 		},
@@ -1634,14 +1632,9 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	private renderStructureMiniHeader(
 		parent: HTMLElement,
 		label: string,
-		options: { align?: "end" | "start"; icon: string },
+		options: { icon: string },
 	): void {
-		const header = parent.createDiv({
-			cls: `editorialist-suggestion__structure-mini-header${options.align === "end" ? " is-align-end" : ""}`,
-		});
-		if (options.align === "end") {
-			header.addClass("is-icon-leading");
-		}
+		const header = parent.createDiv({ cls: "editorialist-suggestion__structure-mini-header" });
 		const icon = header.createSpan({ cls: "editorialist-suggestion__structure-mini-header-icon" });
 		setIcon(icon, options.icon);
 		header.createSpan({

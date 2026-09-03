@@ -132,7 +132,6 @@ export const TOOLBAR_FIXTURES: ToolbarFixture[] = [
 			hasReviewBlock: true,
 			hasSession: true,
 			guidedSweepHandoff: {
-				currentLabel: "Scene 2",
 				isFinal: false,
 				primaryActionLabel: "Next scene",
 				progressLabel: "2 of 5",
@@ -142,7 +141,6 @@ export const TOOLBAR_FIXTURES: ToolbarFixture[] = [
 		}),
 		expected: {
 			mode: "handoff",
-			currentLabel: "Scene 2",
 			isFinal: false,
 			primaryActionLabel: "Next scene",
 			progressLabel: "2 of 5",
@@ -242,7 +240,6 @@ export const TOOLBAR_FIXTURES: ToolbarFixture[] = [
 			hasSession: true,
 			hasSelectedSuggestion: true,
 			review: {
-				hasReviewBlock: true,
 				selectedIndex: 1,
 				suggestionsLength: 3,
 				effectiveStatuses: ["pending", "accepted", "unresolved"],
@@ -263,7 +260,6 @@ export const TOOLBAR_FIXTURES: ToolbarFixture[] = [
 		expected: {
 			mode: "review",
 			anchorDirection: undefined,
-			hasReviewBlock: true,
 			completionLabel: undefined,
 			pendingCount: 1,
 			acceptedCount: 1,
@@ -283,7 +279,6 @@ export const TOOLBAR_FIXTURES: ToolbarFixture[] = [
 			canUndoLastAccept: false,
 			operation: "edit",
 			operationLabel: "EDIT",
-			selectedLabel: "Suggestion 2 of 3",
 		},
 	},
 	{
@@ -294,7 +289,6 @@ export const TOOLBAR_FIXTURES: ToolbarFixture[] = [
 			hasSession: true,
 			hasSelectedSuggestion: true,
 			review: {
-				hasReviewBlock: true,
 				selectedIndex: -1,
 				suggestionsLength: 2,
 				effectiveStatuses: ["accepted", "rejected"],
@@ -315,7 +309,6 @@ export const TOOLBAR_FIXTURES: ToolbarFixture[] = [
 		expected: {
 			mode: "review",
 			anchorDirection: "below",
-			hasReviewBlock: true,
 			completionLabel: "sweep complete",
 			pendingCount: 0,
 			acceptedCount: 1,
@@ -335,7 +328,6 @@ export const TOOLBAR_FIXTURES: ToolbarFixture[] = [
 			canUndoLastAccept: true,
 			operation: "move",
 			operationLabel: "MOVE",
-			selectedLabel: "Current suggestion",
 		},
 	},
 ];

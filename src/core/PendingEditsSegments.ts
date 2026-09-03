@@ -205,14 +205,6 @@ export async function drainSegmentFromFrontmatter(
 	return result;
 }
 
-export async function clearPendingEditsField(app: App, file: TFile): Promise<void> {
-	await app.fileManager.processFrontMatter(file, (frontmatter: Record<string, unknown>) => {
-		if (PENDING_EDITS_FRONTMATTER_KEY in frontmatter) {
-			frontmatter[PENDING_EDITS_FRONTMATTER_KEY] = "";
-		}
-	});
-}
-
 export function buildSceneItems(
 	sceneInputs: Array<{ path: string; title: string; order: number; rawField: string }>,
 ): PendingEditsSceneItem[] {

@@ -364,7 +364,7 @@ export class ReviewRegistryService {
 		};
 	}
 
-	getReviewActivitySummary(_reviewerProfiles: ContributorProfile[]): ReviewActivitySummary {
+	getReviewActivitySummary(): ReviewActivitySummary {
 		const signalTotals = tallyReviewStatuses(
 			Object.values(this.reviewerSignalIndex).map((profile) => profile.status),
 		);

@@ -25,7 +25,6 @@ export interface ReviewToolbarState {
 	acceptedCount: number;
 	completionLabel?: string;
 	deferredCount: number;
-	hasReviewBlock: boolean;
 	operation: SupportedReviewOperationType;
 	operationLabel: string;
 	pendingCount: number;
@@ -33,14 +32,12 @@ export interface ReviewToolbarState {
 	rewrittenCount: number;
 	sceneProgressLabel?: string;
 	selectedIndexLabel: string;
-	selectedLabel: string;
 	unresolvedDetails?: string;
 	unresolvedCount: number;
 }
 
 export interface HandoffToolbarState {
 	mode: "handoff";
-	currentLabel: string;
 	isFinal: boolean;
 	primaryActionLabel: string;
 	progressLabel: string;

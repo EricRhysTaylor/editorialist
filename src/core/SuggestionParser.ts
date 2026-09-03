@@ -114,7 +114,7 @@ export class SuggestionParser {
 			const blockEnd = block.endOffset;
 			const lines = getLinesWithOffsets(rawBody, bodyStart);
 			const metadata = {
-				...this.parseBlockMetadata(lines, blockIndex),
+				...this.parseBlockMetadata(lines),
 				batchId: getReviewBlockBatchId(rawBody),
 			};
 			const sections = this.extractSections(lines, blockEnd);
@@ -155,7 +155,7 @@ export class SuggestionParser {
 		};
 	}
 
-	private parseBlockMetadata(lines: LineWithOffsets[], _blockIndex: number): BlockMetadata {
+	private parseBlockMetadata(lines: LineWithOffsets[]): BlockMetadata {
 		let reviewer: string | undefined;
 		let reviewerType: string | undefined;
 		let provider: string | undefined;

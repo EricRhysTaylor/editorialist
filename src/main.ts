@@ -127,7 +127,6 @@ interface OffsetRange {
 type HighlightTone = "active" | "muted" | "anchor";
 
 interface GuidedSweepHandoffState {
-	currentLabel: string;
 	currentPath: string;
 	isFinal: boolean;
 	nextLabel?: string;
@@ -2121,7 +2120,7 @@ export default class EditorialistPlugin extends Plugin {
 		totalSweeps: number;
 		unresolved: number;
 	} {
-		return this.registry.getReviewActivitySummary(this.getReviewerProfiles());
+		return this.registry.getReviewActivitySummary();
 	}
 
 	getReviewPanelHeaderDetails(): {
@@ -2172,7 +2171,6 @@ export default class EditorialistPlugin extends Plugin {
 		const unitTitle = this.toTitleCase(unitLabel);
 
 		return {
-			currentLabel: this.getNoteDisplayLabel(currentPath),
 			currentPath,
 			isFinal,
 			nextLabel: nextPath ? this.getNoteDisplayLabel(nextPath) : undefined,
@@ -2920,7 +2918,6 @@ export default class EditorialistPlugin extends Plugin {
 					? `${this.toTitleCase(unitLabel.slice(0, -1))} ${guidedSweep.currentNoteIndex + 1}/${guidedSweep.notePaths.length}`
 					: undefined;
 			review = {
-				hasReviewBlock,
 				selectedIndex: suggestions.findIndex((suggestion) => suggestion.id === selected.id),
 				suggestionsLength: suggestions.length,
 				effectiveStatuses: suggestions.map((suggestion) => this.getEffectiveSuggestionStatus(suggestion)),

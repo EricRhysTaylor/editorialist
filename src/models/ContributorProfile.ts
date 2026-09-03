@@ -74,13 +74,6 @@ export interface ParsedContributorReference {
 	rawModel?: string;
 }
 
-export interface ContributorResolution {
-	reviewerId?: string;
-	resolutionStatus: ReviewerResolutionStatus;
-	suggestedReviewerIds: string[];
-	raw: ParsedContributorReference;
-}
-
 
 export interface ReviewerSignalRecord {
 	key: string;

@@ -57,10 +57,8 @@ interface ManualImportError {
 
 type ClipboardState = "checking" | "ready" | "empty";
 type DetectionTone = "danger" | "muted" | "success";
-type ModalState = "checking" | "clipboard" | "unimported-current-note" | "current-note" | "empty";
 
 interface DetectionItem {
-	actionLabel?: string;
 	actionHint?: string;
 	description: string;
 	disabled?: boolean;
@@ -156,7 +154,7 @@ export class EditorialistModal extends Modal {
 	}
 
 	private renderPrimaryState(parent: HTMLElement): void {
-		if (this.getModalState() === "checking") {
+		if (this.clipboardState === "checking") {
 			this.renderMessageCard(
 				parent,
 				"Checking clipboard and current note.",
@@ -504,7 +502,7 @@ export class EditorialistModal extends Modal {
 	}
 
 	private renderAssignments(parent: HTMLElement, batch: ReviewImportBatch): void {
-		const destinationPlural = this.getDestinationNoun(batch, true);
+		const destinationPlural = this.getDestinationNounPlural(batch);
 		const summary = parent.createDiv({ cls: "editorialist-control-modal__summary" });
 		summary.createDiv({
 			text: `${batch.summary.totalMatchedScenes} matched ${destinationPlural} • ${batch.summary.totalSuggestions} formatted revision notes • ${batch.summary.totalUnresolvedScenes} unresolved ${destinationPlural} • ${batch.summary.totalMismatches} mismatches`,
@@ -901,10 +899,6 @@ export class EditorialistModal extends Modal {
 		return this.clipboardBatch?.batch ?? null;
 	}
 
-	private hasDetectedSuggestions(batch: ReviewImportBatch): boolean {
-		return batch.summary.totalSuggestions > 0;
-	}
-
 	private hasImportReadyGroup(batch: ReviewImportBatch): boolean {
 		return batch.groups.some((group) => group.isReady);
 	}
@@ -941,26 +935,6 @@ export class EditorialistModal extends Modal {
 			const routing = result.suggestion.routing;
 			return !routing?.sceneId && !routing?.note && !routing?.path && !routing?.scene;
 		});
-	}
-
-	private getModalState(): ModalState {
-		if (this.clipboardState === "checking") {
-			return "checking";
-		}
-
-		if (this.clipboardBatch) {
-			return "clipboard";
-		}
-
-		if (this.shouldOfferAuthoredImport()) {
-			return "unimported-current-note";
-		}
-
-		if (this.options.currentNoteHasReviewBlock) {
-			return "current-note";
-		}
-
-		return "empty";
 	}
 
 	// The launcher offers in-place formalizing only when the author has opted in
@@ -1032,7 +1006,6 @@ export class EditorialistModal extends Modal {
 		if (this.options.currentNoteHasReviewBlock) {
 			const items: DetectionItem[] = [
 				{
-					actionLabel: "Start review in current note",
 					actionHint: isCurrentComplete ? `→ Open completed ${currentUnitLabel}` : "→ Start review",
 					emphasized: !isCurrentComplete,
 					icon: "file-text",
@@ -1045,7 +1018,6 @@ export class EditorialistModal extends Modal {
 
 			if (isCurrentComplete && this.options.nextNoteLabel) {
 				items.push({
-					actionLabel: `Open next ${currentUnitLabel}`,
 					actionHint: `→ Open next ${currentUnitLabel}`,
 					emphasized: true,
 					icon: "arrow-right",
@@ -1057,7 +1029,6 @@ export class EditorialistModal extends Modal {
 			}
 
 			items.push({
-				actionLabel: this.clipboardState === "ready" ? "Preview clipboard notes" : "Paste formatted revision notes",
 				actionHint:
 					this.clipboardState === "ready"
 						? "→ Preview notes"
@@ -1079,7 +1050,6 @@ export class EditorialistModal extends Modal {
 
 			return [
 				{
-					actionLabel: "Preview clipboard notes",
 					actionHint: "→ Preview notes",
 					emphasized: !readyGroups,
 					icon: "clipboard",
@@ -1089,11 +1059,6 @@ export class EditorialistModal extends Modal {
 					tone: "success",
 				},
 				{
-					actionLabel: localNoteBatch
-						? "Import into the current note"
-						: readyGroups
-							? "Import into matching scenes"
-							: "No matching scenes found",
 					actionHint: readyGroups
 						? "→ Import review"
 						: hasSceneMatches
@@ -1120,7 +1085,6 @@ export class EditorialistModal extends Modal {
 
 		return [
 			{
-				actionLabel: "Copy formatting instructions",
 				actionHint: "→ Copy instructions",
 				emphasized: true,
 				icon: "copy",
@@ -1130,7 +1094,6 @@ export class EditorialistModal extends Modal {
 				tone: "success",
 			},
 			{
-				actionLabel: "Paste formatted revision notes",
 				actionHint: "→ Paste review",
 				emphasized: false,
 				icon: "clipboard",
@@ -1309,9 +1272,8 @@ export class EditorialistModal extends Modal {
 		}
 	}
 
-	private getDestinationNoun(batch: ReviewImportBatch, plural: boolean): string {
-		const noun = this.isLocalNoteBatch(batch) ? "note" : "scene";
-		return plural ? `${noun}s` : noun;
+	private getDestinationNounPlural(batch: ReviewImportBatch): string {
+		return this.isLocalNoteBatch(batch) ? "notes" : "scenes";
 	}
 
 }

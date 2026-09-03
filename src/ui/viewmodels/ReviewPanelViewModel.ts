@@ -71,22 +71,6 @@ export interface ReviewPanelStateInputs {
 	hasFilteredSuggestions: boolean; // session && getFilteredSuggestions(session.suggestions).length > 0
 }
 
-// Which ReviewPanel reads feed each input. Mirrors INPUT_GATHERERS in
-// ToolbarStateInputs.ts; useful when wiring main.ts to gather these eagerly.
-export const REVIEW_PANEL_INPUT_GATHERERS: Record<keyof ReviewPanelStateInputs, string> = {
-	hasCompletedSweep: "Boolean(plugin.getCompletedSweepPanelState())",
-	hasSession: "plugin.getCurrentReviewSession() != null",
-	hasPostCompletionIdle:
-		"!session && !completedSweep ? Boolean(plugin.getPostCompletionIdleState()) : false",
-	hasReviewActivityHistory:
-		"plugin.getSweepRegistryEntries().length > 0 || (plugin.getPendingEditsSummary()?.segmentCount ?? 0) > 0 || plugin.getSortedReviewerProfiles().length > 0 || plugin.getReviewStateOverview() != null",
-	pendingEditSegmentCount: "plugin.getPendingEditsSummary()?.segmentCount ?? 0",
-	suggestionsLength: "session?.suggestions.length ?? 0",
-	hasHandoff: "session ? Boolean(plugin.getGuidedSweepHandoffState()) : false",
-	hasFilteredSuggestions:
-		"session ? getFilteredSuggestions(session.suggestions).length > 0 : false",
-};
-
 export function selectReviewPanelBranch(inputs: ReviewPanelStateInputs): ReviewPanelBranch {
 	if (inputs.hasCompletedSweep) {
 		return "completed_sweep";

@@ -463,22 +463,6 @@ export function isSuggestionOpen(suggestion: ReviewSuggestion): boolean {
 	return status === "pending" || status === "deferred" || status === "unresolved";
 }
 
-export function isSuggestionResolved(suggestion: ReviewSuggestion): boolean {
-	if (
-		suggestion.status === "accepted" ||
-		suggestion.status === "rewritten" ||
-		isImplicitlyAcceptedSuggestion(suggestion)
-	) {
-		return true;
-	}
-
-	return [
-		suggestion.location.primary,
-		suggestion.location.target,
-		suggestion.location.anchor,
-	].some((target) => target?.matchType === "already_applied") || Boolean(suggestion.location.relocation?.alreadyApplied);
-}
-
 export function getSuggestionPresentationTone(suggestion: ReviewSuggestion): ReviewSuggestionPresentationTone {
 	const status = getEffectiveSuggestionStatus(suggestion);
 	return status === "accepted" || status === "rejected" || status === "rewritten" ? "muted" : "active";

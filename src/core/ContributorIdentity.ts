@@ -6,27 +6,6 @@ import type {
 } from "../models/ContributorProfile";
 import type { ReviewContributor } from "../models/ReviewSuggestion";
 
-export const HUMAN_REVIEWER_TYPES = [
-	"author",
-	"beta-reader",
-	"editor",
-	"developmental-editor",
-	"line-editor",
-	"copy-editor",
-	"publisher-editor",
-	"agent",
-	"sensitivity-reader",
-] as const;
-
-export const AI_REVIEWER_TYPES = [
-	"ai-editor",
-	"ai-developmental-editor",
-	"ai-line-editor",
-	"ai-copy-editor",
-] as const;
-
-export const REVIEWER_TYPES = [...HUMAN_REVIEWER_TYPES, ...AI_REVIEWER_TYPES] as const;
-
 const REVIEWER_TYPE_ALIASES: Record<string, ReviewerType> = {
 	author: "author",
 	"beta reader": "beta-reader",
@@ -238,17 +217,6 @@ export function formatContributorIdentityLabel(
 	contributor: Pick<ContributorProfile, "displayName" | "reviewerType"> | Pick<ReviewContributor, "displayName" | "reviewerType">,
 ): string {
 	return `${contributor.displayName} · ${formatReviewerTypeLabel(contributor.reviewerType)}`;
-}
-
-export function formatContributorProviderModel(
-	contributor: Pick<ContributorProfile, "kind" | "provider" | "model"> | Pick<ReviewContributor, "kind" | "provider" | "model">,
-): string | null {
-	if (contributor.kind !== "ai") {
-		return null;
-	}
-
-	const parts = [contributor.provider, contributor.model].filter((value): value is string => Boolean(value?.trim()));
-	return parts.length > 0 ? parts.join(" · ") : null;
 }
 
 export function getLegacyContributorSignatureKind(

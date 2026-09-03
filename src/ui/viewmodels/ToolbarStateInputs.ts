@@ -1,7 +1,7 @@
 // WIRED — the input contract for the extracted pure projection.
 //
 // EditorialistPlugin.getToolbarState(hasReviewBlock) gathers these inputs
-// (see INPUT_GATHERERS) and delegates the decision to the pure
+// and delegates the decision to the pure
 // `buildToolbarState(inputs)` in ToolbarViewModel.ts (main.ts imports and
 // calls it). The golden fixtures in ToolbarStateInputs.fixtures.ts are an
 // ACTIVE parity gate: ToolbarStateInputs.test.ts round-trips every fixture
@@ -11,7 +11,7 @@
 // mutation and writes no state — it is already a pure projection of
 // resolved values. Therefore `buildToolbarState` needs NO callbacks: every
 // input below is plain data, pre-resolved by the existing main.ts helper
-// methods (the "input gatherers"). See PRECEDENCE / INPUT_GATHERERS.
+// methods (the "input gatherers"). See PRECEDENCE.
 
 import type { ReviewStatus, SupportedReviewOperationType } from "../../models/ReviewSuggestion";
 import type { ToolbarState } from "../Toolbar";
@@ -50,7 +50,6 @@ export interface AcceptedReviewPreviewInput {
 	title: string;
 }
 export interface GuidedSweepHandoffInput {
-	currentLabel: string;
 	isFinal: boolean;
 	primaryActionLabel: string;
 	progressLabel: string;
@@ -100,7 +99,6 @@ export interface ToolbarStateInputs {
 }
 
 export interface ReviewBranchInputs {
-	hasReviewBlock: boolean;
 	selectedIndex: number; // -1 when not found
 	suggestionsLength: number;
 	effectiveStatuses: ReviewStatus[]; // per-suggestion, in order
@@ -118,29 +116,3 @@ export interface ReviewBranchInputs {
 	operationLabel: string;
 }
 
-// Which existing main.ts members feed each input. These STAY in main.ts as
-// input gatherers; only the final projection moves. None are callbacks —
-// they are evaluated once, eagerly, before buildToolbarState is called.
-export const INPUT_GATHERERS: Record<keyof ToolbarStateInputs, string> = {
-	pendingEditsToolbarState: "getPendingEditsToolbarState()",
-	hasReviewBlock: "param",
-	hasSession: "getReviewSession() != null",
-	sessionNotePath: "getReviewSession()?.notePath",
-	appliedReview: "store.getAppliedReview()",
-	completedReviewPreview: "getCompletedReviewPreviewState(session)",
-	completedReviewCanNext: 'getAdjacentCompletedReviewSuggestionId("next") !== null',
-	completedReviewCanPrevious: 'getAdjacentCompletedReviewSuggestionId("previous") !== null',
-	hasLastAppliedChange: "Boolean(this.lastAppliedChange)",
-	canUndoLastAppliedSuggestion: "canUndoLastAppliedSuggestion()",
-	acceptedReviewPreview: "getAcceptedReviewPreviewState(session)",
-	acceptedReviewCanNext: 'getAdjacentAcceptedSuggestionId("next") !== null',
-	acceptedReviewCanPrevious: 'getAdjacentAcceptedSuggestionId("previous") !== null',
-	sessionHasNoOpenWork: "session ? !hasLiveActionableSuggestions(session.suggestions) : false",
-	guidedSweepHandoff: "getGuidedSweepHandoffState()",
-	panelOnly: "getPanelOnlyReviewStateForSession(session)",
-	hasSelectedSuggestion: "store.getSelectedSuggestion() != null",
-	bulkApplyConfirmNotePath: "this.bulkApplyConfirmState?.notePath ?? null",
-	canApplyAndReviewSceneSuggestions: "canApplyAndReviewSceneSuggestions()",
-	bulkApplicableCount: "session.suggestions.filter(canApplySuggestionInReviewAllMode).length",
-	review: "store.getSelectedSuggestion() + counts/predicates (see ReviewBranchInputs)",
-};

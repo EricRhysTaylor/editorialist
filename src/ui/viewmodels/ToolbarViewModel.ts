@@ -1,7 +1,7 @@
 // Pure toolbar-state projection. This is the live decision logic for the
 // toolbar: EditorialistPlugin.getToolbarState (main.ts) imports and calls
 // buildToolbarState after gathering the resolved values into
-// ToolbarStateInputs (see INPUT_GATHERERS). No store / Obsidian / UI access
+// ToolbarStateInputs. No store / Obsidian / UI access
 // — only the priority-ordered if-ladder + return-shape assembly. The
 // ToolbarStateInputs golden fixtures are an active parity gate guarding
 // this projection's behavior.
@@ -14,7 +14,7 @@ function countStatus(statuses: readonly ReviewStatus[], status: ReviewStatus): n
 	return statuses.filter((value) => value === status).length;
 }
 
-function buildReviewState(hasReviewBlock: boolean, review: ReviewBranchInputs): ToolbarState {
+function buildReviewState(review: ReviewBranchInputs): ToolbarState {
 	const { effectiveStatuses, selectedIndex, suggestionsLength } = review;
 	const unresolvedPositions = effectiveStatuses
 		.map((status, index) => ({ status, index }))
@@ -24,7 +24,6 @@ function buildReviewState(hasReviewBlock: boolean, review: ReviewBranchInputs): 
 	return {
 		mode: "review",
 		anchorDirection: review.anchorDirection,
-		hasReviewBlock,
 		completionLabel: review.sweepComplete ? "sweep complete" : undefined,
 		pendingCount: countStatus(effectiveStatuses, "pending"),
 		acceptedCount: countStatus(effectiveStatuses, "accepted"),
@@ -48,10 +47,6 @@ function buildReviewState(hasReviewBlock: boolean, review: ReviewBranchInputs): 
 		canUndoLastAccept: review.canUndoLastAccept,
 		operation: review.operation,
 		operationLabel: review.operationLabel,
-		selectedLabel:
-			selectedIndex === -1
-				? "Current suggestion"
-				: `Suggestion ${selectedIndex + 1} of ${suggestionsLength}`,
 	};
 }
 
@@ -106,7 +101,6 @@ export function buildToolbarState(inputs: ToolbarStateInputs): ToolbarState | nu
 	if (handoff) {
 		return {
 			mode: "handoff",
-			currentLabel: handoff.currentLabel,
 			isFinal: handoff.isFinal,
 			primaryActionLabel: handoff.primaryActionLabel,
 			progressLabel: handoff.progressLabel,
@@ -163,5 +157,5 @@ export function buildToolbarState(inputs: ToolbarStateInputs): ToolbarState | nu
 		return null;
 	}
 
-	return buildReviewState(inputs.hasReviewBlock, inputs.review);
+	return buildReviewState(inputs.review);
 }
