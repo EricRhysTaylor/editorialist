@@ -1,13 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { HOST_OPS, type HostOp } from "./ReviewStateMachineHost";
-import { STATE_MACHINE_TRACES } from "../../../tests/scaffolds/ReviewStateMachineScaffold";
+import { HOST_OPS, type HostOp } from "./ReviewStateMachineHostOps";
+import { STATE_MACHINE_TRACES } from "./ReviewStateMachineScaffold";
 import {
 	PURE_OR_MARKER_OPS,
 	RecordingReviewStateMachineHost,
 	expectedHostEffects,
 } from "./ReviewStateMachineRecordingHost";
-import { ReviewStateMachine } from "./ReviewStateMachine";
-import type { ReviewSuggestion } from "../../models/ReviewSuggestion";
+import { ReviewStateMachine } from "../../src/core/review/ReviewStateMachine";
+import type { ReviewSuggestion } from "../../src/models/ReviewSuggestion";
 
 const HOST_EFFECT_VOCAB = new Set<HostOp>(HOST_OPS.filter((op) => !PURE_OR_MARKER_OPS.has(op)));
 

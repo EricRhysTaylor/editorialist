@@ -7,8 +7,9 @@
 // the live plugin. The same interface is what RecordingReviewStateMachineHost
 // implements when replaying golden traces.
 //
-// This module is production code — it ships in the bundle and is the only
-// shared file between main.ts, ReviewStateMachine, and the recording host.
+// This module is production code and ships in the bundle. The trace
+// vocabulary (HOST_OPS) the recording host types its log against is test-only
+// and lives in tests/scaffolds/ReviewStateMachineHostOps.ts.
 // The test-only characterization data (golden traces, ordering invariants,
 // extraction checklist) used to live alongside this contract in a
 // "ReviewStateMachineScaffold" file; it now lives in
@@ -117,61 +118,3 @@ export interface AppliedReviewChangeLike {
 	suggestionId: string;
 	textFingerprint: string;
 }
-
-// Every legal trace `op`. `shouldShowGuidedSweepHandoff` is GONE — it is not
-// a host op; it decomposes to getGuidedSweep (+ store.getSession arg).
-// getSelectedSuggestionId / getGuidedSweep are NEW host effects.
-//
-// The HOST_OPS list is part of the host contract because the recording host
-// (production-source test helper) types its `ops` array against HostOp.
-// The golden trace data that ranges over this vocabulary lives in
-// tests/scaffolds/ReviewStateMachineScaffold.ts.
-export const HOST_OPS = [
-	"store.getSession",
-	"store.getCompletedSweep",
-	"store.selectSuggestion",
-	"store.updateSuggestionStatus",
-	"store.setCompletedSweep",
-	"store.setGuidedSweep",
-	"getSelectedSuggestionId",
-	"getGuidedSweep",
-	"registry.persistReviewDecision",
-	"registry.clearPersistedReviewDecision",
-	"registry.syncReviewerSignalsForSession",
-	"registry.syncSceneInventoryForSession",
-	"getReviewNoteContext",
-	"getActiveEditorView",
-	"focusReviewLeaf",
-	"executeEditorUndo",
-	"notify",
-	"canAcceptSuggestion",
-	"canRejectSuggestion",
-	"canMarkSuggestionRewritten",
-	"hasActiveReviewSession",
-	"hasReviewSessionContext",
-	"getReviewSession",
-	"getSuggestionById",
-	"getCurrentSessionTrackingContext",
-	"getPanelOnlyReviewStateForSession",
-	"revealSelectedSuggestion",
-	"revealSuggestionContext",
-	"enterGuidedSweepHandoff",
-	"refreshSessionAfterAcceptedEdit",
-	"syncActiveEditorDecorations",
-	"resyncSessionForActiveNote",
-	"focusResolvedTarget",
-	"createSuggestionApplyPlan",
-	"editor.replaceRange",
-	"editor.setSelection",
-	"editor.scrollIntoView",
-	"editor.focus",
-	"editor.getValue",
-	"getNoteTextFingerprint",
-	"set.lastAppliedChange",
-	"setActiveHighlight",
-	"getAdjacentRevealableSuggestionId",
-	"findPreferredSuggestionId",
-	"getSuggestionPrimaryTarget",
-	"return",
-] as const;
-export type HostOp = (typeof HOST_OPS)[number];

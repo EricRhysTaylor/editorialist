@@ -33,7 +33,7 @@
 // RecordingReviewStateMachineHost replays each trace and asserts
 // host.ops === expectedHostEffects(trace) (pure markers filtered).
 
-import type { HostOp } from "../../src/core/review/ReviewStateMachineHost";
+import type { HostOp } from "./ReviewStateMachineHostOps";
 
 export const STATE_MACHINE_METHODS = [
 	"acceptSuggestion",

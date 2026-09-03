@@ -3,25 +3,21 @@
 // A recording implementation of ReviewStateMachineHost. Every host call
 // appends its canonical HostOp name to an ordered log; a recording fake
 // editor (reached via getReviewNoteContext().view.editor) records the
-// editor.* sub-ops. Return values are configurable so a future extracted
-// ReviewStateMachine can be driven down any STATE_MACHINE_TRACES branch and
-// asserted with `expect(host.ops).toEqual(expectedHostEffects(trace))`.
-//
-// Until extraction this fake is exercised only by its own self-tests and the
-// trace-vocabulary closure check — the production-driven replays remain
-// it.todo (see ReviewStateMachineRecordingHost.test.ts) because the live
-// logic in main.ts takes no host parameter.
+// editor.* sub-ops. Return values are configurable so ReviewStateMachine can
+// be driven down any STATE_MACHINE_TRACES branch and asserted with
+// `expect(host.ops).toEqual(expectedHostEffects(trace))`; see
+// ReviewStateMachineRecordingHost.test.ts for the replays.
 
-import type { ReviewSuggestion } from "../../models/ReviewSuggestion";
+import type { ReviewSuggestion } from "../../src/models/ReviewSuggestion";
 import type {
 	AppliedReviewChangeLike,
 	CompletedSweepState,
 	GuidedSweepState,
-	HostOp,
 	ReviewNoteContextLike,
 	ReviewSession,
 	ReviewStateMachineHost,
-} from "./ReviewStateMachineHost";
+} from "../../src/core/review/ReviewStateMachineHost";
+import type { HostOp } from "./ReviewStateMachineHostOps";
 
 // Ops a host (incl. its fake editor / mutable-field setters) can emit. Pure
 // ops in HOST_OPS (createSuggestionApplyPlan, getNoteTextFingerprint,
