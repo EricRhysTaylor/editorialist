@@ -5,7 +5,7 @@
 **Branch / commit:** `main` @ `4a2438d`
 **Build status at audit time:** `pass` (`npm run check` green; `npm test` 895 passing in 69 files)
 **Previous report:** `reports/2026-08-18-codebase-health.md`
-**Remediation:** 2026-09-03, commits `b3507fc` through `9ad568a` — see the resolution note at the end for what each finding became
+**Remediation:** 2026-09-03, commits `b3507fc` through `6a56848` — see the resolution note at the end for what each finding became
 
 ---
 
@@ -418,7 +418,7 @@ Resolved since August: `CH-2026-08-18-#1` (batch attribution — `a3ff1db`, `893
 
 - **Run on:** 2026-09-08
 - **Specific things to re-check** (revised 2026-09-03 after remediation; see resolution note):
-  - `#9` — the wrapper deletion and the three extractions have not started; `main.ts` is 4,137 only because dead code left. Does the planned pass get scheduled?
+  - `#9` — the 54 wrappers are gone (`6a56848`, 3,910 lines); the three extractions have not started. Does the planned pass get scheduled?
   - `#14` — `ReviewPanel.render()` is now 357 lines (up from 331) because it gathers its inputs explicitly; the branch-body split is the next step and should bring it under 200.
   - `#8` — the nine non-persisted duplicate rows are still open; the scene-number parser is still in three places.
   - `#11`, `#12`, `#13`, `#18` — untouched; confirm they are on the Refactor Board.
@@ -446,11 +446,11 @@ Also since the first draft: `HEAD` moved from `4a2438d` to `f8292e2`, a `backup:
 
 ## Resolution note (2026-09-03)
 
-Eric approved the priority list on 2026-09-03 and the remediation landed as fourteen commits on `main`, `b3507fc` through `9ad568a`. Every commit passed `npm run check` and the full test suite; nothing was pushed. The findings above are left as audited. This table records what each became.
+Eric approved the priority list on 2026-09-03 and the remediation landed as fifteen code commits on `main`, `b3507fc` through `6a56848`. Every commit passed `npm run check` and the full test suite; nothing was pushed. The findings above are left as audited. This table records what each became.
 
 | Finding | Outcome | Commit(s) | Notes |
 |---|---|---|---|
-| `#1` NUL byte | **Fixed** | `b3507fc` | Byte replaced with the `"\0"` escape; `qa-audit` now fails on any control byte in source, verified against a probe. |
+| `#1` NUL byte | **Fixed** | `b3507fc` | Byte replaced with the `"\0"` escape; `qa-audit` now fails on any control byte, verified against a probe. The guard covers what `qa-audit` audits — `src/**/*.ts`, `scripts/*.mjs`, and the three config files — not Markdown, so a NUL pasted into a report would still get through. |
 | `#2` build pushes | **Fixed** (decision: never-push holds) | `cf64c98` | `backup-if-stale` removed from `build`. CLAUDE.md names `release` and `backup` as the only pushing scripts and as Eric's alone; CODE-STANDARDS §2 and the feature-audit command now describe what `release.mjs` does. **Residual:** `.claude/settings.local.json` still pre-allows every `npm run *`. |
 | `#3` batch-stats divergence | **Fixed** | `09f95f0` | Processor copy deleted; host forwards to the registry; the two tests that pinned the stale priority removed. |
 | `#4` contributor id split | **Fixed** | `4233428` | `contributorSlug`, `buildResolvedContributor`, `buildUnresolvedContributor` in `core/ContributorIdentity`; directory and `main.ts` both call them. New tests for the builders and for `ContributorDirectory`. |
@@ -458,7 +458,7 @@ Eric approved the priority list on 2026-09-03 and the remediation landed as four
 | `#6` branch selector unadopted | **Fixed** | `6f81560` | `render()` gathers inputs once and branches on `selectReviewPanelBranch`; each branch throws if the promised state is absent. Filter reset moved ahead of branch selection so the filtered-empty input is honest. |
 | `#7` dead code | **Fixed** | `14e8f7b`, `72e5960`, `18e16c6` | Ten plugin methods (not thirteen — see revision note) with their orchestrator and host chains; seven exports; three toolbar state fields; four dead UI branches with their CSS; two unused parameters; recording host and `HOST_OPS` moved to `tests/scaffolds/`. `ts-prune` now reports only fixtures and test-only helpers. |
 | `#8` core duplicates | **Partial** | `04d0666` | The two persisted-data rows fixed: one fingerprint function (exact value now pinned), one `resolveSuggestionBatchId`. The nine non-persisted rows remain open. |
-| `#9` `main.ts` | **Open** | — | 4,245 → 4,137 from dead-code removal only. Wrapper deletion and the three extractions not started. |
+| `#9` `main.ts` | **Partial** | `6a56848` | The 54 pure delegation wrappers to `reviewActions` and `pendingEdits` are gone; the two orchestrators are public and the UI and commands call them directly. 4,245 → 3,910. The three extractions (contributor management, anchor navigation, cut-file controller) have not started. |
 | `#10` rollback notice | **Fixed** | `838238b` | `rollback()` returns whether every compensation landed; the notice is softened when one did not. Scope gains its own tests; transaction suite gains a throwing-compensation case. |
 | `#11` layering | **Open** | — | Untouched. |
 | `#12` swallows | **Open** | — | Untouched. |
@@ -480,7 +480,7 @@ Two commits outside the table: `83ec6e4` removes an import that `c72d42b` claime
 | `styles.css` (lines) | 6,240 | 6,199 | −41 |
 | Files > 600 lines (excl. tests) | 11 | 11 | 0 |
 | Functions ≥ 80 lines (production, AST) | 34 | 34 | 0 |
-| Dead exports (ts-prune, non-fixture) | 7 dead / 12 test-only | 0 dead / 6 test-only | −7 / −6 |
+| Dead exports (ts-prune 0.10.3 via `npx`, unpinned; non-fixture) | 7 dead / 12 test-only | 0 dead / 6 test-only | −7 / −6 |
 | `// SAFE:` exceptions | 3 | 3 | 0 |
 | `// TODO` (product code) | 2 | 2 | 0 |
 | `main.js` size (KB) | 470 | 468 | −2 |
@@ -488,3 +488,5 @@ Two commits outside the table: `83ec6e4` removes an import that `c72d42b` claime
 | NUL bytes in tracked text files | 1 (2 after the first draft of this report) | 0 | — |
 
 The size numbers barely move because the batch was correctness and single-source work, not the structural pass. `#9` is where the lines are.
+
+After the wrapper deletion (`6a56848`, step 10 of the plan): `src/main.ts` 3,910 lines, `main.js` 464 KB; every other row unchanged. `ts-prune` is not a dependency of the repo, so the dead-export row is reproducible only with that tool at that version.
