@@ -206,13 +206,6 @@ function buildReleaseNotes(fromTag) {
 	].join("\n");
 }
 
-function readLocalReleaseDraft(version) {
-	const draftPath = path.join(ROOT, "docs", "releases", `draft-for-release-${version}.md`);
-	if (!existsSync(draftPath)) return null;
-	const body = readFileSync(draftPath, "utf8").trim();
-	return body.length > 0 ? body : null;
-}
-
 // --- CI build: dispatch release-build.yml and wait -------------------------
 // Build + attestation + asset upload happen on GitHub-hosted runners so the
 // assets carry build provenance.
@@ -328,13 +321,11 @@ async function startRelease(bumpArg) {
 	run("git push origin main", "Pushing main");
 	run(`git push origin ${targetVersion}`, "Pushing tag");
 
-	// 5. Create a draft release with the changelog.
+	// 5. Create a draft release with the generated changelog. The notes are
+	// edited on GitHub afterwards; the GitHub draft is the only copy, so there
+	// is deliberately no repo-side file that could override the template.
 	const lastTag = getLastReleaseTag();
-	const localDraft = readLocalReleaseDraft(targetVersion);
-	const notes = localDraft ?? buildReleaseNotes(lastTag === targetVersion ? null : lastTag);
-	if (localDraft) {
-		console.log(`→ Using local release notes draft: docs/releases/draft-for-release-${targetVersion}.md`);
-	}
+	const notes = buildReleaseNotes(lastTag === targetVersion ? null : lastTag);
 
 	const notesFile = path.join(ROOT, ".release-notes-temp.md");
 	writeFileSync(notesFile, notes, "utf8");
