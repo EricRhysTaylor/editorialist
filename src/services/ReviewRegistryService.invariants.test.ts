@@ -364,6 +364,49 @@ describe("invariant: batch decision stats come from durable reviewer signals", (
 			rewritten: 1,
 		});
 	});
+
+	it("counts only the exact records once a batch has any, leaving legacy records on the same note out", async () => {
+		// A batch whose attribution repair was partial: one record carries the
+		// batch stamp, another on the same note never got one. The unstamped
+		// record could belong to a different batch that shared the note, so
+		// the stats do not guess; they report the exact set alone. This is the
+		// deliberate, conservative choice — change it knowingly.
+		const { service } = makeService();
+		await service.syncReviewerSignalsForSession(session("n.md", [suggestion("r1", "accepted")]), {
+			persist: false,
+			sessionId: "batch-1",
+		});
+		const data = service.buildPluginData([]);
+		service.load({
+			...data,
+			reviewerSignalIndex: {
+				...data.reviewerSignalIndex,
+				legacy: {
+					key: "n.md::0::9::edit::direct::orig-legacy",
+					reviewerId: "r1",
+					status: "rejected",
+					operation: "edit",
+				},
+			},
+			sweepRegistry: {
+				"batch-1": {
+					acceptedCount: 0,
+					deferredCount: 0,
+					importedNotePaths: ["n.md"],
+					rejectedCount: 0,
+					rewrittenCount: 0,
+					sceneOrder: ["n.md"],
+				},
+			},
+		});
+
+		expect(service.getBatchDecisionStats("batch-1")).toEqual({
+			accepted: 1,
+			deferred: 0,
+			rejected: 0,
+			rewritten: 0,
+		});
+	});
 });
 
 // ── persisted decision keys resolve to real suggestions ──────────────────

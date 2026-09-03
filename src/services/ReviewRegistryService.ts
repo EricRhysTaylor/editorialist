@@ -384,6 +384,14 @@ export class ReviewRegistryService {
 	// Settings activity summary. Modern signal records carry sessionId ===
 	// batchId, which is exact; legacy records can still be approximated by
 	// joining the sweep's historical note identities.
+	//
+	// Once a batch has any exact record, its note's legacy records are NOT
+	// added in. An unstamped record on a shared note may belong to a different
+	// batch — the attribution repair leaves a record unstamped precisely when
+	// its batch could not be determined — so counting it here would be a
+	// guess. The cost is that a batch whose repair was partial under-reports
+	// its unstamped remainder; that is the conservative side, and the mixed
+	// case is pinned by test so the choice cannot drift silently.
 	getBatchDecisionStats(batchId: string): BatchDecisionStats {
 		const exactStatuses = Object.values(this.reviewerSignalIndex)
 			.filter((record) => record.sessionId === batchId)
