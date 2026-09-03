@@ -3,7 +3,7 @@ import { MarkdownView, Menu, normalizePath, Notice, Plugin, TFile, type App, typ
 import { registerCommands } from "./commands/Commands";
 import { EditorialismAnchorNavigator } from "./orchestrators/EditorialismAnchorNavigator";
 import { CutFileController } from "./orchestrators/CutFileController";
-import { buildResolvedContributor, buildUnresolvedContributor } from "./core/ContributorIdentity";
+import { ContributorManagementOrchestrator } from "./orchestrators/ContributorManagementOrchestrator";
 import { ImportEngine } from "./core/ImportEngine";
 import { MatchEngine } from "./core/MatchEngine";
 import {
@@ -49,10 +49,8 @@ import type {
 } from "./models/ReviewImport";
 import type { ReviewSession, ReviewSuggestion, ReviewTargetRef } from "./models/ReviewSuggestion";
 import type {
-	ParsedContributorReference,
 	ContributorProfile,
 	EditorialistEffortSettings,
-	ReviewerResolutionStatus,
 	SceneReviewRecord,
 } from "./models/ContributorProfile";
 import { ReviewStore, type CompletedSweepState, type GuidedSweepState } from "./state/ReviewStore";
@@ -67,7 +65,7 @@ import { ReviewWorkflowService } from "./services/ReviewWorkflowService";
 import { EditorialistModal } from "./ui/EditorialistModal";
 import { formatRelativeTime } from "./ui/panels/ReviewPanelIdleSections";
 import { openEditorialistChoiceModal } from "./ui/EditorialistChoiceModal";
-import { openContributorReassignmentModal, type ContributorReassignmentMode } from "./ui/ContributorReassignmentModal";
+import { openContributorReassignmentModal } from "./ui/ContributorReassignmentModal";
 import { openContributorStrengthsModal } from "./ui/ContributorStrengthsModal";
 import { EDITORIALISM_PANEL_VIEW_TYPE, EditorialismPanel } from "./ui/EditorialismPanel";
 import { PENDING_EDITS_PANEL_VIEW_TYPE, PendingEditsPanel } from "./ui/PendingEditsPanel";
@@ -393,6 +391,22 @@ export default class EditorialistPlugin extends Plugin {
 		getNoteContextByPath: (filePath) => this.getNoteContextByPath(filePath),
 		getReviewPanelLeaf: () => this.app.workspace.getLeavesOfType(REVIEW_PANEL_VIEW_TYPE)[0],
 		refreshReviewPanel: () => this.refreshReviewPanel(),
+	});
+	// Contributor management — star, edit, reassign, merge, delete, and the
+	// suggestion-to-reviewer resolutions, with the session rewrites each
+	// implies. The settings tab and the review panel call it directly.
+	readonly contributors = new ContributorManagementOrchestrator({
+		store: this.store,
+		registry: this.registry,
+		reviewerDirectory: this.reviewerDirectory,
+		getSuggestionById: (id) => this.getSuggestionById(id),
+		getCurrentSessionTrackingContext: () => this.getCurrentSessionTrackingContext(),
+		savePluginData: () => this.savePluginData(),
+		refreshReviewPanel: () => this.refreshReviewPanel(),
+		resyncSessionForActiveNote: () => this.resyncSessionForActiveNote(),
+		openChoiceModal: (options) => openEditorialistChoiceModal(this.app, options),
+		openStrengthsModal: (profile) => openContributorStrengthsModal(this.app, { profile }),
+		openReassignmentModal: (options) => openContributorReassignmentModal(this.app, options),
 	});
 
 	async onload(): Promise<void> {
@@ -1514,281 +1528,6 @@ export default class EditorialistPlugin extends Plugin {
 		};
 	}
 
-	async toggleReviewerStarById(reviewerId: string): Promise<void> {
-		const updatedProfile = this.reviewerDirectory.toggleStar(reviewerId);
-		if (!updatedProfile) {
-			return;
-		}
-
-		await this.savePluginData();
-		this.refreshReviewPanel();
-	}
-
-	async openContributorManagementFlow(reviewerId: string): Promise<boolean> {
-		const profile = this.reviewerDirectory.getProfileById(reviewerId);
-		if (!profile) {
-			new Notice("Contributor not found.");
-			return false;
-		}
-
-		const action = await openEditorialistChoiceModal(this.app, {
-			title: "Manage contributor",
-			description: `Choose how to update ${profile.displayName}.`,
-			choices: [
-				{ label: "Edit", value: "strengths" },
-				{ label: "Reassign", value: "reassign" },
-				{ label: "Merge", value: "merge" },
-				{ label: "Delete", value: "delete" },
-			],
-		});
-		if (!action) {
-			return false;
-		}
-
-		if (action === "strengths") {
-			return this.editContributorStrengths(reviewerId);
-		}
-
-		if (action === "delete") {
-			return this.deleteContributorById(reviewerId);
-		}
-
-		return this.reassignContributorById(reviewerId, action);
-	}
-
-	async deleteContributorById(reviewerId: string): Promise<boolean> {
-		const profile = this.reviewerDirectory.getProfileById(reviewerId);
-		if (!profile) {
-			new Notice("Contributor not found.");
-			return false;
-		}
-
-		const confirm = await openEditorialistChoiceModal(this.app, {
-			title: "Delete contributor",
-			description: `Delete ${profile.displayName} and remove their saved contributor stats? Revision decisions stay in place, but this contributor will be removed from the directory.`,
-			choices: [
-				{ label: "Delete contributor", value: "delete" },
-				{ label: "Cancel", value: "cancel" },
-			],
-		});
-		if (confirm !== "delete") {
-			return false;
-		}
-
-		await this.registry.removeReviewerSignalsByReviewerId(reviewerId, { persist: false });
-		const deletedProfile = this.reviewerDirectory.deleteProfile(reviewerId);
-		if (!deletedProfile) {
-			new Notice("Contributor not found.");
-			return false;
-		}
-
-		this.removeContributorFromActiveSession(reviewerId);
-		await this.registry.syncReviewerSignalsForSession(this.store.getSession(), {
-			persist: false,
-			...this.getCurrentSessionTrackingContext(),
-		});
-		await this.savePluginData();
-		this.refreshReviewPanel();
-		new Notice(`Deleted ${deletedProfile.displayName}.`);
-		return true;
-	}
-
-	async deleteAllContributors(): Promise<number> {
-		const profiles = this.reviewerDirectory.getProfiles();
-		if (profiles.length === 0) {
-			return 0;
-		}
-
-		const confirm = await openEditorialistChoiceModal(this.app, {
-			title: "Delete all contributors",
-			description: "Delete all contributor profiles and saved contributor stats? Revision decisions stay in place, but the contributor directory will be cleared.",
-			choices: [
-				{ label: "Delete all contributors", value: "delete" },
-				{ label: "Cancel", value: "cancel" },
-			],
-		});
-		if (confirm !== "delete") {
-			return 0;
-		}
-
-		await this.registry.clearAllReviewerSignals({ persist: false });
-		const removedCount = this.reviewerDirectory.clearProfiles();
-		this.removeAllContributorsFromActiveSession();
-		await this.registry.syncReviewerSignalsForSession(this.store.getSession(), {
-			persist: false,
-			...this.getCurrentSessionTrackingContext(),
-		});
-		await this.savePluginData();
-		this.refreshReviewPanel();
-		new Notice(`Deleted ${removedCount} contributor${removedCount === 1 ? "" : "s"}.`);
-		return removedCount;
-	}
-
-	async editContributorStrengths(reviewerId: string): Promise<boolean> {
-		const profile = this.reviewerDirectory.getProfileById(reviewerId);
-		if (!profile) {
-			new Notice("Contributor not found.");
-			return false;
-		}
-
-		const result = await openContributorStrengthsModal(this.app, { profile });
-		if (!result) {
-			return false;
-		}
-
-		const updatedProfile = this.reviewerDirectory.updateProfile(reviewerId, result);
-		if (!updatedProfile) {
-			new Notice("Could not update contributor. The name may be blank or already in use.");
-			return false;
-		}
-
-		this.syncContributorProfileInActiveSession(updatedProfile);
-		await this.savePluginData();
-		this.refreshReviewPanel();
-		new Notice(`Updated ${updatedProfile.displayName}.`);
-		return true;
-	}
-
-	async reassignContributorById(
-		sourceReviewerId: string,
-		mode: ContributorReassignmentMode,
-	): Promise<boolean> {
-		const sourceProfile = this.reviewerDirectory.getProfileById(sourceReviewerId);
-		if (!sourceProfile) {
-			new Notice("Contributor not found.");
-			return false;
-		}
-
-		const targetProfiles = this.reviewerDirectory
-			.getSortedProfiles()
-			.filter((profile) => profile.id !== sourceReviewerId);
-		if (mode === "merge" && targetProfiles.length === 0) {
-			new Notice("Create another contributor before merging.");
-			return false;
-		}
-
-		const result = await openContributorReassignmentModal(this.app, {
-			mode,
-			sourceProfile,
-			targetProfiles,
-		});
-		if (!result) {
-			return false;
-		}
-
-		let targetProfile = result.targetReviewerId
-			? this.reviewerDirectory.getProfileById(result.targetReviewerId)
-			: null;
-		if (!targetProfile && result.createName) {
-			targetProfile = this.reviewerDirectory.ensureProfileFromReassignment(result.createName, sourceProfile);
-		}
-		if (!targetProfile) {
-			new Notice("Target contributor not found.");
-			return false;
-		}
-
-		if (targetProfile.id === sourceReviewerId) {
-			return false;
-		}
-
-		await this.registry.reassignReviewerSignals(sourceReviewerId, targetProfile.id, { persist: false });
-		const mergedProfile = this.reviewerDirectory.mergeProfiles(sourceReviewerId, targetProfile.id);
-		if (!mergedProfile) {
-			new Notice("Could not update contributor records.");
-			return false;
-		}
-
-		this.reassignContributorInActiveSession(sourceReviewerId, mergedProfile);
-		await this.registry.syncReviewerSignalsForSession(this.store.getSession(), {
-			persist: false,
-			...this.getCurrentSessionTrackingContext(),
-		});
-		await this.savePluginData();
-		this.refreshReviewPanel();
-		new Notice(
-			mode === "merge"
-				? `Merged ${sourceProfile.displayName} into ${mergedProfile.displayName}.`
-				: `Reassigned ${sourceProfile.displayName} to ${mergedProfile.displayName}.`,
-		);
-		return true;
-	}
-
-	async useSuggestedReviewer(suggestionId: string, reviewerId?: string): Promise<void> {
-		const suggestion = this.getSuggestionById(suggestionId);
-		const resolvedReviewerId = reviewerId ?? suggestion?.contributor.suggestedReviewerIds[0];
-		if (!suggestion || !resolvedReviewerId) {
-			return;
-		}
-
-		await this.applyReviewerResolutionToMatchingSuggestions(
-			suggestion.contributor.raw,
-			resolvedReviewerId,
-			"suggested",
-		);
-	}
-
-	async createReviewerFromSuggestion(suggestionId: string): Promise<void> {
-		const suggestion = this.getSuggestionById(suggestionId);
-		if (!suggestion) {
-			return;
-		}
-
-		const profile = this.reviewerDirectory.createProfileFromParsedReviewer(suggestion.contributor.raw);
-		await this.savePluginData();
-		await this.applyReviewerProfileToMatchingSuggestions(suggestion.contributor.raw, profile, "new");
-	}
-
-	leaveReviewerUnresolved(suggestionId: string): void {
-		const suggestion = this.getSuggestionById(suggestionId);
-		if (!suggestion) {
-			return;
-		}
-
-		const unresolvedContributor = buildUnresolvedContributor(
-			suggestion.contributor.raw,
-			suggestion.contributor.suggestedReviewerIds,
-		);
-		void this.applyContributorToMatchingSuggestions(suggestion.contributor.raw, unresolvedContributor);
-	}
-
-	async saveReviewerAliasForSuggestion(suggestionId: string): Promise<void> {
-		const suggestion = this.getSuggestionById(suggestionId);
-		const rawName = suggestion?.contributor.raw.rawName?.trim();
-		const reviewerId = suggestion?.contributor.reviewerId;
-		if (!suggestion || !rawName || !reviewerId) {
-			return;
-		}
-
-		const updatedProfile = this.reviewerDirectory.addAlias(reviewerId, rawName);
-		if (!updatedProfile) {
-			return;
-		}
-
-		await this.savePluginData();
-		this.resyncSessionForActiveNote();
-	}
-
-	canSaveReviewerAlias(suggestionId: string): boolean {
-		const suggestion = this.getSuggestionById(suggestionId);
-		const rawName = suggestion?.contributor.raw.rawName?.trim();
-		const reviewerId = suggestion?.contributor.reviewerId;
-		if (!suggestion || !rawName || !reviewerId) {
-			return false;
-		}
-
-		const profile = this.reviewerDirectory.getProfileById(reviewerId);
-		if (!profile) {
-			return false;
-		}
-
-		const normalizedRaw = this.reviewerDirectory.normalizeValue(rawName);
-		if (normalizedRaw === this.reviewerDirectory.normalizeValue(profile.displayName)) {
-			return false;
-		}
-
-		return !profile.aliases.some((alias) => this.reviewerDirectory.normalizeValue(alias) === normalizedRaw);
-	}
-
 	canAcceptSuggestion(id: string): boolean {
 		if (!this.hasReviewSessionContext()) {
 			return false;
@@ -2205,166 +1944,6 @@ export default class EditorialistPlugin extends Plugin {
 	private getSuggestionById(id: string): ReviewSuggestion | null {
 		const session = this.store.getSession();
 		return session?.suggestions.find((suggestion) => suggestion.id === id) ?? null;
-	}
-
-	private applyReviewerResolutionToMatchingSuggestions(
-		raw: ParsedContributorReference,
-		reviewerId: string,
-		resolutionStatus: ReviewerResolutionStatus,
-	): Promise<void> {
-		const profile = this.reviewerDirectory.getProfileById(reviewerId);
-		if (!profile) {
-			new Notice(`Reviewer profile "${reviewerId}" was not found.`);
-			return Promise.resolve();
-		}
-
-		return this.applyReviewerProfileToMatchingSuggestions(raw, profile, resolutionStatus);
-	}
-
-	private applyReviewerProfileToMatchingSuggestions(
-		raw: ParsedContributorReference,
-		profile: ContributorProfile,
-		resolutionStatus: ReviewerResolutionStatus,
-	): Promise<void> {
-		const contributor = buildResolvedContributor(profile, raw, resolutionStatus);
-		return this.applyContributorToMatchingSuggestions(raw, contributor);
-	}
-
-	private async applyContributorToMatchingSuggestions(raw: ParsedContributorReference, contributor: ReviewSuggestion["contributor"]): Promise<void> {
-		const session = this.store.getSession();
-		if (!session) {
-			return;
-		}
-
-		this.store.replaceSuggestions(
-			session.suggestions.map((suggestion) =>
-				this.sameRawReviewer(suggestion.contributor.raw, raw)
-					? {
-							...suggestion,
-							contributor,
-						}
-					: suggestion,
-			),
-		);
-		await this.registry.syncReviewerSignalsForSession(this.store.getSession(), {
-			...this.getCurrentSessionTrackingContext(),
-		});
-	}
-
-	private reassignContributorInActiveSession(sourceReviewerId: string, targetProfile: ContributorProfile): void {
-		const session = this.store.getSession();
-		if (!session) {
-			return;
-		}
-
-		const nextSuggestions = session.suggestions.map((suggestion) => {
-			const nextSuggestedReviewerIds = suggestion.contributor.suggestedReviewerIds.includes(sourceReviewerId)
-				? [...new Set(suggestion.contributor.suggestedReviewerIds.map((value) => value === sourceReviewerId ? targetProfile.id : value))]
-				: suggestion.contributor.suggestedReviewerIds;
-
-			if (suggestion.contributor.reviewerId !== sourceReviewerId) {
-				if (nextSuggestedReviewerIds === suggestion.contributor.suggestedReviewerIds) {
-					return suggestion;
-				}
-
-				return {
-					...suggestion,
-					contributor: {
-						...suggestion.contributor,
-						suggestedReviewerIds: nextSuggestedReviewerIds,
-					},
-				};
-			}
-
-			return {
-				...suggestion,
-				contributor: {
-					...buildResolvedContributor(targetProfile, suggestion.contributor.raw, "alias"),
-					suggestedReviewerIds: nextSuggestedReviewerIds,
-				},
-			};
-		});
-
-		this.store.replaceSuggestions(nextSuggestions);
-	}
-
-	private syncContributorProfileInActiveSession(profile: ContributorProfile): void {
-		const session = this.store.getSession();
-		if (!session) {
-			return;
-		}
-
-		this.store.replaceSuggestions(
-			session.suggestions.map((suggestion) =>
-				suggestion.contributor.reviewerId !== profile.id
-					? suggestion
-					: {
-							...suggestion,
-							contributor: {
-								...suggestion.contributor,
-								displayName: profile.displayName,
-								kind: profile.kind,
-								model: profile.model,
-								provider: profile.provider,
-								reviewerType: profile.reviewerType,
-							},
-						},
-			),
-		);
-	}
-
-	private removeContributorFromActiveSession(reviewerId: string): void {
-		const session = this.store.getSession();
-		if (!session) {
-			return;
-		}
-
-		this.store.replaceSuggestions(
-			session.suggestions.map((suggestion) => {
-				const nextSuggestedReviewerIds = suggestion.contributor.suggestedReviewerIds.filter((value) => value !== reviewerId);
-				if (suggestion.contributor.reviewerId !== reviewerId) {
-					if (nextSuggestedReviewerIds.length === suggestion.contributor.suggestedReviewerIds.length) {
-						return suggestion;
-					}
-
-					return {
-						...suggestion,
-						contributor: {
-							...suggestion.contributor,
-							suggestedReviewerIds: nextSuggestedReviewerIds,
-						},
-					};
-				}
-
-				return {
-					...suggestion,
-					contributor: buildUnresolvedContributor(suggestion.contributor.raw, nextSuggestedReviewerIds),
-				};
-			}),
-		);
-	}
-
-	private removeAllContributorsFromActiveSession(): void {
-		const session = this.store.getSession();
-		if (!session) {
-			return;
-		}
-
-		this.store.replaceSuggestions(
-			session.suggestions.map((suggestion) => ({
-				...suggestion,
-				contributor: buildUnresolvedContributor(suggestion.contributor.raw),
-			})),
-		);
-	}
-
-	private sameRawReviewer(left: ParsedContributorReference, right: ParsedContributorReference): boolean {
-		return (
-			(left.rawName ?? "").trim() === (right.rawName ?? "").trim() &&
-			(left.rawType ?? "").trim() === (right.rawType ?? "").trim() &&
-			(left.rawProvider ?? "").trim() === (right.rawProvider ?? "").trim() &&
-			(left.rawModel ?? "").trim() === (right.rawModel ?? "").trim()
-		);
 	}
 
 	private getReviewSession(): ReviewSession | null {

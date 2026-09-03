@@ -1712,7 +1712,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		}
 		actionDropdown.addOption("create", "Create new");
 		actionDropdown.addOption("unresolved", "Leave unresolved");
-		if (this.plugin.canSaveReviewerAlias(suggestion.id)) {
+		if (this.plugin.contributors.canSaveReviewerAlias(suggestion.id)) {
 			actionDropdown.addOption("save_alias", "Save raw name as alias");
 		}
 		actionDropdown.setValue(this.reviewerMenuAction ?? "");
@@ -1730,7 +1730,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			dropdown.onChange((value) => {
 				this.reviewerPickerValue = value || null;
 				if (this.reviewerPickerValue) {
-					void this.plugin.useSuggestedReviewer(suggestion.id, this.reviewerPickerValue);
+					void this.plugin.contributors.useSuggestedReviewer(suggestion.id, this.reviewerPickerValue);
 				}
 				this.closeReviewerMenu();
 			});
@@ -1834,7 +1834,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			suggestion.contributor.resolutionStatus === "suggested" ||
 			suggestion.contributor.resolutionStatus === "unresolved" ||
 			suggestion.contributor.resolutionStatus === "new" ||
-			this.plugin.canSaveReviewerAlias(suggestion.id)
+			this.plugin.contributors.canSaveReviewerAlias(suggestion.id)
 		);
 	}
 
@@ -1965,19 +1965,19 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		}
 
 		if (value === "create") {
-			await this.plugin.createReviewerFromSuggestion(suggestion.id);
+			await this.plugin.contributors.createReviewerFromSuggestion(suggestion.id);
 			this.closeReviewerMenu();
 			return;
 		}
 
 		if (value === "unresolved") {
-			this.plugin.leaveReviewerUnresolved(suggestion.id);
+			this.plugin.contributors.leaveReviewerUnresolved(suggestion.id);
 			this.closeReviewerMenu();
 			return;
 		}
 
 		if (value === "save_alias") {
-			await this.plugin.saveReviewerAliasForSuggestion(suggestion.id);
+			await this.plugin.contributors.saveReviewerAliasForSuggestion(suggestion.id);
 			this.closeReviewerMenu();
 			return;
 		}

@@ -1216,7 +1216,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			const starButton = new ButtonComponent(controls)
 				.setTooltip(profile.isStarred ? "Unstar contributor" : "Star contributor")
 				.onClick(() => {
-					void this.plugin.toggleReviewerStarById(profile.id).then(() => this.displayAsync(false));
+					void this.plugin.contributors.toggleReviewerStarById(profile.id).then(() => this.displayAsync(false));
 				});
 			starButton.buttonEl.addClass("editorialist-settings__star-button");
 			if (profile.isStarred) {
@@ -1228,7 +1228,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			const manageButton = new ButtonComponent(controls)
 				.setTooltip("Manage contributor")
 				.onClick(() => {
-					void this.plugin.openContributorManagementFlow(profile.id).then((didChange) => {
+					void this.plugin.contributors.openContributorManagementFlow(profile.id).then((didChange) => {
 						if (didChange) {
 							void this.displayAsync(false);
 						}
@@ -1291,7 +1291,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		});
 		const resetActions = resetCard.createDiv({ cls: "editorialist-settings__maintenance-actions" });
 		this.createActionButton(resetActions, "users", "Delete all contributors", async () => {
-			const removedCount = await this.plugin.deleteAllContributors();
+			const removedCount = await this.plugin.contributors.deleteAllContributors();
 			if (removedCount > 0) {
 				void this.displayAsync(false);
 			}
