@@ -17,6 +17,7 @@ import type { ReviewSession, ReviewSuggestion } from "../../models/ReviewSuggest
 import type { ReviewerSignalRecord, ReviewerStats } from "../../models/ContributorProfile";
 import type { ContributorDirectory } from "../../state/ContributorDirectory";
 import { getEffectiveSuggestionStatus, getSuggestionSignatureParts } from "../../core/OperationSupport";
+import { resolveSuggestionBatchId } from "../../core/review/BatchAttribution";
 
 export interface ReconcileSessionResult {
 	nextIndex: Record<string, ReviewerSignalRecord>;
@@ -128,17 +129,6 @@ export class ReviewerStatsProjector {
 		this.directory.setStats(record.reviewerId, stats);
 	}
 
-	// The batch a suggestion belongs to. The suggestion's own stamp (written at
-	// parse time from its enclosing review block) always wins: one scene note
-	// may hold blocks from several imports, so the session-level id — which is
-	// whatever batch happens to be "current" for the note — is only a fallback
-	// for suggestions that genuinely carry no batch of their own (a guided-sweep
-	// suggestion outside an imported block, or a raw unstamped block). Dropping
-	// the fallback would silently discard those signals.
-	private batchIdFor(suggestion: ReviewSuggestion, sessionId?: string): string | undefined {
-		return suggestion.source.batchId ?? sessionId;
-	}
-
 	// Pure. (was ReviewRegistryService.createReviewerSignalRecord)
 	createSignalRecord(
 		key: string,
@@ -167,7 +157,7 @@ export class ReviewerStatsProjector {
 							? "deferred"
 							: "unresolved",
 			operation: suggestion.operation,
-			sessionId: this.batchIdFor(suggestion, sessionId),
+			sessionId: resolveSuggestionBatchId(suggestion, sessionId),
 			sessionStartedAt,
 		};
 	}
@@ -205,7 +195,7 @@ export class ReviewerStatsProjector {
 	// Note-identity prefix scans (`<identity>::`) still work — the identity is
 	// still the first segment.
 	private signalKeysFor(noteIdentities: string[], suggestion: ReviewSuggestion, sessionId?: string): string[] {
-		return this.signalKeysForBatch(noteIdentities, suggestion, this.batchIdFor(suggestion, sessionId));
+		return this.signalKeysForBatch(noteIdentities, suggestion, resolveSuggestionBatchId(suggestion, sessionId));
 	}
 
 	// Key builder for an already-resolved batch. The migration resolves the

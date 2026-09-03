@@ -18,6 +18,7 @@
 
 import { getLegacyContributorSignatureKind } from "../../core/ContributorIdentity";
 import { getSuggestionSignatureParts } from "../../core/OperationSupport";
+import { resolveSuggestionBatchId } from "../../core/review/BatchAttribution";
 import type { PersistedReviewDecisionRecord } from "../../models/ContributorProfile";
 import type { ReviewSession, ReviewSuggestion } from "../../models/ReviewSuggestion";
 
@@ -107,21 +108,6 @@ export class ReviewDecisionIndex {
 				};
 			}),
 		};
-	}
-
-	// The batch a decision belongs to. The suggestion's own stamp — written at
-	// parse time from the `BatchId:` of the review block it was parsed out of —
-	// always wins. One scene note may hold blocks from several imports, so the
-	// session-level id (whatever batch is "current" for the note: the active
-	// guided sweep's, else the note's FIRST imported block's) attributes every
-	// decision in the note to one batch, which is what let "Reset one batch"
-	// delete another batch's decisions. It survives only as the fallback for a
-	// suggestion that genuinely carries no batch of its own — a raw,
-	// never-imported block, or a guided-sweep suggestion outside an imported
-	// block. Dropping the fallback would leave those decisions unattributed;
-	// stamping them with a batch they do not belong to would lose them.
-	private batchIdFor(suggestion: ReviewSuggestion, sessionId?: string): string | undefined {
-		return suggestion.source.batchId ?? sessionId;
 	}
 
 	// One-time repair of batch attribution for the decisions of a single note,
@@ -217,7 +203,7 @@ export class ReviewDecisionIndex {
 			key,
 			status,
 			updatedAt: this.now(),
-			sessionId: this.batchIdFor(suggestion, options?.sessionId),
+			sessionId: resolveSuggestionBatchId(suggestion, options?.sessionId),
 			sessionStartedAt: options?.sessionStartedAt,
 		};
 		return true;

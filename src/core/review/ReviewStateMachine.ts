@@ -13,6 +13,7 @@ import {
 	hasLiveActionableSuggestions as hasLiveActionableSuggestionsShared,
 } from "./SuggestionTraversal";
 import { ReviewMutationScope } from "./ReviewMutationScope";
+import { computeNoteTextFingerprint } from "./SessionAxis";
 import type { ReviewSuggestion } from "../../models/ReviewSuggestion";
 import type {
 	ReviewSession,
@@ -38,15 +39,6 @@ interface EditorLike {
 	scrollIntoView(range: unknown, center?: boolean): void;
 	focus(): void;
 	getValue(): string;
-}
-
-function noteTextFingerprint(text: string): string {
-	let hash = 5381;
-	for (let index = 0; index < text.length; index += 1) {
-		hash = ((hash << 5) + hash) ^ text.charCodeAt(index);
-	}
-
-	return `${text.length}:${hash >>> 0}`;
 }
 
 export class ReviewStateMachine {
@@ -393,7 +385,7 @@ export class ReviewStateMachine {
 				end: appliedEndOffset,
 				notePath: context.filePath,
 				suggestionId: suggestion.id,
-				textFingerprint: noteTextFingerprint(editor.getValue()),
+				textFingerprint: computeNoteTextFingerprint(editor.getValue()),
 			};
 			if (options?.syncSceneInventory !== false) {
 				await this.host.registry.syncSceneInventoryForSession(this.host.store.getSession());
@@ -523,7 +515,7 @@ export class ReviewStateMachine {
 				end: appliedRange.end,
 				notePath,
 				suggestionId: suggestion.id,
-				textFingerprint: noteTextFingerprint(editorValue),
+				textFingerprint: computeNoteTextFingerprint(editorValue),
 			};
 		}
 		try {

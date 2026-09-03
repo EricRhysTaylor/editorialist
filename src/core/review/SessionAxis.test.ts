@@ -102,10 +102,11 @@ describe("computeNoteTextFingerprint", () => {
 		// fails this test — protecting persisted lastAppliedChange values
 		// that were written before the drift. Computed by running the current
 		// djb2-XOR implementation against "hello".
-		const pinned = computeNoteTextFingerprint("hello");
-		expect(pinned.startsWith("5:")).toBe(true);
-		// Same input → same output (algorithm and seed pinned).
-		expect(pinned).toBe(computeNoteTextFingerprint("hello"));
+		// The exact value is the contract: it is what sits in persisted
+		// lastAppliedChange.textFingerprint fields, and ReviewStateMachine
+		// writes those through this same function.
+		expect(computeNoteTextFingerprint("hello")).toBe("5:178056679");
+		expect(computeNoteTextFingerprint("")).toBe("0:5381");
 	});
 });
 
