@@ -5,6 +5,7 @@
 **Branch / commit:** `main` @ `4a2438d`
 **Build status at audit time:** `pass` (`npm run check` green; `npm test` 895 passing in 69 files)
 **Previous report:** `reports/2026-08-18-codebase-health.md`
+**Remediation:** 2026-09-03, commits `b3507fc` through `9ad568a` — see the resolution note at the end for what each finding became
 
 ---
 
@@ -416,15 +417,14 @@ Resolved since August: `CH-2026-08-18-#1` (batch attribution — `a3ff1db`, `893
 ## Next cycle
 
 - **Run on:** 2026-09-08
-- **Specific things to re-check:**
-  - `#1` fixed (it is five minutes and it blinds every grep).
-  - `#2` decided one way or the other, and CODE-STANDARDS §2 corrected to match whichever way.
-  - `#3` and `#4` — both small, both touch attribution; ship with tests.
-  - `#5`/`#6` — was one of the two canonical modules actually adopted, or deleted?
-  - `#10` — third cycle; decide.
-  - `src/main.ts` line count: does the fourth increase become a fifth, or does the wrapper deletion land?
-  - `ReviewPanel.render()` length.
-  - `#19` — the mixed-case test exists, and its answer (conservative or undercount) is recorded.
+- **Specific things to re-check** (revised 2026-09-03 after remediation; see resolution note):
+  - `#9` — the wrapper deletion and the three extractions have not started; `main.ts` is 4,137 only because dead code left. Does the planned pass get scheduled?
+  - `#14` — `ReviewPanel.render()` is now 357 lines (up from 331) because it gathers its inputs explicitly; the branch-body split is the next step and should bring it under 200.
+  - `#8` — the nine non-persisted duplicate rows are still open; the scene-number parser is still in three places.
+  - `#11`, `#12`, `#13`, `#18` — untouched; confirm they are on the Refactor Board.
+  - `#2` residual — `.claude/settings.local.json` still pre-allows every `npm run *`, including `backup`, which pushes. Decide whether to narrow it.
+  - `#16` residual — README images path, CONTRIBUTING test count, the two wiki omissions, the dead package.json aliases, and the enforced-eslint triple are still open.
+  - Whether the new `qa-audit` control-byte check has fired on anything.
 - **If skipping this cadence, why:** n/a
 
 ---
@@ -441,3 +441,50 @@ First draft (commit `4b2af78`, against `4a2438d`) revised 2026-09-03 after indep
 - **`#13`** re-labelled as an inventory rather than a metric.
 
 Also since the first draft: `HEAD` moved from `4a2438d` to `f8292e2`, a `backup: auto` commit produced by the `npm run build` hook that `#2` describes; it committed and pushed five source and test files. At `f8292e2`: 899 tests (was 895), `src/ui/EditorialistModal.ts` 1,317 lines (was 1,302), `src/orchestrators/ReviewBatchProcessor.ts` 597 (was 590), `src/main.ts` unchanged at 4,245, functions ≥ 80 lines unchanged at 34, files > 600 lines unchanged at 11. The metric tables above remain the `4a2438d` snapshot the report was taken against; none of the findings changes at `f8292e2`.
+
+---
+
+## Resolution note (2026-09-03)
+
+Eric approved the priority list on 2026-09-03 and the remediation landed as fourteen commits on `main`, `b3507fc` through `9ad568a`. Every commit passed `npm run check` and the full test suite; nothing was pushed. The findings above are left as audited. This table records what each became.
+
+| Finding | Outcome | Commit(s) | Notes |
+|---|---|---|---|
+| `#1` NUL byte | **Fixed** | `b3507fc` | Byte replaced with the `"\0"` escape; `qa-audit` now fails on any control byte in source, verified against a probe. |
+| `#2` build pushes | **Fixed** (decision: never-push holds) | `cf64c98` | `backup-if-stale` removed from `build`. CLAUDE.md names `release` and `backup` as the only pushing scripts and as Eric's alone; CODE-STANDARDS §2 and the feature-audit command now describe what `release.mjs` does. **Residual:** `.claude/settings.local.json` still pre-allows every `npm run *`. |
+| `#3` batch-stats divergence | **Fixed** | `09f95f0` | Processor copy deleted; host forwards to the registry; the two tests that pinned the stale priority removed. |
+| `#4` contributor id split | **Fixed** | `4233428` | `contributorSlug`, `buildResolvedContributor`, `buildUnresolvedContributor` in `core/ContributorIdentity`; directory and `main.ts` both call them. New tests for the builders and for `ContributorDirectory`. |
+| `#5` status model unadopted | **Fixed** | `a775510` | Three inline predicates and the settings label route through the model. Visible change: a finished sweep reads "Completed", not "Complete". Test-only exports (`isResolvedStatus`, `isDeferredStatus`, `isUnresolvedStatus`, `normalizeReviewStatus`) left in place. |
+| `#6` branch selector unadopted | **Fixed** | `6f81560` | `render()` gathers inputs once and branches on `selectReviewPanelBranch`; each branch throws if the promised state is absent. Filter reset moved ahead of branch selection so the filtered-empty input is honest. |
+| `#7` dead code | **Fixed** | `14e8f7b`, `72e5960`, `18e16c6` | Ten plugin methods (not thirteen — see revision note) with their orchestrator and host chains; seven exports; three toolbar state fields; four dead UI branches with their CSS; two unused parameters; recording host and `HOST_OPS` moved to `tests/scaffolds/`. `ts-prune` now reports only fixtures and test-only helpers. |
+| `#8` core duplicates | **Partial** | `04d0666` | The two persisted-data rows fixed: one fingerprint function (exact value now pinned), one `resolveSuggestionBatchId`. The nine non-persisted rows remain open. |
+| `#9` `main.ts` | **Open** | — | 4,245 → 4,137 from dead-code removal only. Wrapper deletion and the three extractions not started. |
+| `#10` rollback notice | **Fixed** | `838238b` | `rollback()` returns whether every compensation landed; the notice is softened when one did not. Scope gains its own tests; transaction suite gains a throwing-compensation case. |
+| `#11` layering | **Open** | — | Untouched. |
+| `#12` swallows | **Open** | — | Untouched. |
+| `#13` UI duplication | **Open** | — | Untouched. |
+| `#14` oversized functions | **Open, one regressed by design** | — | `render()` 331 → 357: the explicit input gathering from `#6` is inside it. The branch-body split is the next step. Count unchanged at 34. |
+| `#15` untested surfaces | **Partial** | `4233428` | `ContributorDirectory` and `ContributorIdentity` now have direct tests. The four UI surfaces remain untested. |
+| `#16` docs/tooling drift | **Partial** | `cf64c98` | CODE-STANDARDS §2, CLAUDE.md:63, and the `master` reference fixed. README images path, CONTRIBUTING count, wiki omissions, package.json aliases, enforced-eslint triple, tsconfig targets, `copy-to-vault` still open. |
+| `#17` release drafts | **Fixed** | `9ad568a` | Six files and `readLocalReleaseDraft` deleted; the script always opens the GitHub draft with the generated changelog. |
+| `#18` render-time session build | **Open** | — | Untouched. |
+| `#19` mixed-signal stats | **Fixed (decision recorded)** | `c72d42b` | Exact-first preference kept, deliberately: an unstamped record on a shared note may belong to another batch. Comment and test pin the choice. |
+
+Two commits outside the table: `83ec6e4` removes an import that `c72d42b` claimed to drop and had not, and `e363b0e` is the revision above.
+
+### Metrics after remediation (`9ad568a`)
+
+| Metric | Audited (`4a2438d`) | After (`9ad568a`) | Δ |
+|---|---:|---:|---:|
+| `src/main.ts` (lines) | 4,245 | 4,137 | −108 |
+| `styles.css` (lines) | 6,240 | 6,199 | −41 |
+| Files > 600 lines (excl. tests) | 11 | 11 | 0 |
+| Functions ≥ 80 lines (production, AST) | 34 | 34 | 0 |
+| Dead exports (ts-prune, non-fixture) | 7 dead / 12 test-only | 0 dead / 6 test-only | −7 / −6 |
+| `// SAFE:` exceptions | 3 | 3 | 0 |
+| `// TODO` (product code) | 2 | 2 | 0 |
+| `main.js` size (KB) | 470 | 468 | −2 |
+| Tests | 895 / 69 files | 913 / 73 files | +18 / +4 |
+| NUL bytes in tracked text files | 1 (2 after the first draft of this report) | 0 | — |
+
+The size numbers barely move because the batch was correctness and single-source work, not the structural pass. `#9` is where the lines are.
