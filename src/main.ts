@@ -16,6 +16,7 @@ import {
 	getSuggestionPrimaryTarget,
 	isSuggestionOpen as isSuggestionOpenShared,
 } from "./core/OperationSupport";
+import { isTerminalStatus } from "./core/status/ReviewStatusModel";
 import { isBatchReadyToClean, isSweepComplete as isSweepCompleteShared,
 	buildCompletedSweepNextSteps,
 } from "./core/review/SweepCompletion";
@@ -3527,8 +3528,7 @@ export default class EditorialistPlugin extends Plugin {
 	}
 
 	private isCompletedReviewSuggestion(suggestion: ReviewSuggestion): boolean {
-		const status = this.getEffectiveSuggestionStatus(suggestion);
-		return status === "accepted" || status === "rewritten" || status === "rejected";
+		return isTerminalStatus(this.getEffectiveSuggestionStatus(suggestion));
 	}
 
 	private hasRevealableAcceptedRange(suggestion: ReviewSuggestion): boolean {

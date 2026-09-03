@@ -13,6 +13,7 @@ import {
 	type ReviewTargetRef,
 } from "../models/ReviewSuggestion";
 import { normalizeMatchText } from "./TextMatching";
+import { isOpenStatus, isTerminalStatus } from "./status/ReviewStatusModel";
 
 export interface ReviewCopyBlock {
 	body: string;
@@ -459,13 +460,11 @@ export function isImplicitlyAcceptedSuggestion(suggestion: ReviewSuggestion): bo
 }
 
 export function isSuggestionOpen(suggestion: ReviewSuggestion): boolean {
-	const status = getEffectiveSuggestionStatus(suggestion);
-	return status === "pending" || status === "deferred" || status === "unresolved";
+	return isOpenStatus(getEffectiveSuggestionStatus(suggestion));
 }
 
 export function getSuggestionPresentationTone(suggestion: ReviewSuggestion): ReviewSuggestionPresentationTone {
-	const status = getEffectiveSuggestionStatus(suggestion);
-	return status === "accepted" || status === "rejected" || status === "rewritten" ? "muted" : "active";
+	return isTerminalStatus(getEffectiveSuggestionStatus(suggestion)) ? "muted" : "active";
 }
 
 

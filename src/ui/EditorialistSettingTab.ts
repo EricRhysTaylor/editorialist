@@ -1,5 +1,6 @@
 import { ButtonComponent, Notice, PluginSettingTab, setIcon, TFile, ToggleComponent, type App } from "obsidian";
 import { formatReviewerTypeLabel } from "../core/ContributorIdentity";
+import { sweepStatusLabel } from "../core/status/ReviewStatusModel";
 import {
 	renderContributorBrandMark,
 	resolveContributorAvatarKind,
@@ -1481,7 +1482,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		});
 		const sceneCount = entry.sceneOrder.length;
 		const sceneLabel = sceneCount === 1 ? "scene" : "scenes";
-		const statusLabel = entry.status === "in_progress" ? "In progress" : entry.status === "completed" ? "Complete" : "Cleaned";
+		const statusLabel = sweepStatusLabel(entry.status);
 		return `${dateLabel} · ${entry.totalSuggestions} edits · ${sceneCount} ${sceneLabel} · ${statusLabel}`;
 	}
 

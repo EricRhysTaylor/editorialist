@@ -1,6 +1,7 @@
 import { ButtonComponent, DropdownComponent, ItemView, setIcon, type WorkspaceLeaf } from "obsidian";
 import { formatContributorIdentityLabel } from "../core/ContributorIdentity";
 import { getEffectiveSuggestionStatus, getSuggestionCopyBlocks, getSuggestionReason as getOperationSuggestionReason, isImplicitlyAcceptedSuggestion, isMoveSuggestion } from "../core/OperationSupport";
+import { isOpenStatus, reviewStatusLabel } from "../core/status/ReviewStatusModel";
 import type { ReviewSuggestion, SceneMemo } from "../models/ReviewSuggestion";
 import type { default as EditorialistPlugin, ReviewStateIndexEntry } from "../main";
 import {
@@ -2071,7 +2072,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	}
 
 	private isRawOpenSuggestionStatus(status: ReviewSuggestion["status"]): boolean {
-		return status === "pending" || status === "deferred" || status === "unresolved";
+		return isOpenStatus(status);
 	}
 
 	private getStatusLabel(suggestion: ReviewSuggestion): string {
@@ -2152,7 +2153,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			return "Advisory";
 		}
 
-		return this.toSentenceCase(status);
+		return reviewStatusLabel(status);
 	}
 
 	private getEffectiveStatus(suggestion: ReviewSuggestion): ReviewSuggestion["status"] {
