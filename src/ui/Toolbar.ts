@@ -346,7 +346,7 @@ export function createReviewToolbarElement(
 			"Backup to cut file",
 			"archive",
 			() => {
-				void plugin.backupSelectionToCutFile({ preferDisplayedSuggestion: true });
+				void plugin.cutFiles.backupSelectionToCutFile({ preferDisplayedSuggestion: true });
 			},
 			false,
 			false,
@@ -356,7 +356,7 @@ export function createReviewToolbarElement(
 					label: "Open cut file for this scene",
 					icon: "folder-open",
 					onClick: () => {
-						void plugin.openCutFileForActiveScene();
+						void plugin.cutFiles.openCutFileForActiveScene();
 					},
 					when: ({ modPressed, shiftPressed }) => shiftPressed && !modPressed,
 				},
@@ -515,7 +515,7 @@ export function createReviewToolbarElement(
 		"Backup to cut file",
 		"archive",
 		() => {
-			void plugin.backupSelectionToCutFile({ preferDisplayedSuggestion: true });
+			void plugin.cutFiles.backupSelectionToCutFile({ preferDisplayedSuggestion: true });
 		},
 		false,
 		false,
@@ -525,7 +525,7 @@ export function createReviewToolbarElement(
 				label: "Open cut file for this scene",
 				icon: "folder-open",
 				onClick: () => {
-					void plugin.openCutFileForActiveScene();
+					void plugin.cutFiles.openCutFileForActiveScene();
 				},
 				when: ({ modPressed, shiftPressed }) => shiftPressed && !modPressed,
 			},

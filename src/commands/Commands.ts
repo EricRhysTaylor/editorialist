@@ -55,7 +55,7 @@ export function registerCommands(plugin: EditorialistPlugin): void {
 		// editorCallback so the command only appears when an editor is active;
 		// the plugin method re-reads the live selection itself.
 		editorCallback: () => {
-			void plugin.backupSelectionToCutFile();
+			void plugin.cutFiles.backupSelectionToCutFile();
 		},
 	});
 

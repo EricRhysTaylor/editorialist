@@ -315,7 +315,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		// Name the detected scene in the label so there's no ambiguity about which
 		// scene the button acts on. Falls back to generic wording only when no
 		// scene is detected at all.
-		const { sceneName, hasCutFile } = this.plugin.getActiveSceneCutStatus();
+		const { sceneName, hasCutFile } = this.plugin.cutFiles.getActiveSceneCutStatus();
 		const cutLabel = sceneName
 			? hasCutFile
 				? `Open cut file for “${sceneName}”`
@@ -335,7 +335,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		setIcon(cutIcon, "scissors");
 		if (hasCutFile) {
 			this.bindImmediateAction(cutButton, () => {
-				void this.plugin.openCutFileForActiveScene();
+				void this.plugin.cutFiles.openCutFileForActiveScene();
 			});
 		}
 
