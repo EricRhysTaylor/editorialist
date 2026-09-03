@@ -32,7 +32,7 @@ function makeHost(overrides: Partial<ReviewBatchProcessorHost> = {}) {
 		getSweepRegistryEntry: () => null,
 		updateSweepRegistry: async () => { calls.push("updateSweepRegistry"); },
 		syncSceneInventory: async () => { calls.push("syncSceneInventory"); },
-		getSceneReviewRecords: () => [],
+		getBatchDecisionStats: () => ({ accepted: 0, rejected: 0, rewritten: 0, deferred: 0 }),
 		resetBatchHistoryInRegistry: async () => ({
 			removedDecisions: 3,
 			removedSignals: 2,
@@ -51,31 +51,6 @@ const batch = {
 	summary: {},
 	results: [],
 } as unknown as ReviewImportBatch;
-
-describe("ReviewBatchProcessor.getBatchDecisionStats", () => {
-	it("prefers the frozen registry-entry snapshot", () => {
-		const { host } = makeHost({
-			getSweepRegistryEntry: () =>
-				({ acceptedCount: 5, rejectedCount: 2, rewrittenCount: 1, deferredCount: 3 }) as never,
-		});
-		const stats = new ReviewBatchProcessor(host).getBatchDecisionStats("b1");
-		expect(stats).toEqual({ accepted: 5, rejected: 2, rewritten: 1, deferred: 3 });
-	});
-
-	it("falls back to summing scene records that include the batch id", () => {
-		const { host } = makeHost({
-			getSweepRegistryEntry: () => null,
-			getSceneReviewRecords: () =>
-				[
-					{ batchIds: ["b1"], acceptedCount: 2, rejectedCount: 1, rewrittenCount: 0, deferredCount: 1 },
-					{ batchIds: ["other"], acceptedCount: 9, rejectedCount: 9, rewrittenCount: 9, deferredCount: 9 },
-					{ batchIds: ["b1"], acceptedCount: 1, rejectedCount: 0, rewrittenCount: 4, deferredCount: 0 },
-				] as never,
-		});
-		const stats = new ReviewBatchProcessor(host).getBatchDecisionStats("b1");
-		expect(stats).toEqual({ accepted: 3, rejected: 1, rewritten: 4, deferred: 1 });
-	});
-});
 
 describe("ReviewBatchProcessor.resetBatchHistory", () => {
 	it("resets registry then saves, resyncs and refreshes — in order", async () => {

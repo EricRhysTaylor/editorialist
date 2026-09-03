@@ -22,6 +22,7 @@ import {
 } from "../core/ReviewBlockFormat";
 import { isReviewTemplateText } from "../core/ReviewTemplate";
 import { openEditorialistChoiceModal } from "../ui/EditorialistChoiceModal";
+import type { BatchDecisionStats } from "../services/ReviewRegistryService";
 import { buildDuplicateImportPrompt } from "../core/review/DuplicateImportPrompt";
 import type { ClipboardReviewBatch } from "../ui/EditorialistModal";
 import type { ImportEngine } from "../core/ImportEngine";
@@ -69,7 +70,10 @@ export interface ReviewBatchProcessorHost {
 	): Promise<void>;
 	syncSceneInventory(): Promise<void>;
 	formatRelativeTime(timestamp: number): string;
-	getSceneReviewRecords(): SceneReviewRecord[];
+	// The registry's single implementation. The duplicate-import warning and
+	// the Clean button must report the same counts, so neither may compute
+	// its own.
+	getBatchDecisionStats(batchId: string): BatchDecisionStats;
 	resetBatchHistoryInRegistry(
 		batchId: string,
 	): Promise<{ removedDecisions: number; removedSignals: number; removedSweep: boolean }>;
@@ -348,7 +352,7 @@ export class ReviewBatchProcessor {
 			batchId: duplicateSweep.batchId,
 			importedAtLabel: this.host.formatRelativeTime(duplicateSweep.importedAt),
 			sceneCount: duplicateSweep.importedNotePaths.length,
-			decisions: this.getBatchDecisionStats(duplicateSweep.batchId),
+			decisions: this.host.getBatchDecisionStats(duplicateSweep.batchId),
 		});
 
 		const choice = await openEditorialistChoiceModal(this.host.app, {
@@ -370,47 +374,6 @@ export class ReviewBatchProcessor {
 		const batch = await this.host.getImportEngine().inspectBatch(rawText, options);
 		await this.host.persistContributorProfilesIfNeeded();
 		return batch;
-	}
-
-	// Aggregates per-suggestion decisions across scenes that participated in a
-	// given sweep batch. Exact when each touched scene has only seen this one
-	// batch (the common case); approximate when scenes are shared across
-	// batches — in that case counts are the union, which is acceptable for the
-	// at-a-glance Recent Reviews display.
-	getBatchDecisionStats(batchId: string): {
-		accepted: number;
-		rejected: number;
-		rewritten: number;
-		deferred: number;
-	} {
-		// Prefer the frozen snapshot on the registry entry. It tracks counts live
-		// while the batch is in_progress / completed and preserves them after the
-		// batch is cleaned, so historical Recent Reviews entries keep their stats.
-		const entry = this.host.getSweepRegistryEntry(batchId);
-		if (entry) {
-			return {
-				accepted: entry.acceptedCount ?? 0,
-				rejected: entry.rejectedCount ?? 0,
-				rewritten: entry.rewrittenCount ?? 0,
-				deferred: entry.deferredCount ?? 0,
-			};
-		}
-
-		const records = this.host.getSceneReviewRecords();
-		let accepted = 0;
-		let rejected = 0;
-		let rewritten = 0;
-		let deferred = 0;
-		for (const record of records) {
-			if (!record.batchIds.includes(batchId)) {
-				continue;
-			}
-			accepted += record.acceptedCount;
-			rejected += record.rejectedCount;
-			rewritten += record.rewrittenCount;
-			deferred += record.deferredCount;
-		}
-		return { accepted, rejected, rewritten, deferred };
 	}
 
 	async resetBatchHistory(

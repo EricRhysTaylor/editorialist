@@ -66,7 +66,7 @@ interface ReviewActivitySummary {
 	unresolved: number;
 }
 
-interface BatchDecisionStats {
+export interface BatchDecisionStats {
 	accepted: number;
 	deferred: number;
 	rejected: number;

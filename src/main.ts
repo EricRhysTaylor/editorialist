@@ -316,7 +316,7 @@ export default class EditorialistPlugin extends Plugin {
 			this.registry.updateSweepRegistry(batchId, updates, options),
 		syncSceneInventory: () => this.registry.syncSceneInventory(),
 		formatRelativeTime: (timestamp: number) => formatRelativeTime(timestamp),
-		getSceneReviewRecords: () => this.registry.getSceneReviewRecords(),
+		getBatchDecisionStats: (batchId) => this.registry.getBatchDecisionStats(batchId),
 		resetBatchHistoryInRegistry: (batchId) => this.registry.resetBatchHistory(batchId),
 		openExistingSweep: (entry) => this.workflow.openExistingSweep(entry),
 		startGuidedSweep: (batchId, importedAt, notePaths) =>
