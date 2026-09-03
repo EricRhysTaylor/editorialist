@@ -3,9 +3,9 @@
 // bulk-apply confirm + apply, and the close/finish/dismiss exits. Extracted
 // verbatim from EditorialistPlugin (main.ts) — store mutation ordering,
 // Notice triggers, async behavior, and decoration-sync ordering are
-// byte-identical. main.ts is now only the composition root; it constructs
-// this controller and exposes thin public delegators (the entry points still
-// dispatched by the toolbar UI and the command palette).
+// byte-identical. main.ts is the composition root: it constructs this
+// controller and exposes it as `plugin.reviewActions`, which the toolbar UI,
+// the review panel, and the command palette call directly.
 //
 // The controller knows nothing about Obsidian beyond `Notice` for user
 // messages. Every other dependency — including the state machine — is
@@ -215,6 +215,13 @@ export class ReviewActionsOrchestrator {
 		await this.rejectSuggestion(selectedSuggestion.id);
 	}
 
+	// TODO (RC follow-up — deferred this pass): rewrite capture. Today this
+	// only sets status="rewritten" (counts DONE, never blocks completion,
+	// shows "Rewritten by the author"). A later pass should optionally persist
+	// { originalMatchedText, suggestedReplacement, authorReplacement,
+	// timestamp } via a "Use my rewrite" / "Use selected text as rewrite"
+	// flow. Also deferred: RT scene-inventory glyphs, contributor-management
+	// redesign, advanced analytics/history.
 	async rewriteSelectedSuggestion(): Promise<void> {
 		if (!this.host.hasActiveReviewSession()) {
 			return;

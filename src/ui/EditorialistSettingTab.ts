@@ -72,7 +72,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		if (refreshMetadata) {
 			await this.plugin.syncOperationalMetadata();
 		}
-		await this.plugin.refreshPendingEditsSummary({ force: refreshMetadata });
+		await this.plugin.pendingEdits.refreshPendingEditsSummary({ force: refreshMetadata });
 		if (runId !== this.displayRunId) {
 			return;
 		}
@@ -782,7 +782,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 	}
 
 	private renderPendingEditsSection(parent: HTMLElement): void {
-		const summary = this.plugin.getPendingEditsSummary();
+		const summary = this.plugin.pendingEdits.getPendingEditsSummary();
 		const radialTimelineInstalled = this.isRadialTimelineInstalled();
 
 		if (!radialTimelineInstalled && !summary) {
@@ -830,7 +830,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		});
 		const actionFooter = actionCard.createDiv({ cls: "editorialist-settings__stat-action-footer" });
 		const startButton = this.createActionButton(actionFooter, "play", "Start review", async () => {
-			await this.plugin.startPendingEditsReview();
+			await this.plugin.pendingEdits.startPendingEditsReview();
 		});
 		if (segmentCount === 0) {
 			startButton.setAttribute("disabled", "true");
@@ -994,7 +994,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 				event.preventDefault();
 				void this.plugin.openSceneNote(record.notePath);
 			});
-			if (this.plugin.hasPendingEditsForScene(record.notePath)) {
+			if (this.plugin.pendingEdits.hasPendingEditsForScene(record.notePath)) {
 				const badge = sceneEntry.createSpan({
 					cls: "editorialist-settings__inventory-pending-badge",
 					attr: {

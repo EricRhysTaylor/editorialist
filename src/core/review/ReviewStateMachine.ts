@@ -2,7 +2,8 @@
 // rewrite / defer / apply / undo / jump flows previously inlined in
 // EditorialistPlugin (main.ts). Behavior — including effect ORDER and the
 // intentionally-repeated store.getSession() argument reads — is preserved
-// exactly per STATE_MACHINE_TRACES. main.ts keeps thin delegating wrappers.
+// exactly per STATE_MACHINE_TRACES. The plugin exposes these flows through
+// ReviewActionsOrchestrator, which the UI reaches directly.
 
 import {
 	createSuggestionApplyPlan,

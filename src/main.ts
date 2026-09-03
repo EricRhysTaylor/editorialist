@@ -1,9 +1,5 @@
 import type { EditorView } from "@codemirror/view";
 import { MarkdownView, Menu, normalizePath, Notice, Plugin, TFile, type App, type WorkspaceLeaf } from "obsidian";
-import type {
-	PendingEditSegment,
-	PendingEditsSession,
-} from "./models/PendingEditSegment";
 import { registerCommands } from "./commands/Commands";
 import { buildResolvedContributor, buildUnresolvedContributor } from "./core/ContributorIdentity";
 import { ImportEngine } from "./core/ImportEngine";
@@ -323,7 +319,7 @@ export default class EditorialistPlugin extends Plugin {
 		startGuidedSweep: (batchId, importedAt, notePaths) =>
 			this.workflow.startGuidedSweep(batchId, importedAt, notePaths),
 	});
-	private readonly pendingEdits = new PendingEditsCoordinator({
+	readonly pendingEdits = new PendingEditsCoordinator({
 		app: this.app,
 		refreshReviewPanel: () => this.refreshReviewPanel(),
 		syncActiveEditorDecorations: () => this.syncActiveEditorDecorations(),
@@ -360,7 +356,7 @@ export default class EditorialistPlugin extends Plugin {
 		persistContributorProfilesIfNeeded: () => this.persistContributorProfilesIfNeeded(),
 	});
 
-	private readonly reviewActions = new ReviewActionsOrchestrator({
+	readonly reviewActions = new ReviewActionsOrchestrator({
 		store: this.store,
 		registry: this.registry,
 		workflow: this.workflow,
@@ -1202,66 +1198,6 @@ export default class EditorialistPlugin extends Plugin {
 		}
 	}
 
-	getPendingEditsSession(): PendingEditsSession | null {
-		return this.pendingEdits.getPendingEditsSession();
-	}
-
-	getPendingEditsSummary(): PendingEditsSummary | null {
-		return this.pendingEdits.getPendingEditsSummary();
-	}
-
-	hasPendingEditsForScene(scenePath: string): boolean {
-		return this.pendingEdits.hasPendingEditsForScene(scenePath);
-	}
-
-	getPendingEditsCountForScene(scenePath: string): number {
-		return this.pendingEdits.getPendingEditsCountForScene(scenePath);
-	}
-
-	async refreshPendingEditsSummary(options?: { force?: boolean }): Promise<void> {
-		return this.pendingEdits.refreshPendingEditsSummary(options);
-	}
-
-	async startPendingEditsReview(): Promise<void> {
-		await this.pendingEdits.startPendingEditsReview();
-	}
-
-	async startPendingEditsReviewForScene(scenePath: string): Promise<void> {
-		await this.pendingEdits.startPendingEditsReviewForScene(scenePath);
-	}
-
-	async openPendingEditSegment(segment: PendingEditSegment): Promise<void> {
-		await this.pendingEdits.openPendingEditSegment(segment);
-	}
-
-	async completePendingEditSegment(segment: PendingEditSegment): Promise<void> {
-		await this.pendingEdits.completePendingEditSegment(segment);
-	}
-
-	async skipPendingEditSegment(segment: PendingEditSegment): Promise<void> {
-		await this.pendingEdits.skipPendingEditSegment(segment);
-	}
-
-	async completeSelectedPendingEditSegment(): Promise<void> {
-		await this.pendingEdits.completeSelectedPendingEditSegment();
-	}
-
-	async selectNextPendingEditSegment(): Promise<void> {
-		await this.pendingEdits.selectNextPendingEditSegment();
-	}
-
-	async selectPreviousPendingEditSegment(): Promise<void> {
-		await this.pendingEdits.selectPreviousPendingEditSegment();
-	}
-
-	async closePendingEditsReview(): Promise<void> {
-		await this.pendingEdits.closePendingEditsReview();
-	}
-
-	openInquiryBriefNote(notePath: string): void {
-		this.pendingEdits.openInquiryBriefNote(notePath);
-	}
-
 	openSettings(): void {
 		const appWithSettings = this.app as App & {
 			setting?: {
@@ -1283,86 +1219,6 @@ export default class EditorialistPlugin extends Plugin {
 		appWithSettings.setting?.close?.();
 	}
 
-	async selectSuggestion(id: string): Promise<void> {
-		await this.reviewActions.selectSuggestion(id);
-	}
-
-	async selectNextSuggestion(): Promise<void> {
-		await this.reviewActions.selectNextSuggestion();
-	}
-
-	async selectPreviousSuggestion(): Promise<void> {
-		await this.reviewActions.selectPreviousSuggestion();
-	}
-
-	async selectNextAcceptedSuggestion(): Promise<void> {
-		await this.reviewActions.selectNextAcceptedSuggestion();
-	}
-
-	async selectPreviousAcceptedSuggestion(): Promise<void> {
-		await this.reviewActions.selectPreviousAcceptedSuggestion();
-	}
-
-	async acceptSelectedSuggestion(): Promise<boolean> {
-		return this.reviewActions.acceptSelectedSuggestion();
-	}
-
-	async acceptSelectedSuggestionAndAdvance(): Promise<void> {
-		await this.reviewActions.acceptSelectedSuggestionAndAdvance();
-	}
-
-	async enterApplyAndReviewConfirmMode(): Promise<void> {
-		await this.reviewActions.enterApplyAndReviewConfirmMode();
-	}
-
-	cancelApplyAndReviewConfirmMode(): void {
-		this.reviewActions.cancelApplyAndReviewConfirmMode();
-	}
-
-	async confirmApplyAndReviewSceneSuggestions(): Promise<void> {
-		await this.reviewActions.confirmApplyAndReviewSceneSuggestions();
-	}
-
-	async applyAndReviewSceneSuggestions(): Promise<void> {
-		await this.reviewActions.applyAndReviewSceneSuggestions();
-	}
-
-	async selectNextAppliedReviewChange(): Promise<void> {
-		await this.reviewActions.selectNextAppliedReviewChange();
-	}
-
-	async selectPreviousAppliedReviewChange(): Promise<void> {
-		await this.reviewActions.selectPreviousAppliedReviewChange();
-	}
-
-	async exitAppliedReviewMode(): Promise<void> {
-		await this.reviewActions.exitAppliedReviewMode();
-	}
-
-	async closeActiveReviewContext(): Promise<void> {
-		await this.reviewActions.closeActiveReviewContext();
-	}
-
-	async closeReviewPanel(): Promise<void> {
-		await this.reviewActions.closeReviewPanel();
-	}
-
-	async finishActiveReview(): Promise<void> {
-		await this.reviewActions.finishActiveReview();
-	}
-
-	dismissReviewToolbar(): void {
-		this.reviewActions.dismissReviewToolbar();
-	}
-
-	async continueGuidedSweep(): Promise<void> {
-		await this.reviewActions.continueGuidedSweep();
-	}
-
-	async finishGuidedSweep(): Promise<void> {
-		await this.reviewActions.finishGuidedSweep();
-	}
-
 	// Bridges the guided-sweep workflow to the per-scene polish counter
 	// (Editorialist.revision in scene frontmatter — see
 	// incrementSceneEditorialRevision for the full intent and gates).
@@ -1378,41 +1234,6 @@ export default class EditorialistPlugin extends Plugin {
 		}
 
 		return this.registry.incrementSceneEditorialRevision(notePath, batchId);
-	}
-
-	async resumeCompletedReviewMode(): Promise<void> {
-		await this.reviewActions.resumeCompletedReviewMode();
-	}
-
-	async selectNextCompletedReviewSuggestion(): Promise<void> {
-		await this.reviewActions.selectNextCompletedReviewSuggestion();
-	}
-
-	async selectPreviousCompletedReviewSuggestion(): Promise<void> {
-		await this.reviewActions.selectPreviousCompletedReviewSuggestion();
-	}
-
-	async exitCompletedReviewMode(): Promise<void> {
-		await this.reviewActions.exitCompletedReviewMode();
-	}
-
-	async rejectSelectedSuggestion(): Promise<void> {
-		await this.reviewActions.rejectSelectedSuggestion();
-	}
-
-	// TODO (RC follow-up — deferred this pass): rewrite capture. Today this
-	// only sets status="rewritten" (counts DONE, never blocks completion,
-	// shows "Rewritten by the author"). A later pass should optionally persist
-	// { originalMatchedText, suggestedReplacement, authorReplacement,
-	// timestamp } via a "Use my rewrite" / "Use selected text as rewrite"
-	// flow. Also deferred: RT scene-inventory glyphs, contributor-management
-	// redesign, advanced analytics/history.
-	async rewriteSelectedSuggestion(): Promise<void> {
-		await this.reviewActions.rewriteSelectedSuggestion();
-	}
-
-	deferSelectedSuggestion(): void {
-		this.reviewActions.deferSelectedSuggestion();
 	}
 
 	getCutFolderOverride(): string {
@@ -1848,18 +1669,6 @@ export default class EditorialistPlugin extends Plugin {
 		return target.text.trim() ? target.text : null;
 	}
 
-	async jumpToSelectedSuggestionTarget(): Promise<void> {
-		await this.reviewActions.jumpToSelectedSuggestionTarget();
-	}
-
-	async jumpToSelectedSuggestionAnchor(): Promise<void> {
-		await this.reviewActions.jumpToSelectedSuggestionAnchor();
-	}
-
-	async jumpToSelectedSuggestionSource(): Promise<void> {
-		await this.reviewActions.jumpToSelectedSuggestionSource();
-	}
-
 	private reviewStateMachineInstance: ReviewStateMachine | null = null;
 
 	private getReviewStateMachine(): ReviewStateMachine {
@@ -1932,22 +1741,6 @@ export default class EditorialistPlugin extends Plugin {
 		};
 	}
 
-	async acceptSuggestion(id: string): Promise<boolean> {
-		return this.reviewActions.acceptSuggestion(id);
-	}
-
-	async rejectSuggestion(id: string): Promise<void> {
-		await this.reviewActions.rejectSuggestion(id);
-	}
-
-	async markSuggestionRewritten(id: string): Promise<void> {
-		await this.reviewActions.markSuggestionRewritten(id);
-	}
-
-	async resolveUnmatchedSuggestions(): Promise<number> {
-		return this.reviewActions.resolveUnmatchedSuggestions();
-	}
-
 	// One-click reconciliation from the workspace view: open (or resume) the
 	// scene's review session, then mark its unmatched leftovers as rewritten.
 	// The resolve step recomputes unmatched-ness from the live session after
@@ -1958,27 +1751,7 @@ export default class EditorialistPlugin extends Plugin {
 		if (session?.notePath !== notePath) {
 			return;
 		}
-		await this.resolveUnmatchedSuggestions();
-	}
-
-	async deferSuggestion(id: string): Promise<void> {
-		await this.reviewActions.deferSuggestion(id);
-	}
-
-	async undoLastAppliedSuggestion(): Promise<void> {
-		await this.reviewActions.undoLastAppliedSuggestion();
-	}
-
-	async jumpToSuggestionTarget(id: string): Promise<void> {
-		await this.reviewActions.jumpToSuggestionTarget(id);
-	}
-
-	async jumpToSuggestionAnchor(id: string): Promise<void> {
-		await this.reviewActions.jumpToSuggestionAnchor(id);
-	}
-
-	async jumpToSuggestionSource(id: string): Promise<void> {
-		await this.reviewActions.jumpToSuggestionSource(id);
+		await this.reviewActions.resolveUnmatchedSuggestions();
 	}
 
 	getReviewerProfiles(): ContributorProfile[] {
@@ -2096,7 +1869,7 @@ export default class EditorialistPlugin extends Plugin {
 
 	async resetAllRevisionHistory(): Promise<{ removedDecisions: number; removedSignals: number; removedSweeps: number }> {
 		const result = await this.registry.resetAllRevisionHistory();
-		await this.closeActiveReviewContext();
+		await this.reviewActions.closeActiveReviewContext();
 		this.store.batch(() => {
 			this.store.setGuidedSweep(null);
 			this.store.acknowledgeCompletedSweep(null);

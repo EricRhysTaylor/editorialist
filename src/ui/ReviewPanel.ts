@@ -179,7 +179,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 
 	async onClose(): Promise<void> {
 		this.contentEl.empty();
-		void this.plugin.closeActiveReviewContext();
+		void this.plugin.reviewActions.closeActiveReviewContext();
 	}
 
 	render(): void {
@@ -196,7 +196,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		// — the second has prior activity to surface. hasReviewActivityHistory
 		// captures every signal that distinguishes them so the compact
 		// onboarding card stays reserved for genuinely new users.
-		const pendingEditSegmentCount = this.plugin.getPendingEditsSummary()?.segmentCount ?? 0;
+		const pendingEditSegmentCount = this.plugin.pendingEdits.getPendingEditsSummary()?.segmentCount ?? 0;
 		const hasReviewActivityHistory =
 			this.plugin.getSweepRegistryEntries().length > 0
 			|| pendingEditSegmentCount > 0
@@ -751,7 +751,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			.setCta();
 		resolve.buttonEl.setAttribute("aria-label", "Mark every unmatched item in this scene as rewritten");
 		this.bindImmediateAction(resolve.buttonEl, () => {
-			void this.plugin.resolveUnmatchedSuggestions();
+			void this.plugin.reviewActions.resolveUnmatchedSuggestions();
 		});
 	}
 
@@ -1225,17 +1225,17 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			.setCta();
 		this.bindImmediateAction(primaryAction.buttonEl, () => {
 			if (handoff.isFinal) {
-				void this.plugin.finishGuidedSweep();
+				void this.plugin.reviewActions.finishGuidedSweep();
 				return;
 			}
 
-			void this.plugin.continueGuidedSweep();
+			void this.plugin.reviewActions.continueGuidedSweep();
 		});
 
 		if (handoff.secondaryActionLabel) {
 			const secondaryAction = new ButtonComponent(actions).setButtonText(handoff.secondaryActionLabel);
 			this.bindImmediateAction(secondaryAction.buttonEl, () => {
-				void this.plugin.finishGuidedSweep();
+				void this.plugin.reviewActions.finishGuidedSweep();
 			});
 		}
 	}
@@ -1280,7 +1280,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			cls: `editorialist-suggestion editorialist-suggestion--${statusName} editorialist-suggestion--tone-${tone}${selected ? " is-selected" : ""}${panelPrimary ? " is-panel-primary" : ""}${isCollapsed ? " is-collapsed" : ""}`,
 		});
 		this.bindImmediateAction(card, () => {
-			void this.plugin.selectSuggestion(suggestion.id);
+			void this.plugin.reviewActions.selectSuggestion(suggestion.id);
 		});
 
 		const summary = card.createDiv({ cls: "editorialist-suggestion__summary" });
@@ -1380,7 +1380,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 				trailingActions,
 				"Mark as rewritten",
 				() => {
-					void this.plugin.markSuggestionRewritten(suggestion.id);
+					void this.plugin.reviewActions.markSuggestionRewritten(suggestion.id);
 				},
 				{
 					icon: "pen-line",
@@ -1551,7 +1551,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			// the block so the card itself shows which side failed.
 			...(destinationResolved
 				? {
-						onActivate: () => void this.plugin.jumpToSuggestionAnchor(suggestion.id),
+						onActivate: () => void this.plugin.reviewActions.jumpToSuggestionAnchor(suggestion.id),
 						activateHint: "Jump",
 						activateLabel: "Jump to the destination",
 					}
@@ -1749,7 +1749,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			actions,
 			"",
 			() => {
-				void this.plugin.jumpToSuggestionTarget(suggestion.id);
+				void this.plugin.reviewActions.jumpToSuggestionTarget(suggestion.id);
 				this.closeJumpMenu();
 			},
 			{
@@ -1763,7 +1763,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			actions,
 			"",
 			() => {
-				void this.plugin.jumpToSuggestionSource(suggestion.id);
+				void this.plugin.reviewActions.jumpToSuggestionSource(suggestion.id);
 				this.closeJumpMenu();
 			},
 			{
@@ -1778,7 +1778,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 				actions,
 				"",
 				() => {
-					void this.plugin.jumpToSuggestionAnchor(suggestion.id);
+					void this.plugin.reviewActions.jumpToSuggestionAnchor(suggestion.id);
 					this.closeJumpMenu();
 				},
 				{

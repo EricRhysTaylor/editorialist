@@ -113,7 +113,7 @@ export function renderCompletedSweepCard(
 				text: step.label,
 			});
 			host.bindAction(link, () => {
-				void plugin.resumeCompletedReviewMode();
+				void plugin.reviewActions.resumeCompletedReviewMode();
 			});
 			return;
 		}
@@ -156,7 +156,7 @@ export function renderCompletedSweepCard(
 		text: completedSweep.closeLabel,
 	});
 	host.bindAction(closeLink, () => {
-		void plugin.closeReviewPanel();
+		void plugin.reviewActions.closeReviewPanel();
 	});
 }
 

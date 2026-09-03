@@ -58,8 +58,8 @@ export class PendingEditsPanel extends ItemView {
 	}
 
 	async refresh(): Promise<void> {
-		await this.plugin.refreshPendingEditsSummary({ force: true });
-		this.summary = this.plugin.getPendingEditsSummary();
+		await this.plugin.pendingEdits.refreshPendingEditsSummary({ force: true });
+		this.summary = this.plugin.pendingEdits.getPendingEditsSummary();
 		this.render();
 	}
 
@@ -133,7 +133,7 @@ export class PendingEditsPanel extends ItemView {
 		setIcon(button.createSpan({ cls: "editorialist-pending-panel__review-all-icon" }), "play");
 		button.createSpan({ text: "Review all pending edits" });
 		button.addEventListener("click", () => {
-			void this.plugin.startPendingEditsReview();
+			void this.plugin.pendingEdits.startPendingEditsReview();
 		});
 	}
 
@@ -152,7 +152,7 @@ export class PendingEditsPanel extends ItemView {
 			}
 			const scenePath = scene.scenePath;
 			row.addEventListener("click", () => {
-				void this.plugin.startPendingEditsReviewForScene(scenePath);
+				void this.plugin.pendingEdits.startPendingEditsReviewForScene(scenePath);
 			});
 		}
 	}

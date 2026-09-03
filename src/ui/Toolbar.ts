@@ -143,16 +143,16 @@ export function createReviewToolbarElement(
 			state.isFinal ? "check-check" : "arrow-right",
 			() => {
 				if (state.isFinal) {
-					void plugin.finishGuidedSweep();
+					void plugin.reviewActions.finishGuidedSweep();
 					return;
 				}
 
-				void plugin.continueGuidedSweep();
+				void plugin.reviewActions.continueGuidedSweep();
 			},
 		);
 		if (state.secondaryActionLabel) {
 			buildActionButton(actions, state.secondaryActionLabel, "flag", () => {
-				void plugin.finishGuidedSweep();
+				void plugin.reviewActions.finishGuidedSweep();
 			}, true);
 		}
 		return overlay;
@@ -176,7 +176,7 @@ export function createReviewToolbarElement(
 		toolbar.addClass("editorialist-toolbar--bulk-confirm");
 		const leading = toolbar.createDiv({ cls: "editorialist-toolbar__leading" });
 		buildFlatIconButton(leading, "Cancel bulk apply", "x", () => {
-			plugin.cancelApplyAndReviewConfirmMode();
+			plugin.reviewActions.cancelApplyAndReviewConfirmMode();
 		});
 
 		const meta = toolbar.createDiv({ cls: "editorialist-toolbar__meta editorialist-toolbar__meta--centered" });
@@ -187,10 +187,10 @@ export function createReviewToolbarElement(
 
 		const actions = toolbar.createDiv({ cls: "editorialist-toolbar__actions" });
 		buildActionButton(actions, "Cancel", "arrow-left", () => {
-			plugin.cancelApplyAndReviewConfirmMode();
+			plugin.reviewActions.cancelApplyAndReviewConfirmMode();
 		}, true);
 		buildActionButton(actions, "Confirm", "triangle-alert", () => {
-			void plugin.confirmApplyAndReviewSceneSuggestions();
+			void plugin.reviewActions.confirmApplyAndReviewSceneSuggestions();
 		});
 		return overlay;
 	}
@@ -199,7 +199,7 @@ export function createReviewToolbarElement(
 		toolbar.addClass("editorialist-toolbar--panel");
 		const leading = toolbar.createDiv({ cls: "editorialist-toolbar__leading" });
 		buildFlatIconButton(leading, "Finish review", "x", () => {
-			void plugin.finishActiveReview();
+			void plugin.reviewActions.finishActiveReview();
 		});
 
 		const meta = toolbar.createDiv({ cls: "editorialist-toolbar__meta editorialist-toolbar__meta--centered" });
@@ -210,14 +210,14 @@ export function createReviewToolbarElement(
 
 		const actions = toolbar.createDiv({ cls: "editorialist-toolbar__actions" });
 		buildButton(actions, tracker, "Previous", "arrow-left", () => {
-			void plugin.selectPreviousAppliedReviewChange();
+			void plugin.reviewActions.selectPreviousAppliedReviewChange();
 		}, false);
 		buildButton(actions, tracker, "Next", "arrow-right", () => {
-			void plugin.selectNextAppliedReviewChange();
+			void plugin.reviewActions.selectNextAppliedReviewChange();
 		}, false);
 		if (state.canUndo) {
 			buildButton(actions, tracker, "Undo", "rotate-ccw", () => {
-				void plugin.undoLastAppliedSuggestion();
+				void plugin.reviewActions.undoLastAppliedSuggestion();
 			}, false);
 		}
 		return overlay;
@@ -227,7 +227,7 @@ export function createReviewToolbarElement(
 		toolbar.addClass("editorialist-toolbar--panel");
 		const leading = toolbar.createDiv({ cls: "editorialist-toolbar__leading" });
 		buildFlatIconButton(leading, "Finish review", "x", () => {
-			void plugin.finishActiveReview();
+			void plugin.reviewActions.finishActiveReview();
 		});
 
 		const meta = toolbar.createDiv({ cls: "editorialist-toolbar__meta editorialist-toolbar__meta--centered" });
@@ -238,14 +238,14 @@ export function createReviewToolbarElement(
 
 		const actions = toolbar.createDiv({ cls: "editorialist-toolbar__actions" });
 		buildButton(actions, tracker, "Previous", "arrow-left", () => {
-			void plugin.selectPreviousAcceptedSuggestion();
+			void plugin.reviewActions.selectPreviousAcceptedSuggestion();
 		}, !state.canPrevious);
 		buildButton(actions, tracker, "Next", "arrow-right", () => {
-			void plugin.selectNextAcceptedSuggestion();
+			void plugin.reviewActions.selectNextAcceptedSuggestion();
 		}, !state.canNext);
 		if (state.canUndo) {
 			buildButton(actions, tracker, "Undo", "rotate-ccw", () => {
-				void plugin.undoLastAppliedSuggestion();
+				void plugin.reviewActions.undoLastAppliedSuggestion();
 			}, false);
 		}
 		return overlay;
@@ -255,7 +255,7 @@ export function createReviewToolbarElement(
 		toolbar.addClass("editorialist-toolbar--pending-edits");
 		const leading = toolbar.createDiv({ cls: "editorialist-toolbar__leading" });
 		buildFlatIconButton(leading, "Close pending edits review", "x", () => {
-			void plugin.closePendingEditsReview();
+			void plugin.pendingEdits.closePendingEditsReview();
 		});
 
 		const meta = toolbar.createDiv({ cls: "editorialist-toolbar__meta" });
@@ -289,7 +289,7 @@ export function createReviewToolbarElement(
 			markAsNonEditorSurface(briefLink);
 			const targetPath = state.briefContext.notePath;
 			bindImmediateAction(briefLink, () => {
-				plugin.openInquiryBriefNote(targetPath);
+				plugin.pendingEdits.openInquiryBriefNote(targetPath);
 			});
 			const briefSummary = briefBlock.createDiv({
 				cls: "editorialist-toolbar__pending-brief-summary",
@@ -315,7 +315,7 @@ export function createReviewToolbarElement(
 
 		const actions = toolbar.createDiv({ cls: "editorialist-toolbar__actions" });
 		buildButton(actions, tracker, "Previous", "arrow-left", () => {
-			void plugin.selectPreviousPendingEditSegment();
+			void plugin.pendingEdits.selectPreviousPendingEditSegment();
 		}, !state.canPrevious);
 		buildButton(
 			actions,
@@ -323,7 +323,7 @@ export function createReviewToolbarElement(
 			"Next (leave item in pending edits)",
 			"arrow-right",
 			() => {
-				void plugin.selectNextPendingEditSegment();
+				void plugin.pendingEdits.selectNextPendingEditSegment();
 			},
 			!state.canNext,
 			true,
@@ -336,7 +336,7 @@ export function createReviewToolbarElement(
 			"Complete and remove from pending edits",
 			"list-x",
 			() => {
-				void plugin.completeSelectedPendingEditSegment();
+				void plugin.pendingEdits.completeSelectedPendingEditSegment();
 			},
 			!state.canComplete,
 		);
@@ -369,7 +369,7 @@ export function createReviewToolbarElement(
 		toolbar.addClass("editorialist-toolbar--completed-review");
 		const leading = toolbar.createDiv({ cls: "editorialist-toolbar__leading" });
 		buildFlatIconButton(leading, "Finish review", "x", () => {
-			void plugin.finishActiveReview();
+			void plugin.reviewActions.finishActiveReview();
 		});
 
 		const meta = toolbar.createDiv({ cls: "editorialist-toolbar__meta editorialist-toolbar__meta--centered" });
@@ -382,14 +382,14 @@ export function createReviewToolbarElement(
 
 		const actions = toolbar.createDiv({ cls: "editorialist-toolbar__actions" });
 		buildButton(actions, tracker, "Previous", "arrow-left", () => {
-			void plugin.selectPreviousCompletedReviewSuggestion();
+			void plugin.reviewActions.selectPreviousCompletedReviewSuggestion();
 		}, !state.canPrevious);
 		buildButton(actions, tracker, "Next", "arrow-right", () => {
-			void plugin.selectNextCompletedReviewSuggestion();
+			void plugin.reviewActions.selectNextCompletedReviewSuggestion();
 		}, !state.canNext);
 		if (state.canUndo) {
 			buildButton(actions, tracker, "Undo", "rotate-ccw", () => {
-				void plugin.undoLastAppliedSuggestion();
+				void plugin.reviewActions.undoLastAppliedSuggestion();
 			}, false);
 		}
 		return overlay;
@@ -398,7 +398,7 @@ export function createReviewToolbarElement(
 	{
 		const leading = toolbar.createDiv({ cls: "editorialist-toolbar__leading" });
 		buildFlatIconButton(leading, "Hide toolbar", "x", () => {
-			plugin.dismissReviewToolbar();
+			plugin.reviewActions.dismissReviewToolbar();
 		});
 		buildLegendTrigger(leading);
 		if (state.mode === "review" && state.anchorDirection) {
@@ -467,10 +467,10 @@ export function createReviewToolbarElement(
 	const actions = toolbar.createDiv({ cls: "editorialist-toolbar__actions" });
 	const applyOperationLabel = state.operationLabel.toLowerCase();
 	buildButton(actions, tracker, "Previous", "arrow-left", () => {
-		void plugin.selectPreviousSuggestion();
+		void plugin.reviewActions.selectPreviousSuggestion();
 	}, !state.canPrevious);
 	buildButton(actions, tracker, "Next", "arrow-right", () => {
-		void plugin.selectNextSuggestion();
+		void plugin.reviewActions.selectNextSuggestion();
 	}, !state.canNext);
 	buildButton(
 		actions,
@@ -478,7 +478,7 @@ export function createReviewToolbarElement(
 		`Apply ${applyOperationLabel}`,
 		"check",
 		() => {
-			void plugin.acceptSelectedSuggestion();
+			void plugin.reviewActions.acceptSelectedSuggestion();
 		},
 		!state.canApply,
 		true,
@@ -488,7 +488,7 @@ export function createReviewToolbarElement(
 				label: "Apply to all",
 				icon: "list-checks",
 				onClick: () => {
-					void plugin.enterApplyAndReviewConfirmMode();
+					void plugin.reviewActions.enterApplyAndReviewConfirmMode();
 				},
 				when: ({ modPressed, shiftPressed }) => shiftPressed && modPressed,
 			},
@@ -497,17 +497,17 @@ export function createReviewToolbarElement(
 				label: `Apply ${applyOperationLabel} and advance`,
 				icon: "list-end",
 				onClick: () => {
-					void plugin.acceptSelectedSuggestionAndAdvance();
+					void plugin.reviewActions.acceptSelectedSuggestionAndAdvance();
 				},
 				when: ({ modPressed, shiftPressed }) => shiftPressed && !modPressed,
 			},
 		],
 	);
 	buildButton(actions, tracker, "Defer", "clock", () => {
-		plugin.deferSelectedSuggestion();
+		plugin.reviewActions.deferSelectedSuggestion();
 	}, !state.canDefer);
 	buildButton(actions, tracker, "Rewrite myself", "pen-line", () => {
-		void plugin.rewriteSelectedSuggestion();
+		void plugin.reviewActions.rewriteSelectedSuggestion();
 	}, !state.canRewrite);
 	buildButton(
 		actions,
@@ -533,11 +533,11 @@ export function createReviewToolbarElement(
 	);
 	if (state.canUndoLastAccept) {
 		buildButton(actions, tracker, "Undo", "rotate-ccw", () => {
-			void plugin.undoLastAppliedSuggestion();
+			void plugin.reviewActions.undoLastAppliedSuggestion();
 		}, false);
 	} else {
 		buildButton(actions, tracker, "Reject", "circle-off", () => {
-			void plugin.rejectSelectedSuggestion();
+			void plugin.reviewActions.rejectSelectedSuggestion();
 		}, !state.canReject);
 	}
 
