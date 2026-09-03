@@ -16,10 +16,7 @@
 
 import { Notice } from "obsidian";
 import { getSuggestionAnchorTarget } from "../core/OperationSupport";
-import {
-	findPreferredSuggestionId as findPreferredSuggestionIdShared,
-	getUnmatchedOpenSuggestionIds as getUnmatchedOpenSuggestionIdsShared,
-} from "../core/review/SuggestionTraversal";
+import { getUnmatchedOpenSuggestionIds as getUnmatchedOpenSuggestionIdsShared } from "../core/review/SuggestionTraversal";
 import type {
 	ReviewSession,
 	ReviewSuggestion,
@@ -179,17 +176,6 @@ export class ReviewActionsOrchestrator {
 		}
 
 		this.host.store.selectSuggestion(previousSuggestionId);
-		await this.host.revealSelectedSuggestion();
-	}
-
-	async exitAcceptedReviewMode(): Promise<void> {
-		const session = this.host.getReviewSession();
-		if (!session) {
-			return;
-		}
-
-		const nextSuggestionId = findPreferredSuggestionIdShared(session.suggestions);
-		this.host.store.selectSuggestion(nextSuggestionId);
 		await this.host.revealSelectedSuggestion();
 	}
 

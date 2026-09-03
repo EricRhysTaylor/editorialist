@@ -812,10 +812,6 @@ export class ReviewRegistryService {
 		return { from, to };
 	}
 
-	async clearCleanedSweepRecords(): Promise<number> {
-		return 0;
-	}
-
 	async injectStableNoteIds(notePaths: string[]): Promise<number> {
 		const fileManager = this.app.fileManager as App["fileManager"] & {
 			processFrontMatter?: (

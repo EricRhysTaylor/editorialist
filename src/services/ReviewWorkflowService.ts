@@ -4,7 +4,6 @@ import type { ReviewRegistryService } from "./ReviewRegistryService";
 
 interface ReviewWorkflowHost {
 	clearReviewSelection: () => Promise<void>;
-	cleanupBatchById: (batchId: string) => Promise<void>;
 	enterCompletedSweepAudit: () => Promise<void>;
 	notify: (message: string) => void;
 	openNoteForReview: (filePath: string) => Promise<void>;
@@ -47,16 +46,6 @@ export class ReviewWorkflowService {
 			},
 			{ persist: true },
 		);
-	}
-
-	async cleanupCurrentBatch(noteText?: string): Promise<boolean> {
-		const batchId = this.getCurrentBatchId(noteText);
-		if (!batchId) {
-			return false;
-		}
-
-		await this.host.cleanupBatchById(batchId);
-		return true;
 	}
 
 	async openExistingSweep(entry: ReviewSweepRegistryEntry): Promise<void> {

@@ -76,7 +76,6 @@ export interface ReviewBatchProcessorHost {
 	// workflow
 	openExistingSweep(entry: ReviewSweepRegistryEntry): Promise<void>;
 	startGuidedSweep(batchId: string, importedAt: number, notePaths: string[]): Promise<void>;
-	cleanupCurrentBatch(noteText?: string): Promise<boolean>;
 }
 
 export interface CleanupOutcome {
@@ -422,13 +421,6 @@ export class ReviewBatchProcessor {
 		this.host.resyncSessionForActiveNote();
 		this.host.refreshReviewPanel();
 		return result;
-	}
-
-	async cleanupCurrentReviewBatch(): Promise<void> {
-		const context = this.host.getReviewNoteContext() ?? this.host.getActiveNoteContext();
-		if (!(await this.host.cleanupCurrentBatch(context?.text))) {
-			new Notice("No imported review batch is active.");
-		}
 	}
 
 	async cleanupReviewBatchById(batchId: string, options?: { notify?: boolean }): Promise<number> {

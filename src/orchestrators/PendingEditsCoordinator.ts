@@ -319,14 +319,6 @@ export class PendingEditsCoordinator {
 		await this.completePendingEditSegment(segment);
 	}
 
-	async skipSelectedPendingEditSegment(): Promise<void> {
-		const segment = this.resolveActivePendingEditSegment();
-		if (!segment) {
-			return;
-		}
-		await this.skipPendingEditSegment(segment);
-	}
-
 	async selectNextPendingEditSegment(): Promise<void> {
 		const segment = this.resolveActivePendingEditSegment();
 		if (!segment) {

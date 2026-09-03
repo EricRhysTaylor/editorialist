@@ -40,7 +40,6 @@ function makeHost(overrides: Partial<ReviewBatchProcessorHost> = {}) {
 		}),
 		openExistingSweep: async () => { calls.push("openExistingSweep"); },
 		startGuidedSweep: async () => { calls.push("startGuidedSweep"); },
-		cleanupCurrentBatch: async () => true,
 		...overrides,
 	};
 	return { host, calls, importEngine };

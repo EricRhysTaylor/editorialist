@@ -27,7 +27,6 @@ import {
 import { ReviewStateMachine } from "./core/review/ReviewStateMachine";
 import { runEditorUndo } from "./core/review/EditorUndo";
 import type { ReviewStateMachineHost } from "./core/review/ReviewStateMachineHost";
-import { computeNoteTextFingerprint } from "./core/review/SessionAxis";
 import {
 	classifyNoteReviewBlocks,
 	noteContainsReviewBlock,
@@ -57,9 +56,8 @@ import type {
 	EditorialistEffortSettings,
 	ReviewerResolutionStatus,
 	SceneReviewRecord,
-	ReviewerStats,
 } from "./models/ContributorProfile";
-import { ReviewStore, type AppliedReviewState, type CompletedSweepState, type GuidedSweepState } from "./state/ReviewStore";
+import { ReviewStore, type CompletedSweepState, type GuidedSweepState } from "./state/ReviewStore";
 import { DebouncedSaver } from "./state/DebouncedSaver";
 import { TrailingDebouncer } from "./state/TrailingDebouncer";
 import { ContributorDirectory } from "./state/ContributorDirectory";
@@ -268,9 +266,6 @@ export default class EditorialistPlugin extends Plugin {
 			this.store.selectSuggestion(null);
 			await this.revealSelectedSuggestion();
 		},
-		cleanupBatchById: async (batchId) => {
-			await this.batchProcessor.cleanupReviewBatch(batchId);
-		},
 		enterCompletedSweepAudit: async () => {
 			await this.enterCompletedSweepAudit();
 		},
@@ -327,7 +322,6 @@ export default class EditorialistPlugin extends Plugin {
 		openExistingSweep: (entry) => this.workflow.openExistingSweep(entry),
 		startGuidedSweep: (batchId, importedAt, notePaths) =>
 			this.workflow.startGuidedSweep(batchId, importedAt, notePaths),
-		cleanupCurrentBatch: (noteText) => this.workflow.cleanupCurrentBatch(noteText),
 	});
 	private readonly pendingEdits = new PendingEditsCoordinator({
 		app: this.app,
@@ -582,14 +576,6 @@ export default class EditorialistPlugin extends Plugin {
 
 	async parseCurrentNote(options?: { suppressNotice?: boolean }): Promise<void> {
 		await this.sessionOrchestrator.parseCurrentNote(options);
-	}
-
-	async openPrepareReviewFormatModal(): Promise<void> {
-		await this.openEditorialistModal();
-	}
-
-	async openImportReviewBatchModal(): Promise<void> {
-		await this.openEditorialistModal();
 	}
 
 	async openEditorialistModal(): Promise<void> {
@@ -1260,10 +1246,6 @@ export default class EditorialistPlugin extends Plugin {
 		await this.pendingEdits.completeSelectedPendingEditSegment();
 	}
 
-	async skipSelectedPendingEditSegment(): Promise<void> {
-		await this.pendingEdits.skipSelectedPendingEditSegment();
-	}
-
 	async selectNextPendingEditSegment(): Promise<void> {
 		await this.pendingEdits.selectNextPendingEditSegment();
 	}
@@ -1319,10 +1301,6 @@ export default class EditorialistPlugin extends Plugin {
 
 	async selectPreviousAcceptedSuggestion(): Promise<void> {
 		await this.reviewActions.selectPreviousAcceptedSuggestion();
-	}
-
-	async exitAcceptedReviewMode(): Promise<void> {
-		await this.reviewActions.exitAcceptedReviewMode();
 	}
 
 	async acceptSelectedSuggestion(): Promise<boolean> {
@@ -2015,10 +1993,6 @@ export default class EditorialistPlugin extends Plugin {
 		return reviewerId ? this.reviewerDirectory.getProfileById(reviewerId) : null;
 	}
 
-	getReviewerStats(reviewerId?: string): ReviewerStats | null {
-		return reviewerId ? this.reviewerDirectory.getStats(reviewerId) : null;
-	}
-
 	getSweepRegistryEntries(): ReviewSweepRegistryEntry[] {
 		return this.registry.getSweepRegistryEntries();
 	}
@@ -2576,10 +2550,6 @@ export default class EditorialistPlugin extends Plugin {
 		return true;
 	}
 
-	async clearCleanedSweepRecords(): Promise<number> {
-		return 0;
-	}
-
 	async useSuggestedReviewer(suggestionId: string, reviewerId?: string): Promise<void> {
 		const suggestion = this.getSuggestionById(suggestionId);
 		const resolvedReviewerId = reviewerId ?? suggestion?.contributor.suggestedReviewerIds[0];
@@ -2633,26 +2603,6 @@ export default class EditorialistPlugin extends Plugin {
 
 		await this.savePluginData();
 		this.resyncSessionForActiveNote();
-	}
-
-	async toggleReviewerStarForSuggestion(suggestionId: string): Promise<void> {
-		const suggestion = this.getSuggestionById(suggestionId);
-		const reviewerId = suggestion?.contributor.reviewerId;
-		if (!reviewerId) {
-			return;
-		}
-
-		const updatedProfile = this.reviewerDirectory.toggleStar(reviewerId);
-		if (!updatedProfile) {
-			return;
-		}
-
-		await this.savePluginData();
-		this.refreshReviewPanel();
-	}
-
-	canToggleReviewerStar(suggestionId: string): boolean {
-		return Boolean(this.getSuggestionById(suggestionId)?.contributor.reviewerId);
 	}
 
 	canSaveReviewerAlias(suggestionId: string): boolean {
@@ -2773,10 +2723,6 @@ export default class EditorialistPlugin extends Plugin {
 
 	getSuggestionPresentationTone(suggestion: ReviewSuggestion): "active" | "muted" {
 		return getSuggestionPresentationTone(suggestion);
-	}
-
-	getAppliedReviewState(): AppliedReviewState | null {
-		return this.store.getAppliedReview();
 	}
 
 	// Public read-through facades for the panel UI. The store itself is private
@@ -3621,11 +3567,6 @@ export default class EditorialistPlugin extends Plugin {
 		return suggestion.status === "accepted" && this.hasRevealableAcceptedRange(suggestion);
 	}
 
-
-	private getNoteTextFingerprint(text: string): string {
-		return computeNoteTextFingerprint(text);
-	}
-
 	private isCompletedReviewSuggestion(suggestion: ReviewSuggestion): boolean {
 		const status = this.getEffectiveSuggestionStatus(suggestion);
 		return status === "accepted" || status === "rewritten" || status === "rejected";
@@ -4202,14 +4143,6 @@ export default class EditorialistPlugin extends Plugin {
 		}
 
 		await this.savePluginData();
-	}
-
-	async cleanupCurrentReviewBatch(): Promise<void> {
-		await this.batchProcessor.cleanupCurrentReviewBatch();
-	}
-
-	async cleanupReviewBatchById(batchId: string): Promise<void> {
-		await this.cleanupReviewBatchesById([batchId]);
 	}
 
 	// Recent Reviews' per-row Clean lands here. A row collapses every import
