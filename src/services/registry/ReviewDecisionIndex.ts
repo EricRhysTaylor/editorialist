@@ -7,7 +7,7 @@
 // fallback key, the in-place key migration when only the key shape changed,
 // and the dedupe of identical key shapes — is byte-identical, with one
 // deliberate later change: a record's `sessionId` is now the batch of the
-// suggestion's OWN review block (see batchIdFor) rather than the note-level
+// suggestion's OWN review block (see resolveSuggestionBatchId) rather than the note-level
 // batch, because resetBatchHistory deletes by that field.
 //
 // The protecting tests are the Pass-2 service invariants

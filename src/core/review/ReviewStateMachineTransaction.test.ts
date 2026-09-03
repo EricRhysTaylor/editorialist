@@ -53,6 +53,9 @@ function editOpen(id: string): ReviewSuggestion {
 
 interface StatefulHostConfig {
 	failOnceAt?: FailOp;
+	// Make the named compensation (an inverse registered during the decision)
+	// throw once when the rollback replays it.
+	failCompensationAt?: "registry.clearPersistedReviewDecision";
 }
 
 // Host with real in-memory authoritative + derived state.
@@ -63,6 +66,7 @@ class StatefulHost implements ReviewStateMachineHost {
 	signalsReflect: Record<string, string> | null = null; // last synced snapshot
 	inventoryReflect: Record<string, string> | null = null;
 	private failed = new Set<FailOp>();
+	private compensationFailed = false;
 	private readonly suggestion: ReviewSuggestion;
 	_lastAppliedChange: AppliedReviewChangeLike | null = null;
 
@@ -121,6 +125,10 @@ class StatefulHost implements ReviewStateMachineHost {
 			_notePath: string,
 			suggestion: ReviewSuggestion,
 		): Promise<void> => {
+			if (this.config.failCompensationAt === "registry.clearPersistedReviewDecision" && !this.compensationFailed) {
+				this.compensationFailed = true;
+				throw new Error("injected failure in compensation registry.clearPersistedReviewDecision");
+			}
 			this.persistedDecisions.delete(suggestion.id);
 		},
 		syncReviewerSignalsForSession: async (): Promise<void> => {
@@ -212,7 +220,9 @@ class StatefulHost implements ReviewStateMachineHost {
 function expectRolledBackToPending(host: StatefulHost): void {
 	expect(host.storeStatuses.get("s1")).toBe("pending");
 	expect(host.persistedDecisions.has("s1")).toBe(false);
-	expect(host.notices.length).toBeGreaterThan(0);
+	// A clean rollback is reported as one; the softened wording is reserved
+	// for the case where an inverse itself failed (tested separately).
+	expect(host.notices.at(-1)).toContain("your changes were rolled back");
 }
 
 describe("ReviewStateMachine — transaction safety on partial failure", () => {
@@ -223,6 +233,22 @@ describe("ReviewStateMachine — transaction safety on partial failure", () => {
 		// persist had committed "rejected"; the failed store update must not
 		// leave the decision index ahead of the store.
 		expectRolledBackToPending(host);
+	});
+
+	it("a compensation that throws is not reported as a rollback", async () => {
+		const host = new StatefulHost({
+			failOnceAt: "store.updateSuggestionStatus",
+			failCompensationAt: "registry.clearPersistedReviewDecision",
+		});
+		const sm = new ReviewStateMachine(host);
+		await sm.rejectSuggestion("s1");
+		// The inverse of the persisted decision threw, so the decision index
+		// still says "rejected" while the store never left "pending". The
+		// notice must say so instead of claiming a clean revert.
+		expect(host.storeStatuses.get("s1")).toBe("pending");
+		expect(host.persistedDecisions.get("s1")).toBe("rejected");
+		expect(host.notices.at(-1)).toContain("not every change could be rolled back");
+		expect(host.notices.at(-1)).not.toContain("your changes were rolled back");
 	});
 
 	it("store update OK then reviewer-signal sync fails -> store + decision reverted, signals reconciled", async () => {

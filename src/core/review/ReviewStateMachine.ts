@@ -478,7 +478,7 @@ export class ReviewStateMachine {
 		scope: ReviewMutationScope,
 		tracking: { sessionId?: string; sessionStartedAt?: number },
 	): Promise<void> {
-		await scope.rollback();
+		const rolledBack = await scope.rollback();
 		try {
 			await this.host.registry.syncReviewerSignalsForSession(this.host.store.getSession(), {
 				persist: false,
@@ -491,7 +491,14 @@ export class ReviewStateMachine {
 			// already consistent and the next successful decision rebuilds
 			// signals / inventory. Surfaced loudly below.
 		}
-		this.host.notify("The review decision could not be completed; your changes were rolled back.");
+		// Only claim a rollback that actually happened. If an inverse threw,
+		// the store status and the persisted decision may no longer agree,
+		// and telling the author everything was reverted would hide that.
+		this.host.notify(
+			rolledBack
+				? "The review decision could not be completed; your changes were rolled back."
+				: "The review decision could not be completed, and not every change could be rolled back. Check this suggestion's status before continuing.",
+		);
 	}
 
 	// Failure path for applySuggestionById AFTER the editor edit committed.

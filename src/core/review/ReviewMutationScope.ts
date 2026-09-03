@@ -34,8 +34,13 @@ export class ReviewMutationScope {
 	 * Replay every registered compensation in reverse order. Each is wrapped
 	 * so a secondary failure cannot abort the rollback or surface to the
 	 * caller; the scope is single-use and empties itself.
+	 *
+	 * Returns whether every compensation succeeded. A false return means the
+	 * unwind ran to completion but at least one inverse threw, so the caller
+	 * must not tell the author their changes were rolled back.
 	 */
-	async rollback(): Promise<void> {
+	async rollback(): Promise<boolean> {
+		let complete = true;
 		while (this.compensations.length > 0) {
 			const undo = this.compensations.pop();
 			if (!undo) {
@@ -44,8 +49,11 @@ export class ReviewMutationScope {
 			try {
 				await undo();
 			} catch {
-				// Best-effort: keep unwinding the remaining compensations.
+				// Best-effort: keep unwinding the remaining compensations, but
+				// remember that this one did not land.
+				complete = false;
 			}
 		}
+		return complete;
 	}
 }

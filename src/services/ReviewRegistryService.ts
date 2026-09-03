@@ -866,7 +866,7 @@ export class ReviewRegistryService {
 
 	// Erases one batch's saved history. Both indexes delete by `sessionId`, which
 	// is now the batch of the suggestion's OWN review block (see
-	// ReviewDecisionIndex.batchIdFor / ReviewerStatsProjector.batchIdFor) — so a
+	// resolveSuggestionBatchId in core/review/BatchAttribution) — so a
 	// note holding blocks from several imports loses exactly the chosen batch's
 	// records and keeps every other batch's. While attribution was note-level
 	// this deleted the decisions of every OTHER batch in the note and spared the
