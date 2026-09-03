@@ -10,7 +10,7 @@ interface ChoiceOption<T extends string> {
 	cta?: boolean;
 }
 
-interface EditorialistChoiceModalOptions<T extends string> {
+export interface EditorialistChoiceModalOptions<T extends string> {
 	choices: ChoiceOption<T>[];
 	description: string;
 	// Optional itemized list rendered between the description and the action

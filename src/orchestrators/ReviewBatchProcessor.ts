@@ -21,7 +21,7 @@ import {
 	removeImportedReviewBlocks,
 } from "../core/ReviewBlockFormat";
 import { isReviewTemplateText } from "../core/ReviewTemplate";
-import { openEditorialistChoiceModal } from "../ui/EditorialistChoiceModal";
+import type { EditorialistChoiceModalOptions } from "../ui/EditorialistChoiceModal";
 import type { BatchDecisionStats } from "../services/ReviewRegistryService";
 import { buildDuplicateImportPrompt } from "../core/review/DuplicateImportPrompt";
 import type { ClipboardReviewBatch } from "../ui/EditorialistModal";
@@ -53,6 +53,9 @@ export interface ReviewBatchProcessorHost {
 	savePluginData(): Promise<void>;
 	resyncSessionForActiveNote(): void;
 	refreshReviewPanel(): void;
+	// Confirmation and duplicate-import prompts, reached through the host so
+	// this module holds no runtime UI import.
+	openChoiceModal<T extends string>(options: EditorialistChoiceModalOptions<T>): Promise<T | null>;
 	// registry
 	findDuplicateSweep(batch: ReviewImportBatch): ReviewSweepRegistryEntry | null;
 	recordImportedBatch(
@@ -354,7 +357,7 @@ export class ReviewBatchProcessor {
 			decisions: this.host.getBatchDecisionStats(duplicateSweep.batchId),
 		});
 
-		const choice = await openEditorialistChoiceModal(this.host.app, {
+		const choice = await this.host.openChoiceModal({
 			title: prompt.title,
 			description: prompt.description,
 			details: prompt.details,
@@ -402,7 +405,7 @@ export class ReviewBatchProcessor {
 		// decision index stores status only). Warn the user before destroying
 		// that affordance.
 		const details = await this.describeBatchReviewBlocks(completedSweep.batchId);
-		const choice = await openEditorialistChoiceModal(this.host.app, {
+		const choice = await this.host.openChoiceModal({
 			title: "Clean review blocks?",
 			description:
 				"This removes the imported review blocks from your notes. After cleanup you will no longer be able to walk through this pass with \"Review changes\" — the audit data only lives inside those blocks.",

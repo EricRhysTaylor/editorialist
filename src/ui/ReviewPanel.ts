@@ -7,6 +7,7 @@ import type { default as EditorialistPlugin, ReviewStateIndexEntry } from "../ma
 import {
 	getUnmatchedOpenSuggestionIds,
 	hasOnlyUnmatchedOpenWork,
+	selectPanelPrimarySuggestionId,
 } from "../core/review/SuggestionTraversal";
 import { bindImmediateAction } from "./util/bindImmediateAction";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
@@ -22,7 +23,6 @@ import {
 // branch-decision contract (REVIEW_PANEL_BRANCH_ORDER + selectReviewPanelBranch)
 // and the fixture-gated test suite.
 import {
-	selectPanelPrimarySuggestionId,
 	selectReviewPanelBranch,
 	shouldAutoExpandCompletedMemos,
 	shouldShowReviewerFilters,

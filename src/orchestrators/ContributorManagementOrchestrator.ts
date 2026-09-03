@@ -22,6 +22,7 @@ import type { ContributorDirectory } from "../state/ContributorDirectory";
 import type { ReviewStore } from "../state/ReviewStore";
 import type { ContributorReassignmentMode, ContributorReassignmentResult } from "../ui/ContributorReassignmentModal";
 import type { ContributorStrengthsModalResult } from "../ui/ContributorStrengthsModal";
+import type { EditorialistChoiceModalOptions } from "../ui/EditorialistChoiceModal";
 
 export type ContributorManagementAction = "strengths" | "reassign" | "merge" | "delete";
 
@@ -41,11 +42,7 @@ export interface ContributorManagementOrchestratorHost {
 	refreshReviewPanel(): void;
 	resyncSessionForActiveNote(): void;
 	// Modals, reached through the host so this module holds no UI import.
-	openChoiceModal<T extends string>(options: {
-		title: string;
-		description: string;
-		choices: Array<{ label: string; value: T }>;
-	}): Promise<T | null>;
+	openChoiceModal<T extends string>(options: EditorialistChoiceModalOptions<T>): Promise<T | null>;
 	openStrengthsModal(profile: ContributorProfile): Promise<ContributorStrengthsModalResult | null>;
 	openReassignmentModal(options: {
 		mode: ContributorReassignmentMode;

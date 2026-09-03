@@ -88,6 +88,29 @@ export function findPreferredSuggestionId(suggestions: readonly ReviewSuggestion
 	return suggestions[0]?.id ?? null;
 }
 
+// The "primary" card the review panel highlights in panel-only mode, and the
+// suggestion the cut-file backup archives. When the currently selected
+// suggestion is still open (effective status is pending / deferred /
+// unresolved), it wins; otherwise the first open suggestion in list order is
+// picked. "Open" follows getEffectiveSuggestionStatus via isSuggestionOpen,
+// NOT raw suggestion.status — so an implicitly-accepted suggestion is
+// correctly treated as closed even when its persisted status is still pending.
+export function selectPanelPrimarySuggestionId(
+	suggestions: readonly ReviewSuggestion[],
+	selectedSuggestionId: string | null,
+): string | null {
+	if (
+		selectedSuggestionId &&
+		suggestions.some(
+			(suggestion) => suggestion.id === selectedSuggestionId && isSuggestionOpen(suggestion),
+		)
+	) {
+		return selectedSuggestionId;
+	}
+
+	return suggestions.find(isSuggestionOpen)?.id ?? null;
+}
+
 export function hasLiveActionableSuggestions(suggestions: readonly ReviewSuggestion[]): boolean {
 	return suggestions.some((suggestion) => isSuggestionOpen(suggestion));
 }

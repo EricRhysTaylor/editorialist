@@ -282,6 +282,7 @@ export default class EditorialistPlugin extends Plugin {
 		syncSceneInventory: () => this.registry.syncSceneInventory(),
 		formatRelativeTime: (timestamp: number) => formatRelativeTime(timestamp),
 		getBatchDecisionStats: (batchId) => this.registry.getBatchDecisionStats(batchId),
+		openChoiceModal: (options) => openEditorialistChoiceModal(this.app, options),
 		resetBatchHistoryInRegistry: (batchId) => this.registry.resetBatchHistory(batchId),
 		openExistingSweep: (entry) => this.workflow.openExistingSweep(entry),
 		startGuidedSweep: (batchId, importedAt, notePaths) =>

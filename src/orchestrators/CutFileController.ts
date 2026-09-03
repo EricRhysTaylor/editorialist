@@ -14,7 +14,7 @@ import { CutArchiveService, type CutBackupSourceType } from "../core/CutArchiveS
 import { normalizeMatchText } from "../core/TextMatching";
 import type { ActiveBookScopeInfo } from "../core/VaultScope";
 import type { ReviewSession, ReviewSuggestion, ReviewTargetRef } from "../models/ReviewSuggestion";
-import { selectPanelPrimarySuggestionId } from "../ui/viewmodels/ReviewPanelViewModel";
+import { selectPanelPrimarySuggestionId } from "../core/review/SuggestionTraversal";
 import type { ActiveNoteContext } from "./SessionOrchestrator";
 
 interface CutBackupSource {

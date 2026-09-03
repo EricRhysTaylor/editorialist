@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import type { EditSuggestion, ReviewSuggestion } from "../../models/ReviewSuggestion";
+import { selectPanelPrimarySuggestionId } from "../../core/review/SuggestionTraversal";
 import {
 	REVIEW_PANEL_BRANCH_ORDER,
-	selectPanelPrimarySuggestionId,
 	selectReviewPanelBranch,
 	shouldAutoExpandCompletedMemos,
 	shouldShowReviewerFilters,

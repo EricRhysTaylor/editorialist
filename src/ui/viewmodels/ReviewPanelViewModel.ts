@@ -12,7 +12,6 @@
 // Obsidian. It mirrors the pattern established by ToolbarStateInputs /
 // ToolbarViewModel.
 
-import { isSuggestionOpen } from "../../core/OperationSupport";
 import type { ReviewSuggestion } from "../../models/ReviewSuggestion";
 
 // Ordered exactly as ReviewPanel.render() evaluates. The first matching
@@ -127,29 +126,6 @@ export function shouldShowReviewerFilters(suggestions: readonly ReviewSuggestion
 		}
 	}
 	return reviewerIds.size > 1;
-}
-
-// The "primary" card ReviewPanel highlights in panel-only mode. When the
-// currently selected suggestion is still open (effective status is pending /
-// deferred / unresolved), it wins; otherwise the first open suggestion in
-// list order is picked. "Open" follows getEffectiveSuggestionStatus via
-// isSuggestionOpen, NOT raw suggestion.status — so an implicitly-accepted
-// suggestion is correctly treated as closed even when its persisted status
-// is still pending.
-export function selectPanelPrimarySuggestionId(
-	suggestions: readonly ReviewSuggestion[],
-	selectedSuggestionId: string | null,
-): string | null {
-	if (
-		selectedSuggestionId &&
-		suggestions.some(
-			(suggestion) => suggestion.id === selectedSuggestionId && isSuggestionOpen(suggestion),
-		)
-	) {
-		return selectedSuggestionId;
-	}
-
-	return suggestions.find(isSuggestionOpen)?.id ?? null;
 }
 
 // Whether the completion view should force the comments card open for this

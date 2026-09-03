@@ -33,6 +33,7 @@ function makeHost(overrides: Partial<ReviewBatchProcessorHost> = {}) {
 		updateSweepRegistry: async () => { calls.push("updateSweepRegistry"); },
 		syncSceneInventory: async () => { calls.push("syncSceneInventory"); },
 		getBatchDecisionStats: () => ({ accepted: 0, rejected: 0, rewritten: 0, deferred: 0 }),
+		openChoiceModal: async () => null,
 		resetBatchHistoryInRegistry: async () => ({
 			removedDecisions: 3,
 			removedSignals: 2,
