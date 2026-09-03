@@ -431,7 +431,7 @@ export function groupRecentReviews<
 	for (const entry of entries) {
 		// Sorted so two passes that listed the same scenes in a different order
 		// still land in one group.
-		const key = [...resolveRecentReviewPaths(entry, scopeFolder)].sort().join(" ");
+		const key = [...resolveRecentReviewPaths(entry, scopeFolder)].sort().join("\0");
 		const existing = groups.get(key);
 		if (existing) {
 			existing.passes.push(entry);

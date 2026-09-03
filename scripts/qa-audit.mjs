@@ -30,6 +30,7 @@ let hasError = false;
 
 for (const file of FILES) {
 	const text = fs.readFileSync(file, "utf8");
+	checkControlBytes(file, text);
 	const lines = text.split(/\r?\n/);
 
 	lines.forEach((line, index) => {
@@ -52,6 +53,21 @@ if (hasError) {
 }
 
 console.log("QA audit passed.");
+
+// A raw control byte (most likely a NUL that should have been the escape
+// "\0") makes grep and file(1) treat the whole source file as binary, so
+// every grep-driven check silently skips it. Tabs, newlines, and carriage
+// returns are the only control characters a source file legitimately holds.
+function checkControlBytes(file, text) {
+	const match = text.match(/[\x00-\x08\x0B\x0C\x0E-\x1F]/);
+	if (!match || match.index === undefined) {
+		return;
+	}
+	const lineNumber = text.slice(0, match.index).split("\n").length;
+	const code = match[0].charCodeAt(0).toString(16).padStart(2, "0");
+	const line = text.split(/\r?\n/)[lineNumber - 1] ?? "";
+	fail(file, lineNumber, line, `Raw control byte 0x${code} in source. Use an escape sequence such as "\\0" instead.`);
+}
 
 function checkStyleUsage(file, lineNumber, line, safe) {
 	if (/\.style\.[A-Za-z_$][\w$]*\s*=/.test(line) && !safe) {
