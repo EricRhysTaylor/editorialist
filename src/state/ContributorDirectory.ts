@@ -3,6 +3,9 @@ import {
 	deriveContributorIdentitySeed,
 	normalizeContributorValue,
 	reviewerTypeToKind,
+	buildResolvedContributor,
+	buildUnresolvedContributor,
+	contributorSlug,
 } from "../core/ContributorIdentity";
 import { normalizeContributorStrengths } from "../core/ContributorStrengths";
 import { isContributorAvatarOverride } from "../core/ContributorBrandMarks";
@@ -110,18 +113,7 @@ export class ContributorDirectory {
 		}
 
 		if (seed.displayName.startsWith("Unknown ")) {
-			return {
-				id: raw.rawName ? `parsed-${this.slugify(raw.rawName)}` : "parsed-unknown-reviewer",
-				displayName: seed.displayName,
-				kind: seed.kind,
-				reviewerType: seed.reviewerType,
-				provider: seed.provider,
-				model: seed.model,
-				reviewerId: undefined,
-				resolutionStatus: "unresolved",
-				suggestedReviewerIds: [],
-				raw,
-			};
+			return buildUnresolvedContributor(raw);
 		}
 
 		const profile = this.createProfileFromSeed(seed);
@@ -393,18 +385,7 @@ export class ContributorDirectory {
 		raw: ParsedContributorReference,
 		resolutionStatus: ReviewerResolutionStatus,
 	): ReviewContributor {
-		return {
-			id: profile.id,
-			displayName: profile.displayName,
-			kind: profile.kind,
-			reviewerType: profile.reviewerType,
-			provider: profile.provider,
-			model: profile.model,
-			reviewerId: profile.id,
-			resolutionStatus,
-			suggestedReviewerIds: [],
-			raw,
-		};
+		return buildResolvedContributor(profile, raw, resolutionStatus);
 	}
 
 	private findUniqueProfile(
@@ -614,11 +595,7 @@ export class ContributorDirectory {
 	}
 
 	private slugify(value: string): string {
-		return value
-			.toLowerCase()
-			.trim()
-			.replace(/[^a-z0-9]+/g, "-")
-			.replace(/^-+|-+$/g, "") || "unknown";
+		return contributorSlug(value);
 	}
 
 	private createEmptyStats(): ReviewerStats {

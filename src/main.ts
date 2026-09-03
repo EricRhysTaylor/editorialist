@@ -5,7 +5,7 @@ import type {
 	PendingEditsSession,
 } from "./models/PendingEditSegment";
 import { registerCommands } from "./commands/Commands";
-import { deriveContributorIdentitySeed } from "./core/ContributorIdentity";
+import { buildResolvedContributor, buildUnresolvedContributor } from "./core/ContributorIdentity";
 import { ImportEngine } from "./core/ImportEngine";
 import { MatchEngine } from "./core/MatchEngine";
 import {
@@ -2579,7 +2579,7 @@ export default class EditorialistPlugin extends Plugin {
 			return;
 		}
 
-		const unresolvedContributor = this.createUnresolvedContributor(
+		const unresolvedContributor = buildUnresolvedContributor(
 			suggestion.contributor.raw,
 			suggestion.contributor.suggestedReviewerIds,
 		);
@@ -3061,7 +3061,7 @@ export default class EditorialistPlugin extends Plugin {
 		profile: ContributorProfile,
 		resolutionStatus: ReviewerResolutionStatus,
 	): Promise<void> {
-		const contributor = this.createResolvedContributor(raw, profile, resolutionStatus);
+		const contributor = buildResolvedContributor(profile, raw, resolutionStatus);
 		return this.applyContributorToMatchingSuggestions(raw, contributor);
 	}
 
@@ -3084,25 +3084,6 @@ export default class EditorialistPlugin extends Plugin {
 		await this.registry.syncReviewerSignalsForSession(this.store.getSession(), {
 			...this.getCurrentSessionTrackingContext(),
 		});
-	}
-
-	private createResolvedContributor(
-		raw: ParsedContributorReference,
-		profile: ContributorProfile,
-		resolutionStatus: ReviewerResolutionStatus,
-	): ReviewSuggestion["contributor"] {
-		return {
-			id: profile.id,
-			displayName: profile.displayName,
-			kind: profile.kind,
-			reviewerType: profile.reviewerType,
-			provider: profile.provider,
-			model: profile.model,
-			reviewerId: profile.id,
-			resolutionStatus,
-			suggestedReviewerIds: [],
-			raw,
-		};
 	}
 
 	private reassignContributorInActiveSession(sourceReviewerId: string, targetProfile: ContributorProfile): void {
@@ -3133,7 +3114,7 @@ export default class EditorialistPlugin extends Plugin {
 			return {
 				...suggestion,
 				contributor: {
-					...this.createResolvedContributor(suggestion.contributor.raw, targetProfile, "alias"),
+					...buildResolvedContributor(targetProfile, suggestion.contributor.raw, "alias"),
 					suggestedReviewerIds: nextSuggestedReviewerIds,
 				},
 			};
@@ -3192,7 +3173,7 @@ export default class EditorialistPlugin extends Plugin {
 
 				return {
 					...suggestion,
-					contributor: this.createUnresolvedContributor(suggestion.contributor.raw, nextSuggestedReviewerIds),
+					contributor: buildUnresolvedContributor(suggestion.contributor.raw, nextSuggestedReviewerIds),
 				};
 			}),
 		);
@@ -3207,28 +3188,9 @@ export default class EditorialistPlugin extends Plugin {
 		this.store.replaceSuggestions(
 			session.suggestions.map((suggestion) => ({
 				...suggestion,
-				contributor: this.createUnresolvedContributor(suggestion.contributor.raw, []),
+				contributor: buildUnresolvedContributor(suggestion.contributor.raw),
 			})),
 		);
-	}
-
-	private createUnresolvedContributor(
-		raw: ParsedContributorReference,
-		suggestedReviewerIds: string[],
-	): ReviewSuggestion["contributor"] {
-		const seed = deriveContributorIdentitySeed(raw);
-		return {
-			id: raw.rawName ? `parsed-${this.reviewerDirectory.normalizeValue(raw.rawName).replace(/\s+/g, "-")}` : "parsed-unknown-reviewer",
-			displayName: seed.displayName,
-			kind: seed.kind,
-			reviewerType: seed.reviewerType,
-			provider: seed.provider,
-			model: seed.model,
-			reviewerId: undefined,
-			resolutionStatus: "unresolved",
-			suggestedReviewerIds,
-			raw,
-		};
 	}
 
 	private sameRawReviewer(left: ParsedContributorReference, right: ParsedContributorReference): boolean {

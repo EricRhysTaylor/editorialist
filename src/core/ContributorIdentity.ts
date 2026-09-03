@@ -2,6 +2,7 @@ import type {
 	ContributorKind,
 	ContributorProfile,
 	ParsedContributorReference,
+	ReviewerResolutionStatus,
 	ReviewerType,
 } from "../models/ContributorProfile";
 import type { ReviewContributor } from "../models/ReviewSuggestion";
@@ -179,6 +180,62 @@ export function deriveContributorIdentitySeed(raw: ParsedContributorReference): 
 		model,
 		provider,
 		reviewerType,
+	};
+}
+
+// The one slug rule for contributor ids. Both the directory's profile ids
+// and the synthetic ids of unresolved contributors derive from it, so a raw
+// reviewer name always maps to the same id whichever path parsed it.
+export function contributorSlug(value: string): string {
+	return (
+		value
+			.toLowerCase()
+			.trim()
+			.replace(/[^a-z0-9]+/g, "-")
+			.replace(/^-+|-+$/g, "") || "unknown"
+	);
+}
+
+// A suggestion's contributor once it has been matched to a directory profile.
+export function buildResolvedContributor(
+	profile: ContributorProfile,
+	raw: ParsedContributorReference,
+	resolutionStatus: ReviewerResolutionStatus,
+): ReviewContributor {
+	return {
+		id: profile.id,
+		displayName: profile.displayName,
+		kind: profile.kind,
+		reviewerType: profile.reviewerType,
+		provider: profile.provider,
+		model: profile.model,
+		reviewerId: profile.id,
+		resolutionStatus,
+		suggestedReviewerIds: [],
+		raw,
+	};
+}
+
+// A suggestion's contributor when no profile matched. The id is synthetic
+// and derived only from the raw name, so every path that leaves a reviewer
+// unresolved — the parser, "use suggested reviewer", detaching a profile —
+// lands on the same id for the same name.
+export function buildUnresolvedContributor(
+	raw: ParsedContributorReference,
+	suggestedReviewerIds: string[] = [],
+): ReviewContributor {
+	const seed = deriveContributorIdentitySeed(raw);
+	return {
+		id: raw.rawName ? `parsed-${contributorSlug(raw.rawName)}` : "parsed-unknown-reviewer",
+		displayName: seed.displayName,
+		kind: seed.kind,
+		reviewerType: seed.reviewerType,
+		provider: seed.provider,
+		model: seed.model,
+		reviewerId: undefined,
+		resolutionStatus: "unresolved",
+		suggestedReviewerIds,
+		raw,
 	};
 }
 
