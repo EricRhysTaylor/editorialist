@@ -27,12 +27,13 @@ import { buildDuplicateImportPrompt } from "../core/review/DuplicateImportPrompt
 import type { ClipboardReviewBatch } from "../ui/EditorialistModal";
 import type { ImportEngine } from "../core/ImportEngine";
 import type {
+	CompletedSweepState,
 	ReviewImportBatch,
 	ReviewImportNoteGroup,
 	ReviewSweepRegistryEntry,
 	ReviewSweepStatus,
 } from "../models/ReviewImport";
-import type { CompletedSweepState, GuidedSweepState } from "../state/ReviewStore";
+import type { GuidedSweepState } from "../state/ReviewStore";
 
 export interface BatchNoteContext {
 	filePath: string;

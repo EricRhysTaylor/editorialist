@@ -36,6 +36,22 @@ export type ReviewVerificationStatus =
 
 export type ReviewSweepStatus = "in_progress" | "completed" | "cleaned";
 
+// A sweep the author has finished but not yet acknowledged or cleaned. Held
+// by the review store and read by core (the session axis), the orchestrators,
+// and the panel, so the shape lives here rather than in the store.
+export interface CompletedSweepState {
+	batchId: string;
+	completedAt: number;
+	currentNoteIndex: number;
+	notePaths: string[];
+	startedAt: number;
+	// Whether `startedAt` is a genuine sweep start. A guided sweep records one;
+	// the per-session completion fallback does not — it only knows when the note
+	// was parsed. Consumers must not report a duration when this is false.
+	hasSweepStart: boolean;
+	totalSuggestions: number;
+}
+
 export interface EditorialistMetadataExport {
 	schemaVersion: string;
 	exportedAt: number;

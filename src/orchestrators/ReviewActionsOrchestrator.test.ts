@@ -11,7 +11,7 @@ import type {
 	BulkApplyConfirmState,
 	LastAppliedChange,
 } from "./SessionOrchestrator";
-import type { CompletedSweepState } from "../state/ReviewStore";
+import type { CompletedSweepState } from "../models/ReviewImport";
 import type { ReviewRegistryService } from "../services/ReviewRegistryService";
 import type { ReviewWorkflowService } from "../services/ReviewWorkflowService";
 

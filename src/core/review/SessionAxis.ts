@@ -9,7 +9,7 @@
 
 import type { ReviewSession, ReviewSuggestion } from "../../models/ReviewSuggestion";
 import type { SceneReviewRecord } from "../../models/ContributorProfile";
-import type { CompletedSweepState } from "../../state/ReviewStore";
+import type { CompletedSweepState } from "../../models/ReviewImport";
 
 // Stable fingerprint used to decide whether a remembered lastAppliedChange
 // still corresponds to the editor text we are looking at. Algorithm is djb2

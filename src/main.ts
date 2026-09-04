@@ -44,6 +44,7 @@ import {
 import { buildSceneTokens, sceneNumberFromName, type SceneRelevanceContext } from "./core/SceneRelevance";
 import { SuggestionParser } from "./core/SuggestionParser";
 import type {
+	CompletedSweepState,
 	EditorialistMetadataExport,
 	ReviewSweepRegistryEntry,
 } from "./models/ReviewImport";
@@ -53,7 +54,7 @@ import type {
 	EditorialistEffortSettings,
 	SceneReviewRecord,
 } from "./models/ContributorProfile";
-import { ReviewStore, type CompletedSweepState, type GuidedSweepState } from "./state/ReviewStore";
+import { ReviewStore, type GuidedSweepState } from "./state/ReviewStore";
 import { DebouncedSaver } from "./state/DebouncedSaver";
 import { TrailingDebouncer } from "./state/TrailingDebouncer";
 import { ContributorDirectory } from "./state/ContributorDirectory";

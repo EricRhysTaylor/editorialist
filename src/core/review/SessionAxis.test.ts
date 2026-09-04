@@ -6,7 +6,7 @@ import {
 } from "./SessionAxis";
 import type { ReviewSuggestion, ReviewSession } from "../../models/ReviewSuggestion";
 import type { SceneReviewRecord } from "../../models/ContributorProfile";
-import type { CompletedSweepState } from "../../state/ReviewStore";
+import type { CompletedSweepState } from "../../models/ReviewImport";
 
 // Minimal ReviewSuggestion stub: SessionAxis helpers only read id, status, and
 // pass through the rest. The cast is the single boundary in this file.

@@ -23,7 +23,8 @@ import type { SceneReviewRecord } from "../models/ContributorProfile";
 import type { ReviewSession, ReviewSuggestion } from "../models/ReviewSuggestion";
 import type { ReviewRegistryService } from "../services/ReviewRegistryService";
 import type { ReviewWorkflowService } from "../services/ReviewWorkflowService";
-import type { CompletedSweepState, ReviewStore } from "../state/ReviewStore";
+import type { ReviewStore } from "../state/ReviewStore";
+import type { CompletedSweepState } from "../models/ReviewImport";
 
 export interface ActiveNoteContext {
 	filePath: string;

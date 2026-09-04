@@ -1,4 +1,5 @@
 import type { AuthorQueryStatus, ReviewSession, ReviewSuggestion, ReviewStatus } from "../models/ReviewSuggestion";
+import type { CompletedSweepState } from "../models/ReviewImport";
 
 export interface GuidedSweepState {
 	batchId: string;
@@ -17,19 +18,6 @@ export interface AppliedReviewState {
 	currentIndex: number;
 	entries: AppliedReviewChange[];
 	notePath: string;
-}
-
-export interface CompletedSweepState {
-	batchId: string;
-	completedAt: number;
-	currentNoteIndex: number;
-	notePaths: string[];
-	startedAt: number;
-	// Whether `startedAt` is a genuine sweep start. A guided sweep records one;
-	// the per-session completion fallback does not — it only knows when the note
-	// was parsed. Consumers must not report a duration when this is false.
-	hasSweepStart: boolean;
-	totalSuggestions: number;
 }
 
 export interface ReviewStoreState {

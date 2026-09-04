@@ -9,7 +9,7 @@ import {
 import { ReviewStore } from "../state/ReviewStore";
 import type { ReviewSession, ReviewSuggestion } from "../models/ReviewSuggestion";
 import type { SceneReviewRecord } from "../models/ContributorProfile";
-import type { CompletedSweepState } from "../state/ReviewStore";
+import type { CompletedSweepState } from "../models/ReviewImport";
 import type { ReviewEngine } from "../core/ReviewEngine";
 import type { ReviewRegistryService } from "../services/ReviewRegistryService";
 import type { ReviewWorkflowService } from "../services/ReviewWorkflowService";

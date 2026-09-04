@@ -26,9 +26,9 @@ import type { ReviewRegistryService } from "../services/ReviewRegistryService";
 import type { ReviewWorkflowService } from "../services/ReviewWorkflowService";
 import type {
 	AppliedReviewChange,
-	CompletedSweepState,
 	ReviewStore,
 } from "../state/ReviewStore";
+import type { CompletedSweepState } from "../models/ReviewImport";
 import type {
 	ActiveNoteContext,
 	BulkApplyConfirmState,
