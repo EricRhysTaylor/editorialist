@@ -5,7 +5,7 @@
 **Branch / commit:** `main` @ `4a2438d`
 **Build status at audit time:** `pass` (`npm run check` green; `npm test` 895 passing in 69 files)
 **Previous report:** `reports/2026-08-18-codebase-health.md`
-**Remediation:** 2026-09-03, commits `b3507fc` through `e78a82d` — see the resolution note at the end for what each finding became
+**Remediation:** 2026-09-03, commits `b3507fc` through `f29f61c` — see the resolution note at the end for what each finding became
 
 ---
 
@@ -421,7 +421,7 @@ Resolved since August: `CH-2026-08-18-#1` (batch attribution — `a3ff1db`, `893
   - `#9` — wrappers and all three extractions landed (`main.ts` 2,844). Does the count hold, or does new feature work land in `main.ts` again instead of an orchestrator? The panel-state builders are the next extraction candidate.
   - `#14` — `ReviewPanel.render()` is now 357 lines (up from 331) because it gathers its inputs explicitly; the branch-body split is the next step and should bring it under 200.
   - `#8` — the nine non-persisted duplicate rows are still open; the scene-number parser is still in three places.
-  - `#12`, `#13`, `#18` — untouched; confirm they are on the Refactor Board. `#11` — only the type-only `SessionAxis` → store import remains; decide whether `CompletedSweepState` belongs in models.
+  - `#12`, `#13`, `#18` — untouched; confirm they are on the Refactor Board. `#11` is closed; check that no new upward import has appeared in `src/core` or `src/orchestrators`.
   - `#2` residual — `.claude/settings.local.json` still pre-allows every `npm run *`, including `backup`, which pushes. Decide whether to narrow it.
   - `#16` residual — README images path, CONTRIBUTING test count, the two wiki omissions, the dead package.json aliases, and the enforced-eslint triple are still open.
   - Whether the new `qa-audit` control-byte check has fired on anything.
@@ -446,7 +446,7 @@ Also since the first draft: `HEAD` moved from `4a2438d` to `f8292e2`, a `backup:
 
 ## Resolution note (2026-09-03)
 
-Eric approved the priority list on 2026-09-03 and the remediation landed as twenty-one code commits on `main`, `b3507fc` through `e78a82d`. Every commit passed `npm run check` and the full test suite; nothing was pushed. The findings above are left as audited. This table records what each became.
+Eric approved the priority list on 2026-09-03 and the remediation landed as twenty-two code commits on `main`, `b3507fc` through `f29f61c`. Every commit passed `npm run check` and the full test suite; nothing was pushed. The findings above are left as audited. This table records what each became.
 
 | Finding | Outcome | Commit(s) | Notes |
 |---|---|---|---|
@@ -460,7 +460,7 @@ Eric approved the priority list on 2026-09-03 and the remediation landed as twen
 | `#8` core duplicates | **Partial** | `04d0666` | The two persisted-data rows fixed: one fingerprint function (exact value now pinned), one `resolveSuggestionBatchId`. The nine non-persisted rows remain open. |
 | `#9` `main.ts` | **Fixed** (as scoped) | `6a56848`, `71e336e`, `204b9d2`, `85a65de` | The 54 pure delegation wrappers are gone and the two orchestrators are public (4,245 → 3,910). The three extractions then landed as `EditorialismAnchorNavigator`, `CutFileController`, and `ContributorManagementOrchestrator` in `src/orchestrators`, each with a narrow host and the modals reached through host callbacks; the contributor one gains six tests for session rewrites that had none. 3,910 → 2,844. What remains in `main.ts` is composition, the panel-state builders (`#7`'s viewmodel candidates), and the note-context resolvers — the next pass, not this finding. |
 | `#10` rollback notice | **Fixed** | `838238b` | `rollback()` returns whether every compensation landed; the notice is softened when one did not. Scope gains its own tests; transaction suite gains a throwing-compensation case. |
-| `#11` layering | **Fixed** (as scoped) | `69cbc6f`, `7067167`, `e78a82d` | No orchestrator imports `src/ui` at runtime: the batch processor's choice modal is a host callback, and the panel's primary-suggestion selector moved to `core/review/SuggestionTraversal`. The orchestrators README states the rules the folder keeps. The three core rows are closed: `EDITORIALISM_TYPE_VALUE` now lives in `models/Editorialism`; `formatRelativeTime` is `core/RelativeTime`; `SuggestionParser` takes a `ContributorResolver` interface from core instead of the directory class. One type-only core → state import remains (`SessionAxis` imports the `CompletedSweepState` shape from the store); core's own Obsidian runtime use still has no written rule. Both are Monitor items, not defects. |
+| `#11` layering | **Fixed** | `69cbc6f`, `7067167`, `e78a82d`, `f29f61c` | No orchestrator imports `src/ui` at runtime: the batch processor's choice modal is a host callback, and the panel's primary-suggestion selector moved to `core/review/SuggestionTraversal`. The orchestrators README states the rules the folder keeps. The core rows are closed: `EDITORIALISM_TYPE_VALUE` lives in `models/Editorialism`; `formatRelativeTime` is `core/RelativeTime`; `SuggestionParser` takes a `ContributorResolver` interface from core; `CompletedSweepState` moved to `models/ReviewImport`, so `src/core` now imports nothing from `state`, `services`, or `ui`. Left as a Monitor item: core's own Obsidian runtime use (vault, metadata cache) has no written rule. |
 | `#12` swallows | **Open** | — | Untouched. |
 | `#13` UI duplication | **Open** | — | Untouched. |
 | `#14` oversized functions | **Open, one regressed by design** | — | `render()` 331 → 357: the explicit input gathering from `#6` is inside it. The branch-body split is the next step. Count unchanged at 34. |
