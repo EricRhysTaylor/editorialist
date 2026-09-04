@@ -33,6 +33,7 @@ export interface SceneInventoryBuilderDeps {
 	getSceneId(file: TFile): string | undefined;
 	getBookHint(notePath: string): string | undefined;
 	getSceneReviewIndex(): Record<string, SceneReviewRecord>;
+	fileExists(notePath: string): boolean;
 	now?: () => number;
 }
 
@@ -133,6 +134,16 @@ export class SceneInventoryBuilder {
 			// scene, then yanked into the right one) and would leave the review panel
 			// permanently stuck on the abandoned scene.
 			if (nextIndex[existing.notePath]) {
+				continue;
+			}
+
+			// A record whose file no longer exists is a ghost: nothing can open,
+			// clean, or resume it, and the out-of-scope preservation below would
+			// otherwise keep it — frozen counts and all — forever. That is what
+			// a rename without a matching index move left behind. Only drop when
+			// the scan actually saw files, so an empty vault listing can never
+			// wipe the index wholesale.
+			if (scannedPaths.size > 0 && !this.deps.fileExists(existing.notePath)) {
 				continue;
 			}
 

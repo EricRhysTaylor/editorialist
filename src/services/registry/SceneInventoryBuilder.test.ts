@@ -70,6 +70,7 @@ function makeDeps(over: Partial<SceneInventoryBuilderDeps> = {}): SceneInventory
 		getSceneId: () => undefined,
 		getBookHint: () => undefined,
 		getSceneReviewIndex: () => ({}),
+		fileExists: () => true,
 		now: () => FIXED_NOW,
 		...over,
 	};
@@ -217,5 +218,57 @@ describe("SceneInventoryBuilder.buildFullInventory", () => {
 		const { nextIndex } = await b.buildFullInventory();
 		expect(nextIndex["old.md"].cleanedAt).toBe(42);
 		expect(nextIndex["old.md"].lastUpdated).toBe(42);
+	});
+});
+
+describe("SceneInventoryBuilder.buildFullInventory — ghost records", () => {
+	const ghost: SceneReviewRecord = {
+		sceneId: "SCENE-42",
+		notePath: "Book/42.2 Escaping Earth.md",
+		noteTitle: "42.2 Escaping Earth",
+		batchIds: ["b1"],
+		batchCount: 1,
+		pendingCount: 37,
+		unresolvedCount: 0,
+		deferredCount: 0,
+		acceptedCount: 0,
+		rejectedCount: 0,
+		rewrittenCount: 0,
+		status: "in_progress",
+		lastUpdated: 1,
+	};
+
+	it("drops a prior record whose file no longer exists", async () => {
+		const live = file("Book/42 Escaping Earth.md");
+		const deps = makeDeps({
+			getMarkdownFiles: () => [live],
+			resolveNoteText: async () => reviewNote("b1"),
+			getSceneReviewIndex: () => ({ [ghost.notePath]: ghost }),
+			fileExists: (path) => path === live.path,
+		});
+		const { nextIndex } = await new SceneInventoryBuilder(deps).buildFullInventory();
+		expect(Object.keys(nextIndex)).toEqual([live.path]);
+	});
+
+	it("keeps every prior record when the scan saw no files at all", async () => {
+		const deps = makeDeps({
+			getMarkdownFiles: () => [],
+			getSceneReviewIndex: () => ({ [ghost.notePath]: ghost }),
+			fileExists: () => false,
+		});
+		const { nextIndex } = await new SceneInventoryBuilder(deps).buildFullInventory();
+		expect(nextIndex[ghost.notePath]).toEqual(ghost);
+	});
+
+	it("still preserves an out-of-scope record whose file exists", async () => {
+		const scanned = file("Other/x.md");
+		const deps = makeDeps({
+			getMarkdownFiles: () => [scanned],
+			resolveNoteText: async () => "no block",
+			getSceneReviewIndex: () => ({ [ghost.notePath]: ghost }),
+			fileExists: () => true,
+		});
+		const { nextIndex } = await new SceneInventoryBuilder(deps).buildFullInventory();
+		expect(nextIndex[ghost.notePath]).toEqual(ghost);
 	});
 });

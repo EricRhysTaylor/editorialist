@@ -723,3 +723,92 @@ describe("invariant: malformed / legacy persisted data normalizes to valid enums
 		expect(JSON.stringify(reloaded.service.buildPluginData([]))).toBe(JSON.stringify(first));
 	});
 });
+
+describe("ReviewRegistryService.renameNotePath", () => {
+	const OLD = "Book/42.2 Escaping Earth.md";
+	const NEW = "Book/42 Escaping Earth.md";
+
+	function loadTracked(service: ReviewRegistryService) {
+		service.load({
+			sceneReviewIndex: {
+				[OLD]: {
+					sceneId: "SCENE-42",
+					notePath: OLD,
+					noteTitle: "42.2 Escaping Earth",
+					batchIds: ["b1"],
+					batchCount: 1,
+					pendingCount: 37,
+					unresolvedCount: 0,
+					deferredCount: 0,
+					acceptedCount: 0,
+					rejectedCount: 0,
+					rewrittenCount: 0,
+					status: "in_progress",
+					lastUpdated: 1,
+				},
+			},
+			sweepRegistry: {
+				b1: {
+					batchId: "b1",
+					contentHash: "h",
+					importedAt: 1,
+					importedNotePaths: [OLD, "Book/other.md"],
+					currentNotePath: OLD,
+					sceneOrder: [OLD, "Book/other.md"],
+					editorialRevisionUpdatedNotePaths: [OLD],
+					status: "in_progress",
+					totalSuggestions: 37,
+					updatedAt: 1,
+				},
+			},
+		} as Partial<EditorialistPluginData>);
+	}
+
+	it("moves the scene record and every sweep-registry path, persisting once", async () => {
+		const { service, persistCalls } = makeService();
+		loadTracked(service);
+
+		expect(await service.renameNotePath(OLD, NEW)).toBe(true);
+		expect(persistCalls()).toBe(1);
+
+		const data = service.buildPluginData([]);
+		expect(data.sceneReviewIndex[OLD]).toBeUndefined();
+		expect(data.sceneReviewIndex[NEW]).toMatchObject({
+			notePath: NEW,
+			noteTitle: "42 Escaping Earth",
+			pendingCount: 37,
+			status: "in_progress",
+		});
+		expect(data.sweepRegistry.b1).toMatchObject({
+			importedNotePaths: [NEW, "Book/other.md"],
+			currentNotePath: NEW,
+			sceneOrder: [NEW, "Book/other.md"],
+			editorialRevisionUpdatedNotePaths: [NEW],
+			updatedAt: 1,
+		});
+	});
+
+	it("is a no-op for an untracked path", async () => {
+		const { service, persistCalls } = makeService();
+		loadTracked(service);
+		expect(await service.renameNotePath("Book/untracked.md", "Book/renamed.md")).toBe(false);
+		expect(persistCalls()).toBe(0);
+	});
+
+	it("lets a record already living at the new path win", async () => {
+		const { service } = makeService();
+		loadTracked(service);
+		const data = service.buildPluginData([]);
+		service.load({
+			...data,
+			sceneReviewIndex: {
+				...data.sceneReviewIndex,
+				[NEW]: { ...data.sceneReviewIndex[OLD]!, notePath: NEW, noteTitle: "42 Escaping Earth", pendingCount: 5 },
+			},
+		});
+		expect(await service.renameNotePath(OLD, NEW)).toBe(true);
+		const after = service.buildPluginData([]);
+		expect(after.sceneReviewIndex[OLD]).toBeUndefined();
+		expect(after.sceneReviewIndex[NEW]?.pendingCount).toBe(5);
+	});
+});

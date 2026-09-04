@@ -132,7 +132,44 @@ export class ReviewRegistryService {
 			getSceneId: (file) => getSceneIdForFile(this.app, file),
 			getBookHint: (notePath) => getBookHintForPath(notePath, this.activeBookScope),
 			getSceneReviewIndex: () => this.sceneReviewIndex,
+			fileExists: (notePath) => this.app.vault.getAbstractFileByPath(notePath) instanceof TFile,
 		});
+	}
+
+	// The scene index and sweep registry are keyed by note path, so a vault
+	// rename has to move the tracking with the file — otherwise the old path
+	// lingers as a ghost record the panel keeps offering as "next in sweep".
+	// When the new path already has a record (the inventory re-scanned the
+	// renamed note before this ran) the live record wins and the old one goes.
+	async renameNotePath(oldPath: string, newPath: string): Promise<boolean> {
+		if (oldPath === newPath) {
+			return false;
+		}
+
+		let changed = false;
+		const existing = this.sceneReviewIndex[oldPath];
+		if (existing) {
+			const { [oldPath]: _moved, ...rest } = this.sceneReviewIndex;
+			this.sceneReviewIndex = rest;
+			if (!this.sceneReviewIndex[newPath]) {
+				this.sceneReviewIndex[newPath] = {
+					...existing,
+					notePath: newPath,
+					noteTitle: newPath.split("/").pop()?.replace(/\.md$/i, "") ?? existing.noteTitle,
+					bookLabel: getBookHintForPath(newPath, this.activeBookScope),
+				};
+			}
+			changed = true;
+		}
+
+		if (this.sweepManager.renameNotePath(this.sweepRegistry, oldPath, newPath)) {
+			changed = true;
+		}
+
+		if (changed) {
+			await this.persistData();
+		}
+		return changed;
 	}
 
 	load(savedData: Partial<EditorialistPluginData> | null): void {

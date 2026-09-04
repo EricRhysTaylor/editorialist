@@ -235,6 +235,39 @@ export class ReviewStore {
 		this.emit();
 	}
 
+	// Session-scoped sweep state is keyed by note path too; a rename mid-sweep
+	// would otherwise leave the guided sweep pointing at a path that no longer
+	// opens. The active session itself is not touched — the workspace resync
+	// that follows a rename rebuilds it from the editor.
+	renameNotePath(oldPath: string, newPath: string): void {
+		if (oldPath === newPath) {
+			return;
+		}
+		const remap = (path: string): string => (path === oldPath ? newPath : path);
+		const { guidedSweep, completedSweep, appliedReview } = this.state;
+		const guidedTouched = guidedSweep?.notePaths.includes(oldPath) ?? false;
+		const completedTouched = completedSweep?.notePaths.includes(oldPath) ?? false;
+		const appliedTouched = appliedReview?.notePath === oldPath;
+		if (!guidedTouched && !completedTouched && !appliedTouched) {
+			return;
+		}
+
+		this.state = {
+			...this.state,
+			guidedSweep:
+				guidedSweep && guidedTouched
+					? { ...guidedSweep, notePaths: guidedSweep.notePaths.map(remap) }
+					: guidedSweep,
+			completedSweep:
+				completedSweep && completedTouched
+					? { ...completedSweep, notePaths: completedSweep.notePaths.map(remap) }
+					: completedSweep,
+			appliedReview:
+				appliedReview && appliedTouched ? { ...appliedReview, notePath: newPath } : appliedReview,
+		};
+		this.emit();
+	}
+
 	setCompletedSweep(completedSweep: CompletedSweepState | null): void {
 		this.state = {
 			...this.state,

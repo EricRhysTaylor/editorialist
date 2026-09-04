@@ -560,6 +560,9 @@ export default class EditorialistPlugin extends Plugin {
 					// creates the button's target, renaming it away removes it.
 					this.cutFiles.refreshReviewPanelIfActiveSceneCutFile(file.path);
 					this.cutFiles.refreshReviewPanelIfActiveSceneCutFile(oldPath);
+					if (file instanceof TFile && file.extension === "md") {
+						void this.handleNoteRenamed(oldPath, file.path);
+					}
 				}),
 			);
 		});
@@ -2587,6 +2590,19 @@ export default class EditorialistPlugin extends Plugin {
 
 	private async syncSceneReviewIndex(): Promise<void> {
 		await this.registry.syncSceneInventory();
+	}
+
+	// Review tracking is keyed by note path. Move it with the file so a
+	// retitled scene keeps its counts and the panel never points at a path
+	// that no longer exists.
+	private async handleNoteRenamed(oldPath: string, newPath: string): Promise<void> {
+		const changed = await this.registry.renameNotePath(oldPath, newPath);
+		this.store.renameNotePath(oldPath, newPath);
+		if (!changed) {
+			return;
+		}
+		this.resyncSessionForActiveNote();
+		this.refreshReviewPanel();
 	}
 
 	async openSceneNote(notePath: string): Promise<void> {

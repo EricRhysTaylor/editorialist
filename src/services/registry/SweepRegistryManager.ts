@@ -153,6 +153,41 @@ export class SweepRegistryManager {
 
 	// Mutates the entry in place and returns whether a meaningful change was
 	// applied (so the caller knows whether to persist). No persistence here.
+	// Moves every reference to `oldPath` onto `newPath` across all entries.
+	// Returns true when anything changed. Timestamps are left alone: a rename
+	// is bookkeeping, not review activity.
+	renameNotePath(registry: SweepRegistry, oldPath: string, newPath: string): boolean {
+		if (oldPath === newPath) {
+			return false;
+		}
+		const remap = (path: string): string => (path === oldPath ? newPath : path);
+		const remapList = (paths: readonly string[]): string[] =>
+			paths.map(remap).filter((path, index, list) => list.indexOf(path) === index);
+
+		let changed = false;
+		for (const [batchId, entry] of Object.entries(registry)) {
+			const touches =
+				entry.importedNotePaths.includes(oldPath) ||
+				entry.sceneOrder.includes(oldPath) ||
+				entry.currentNotePath === oldPath ||
+				(entry.editorialRevisionUpdatedNotePaths ?? []).includes(oldPath);
+			if (!touches) {
+				continue;
+			}
+			registry[batchId] = {
+				...entry,
+				importedNotePaths: remapList(entry.importedNotePaths),
+				sceneOrder: remapList(entry.sceneOrder),
+				currentNotePath: entry.currentNotePath === undefined ? undefined : remap(entry.currentNotePath),
+				editorialRevisionUpdatedNotePaths: entry.editorialRevisionUpdatedNotePaths
+					? remapList(entry.editorialRevisionUpdatedNotePaths)
+					: undefined,
+			};
+			changed = true;
+		}
+		return changed;
+	}
+
 	updateEntry(
 		registry: SweepRegistry,
 		batchId: string,
