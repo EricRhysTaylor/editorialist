@@ -49,7 +49,7 @@ describe("dash tolerance is the same when finding and when verifying", () => {
 			"Why: smoother",
 			"```",
 		].join("\n");
-		const parsed = parser.parse(block).suggestions[0];
+		const parsed = parser.parse(block).suggestions[0]!;
 		expect(parsed).toBeDefined();
 
 		const matched = new MatchEngine().matchSuggestion(note, parsed);

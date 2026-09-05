@@ -41,6 +41,9 @@ function makeHost(overrides: Partial<ReviewBatchProcessorHost> = {}) {
 		}),
 		openExistingSweep: async () => { calls.push("openExistingSweep"); },
 		startGuidedSweep: async () => { calls.push("startGuidedSweep"); },
+		// Only reached through the duplicate-import modal, which these tests never
+		// open (findDuplicateSweep returns null), so the label is never read.
+		formatRelativeTime: () => "just now",
 		...overrides,
 	};
 	return { host, calls, importEngine };
