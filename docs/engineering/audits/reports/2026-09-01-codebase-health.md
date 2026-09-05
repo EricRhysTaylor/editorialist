@@ -6,6 +6,7 @@
 **Build status at audit time:** `pass` (`npm run check` green; `npm test` 895 passing in 69 files)
 **Previous report:** `reports/2026-08-18-codebase-health.md`
 **Remediation:** 2026-09-03, commits `b3507fc` through `f29f61c` — see the resolution note at the end for what each finding became
+**Follow-up:** 2026-09-04, manual-removal evaluation and two fixes, `2d7a0b8` and `dba78a4` — see the addendum at the end
 
 ---
 
@@ -390,6 +391,7 @@ Resolved since August: `CH-2026-08-18-#1` (batch attribution — `a3ff1db`, `893
 - **Build output growth** — `main.js` +2.6%, `styles.css` +0.6%. Well under threshold.
 - **`ContributorBrandMarks.renderContributorBrandMark`** 222-line data table. Unchanged.
 - **`tests/scaffolds/ReviewStateMachineScaffold.ts`** — the extraction it guarded is done; the golden traces still run as a characterisation test and `EXTRACTION_CHECKLIST` (`:366-376`) is a post-hoc doc artifact. Harmless; fold into `#7`'s move if convenient.
+- **Half-removed review blocks** (added 2026-09-04) — an author who deletes a block's fence lines by hand but leaves the stamped body. The scan still counts it as imported, so the sweep stays open, and Clean leaves it in place and says so rather than guessing where an unfenced block ends. Not acting on a standing panel warning: the cleanup notice already reports it the moment they try to clean, and never guessing a block boundary is the right trade. **Changes our mind:** a report of an author left with review syntax in a manuscript who never ran Clean and never saw the notice.
 
 ---
 
@@ -425,6 +427,7 @@ Resolved since August: `CH-2026-08-18-#1` (batch attribution — `a3ff1db`, `893
   - `#2` residual — `.claude/settings.local.json` still pre-allows every `npm run *`, including `backup`, which pushes. Decide whether to narrow it.
   - `#16` residual — README images path, CONTRIBUTING test count, the two wiki omissions, the dead package.json aliases, and the enforced-eslint triple are still open.
   - Whether the new `qa-audit` control-byte check has fired on anything.
+  - Manual removal (addendum) — does the delete-triggered rescan cause any visible churn on large vaults, and has a recovered batch entry (`contentHash: ""`) confused duplicate detection or Recent Reviews in practice?
 - **If skipping this cadence, why:** n/a
 
 ---
@@ -489,4 +492,31 @@ Two commits outside the table: `83ec6e4` removes an import that `c72d42b` claime
 
 The size numbers barely move because the batch was correctness and single-source work, not the structural pass. `#9` is where the lines are.
 
-After the wrapper deletion (`6a56848`, step 10 of the plan): `src/main.ts` 3,910 lines, `main.js` 464 KB; every other row unchanged. After the three extractions (`85a65de`): `src/main.ts` 2,844 lines, tests 919 in 74 files, `main.js` 466 KB; files over 600 lines stays at 11, since none of the three new orchestrators crosses that line and `main.ts` is still above it. `ts-prune` is not a dependency of the repo, so the dead-export row is reproducible only with that tool at that version.
+After the wrapper deletion (`6a56848`, step 10 of the plan): `src/main.ts` 3,910 lines, `main.js` 464 KB; every other row unchanged. After the three extractions (`85a65de`): `src/main.ts` 2,844 lines, tests 919 in 74 files, `main.js` 466 KB; files over 600 lines stays at 11, since none of the three new orchestrators crosses that line and `main.ts` is still above it.
+
+---
+
+## Addendum (2026-09-04): manual removal of batches
+
+Eric asked, after 1.3.3, how the plugin behaves when an author who does not trust Clean removes batches by hand — deleting review blocks, deleting notes, deleting Editorialist's own files. Not one of the nineteen findings above; recorded here because the answer and the two fixes it produced belong with this cycle.
+
+**Method.** Code trace of every path that runs when a note stops carrying a review block, then a scratch scenario test (not committed) that drove the real registry through each case. The durable versions of those scenarios are now in `ReviewRegistryService.invariants.test.ts` and `SweepRegistryManager.test.ts`.
+
+**Verdict.** Manual removal is a supported path. The registry treats the manuscript as the source of truth and only ever reads notes during a scan, so whatever the author deletes is reconciled on the next scan, persisted decisions are never lost, and no path throws. The settings copy already describes the hand-removal workflow: reset history "clears Editorialist's saved decisions and batch tracking, not the review blocks currently written into notes."
+
+| Author does | Verified behavior |
+|---|---|
+| Deletes a whole fenced block | Next scan retires the scene to `cleaned` with zero counts, marks the sweep `cleaned`, freezes its last decision counts for Recent Reviews, keeps the scene title in history, hides the Clean button, lets a guided sweep finish, and warns on re-import. Reset one batch still works. |
+| Deletes the scene note | The record is dropped as a ghost (`ff45637`, same day) and the sweep goes to `cleaned`; an empty vault listing can never wipe the index. |
+| Deletes the fence lines, leaves the stamped body | Still detected as imported in every shape tried. The sweep stays open; Clean leaves the text in place and reports it. See Monitor. |
+| Deletes the plugin's data file | Loads empty state; the next scan rebuilds scene records from the blocks on disk. Batch entries were gone for good — fixed below. |
+| Deletes editorialism or cut files | Loads return null; the panel clears its selection on the vault delete event; anchor navigation and the cut button raise a notice. |
+
+**Fixed.**
+
+- **Staleness until the next full scan** (`2d7a0b8`). The scan ran only when the panel opened, on the rescan command, or after an import, clean, reset, or finished sweep, so a hand-deleted batch stayed resumable in Recent Reviews and the panel could offer a scene with nothing left to review. The vault delete listener now schedules a debounced full scan for a deleted note or folder and repaints the panel. Modify events elsewhere are deliberately left alone; the open note was already covered by the editor-change resync.
+- **Orphan batches after a data reset** (`dba78a4`). The scan only updated existing sweep entries and never created one, so blocks whose batch had no entry vanished from Recent Reviews and the batch Clean button while the per-scene cleanup still saw them. The scan now synthesizes a minimal entry from the scene records. The content hash is unknowable from a block, so duplicate detection is not restored for a recovered batch. The existing idempotency test caught a first version that omitted one field and would have churned `updatedAt` on every scan.
+
+**Deliberately not fixed.** A standing warning for half-removed blocks; see Do Nothing / Monitor.
+
+**Metrics at `dba78a4`:** 931 tests in 75 files; `src/main.ts` 2,882 lines (the debouncer and its comment, plus the rename fix); every gate green. `ts-prune` is not a dependency of the repo, so the dead-export row is reproducible only with that tool at that version.
