@@ -222,3 +222,41 @@ describe("SweepRegistryManager — recordImportedBatch", () => {
 		});
 	});
 });
+
+describe("SweepRegistryManager — recovering batches that have blocks but no entry", () => {
+	it("synthesizes a minimal entry from the scene records, then leaves it alone on the next scan", () => {
+		const sceneIndex = {
+			"s1.md": sceneRecord({ batchIds: ["b9"], pendingCount: 1, acceptedCount: 2, lastUpdated: 40 }),
+			"s2.md": sceneRecord({ notePath: "s2.md", noteTitle: "S2", batchIds: ["b9"], rejectedCount: 1, status: "completed", lastUpdated: 70 }),
+		};
+		const m = makeManager(sceneIndex);
+		const presence = new Map([["b9", new Set(["s2.md", "s1.md"])]]);
+
+		const first = m.buildFromSceneInventory({}, presence, sceneIndex, 999);
+		expect(first.b9).toMatchObject({
+			batchId: "b9",
+			contentHash: "",
+			importedAt: 40,
+			importedNotePaths: ["s1.md", "s2.md"],
+			currentNotePath: "s1.md",
+			sceneOrder: ["s1.md", "s2.md"],
+			status: "in_progress",
+			totalSuggestions: 4,
+			acceptedCount: 2,
+			rejectedCount: 1,
+			updatedAt: 999,
+		});
+
+		// Once it exists it goes through the ordinary path: no churn on an unchanged scan.
+		const second = m.buildFromSceneInventory(first, presence, sceneIndex, 1000);
+		expect(second.b9).toEqual(first.b9);
+	});
+
+	it("reports a recovered batch as completed when every suggestion is decided", () => {
+		const sceneIndex = { "s1.md": sceneRecord({ batchIds: ["b9"], acceptedCount: 3, status: "completed" }) };
+		const m = makeManager(sceneIndex);
+		const built = m.buildFromSceneInventory({}, new Map([["b9", new Set(["s1.md"])]]), sceneIndex, 999);
+		expect(built.b9?.status).toBe("completed");
+		expect(built.b9?.totalSuggestions).toBe(3);
+	});
+});

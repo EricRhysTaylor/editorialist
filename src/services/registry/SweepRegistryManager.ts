@@ -330,6 +330,53 @@ export class SweepRegistryManager {
 			nextRegistry[entry.batchId] = candidate;
 		}
 
+		// Blocks on disk whose batch has no entry. That happens when the author
+		// deletes the plugin's data file to start over but leaves the imported
+		// blocks in the manuscript: the scenes are inventoried again, yet without
+		// an entry the batch is invisible to Recent Reviews and to the batch
+		// Clean button while the per-scene cleanup still sees it. Recover a
+		// minimal entry from what the scan knows. The import date is the best
+		// available proxy (the records' own timestamps), and the content hash is
+		// unknowable here, so duplicate detection is not restored for it.
+		for (const [batchId, paths] of batchPresence) {
+			if (nextRegistry[batchId]) {
+				continue;
+			}
+			const sortedPaths = [...paths].sort();
+			const records = sortedPaths
+				.map((path) => sceneIndex[path])
+				.filter((record): record is SceneReviewRecord => Boolean(record));
+			const sum = (pick: (record: SceneReviewRecord) => number): number =>
+				records.reduce((total, record) => total + pick(record), 0);
+			const pending = sum((record) => record.pendingCount);
+			const unresolved = sum((record) => record.unresolvedCount);
+			const deferred = sum((record) => record.deferredCount);
+			const accepted = sum((record) => record.acceptedCount);
+			const rejected = sum((record) => record.rejectedCount);
+			const rewritten = sum((record) => record.rewrittenCount);
+			nextRegistry[batchId] = {
+				batchId,
+				contentHash: "",
+				activeBookLabel: activeBookScope.label ?? undefined,
+				activeBookSourceFolder: activeBookScope.sourceFolder ?? undefined,
+				// Every field the ordinary path writes must be present here, or the
+				// next scan sees a "material change" on an unchanged manuscript and
+				// churns updatedAt (and a persist) forever.
+				editorialRevisionUpdatedNotePaths: [],
+				importedAt: records.length > 0 ? Math.min(...records.map((record) => record.lastUpdated)) : now,
+				importedNotePaths: sortedPaths,
+				currentNotePath: sortedPaths[0],
+				sceneOrder: sortedPaths,
+				status: getSweepStatus({ pendingCount: pending, unresolvedCount: unresolved, deferredCount: deferred }),
+				totalSuggestions: pending + unresolved + deferred + accepted + rejected + rewritten,
+				updatedAt: now,
+				acceptedCount: accepted,
+				rejectedCount: rejected,
+				rewrittenCount: rewritten,
+				deferredCount: deferred,
+			};
+		}
+
 		return nextRegistry;
 	}
 }
