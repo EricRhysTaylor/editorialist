@@ -552,6 +552,12 @@ export default class EditorialistPlugin extends Plugin {
 			this.registerEvent(
 				this.app.vault.on("delete", (file) => {
 					this.cutFiles.refreshReviewPanelIfActiveSceneCutFile(file.path);
+					// A deleted note may have carried a tracked review block; a deleted
+					// folder may have carried several. Either way the registry must
+					// stop offering them — see inventoryRescanDebouncer.
+					if (!(file instanceof TFile) || file.extension === "md") {
+						this.inventoryRescanDebouncer.schedule();
+					}
 				}),
 			);
 			this.registerEvent(
@@ -577,6 +583,7 @@ export default class EditorialistPlugin extends Plugin {
 		this.toolbarOverlay.destroy();
 		this.toolbarKeyTracker.dispose();
 		this.editorChangeResyncDebouncer.cancel();
+		this.inventoryRescanDebouncer.cancel();
 		this.pendingEdits.clearInquiryMaps();
 		// Flush any debounced plugin-data save so pending changes (e.g. a star
 		// toggle right before the user disables the plugin) are not lost.
@@ -2578,6 +2585,19 @@ export default class EditorialistPlugin extends Plugin {
 	private readonly editorChangeResyncDebouncer = new TrailingDebouncer(
 		() => this.resyncSessionForActiveNote(),
 		120,
+	);
+
+	// An author who does not trust Clean removes review blocks by deleting them,
+	// or deletes the note. The inventory is only ever rebuilt from the notes on
+	// disk, so nothing is lost, but until a full scan runs the registry still
+	// shows the batch as resumable and the panel can offer a scene with nothing
+	// left to review. Rescanning on delete closes that window; deletes are rare
+	// and a folder delete coalesces into one scan.
+	private readonly inventoryRescanDebouncer = new TrailingDebouncer(
+		() => {
+			void this.registry.syncSceneInventory().then(() => this.refreshReviewPanel());
+		},
+		500,
 	);
 
 	private async savePluginData(): Promise<void> {

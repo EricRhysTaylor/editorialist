@@ -25,6 +25,8 @@ import { ContributorDirectory } from "../state/ContributorDirectory";
 import { createReviewBlock } from "../core/ReviewBlockFormat";
 import type { ReviewEngine } from "../core/ReviewEngine";
 import type { ReviewSession, ReviewSuggestion } from "../models/ReviewSuggestion";
+import type { ReviewImportBatch, ReviewImportNoteGroup } from "../models/ReviewImport";
+import { isBatchReadyToClean } from "../core/review/SweepCompletion";
 import type {
 	ContributorProfile,
 	EditorialistPluginData,
@@ -810,5 +812,93 @@ describe("ReviewRegistryService.renameNotePath", () => {
 		const after = service.buildPluginData([]);
 		expect(after.sceneReviewIndex[OLD]).toBeUndefined();
 		expect(after.sceneReviewIndex[NEW]?.pendingCount).toBe(5);
+	});
+});
+
+// ── manual removal: the author deletes blocks or notes by hand ───────────
+
+describe("invariant: hand-removed blocks and deleted notes reconcile on the next scan", () => {
+	// The shared makeApp freezes its file texts, so this harness keeps them in a
+	// map the test can edit between scans — that is the whole point here.
+	function mutableApp(texts: Map<string, string>) {
+		const tfile = (path: string): TFile => {
+			const tf = new TFile();
+			tf.path = path;
+			tf.basename = path.replace(/\.md$/, "");
+			tf.extension = "md";
+			tf.stat = { ctime: FIXED_NOW, mtime: FIXED_NOW, size: 1 };
+			return tf;
+		};
+		return {
+			vault: {
+				configDir: ".obsidian",
+				adapter: { exists: async () => false, read: async () => "" },
+				getMarkdownFiles: () => [...texts.keys()].map(tfile),
+				getAbstractFileByPath: (path: string) => (texts.has(path) ? tfile(path) : null),
+				cachedRead: async (file: TFile) => texts.get(file.path) ?? "",
+			},
+			metadataCache: { getFileCache: () => ({ frontmatter: {} }) },
+			workspace: { getLeavesOfType: () => [] },
+		} as unknown as ConstructorParameters<typeof ReviewRegistryService>[0];
+	}
+	const batch = (batchId: string, total: number): ReviewImportBatch =>
+		({ batchId, contentHash: `hash-${batchId}`, createdAt: FIXED_NOW, summary: { totalSuggestions: total }, results: [] }) as unknown as ReviewImportBatch;
+	const group = (filePath: string): ReviewImportNoteGroup => ({
+		filePath, fileName: filePath, suggestions: [], memos: [],
+		exactCount: 0, declaredCount: 0, inferredCount: 0, exactInferredCount: 0, advisoryCount: 0, unresolvedCount: 0, mismatchCount: 0, isReady: true,
+	});
+
+	it("a block deleted by hand retires the scene, cleans the sweep with frozen counts, and hides Clean", async () => {
+		const texts = new Map([["A.md", `Prose.\n\n${reviewNote("b1")}\n`]]);
+		const { service, persistCalls } = makeService({
+			app: mutableApp(texts),
+			engine: makeEngine({ "A.md": [suggestion("r1", "accepted"), suggestion("r1", "pending")] }),
+		});
+		await service.recordImportedBatch(batch("b1", 2), [group("A.md")], "in_progress", "A.md");
+		expect(service.getSweepRegistryEntry("b1")?.status).toBe("in_progress");
+		expect(service.getSweepRegistryEntry("b1")?.acceptedCount).toBe(1);
+
+		texts.set("A.md", "Prose.\n");
+		const persistsBefore = persistCalls();
+		await service.syncSceneInventory();
+
+		const record = service.getSceneReviewRecords().find((entry) => entry.notePath === "A.md");
+		expect(record?.status).toBe("cleaned");
+		expect(record?.batchCount).toBe(0);
+		expect(record?.pendingCount).toBe(0);
+		const entry = service.getSweepRegistryEntry("b1");
+		expect(entry?.status).toBe("cleaned");
+		expect(entry?.importedNotePaths).toEqual([]);
+		expect(entry?.sceneOrder).toEqual(["A.md"]);
+		expect(entry?.acceptedCount).toBe(1);
+		expect(entry?.cleanedAt).toBe(FIXED_NOW);
+		expect(persistCalls()).toBeGreaterThan(persistsBefore);
+		expect(isBatchReadyToClean(entry!, service.getBatchDecisionStats("b1"))).toBe(false);
+		expect(service.isSweepRegistryComplete("b1")).toBe(true);
+		expect(service.findDuplicateSweep(batch("b1", 2))?.status).toBe("cleaned");
+		expect((await service.resetBatchHistory("b1")).removedSweep).toBe(true);
+	});
+
+	it("a deleted note drops its record and cleans the sweep, but an empty listing never wipes the index", async () => {
+		const texts = new Map([["B.md", `Prose.\n\n${reviewNote("b2")}\n`], ["Other.md", "Nothing here.\n"]]);
+		const { service } = makeService({
+			app: mutableApp(texts),
+			engine: makeEngine({ "B.md": [suggestion("r1", "pending")] }),
+		});
+		await service.recordImportedBatch(batch("b2", 1), [group("B.md")], "in_progress", "B.md");
+
+		texts.delete("B.md");
+		await service.syncSceneInventory();
+		expect(service.getSceneReviewRecords().map((entry) => entry.notePath)).toEqual([]);
+		expect(service.getSweepRegistryEntry("b2")?.status).toBe("cleaned");
+		expect(service.getSweepRegistryEntry("b2")?.sceneOrder).toEqual(["B.md"]);
+
+		// Re-create it, then make the vault listing empty: the record must survive.
+		texts.set("B.md", `Prose.\n\n${reviewNote("b2")}\n`);
+		await service.syncSceneInventory();
+		expect(service.getSceneReviewRecords().map((entry) => entry.notePath)).toEqual(["B.md"]);
+		texts.clear();
+		await service.syncSceneInventory();
+		expect(service.getSceneReviewRecords().map((entry) => entry.notePath)).toEqual(["B.md"]);
 	});
 });
