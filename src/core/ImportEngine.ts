@@ -251,9 +251,17 @@ export class ImportEngine {
 		let sceneIdFailureReason: string | null = null;
 
 		if (sceneId) {
-			const sceneMatches = markdownFiles.filter((file) => this.matchesSceneId(file, sceneId));
+			// Draft copies retain scene IDs. Resolve identity inside the selected
+			// book, never by whichever sibling the vault happens to enumerate first.
+			const sceneMatches = markdownFiles.filter((file) =>
+				this.isWithinDeclaredScope(file, declaredScopeFolder) && this.matchesSceneId(file, sceneId),
+			);
 			if (sceneMatches.length > 1) {
-				sceneIdFailureReason = `Multiple notes match SceneId ${sceneId}.`;
+				return {
+					status: "unresolved",
+					strategy: "unresolved",
+					reason: `Multiple notes match SceneId ${sceneId} within the current scope.`,
+				};
 			} else if (sceneMatches.length === 0) {
 				sceneIdFailureReason = `No note matches SceneId ${sceneId}.`;
 			}

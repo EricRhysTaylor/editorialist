@@ -66,6 +66,21 @@ describe("ReviewBatchProcessor.resetBatchHistory", () => {
 });
 
 describe("ReviewBatchProcessor.importReviewBatch", () => {
+	it.each([null, "open"])("does not append a duplicate when the author chooses %s", async (choice) => {
+		const { host, calls, importEngine } = makeHost({
+			findDuplicateSweep: () => ({
+				batchId: "previous", contentHash: "same", importedAt: 1,
+				importedNotePaths: ["Working/Scene.md"], sceneOrder: ["Working/Scene.md"],
+				status: "in_progress", totalSuggestions: 1, updatedAt: 1,
+			}),
+			openChoiceModal: async (options) => options.choices.find(option => option.value === choice)?.value ?? null,
+		});
+		await new ReviewBatchProcessor(host).importReviewBatch(batch, true);
+		expect(importEngine.importBatch).not.toHaveBeenCalled();
+		expect(calls).not.toContain("recordImportedBatch");
+		if (choice === "open") expect(calls).toContain("openExistingSweep");
+	});
+
 	it("notifies and stops when nothing was imported", async () => {
 		const { host, calls, importEngine } = makeHost();
 		importEngine.importBatch.mockResolvedValue([]);

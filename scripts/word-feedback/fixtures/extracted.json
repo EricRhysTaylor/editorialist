@@ -1,0 +1,535 @@
+{
+  "schemaVersion": 1,
+  "documentSha256": "3f0141eb24efba4cdc590343e44fbabfb36cff4e66bec8ab0e5651d87dd4a1d4",
+  "parts": [
+    {
+      "part": "[Content_Types].xml",
+      "sha256": "d7ac4a4ed0d065e5a37a1355c31f4faa6452b380a242903f5d2e725ba07982b0"
+    },
+    {
+      "part": "_rels/.rels",
+      "sha256": "22c01d12e912dc45bdf191c382dd5b80cdeca1a9e95af86a477798a9f7e541e9"
+    },
+    {
+      "part": "word/_rels/document.xml.rels",
+      "sha256": "1e5ad845a6a4998d81261cb488982eded8b40a7160af1ab73df25c83bc83e71f"
+    },
+    {
+      "part": "word/comments.xml",
+      "sha256": "93e1773fa6c45fe52b5907b092eaa2bbab91821ed10c1165472e074f91763c60"
+    },
+    {
+      "part": "word/commentsExtended.xml",
+      "sha256": "b046495a9871ebdbcb8fd4858e19aa365dc3b802ae2b83b07ea0c1c82da6bf56"
+    },
+    {
+      "part": "word/document.xml",
+      "sha256": "8b1943e53e61c11996cfd668a06ee783bb496941e05a60cba95d29fba9fd9028"
+    },
+    {
+      "part": "word/settings.xml",
+      "sha256": "4e28673953b55f9532a9e65589b0f20a61cdfd234170143a985226087129a3ed"
+    }
+  ],
+  "retainedParts": [
+    {
+      "part": "[Content_Types].xml",
+      "disposition": "manual",
+      "rawXml": "<ns0:Types xmlns:ns0=\"http://schemas.openxmlformats.org/package/2006/content-types\"><ns0:Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\" /><ns0:Default Extension=\"xml\" ContentType=\"application/xml\" /><ns0:Override PartName=\"/word/document.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml\" /><ns0:Override PartName=\"/word/comments.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml\" /><ns0:Override PartName=\"/word/commentsExtended.xml\" ContentType=\"application/vnd.ms-word.commentsExtended+xml\" /><ns0:Override PartName=\"/word/settings.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml\" /></ns0:Types>"
+    },
+    {
+      "part": "_rels/.rels",
+      "disposition": "manual",
+      "rawXml": "<ns0:Relationships xmlns:ns0=\"http://schemas.openxmlformats.org/package/2006/relationships\"><ns0:Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"word/document.xml\" /></ns0:Relationships>"
+    },
+    {
+      "part": "word/_rels/document.xml.rels",
+      "disposition": "manual",
+      "rawXml": "<ns0:Relationships xmlns:ns0=\"http://schemas.openxmlformats.org/package/2006/relationships\"><ns0:Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments\" Target=\"comments.xml\" /><ns0:Relationship Id=\"rId2\" Type=\"http://schemas.microsoft.com/office/2011/relationships/commentsExtended\" Target=\"commentsExtended.xml\" /><ns0:Relationship Id=\"rId3\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings\" Target=\"settings.xml\" /></ns0:Relationships>"
+    },
+    {
+      "part": "word/commentsExtended.xml",
+      "disposition": "manual",
+      "rawXml": "<ns0:commentsEx xmlns:ns0=\"http://schemas.microsoft.com/office/word/2012/wordml\"><ns0:commentEx ns0:paraId=\"00000010\" ns0:done=\"0\" /><ns0:commentEx ns0:paraId=\"00000014\" ns0:paraIdParent=\"00000010\" ns0:done=\"0\" /></ns0:commentsEx>"
+    },
+    {
+      "part": "word/settings.xml",
+      "disposition": "manual",
+      "rawXml": "<ns0:settings xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:trackRevisions /></ns0:settings>"
+    }
+  ],
+  "originalText": "The door opened.\n\nShe really waited.\n\nThe light was red.\n\nA bell rang.\n\nHe still waited.\n\nEcho.\n\nEcho.\n\nFirst paragraph.\n\nSecond paragraph.\n\nStyled.\n\nMoved passage.\n\n\n\nAcross first.\n\nAcross second.\n\n",
+  "revisedText": "The door slowly opened.\n\nShe waited.\n\nThe light was blue.\n\nA quiet silver bell rang.\n\nHe waited.\n\nEcho. Again.\n\nEcho.\n\nFirst paragraph.\n\nSecond paragraph.\n\nStyled.\n\n\n\nMoved passage.\n\nAcross first.\n\nAcross second.\n\n",
+  "annotations": [
+    {
+      "sourceId": "word/comments.xml#1:comment:10",
+      "part": "word/comments.xml",
+      "kind": "comment",
+      "wordId": "10",
+      "author": "Synthetic Editor",
+      "timestamp": "2026-09-01T12:00:00Z",
+      "paragraph": null,
+      "original": "Why does he wait?\n\n",
+      "revised": "Why does he wait?\n\n",
+      "rawXml": "<ns0:comment xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:ns1=\"http://schemas.microsoft.com/office/word/2010/wordml\" ns0:id=\"10\" ns0:author=\"Synthetic Editor\" ns0:date=\"2026-09-01T12:00:00Z\"><ns0:p ns1:paraId=\"00000010\"><ns0:r><ns0:t xml:space=\"preserve\">Why does he wait?</ns0:t></ns0:r></ns0:p></ns0:comment>",
+      "disposition": "manual",
+      "reason": "Requires author review; no operation inferred",
+      "commentText": "Why does he wait?",
+      "anchors": {
+        "commentRangeStart": [
+          [
+            72,
+            86
+          ]
+        ],
+        "commentRangeEnd": [
+          [
+            88,
+            96
+          ]
+        ],
+        "commentReference": [
+          [
+            88,
+            96
+          ]
+        ]
+      },
+      "anchorText": {
+        "original": "He still waited.",
+        "revised": "He waited."
+      },
+      "paragraphIds": [
+        "00000010"
+      ]
+    },
+    {
+      "sourceId": "word/comments.xml#5:comment:14",
+      "part": "word/comments.xml",
+      "kind": "comment",
+      "wordId": "14",
+      "author": "Second Reviewer",
+      "timestamp": "2026-09-01T12:00:00Z",
+      "paragraph": null,
+      "original": "I agree; clarify his motive.\n\n",
+      "revised": "I agree; clarify his motive.\n\n",
+      "rawXml": "<ns0:comment xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:ns1=\"http://schemas.microsoft.com/office/word/2010/wordml\" ns0:id=\"14\" ns0:author=\"Second Reviewer\" ns0:date=\"2026-09-01T12:00:00Z\"><ns0:p ns1:paraId=\"00000014\"><ns0:r><ns0:t xml:space=\"preserve\">I agree; clarify his motive.</ns0:t></ns0:r></ns0:p></ns0:comment>",
+      "disposition": "manual",
+      "reason": "Requires author review; no operation inferred",
+      "commentText": "I agree; clarify his motive.",
+      "anchors": {},
+      "paragraphIds": [
+        "00000014"
+      ]
+    },
+    {
+      "sourceId": "word/comments.xml#9:comment:13",
+      "part": "word/comments.xml",
+      "kind": "comment",
+      "wordId": "13",
+      "author": "Synthetic Editor",
+      "timestamp": "2026-09-01T12:00:00Z",
+      "paragraph": null,
+      "original": "Consider the transition.\n\n",
+      "revised": "Consider the transition.\n\n",
+      "rawXml": "<ns0:comment xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:ns1=\"http://schemas.microsoft.com/office/word/2010/wordml\" ns0:id=\"13\" ns0:author=\"Synthetic Editor\" ns0:date=\"2026-09-01T12:00:00Z\"><ns0:p ns1:paraId=\"00000013\"><ns0:r><ns0:t xml:space=\"preserve\">Consider the transition.</ns0:t></ns0:r></ns0:p></ns0:comment>",
+      "disposition": "manual",
+      "reason": "Requires author review; no operation inferred",
+      "commentText": "Consider the transition.",
+      "anchors": {
+        "commentRangeStart": [
+          [
+            168,
+            183
+          ]
+        ],
+        "commentRangeEnd": [
+          [
+            197,
+            212
+          ]
+        ],
+        "commentReference": [
+          [
+            197,
+            212
+          ]
+        ]
+      },
+      "anchorText": {
+        "original": "Across first.\n\nAcross second.",
+        "revised": "Across first.\n\nAcross second."
+      },
+      "paragraphIds": [
+        "00000013"
+      ]
+    },
+    {
+      "sourceId": "word/document.xml#5:ins:1",
+      "part": "word/document.xml",
+      "kind": "ins",
+      "wordId": "1",
+      "author": "Synthetic Editor",
+      "timestamp": "2026-09-01T10:30:00Z",
+      "paragraph": 0,
+      "original": "",
+      "revised": "slowly ",
+      "rawXml": "<ns0:ins xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" ns0:id=\"1\" ns0:author=\"Synthetic Editor\" ns0:date=\"2026-09-01T10:30:00Z\"><ns0:r><ns0:t xml:space=\"preserve\">slowly </ns0:t></ns0:r></ns0:ins>",
+      "disposition": "converted",
+      "reason": "One isolated run revision; paragraph context from source DOCX",
+      "context": {
+        "original": "The door opened.",
+        "revised": "The door slowly opened."
+      },
+      "simpleParagraph": true
+    },
+    {
+      "sourceId": "word/document.xml#13:del:2",
+      "part": "word/document.xml",
+      "kind": "del",
+      "wordId": "2",
+      "author": "Synthetic Editor",
+      "timestamp": "2026-09-01T10:30:00Z",
+      "paragraph": 1,
+      "original": "really ",
+      "revised": "",
+      "rawXml": "<ns0:del xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" ns0:id=\"2\" ns0:author=\"Synthetic Editor\" ns0:date=\"2026-09-01T10:30:00Z\"><ns0:r><ns0:delText xml:space=\"preserve\">really </ns0:delText></ns0:r></ns0:del>",
+      "disposition": "converted",
+      "reason": "One isolated run revision; paragraph context from source DOCX",
+      "context": {
+        "original": "She really waited.",
+        "revised": "She waited."
+      },
+      "simpleParagraph": true
+    },
+    {
+      "sourceId": "word/document.xml#21:del:3",
+      "part": "word/document.xml",
+      "kind": "del",
+      "wordId": "3",
+      "author": "Synthetic Editor",
+      "timestamp": "2026-09-01T10:30:00Z",
+      "paragraph": 2,
+      "original": "red",
+      "revised": "",
+      "rawXml": "<ns0:del xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" ns0:id=\"3\" ns0:author=\"Synthetic Editor\" ns0:date=\"2026-09-01T10:30:00Z\"><ns0:r><ns0:delText xml:space=\"preserve\">red</ns0:delText></ns0:r></ns0:del>",
+      "disposition": "manual",
+      "reason": "Requires author review; no operation inferred",
+      "context": {
+        "original": "The light was red.",
+        "revised": "The light was blue."
+      },
+      "simpleParagraph": true
+    },
+    {
+      "sourceId": "word/document.xml#24:ins:4",
+      "part": "word/document.xml",
+      "kind": "ins",
+      "wordId": "4",
+      "author": "Synthetic Editor",
+      "timestamp": "2026-09-01T10:30:00Z",
+      "paragraph": 2,
+      "original": "",
+      "revised": "blue",
+      "rawXml": "<ns0:ins xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" ns0:id=\"4\" ns0:author=\"Synthetic Editor\" ns0:date=\"2026-09-01T10:30:00Z\"><ns0:r><ns0:t xml:space=\"preserve\">blue</ns0:t></ns0:r></ns0:ins>",
+      "disposition": "manual",
+      "reason": "Requires author review; no operation inferred",
+      "context": {
+        "original": "The light was red.",
+        "revised": "The light was blue."
+      },
+      "simpleParagraph": true
+    },
+    {
+      "sourceId": "word/document.xml#32:ins:5",
+      "part": "word/document.xml",
+      "kind": "ins",
+      "wordId": "5",
+      "author": "Second Reviewer",
+      "timestamp": "2026-09-02T11:00:00Z",
+      "paragraph": 3,
+      "original": "",
+      "revised": "quiet silver ",
+      "rawXml": "<ns0:ins xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" ns0:id=\"5\" ns0:author=\"Second Reviewer\" ns0:date=\"2026-09-02T11:00:00Z\"><ns0:r><ns0:t xml:space=\"preserve\">quiet </ns0:t></ns0:r><ns0:r><ns0:t xml:space=\"preserve\">silver </ns0:t></ns0:r></ns0:ins>",
+      "disposition": "converted",
+      "reason": "One isolated run revision; paragraph context from source DOCX",
+      "context": {
+        "original": "A bell rang.",
+        "revised": "A quiet silver bell rang."
+      },
+      "simpleParagraph": true
+    },
+    {
+      "sourceId": "word/document.xml#40:commentRangeStart:10",
+      "part": "word/document.xml",
+      "kind": "commentRangeStart",
+      "wordId": "10",
+      "author": null,
+      "timestamp": null,
+      "paragraph": 4,
+      "original": "",
+      "revised": "",
+      "rawXml": "<ns0:commentRangeStart xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" ns0:id=\"10\" />",
+      "disposition": "manual",
+      "reason": "Requires author review; no operation inferred",
+      "context": {
+        "original": "He still waited.",
+        "revised": "He waited."
+      },
+      "simpleParagraph": true
+    },
+    {
+      "sourceId": "word/document.xml#43:del:6",
+      "part": "word/document.xml",
+      "kind": "del",
+      "wordId": "6",
+      "author": "Synthetic Editor",
+      "timestamp": "2026-09-01T10:30:00Z",
+      "paragraph": 4,
+      "original": "still ",
+      "revised": "",
+      "rawXml": "<ns0:del xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" ns0:id=\"6\" ns0:author=\"Synthetic Editor\" ns0:date=\"2026-09-01T10:30:00Z\"><ns0:r><ns0:delText xml:space=\"preserve\">still </ns0:delText></ns0:r></ns0:del>",
+      "disposition": "converted",
+      "reason": "One isolated run revision; paragraph context from source DOCX",
+      "context": {
+        "original": "He still waited.",
+        "revised": "He waited."
+      },
+      "simpleParagraph": true
+    },
+    {
+      "sourceId": "word/document.xml#48:commentRangeEnd:10",
+      "part": "word/document.xml",
+      "kind": "commentRangeEnd",
+      "wordId": "10",
+      "author": null,
+      "timestamp": null,
+      "paragraph": 4,
+      "original": "",
+      "revised": "",
+      "rawXml": "<ns0:commentRangeEnd xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" ns0:id=\"10\" />",
+      "disposition": "manual",
+      "reason": "Requires author review; no operation inferred",
+      "context": {
+        "original": "He still waited.",
+        "revised": "He waited."
+      },
+      "simpleParagraph": true
+    },
+    {
+      "sourceId": "word/document.xml#50:commentReference:10",
+      "part": "word/document.xml",
+      "kind": "commentReference",
+      "wordId": "10",
+      "author": null,
+      "timestamp": null,
+      "paragraph": 4,
+      "original": "",
+      "revised": "",
+      "rawXml": "<ns0:commentReference xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" ns0:id=\"10\" />",
+      "disposition": "manual",
+      "reason": "Requires author review; no operation inferred",
+      "context": {
+        "original": "He still waited.",
+        "revised": "He waited."
+      },
+      "simpleParagraph": false
+    },
+    {
+      "sourceId": "word/document.xml#54:ins:7",
+      "part": "word/document.xml",
+      "kind": "ins",
+      "wordId": "7",
+      "author": "Synthetic Editor",
+      "timestamp": "2026-09-01T10:30:00Z",
+      "paragraph": 5,
+      "original": "",
+      "revised": " Again.",
+      "rawXml": "<ns0:ins xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" ns0:id=\"7\" ns0:author=\"Synthetic Editor\" ns0:date=\"2026-09-01T10:30:00Z\"><ns0:r><ns0:t xml:space=\"preserve\"> Again.</ns0:t></ns0:r></ns0:ins>",
+      "disposition": "converted",
+      "reason": "One isolated run revision; paragraph context from source DOCX",
+      "context": {
+        "original": "Echo.",
+        "revised": "Echo. Again."
+      },
+      "simpleParagraph": true
+    },
+    {
+      "sourceId": "word/document.xml#63:del:8",
+      "part": "word/document.xml",
+      "kind": "del",
+      "wordId": "8",
+      "author": "Synthetic Editor",
+      "timestamp": "2026-09-01T10:30:00Z",
+      "paragraph": 7,
+      "original": "",
+      "revised": "",
+      "rawXml": "<ns0:del xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" ns0:id=\"8\" ns0:author=\"Synthetic Editor\" ns0:date=\"2026-09-01T10:30:00Z\" />",
+      "disposition": "manual",
+      "reason": "Requires author review; no operation inferred",
+      "context": {
+        "original": "First paragraph.",
+        "revised": "First paragraph."
+      },
+      "simpleParagraph": false
+    },
+    {
+      "sourceId": "word/document.xml#73:rPrChange:9",
+      "part": "word/document.xml",
+      "kind": "rPrChange",
+      "wordId": "9",
+      "author": "Synthetic Editor",
+      "timestamp": "2026-09-01T10:30:00Z",
+      "paragraph": 9,
+      "original": "",
+      "revised": "",
+      "rawXml": "<ns0:rPrChange xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" ns0:id=\"9\" ns0:author=\"Synthetic Editor\" ns0:date=\"2026-09-01T10:30:00Z\"><ns0:rPr /></ns0:rPrChange>",
+      "disposition": "unsupported",
+      "reason": "Revision semantics not implemented; raw XML retained",
+      "context": {
+        "original": "Styled.",
+        "revised": "Styled."
+      },
+      "simpleParagraph": false
+    },
+    {
+      "sourceId": "word/document.xml#77:moveFrom:11",
+      "part": "word/document.xml",
+      "kind": "moveFrom",
+      "wordId": "11",
+      "author": "Synthetic Editor",
+      "timestamp": "2026-09-01T10:30:00Z",
+      "paragraph": 10,
+      "original": "Moved passage.",
+      "revised": "",
+      "rawXml": "<ns0:moveFrom xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" ns0:id=\"11\" ns0:author=\"Synthetic Editor\" ns0:date=\"2026-09-01T10:30:00Z\"><ns0:r><ns0:delText xml:space=\"preserve\">Moved passage.</ns0:delText></ns0:r></ns0:moveFrom>",
+      "disposition": "unsupported",
+      "reason": "Revision semantics not implemented; raw XML retained",
+      "context": {
+        "original": "Moved passage.",
+        "revised": ""
+      },
+      "simpleParagraph": false
+    },
+    {
+      "sourceId": "word/document.xml#81:moveTo:12",
+      "part": "word/document.xml",
+      "kind": "moveTo",
+      "wordId": "12",
+      "author": "Synthetic Editor",
+      "timestamp": "2026-09-01T10:30:00Z",
+      "paragraph": 11,
+      "original": "",
+      "revised": "Moved passage.",
+      "rawXml": "<ns0:moveTo xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" ns0:id=\"12\" ns0:author=\"Synthetic Editor\" ns0:date=\"2026-09-01T10:30:00Z\"><ns0:r><ns0:t xml:space=\"preserve\">Moved passage.</ns0:t></ns0:r></ns0:moveTo>",
+      "disposition": "unsupported",
+      "reason": "Revision semantics not implemented; raw XML retained",
+      "context": {
+        "original": "",
+        "revised": "Moved passage."
+      },
+      "simpleParagraph": false
+    },
+    {
+      "sourceId": "word/document.xml#85:commentRangeStart:13",
+      "part": "word/document.xml",
+      "kind": "commentRangeStart",
+      "wordId": "13",
+      "author": null,
+      "timestamp": null,
+      "paragraph": 12,
+      "original": "",
+      "revised": "",
+      "rawXml": "<ns0:commentRangeStart xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" ns0:id=\"13\" />",
+      "disposition": "manual",
+      "reason": "Requires author review; no operation inferred",
+      "context": {
+        "original": "Across first.",
+        "revised": "Across first."
+      },
+      "simpleParagraph": true
+    },
+    {
+      "sourceId": "word/document.xml#91:commentRangeEnd:13",
+      "part": "word/document.xml",
+      "kind": "commentRangeEnd",
+      "wordId": "13",
+      "author": null,
+      "timestamp": null,
+      "paragraph": 13,
+      "original": "",
+      "revised": "",
+      "rawXml": "<ns0:commentRangeEnd xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" ns0:id=\"13\" />",
+      "disposition": "manual",
+      "reason": "Requires author review; no operation inferred",
+      "context": {
+        "original": "Across second.",
+        "revised": "Across second."
+      },
+      "simpleParagraph": true
+    },
+    {
+      "sourceId": "word/document.xml#93:commentReference:13",
+      "part": "word/document.xml",
+      "kind": "commentReference",
+      "wordId": "13",
+      "author": null,
+      "timestamp": null,
+      "paragraph": 13,
+      "original": "",
+      "revised": "",
+      "rawXml": "<ns0:commentReference xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" ns0:id=\"13\" />",
+      "disposition": "manual",
+      "reason": "Requires author review; no operation inferred",
+      "context": {
+        "original": "Across second.",
+        "revised": "Across second."
+      },
+      "simpleParagraph": false
+    }
+  ],
+  "extensions": [
+    {
+      "part": "word/commentsExtended.xml",
+      "rawXml": "<ns0:commentsEx xmlns:ns0=\"http://schemas.microsoft.com/office/word/2012/wordml\"><ns0:commentEx ns0:paraId=\"00000010\" ns0:done=\"0\" /><ns0:commentEx ns0:paraId=\"00000014\" ns0:paraIdParent=\"00000010\" ns0:done=\"0\" /></ns0:commentsEx>",
+      "disposition": "manual"
+    }
+  ],
+  "limitations": [
+    "Not a lossless Word model",
+    "Only simple main-body paragraphs eligible for conversion",
+    "Unknown extensions and non-text objects require package inspection"
+  ],
+  "batches": [
+    {
+      "sourceIds": [
+        "word/document.xml#5:ins:1"
+      ],
+      "text": "Template: Editorialist advanced\nReviewer: Synthetic Editor\nReviewerType: editor\n\n=== EDIT ===\nSceneId: scn_fixture\nOriginal: The door opened.\nRevised: The door slowly opened.\nWhy: Word source 3f0141eb24efba4cdc590343e44fbabfb36cff4e66bec8ab0e5651d87dd4a1d4 / word/document.xml#5:ins:1 / 2026-09-01T10:30:00Z\n"
+    },
+    {
+      "sourceIds": [
+        "word/document.xml#13:del:2"
+      ],
+      "text": "Template: Editorialist advanced\nReviewer: Synthetic Editor\nReviewerType: editor\n\n=== EDIT ===\nSceneId: scn_fixture\nOriginal: She really waited.\nRevised: She waited.\nWhy: Word source 3f0141eb24efba4cdc590343e44fbabfb36cff4e66bec8ab0e5651d87dd4a1d4 / word/document.xml#13:del:2 / 2026-09-01T10:30:00Z\n"
+    },
+    {
+      "sourceIds": [
+        "word/document.xml#32:ins:5"
+      ],
+      "text": "Template: Editorialist advanced\nReviewer: Second Reviewer\nReviewerType: editor\n\n=== EDIT ===\nSceneId: scn_fixture\nOriginal: A bell rang.\nRevised: A quiet silver bell rang.\nWhy: Word source 3f0141eb24efba4cdc590343e44fbabfb36cff4e66bec8ab0e5651d87dd4a1d4 / word/document.xml#32:ins:5 / 2026-09-02T11:00:00Z\n"
+    },
+    {
+      "sourceIds": [
+        "word/document.xml#43:del:6"
+      ],
+      "text": "Template: Editorialist advanced\nReviewer: Synthetic Editor\nReviewerType: editor\n\n=== EDIT ===\nSceneId: scn_fixture\nOriginal: He still waited.\nRevised: He waited.\nWhy: Word source 3f0141eb24efba4cdc590343e44fbabfb36cff4e66bec8ab0e5651d87dd4a1d4 / word/document.xml#43:del:6 / 2026-09-01T10:30:00Z\n"
+    },
+    {
+      "sourceIds": [
+        "word/document.xml#54:ins:7"
+      ],
+      "text": "Template: Editorialist advanced\nReviewer: Synthetic Editor\nReviewerType: editor\n\n=== EDIT ===\nSceneId: scn_fixture\nOriginal: Echo.\nRevised: Echo. Again.\nWhy: Word source 3f0141eb24efba4cdc590343e44fbabfb36cff4e66bec8ab0e5651d87dd4a1d4 / word/document.xml#54:ins:7 / 2026-09-01T10:30:00Z\n"
+    }
+  ]
+}
