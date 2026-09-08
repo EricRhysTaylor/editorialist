@@ -62,7 +62,7 @@ function setup(answers: { choice?: string; reassign?: { targetReviewerId?: strin
 		openStrengthsModal: async () => null,
 		openReassignmentModal: async () => answers.reassign ?? null,
 	};
-	return { store, directory, registry, calls, orchestrator: new ContributorManagementOrchestrator(host) };
+	return { host, store, directory, registry, calls, orchestrator: new ContributorManagementOrchestrator(host) };
 }
 
 function seedSession(store: ReviewStore, suggestions: ReviewSuggestion[]): void {
@@ -169,6 +169,46 @@ describe("ContributorManagementOrchestrator", () => {
 		expect(s1?.contributor.resolutionStatus).toBe("alias");
 		expect(s2?.contributor.suggestedReviewerIds).toEqual([leeId]);
 		expect(registry.reassignReviewerSignals).toHaveBeenCalledWith(samId, leeId, { persist: false });
+	});
+
+	it("preselects a dropped target and preserves aliases in the surviving bucket", async () => {
+		const { host, directory, registry, calls, orchestrator } = setup();
+		const sourceId = directory.resolveContributor(samRaw).reviewerId!;
+		const targetId = directory.resolveContributor(leeRaw).reviewerId!;
+		directory.addAlias(sourceId, "S. Editor");
+		host.openReassignmentModal = vi.fn(async (options: Parameters<ContributorManagementOrchestratorHost["openReassignmentModal"]>[0]) => {
+			expect(options.initialTargetReviewerId).toBe(targetId);
+			expect(options.targetProfiles.map((profile) => profile.id)).not.toContain(sourceId);
+			return { targetReviewerId: options.initialTargetReviewerId };
+		});
+
+		await expect(orchestrator.reassignContributorById(sourceId, "merge", targetId)).resolves.toBe(true);
+		expect(directory.getProfileById(sourceId)).toBeNull();
+		expect(directory.getProfileById(targetId)?.displayName).toBe("Lee");
+		expect(directory.getProfileById(targetId)?.aliases).toEqual(expect.arrayContaining(["Sam", "S. Editor"]));
+		expect(registry.reassignReviewerSignals).toHaveBeenCalledWith(sourceId, targetId, { persist: false });
+		expect(calls).toEqual(["save", "refresh"]);
+	});
+
+	it("cancelling a dropped merge leaves the directory and history untouched", async () => {
+		const { directory, registry, calls, orchestrator } = setup();
+		const sourceId = directory.resolveContributor(samRaw).reviewerId!;
+		const targetId = directory.resolveContributor(leeRaw).reviewerId!;
+		await expect(orchestrator.reassignContributorById(sourceId, "merge", targetId)).resolves.toBe(false);
+		expect(directory.getProfiles()).toHaveLength(2);
+		expect(registry.reassignReviewerSignals).not.toHaveBeenCalled();
+		expect(calls).toEqual([]);
+	});
+
+	it("rejects self-drops and missing destinations before opening the merge dialog", async () => {
+		const { host, directory, calls, orchestrator } = setup();
+		const sourceId = directory.resolveContributor(samRaw).reviewerId!;
+		directory.resolveContributor(leeRaw);
+		host.openReassignmentModal = vi.fn(async () => null);
+		await expect(orchestrator.reassignContributorById(sourceId, "merge", sourceId)).resolves.toBe(false);
+		await expect(orchestrator.reassignContributorById(sourceId, "merge", "missing")).resolves.toBe(false);
+		expect(host.openReassignmentModal).not.toHaveBeenCalled();
+		expect(calls).toEqual([]);
 	});
 
 	it("offers an alias only while the raw name is neither the display name nor already an alias", async () => {

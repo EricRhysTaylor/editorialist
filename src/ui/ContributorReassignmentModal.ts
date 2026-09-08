@@ -15,6 +15,7 @@ interface ContributorReassignmentModalOptions {
 	mode: ContributorReassignmentMode;
 	sourceProfile: ContributorProfile;
 	targetProfiles: ContributorProfile[];
+	initialTargetReviewerId?: string;
 }
 
 class ContributorReassignmentModal extends PromiseModal<ContributorReassignmentResult> {
@@ -28,6 +29,9 @@ class ContributorReassignmentModal extends PromiseModal<ContributorReassignmentR
 		private readonly options: ContributorReassignmentModalOptions,
 	) {
 		super(app);
+		this.targetValue = options.targetProfiles.some((profile) => profile.id === options.initialTargetReviewerId)
+			? options.initialTargetReviewerId ?? ""
+			: "";
 	}
 
 	protected renderContent(): void {
@@ -39,7 +43,7 @@ class ContributorReassignmentModal extends PromiseModal<ContributorReassignmentR
 			cls: "editorialist-contributor-modal__description",
 			text:
 				this.options.mode === "merge"
-					? "Move all revision notes from this contributor into another contributor."
+					? "Combine both contributors under the target name. The current name and its aliases become alternate names of the target, and their revision history and stats are combined."
 					: "Move all revision notes from this contributor into another contributor or a new contributor.",
 		});
 
@@ -56,7 +60,7 @@ class ContributorReassignmentModal extends PromiseModal<ContributorReassignmentR
 		const targetRow = this.contentEl.createDiv({ cls: "editorialist-contributor-modal__row" });
 		targetRow.createDiv({
 			cls: "editorialist-contributor-modal__label",
-			text: "Target contributor",
+			text: this.options.mode === "merge" ? "Name to keep" : "Target contributor",
 		});
 		const targetControl = targetRow.createDiv({ cls: "editorialist-contributor-modal__control" });
 		targetControl.addClass("editorialist-contributor-modal__control--fit");

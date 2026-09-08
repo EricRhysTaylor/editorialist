@@ -1,4 +1,4 @@
-import { ButtonComponent, Notice, PluginSettingTab, setIcon, TFile, ToggleComponent, type App } from "obsidian";
+import { ButtonComponent, Component, Notice, PluginSettingTab, setIcon, TFile, ToggleComponent, type App } from "obsidian";
 import { formatReviewerTypeLabel } from "../core/ContributorIdentity";
 import { sweepStatusLabel } from "../core/status/ReviewStatusModel";
 import {
@@ -38,6 +38,8 @@ export class EditorialistSettingTab extends PluginSettingTab {
 	private activeBookOnly = true;
 	private activeTab: "core" | "reviewer" | "configuration" = "core";
 	private displayRunId = 0;
+	private contributorEvents = new Component();
+	private contributorMergePending = false;
 
 	private static readonly RT_STATUS_GLYPH_DEFINITIONS = [
 		{ glyph: "T", label: "Todo", tone: "todo", values: ["todo", "to do", "t"] },
@@ -57,13 +59,22 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		private readonly plugin: EditorialistPlugin,
 	) {
 		super(app, plugin);
+		plugin.register(() => this.contributorEvents.unload());
 	}
 
 	display(): void {
 		void this.displayAsync(true);
 	}
 
+	hide(): void {
+		this.displayRunId += 1;
+		this.contributorEvents.unload();
+	}
+
 	private async displayAsync(refreshMetadata: boolean): Promise<void> {
+		this.contributorEvents.unload();
+		this.contributorEvents = new Component();
+		this.contributorEvents.load();
 		const runId = ++this.displayRunId;
 		const { containerEl } = this;
 		containerEl.empty();
@@ -1174,6 +1185,13 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			text: `${profiles.length} contributor${profiles.length === 1 ? "" : "s"}`,
 		});
 
+		if (profiles.length > 1) {
+			body.createDiv({
+				cls: "editorialist-settings__section-meta",
+				text: "Drag a contributor onto the name you want to keep to combine their aliases, history, and stats. You can also use Manage contributor → Merge.",
+			});
+		}
+
 		const list = body.createDiv({ cls: "editorialist-settings__contributors" });
 		if (profiles.length === 0) {
 			list.createDiv({
@@ -1183,8 +1201,54 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			return;
 		}
 
+		let draggedId: string | null = null;
+		const clearDrag = () => {
+			draggedId = null;
+			list.querySelectorAll(".is-dragging, .is-drop-target").forEach((element) => {
+				element.classList.remove("is-dragging", "is-drop-target");
+			});
+		};
 		for (const profile of profiles) {
 			const card = list.createDiv({ cls: "editorialist-settings__contributor" });
+			card.draggable = profiles.length > 1;
+			this.contributorEvents.registerDomEvent(card, "dragstart", (event) => {
+				const origin = event.target as HTMLElement | null;
+				if (this.contributorMergePending || origin?.closest("button, input, select, a") || !event.dataTransfer) {
+					event.preventDefault();
+					return;
+				}
+				draggedId = profile.id;
+				event.dataTransfer.setData("text/plain", profile.displayName);
+				event.dataTransfer.effectAllowed = "move";
+				card.addClass("is-dragging");
+			});
+			this.contributorEvents.registerDomEvent(card, "dragend", clearDrag);
+			this.contributorEvents.registerDomEvent(card, "dragover", (event) => {
+				if (!draggedId || draggedId === profile.id || this.contributorMergePending) return;
+				event.preventDefault();
+				if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+				card.addClass("is-drop-target");
+			});
+			this.contributorEvents.registerDomEvent(card, "dragleave", (event) => {
+				if (event.relatedTarget && card.contains(event.relatedTarget as Node)) return;
+				card.removeClass("is-drop-target");
+			});
+			this.contributorEvents.registerDomEvent(card, "drop", (event) => {
+				const sourceId = draggedId;
+				if (!sourceId || sourceId === profile.id || this.contributorMergePending) return;
+				event.preventDefault();
+				clearDrag();
+				this.contributorMergePending = true;
+				void this.plugin.contributors.reassignContributorById(sourceId, "merge", profile.id)
+					.then(async (didChange) => {
+						if (didChange) await this.displayAsync(false);
+					})
+					.catch((error: unknown) => {
+						console.error("Could not merge contributors", error);
+						new Notice("Could not merge contributors. Check the contributor directory before trying again.");
+					})
+					.finally(() => { this.contributorMergePending = false; });
+			});
 			const identity = card.createDiv({ cls: "editorialist-settings__contributor-identity" });
 			const main = identity.createDiv({ cls: "editorialist-settings__contributor-main" });
 			this.createContributorAvatar(main, profile);

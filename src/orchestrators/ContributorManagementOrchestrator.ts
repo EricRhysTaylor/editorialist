@@ -48,6 +48,7 @@ export interface ContributorManagementOrchestratorHost {
 		mode: ContributorReassignmentMode;
 		sourceProfile: ContributorProfile;
 		targetProfiles: ContributorProfile[];
+		initialTargetReviewerId?: string;
 	}): Promise<ContributorReassignmentResult | null>;
 }
 
@@ -192,6 +193,7 @@ export class ContributorManagementOrchestrator {
 	async reassignContributorById(
 		sourceReviewerId: string,
 		mode: ContributorReassignmentMode,
+		initialTargetReviewerId?: string,
 	): Promise<boolean> {
 		const sourceProfile = this.host.reviewerDirectory.getProfileById(sourceReviewerId);
 		if (!sourceProfile) {
@@ -207,10 +209,15 @@ export class ContributorManagementOrchestrator {
 			return false;
 		}
 
+		if (initialTargetReviewerId !== undefined && !targetProfiles.some((profile) => profile.id === initialTargetReviewerId)) {
+			return false;
+		}
+
 		const result = await this.host.openReassignmentModal({
 			mode,
 			sourceProfile,
 			targetProfiles,
+			initialTargetReviewerId,
 		});
 		if (!result) {
 			return false;

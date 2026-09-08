@@ -3753,6 +3753,21 @@
 	background: color-mix(in srgb, var(--background-primary) 78%, transparent);
 }
 
+.editorialist-settings__contributor[draggable="true"] {
+	cursor: grab;
+}
+
+.editorialist-settings__contributor.is-dragging {
+	opacity: 0.5;
+	cursor: grabbing;
+}
+
+.editorialist-settings__contributor.is-drop-target {
+	border-color: var(--interactive-accent);
+	background: color-mix(in srgb, var(--interactive-accent) 15%, var(--background-primary));
+	box-shadow: 0 0 0 2px var(--interactive-accent);
+}
+
 .editorialist-settings__contributor--filler {
 	visibility: hidden;
 	pointer-events: none;
