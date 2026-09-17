@@ -1228,7 +1228,7 @@ export default class EditorialistPlugin extends Plugin {
 			const paths = [...new Set(selected.flatMap((entry) => entry.importedNotePaths))];
 			const choice = await openEditorialistChoiceModal(this.app, {
 				title: "End this round?",
-				description: `Remove ${selected.length} review batch${selected.length === 1 ? "" : "es"} from ${paths.length} scene${paths.length === 1 ? "" : "s"}? Your manuscript edits and decision counts will be kept. Unfinished suggestions will be retired without counting as rejected. Feedback text will be removed without an archive.`,
+				description: `Remove ${selected.length} review batch${selected.length === 1 ? "" : "es"} from ${paths.length} scene${paths.length === 1 ? "" : "s"}? Your manuscript edits and decision counts will be retained. Unfinished suggestions will be removed without counting as rejected.`,
 				details: [...selected.map((entry) => `Batch: ${entry.batchId}`), ...paths],
 				choices: [
 					{ label: "End round and clear feedback", value: "end" },
