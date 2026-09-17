@@ -274,7 +274,7 @@ export class SweepRegistryManager {
 			// block that reappears (re-import, or a detection bug that hid it) must
 			// resurrect to completed/in_progress, or cleanup — which bails on
 			// "cleaned" — could never act on it again.
-			let nextStatus: ReviewSweepStatus = currentPaths.length === 0 ? "cleaned" : entry.status;
+			let nextStatus: ReviewSweepStatus = currentPaths.length === 0 ? (entry.status === "ended_early" ? "ended_early" : "cleaned") : entry.status;
 			if (currentPaths.length > 0) {
 				let accepted = 0;
 				let rejected = 0;

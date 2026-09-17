@@ -40,6 +40,7 @@ Editorialist ships a format, not an AI. It never makes a network call and holds 
 - `Open editorialism panel` — opens the Editorialisms panel for structural guidance documents.
 - `Open pending edits panel` — opens the Pending edits panel for author notes and Inquiry follow-ups.
 - `Review pending edits in active book` — starts the pending-edits review flow across the active book.
+- `End current round` — removes the current batch or all remaining batches in the book, keeping manuscript edits and decision counts. Unfinished feedback is marked ended early; no archive is created.
 - `Rescan review blocks for cleanup` — re-scans scene notes for review blocks ready to be cleaned.
 - `Backup selection to cut file` — copies the selected text into the scene's cut file without changing the manuscript. Also available from the editor right-click menu when text is selected.
 - `Insert author query` — drops a hidden `%%ai: …%%` marker into the scene at the cursor, so the next AI review answers it in a `QUERY` block. Also available from the editor right-click menu.

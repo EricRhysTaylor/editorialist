@@ -276,6 +276,17 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			});
 		}
 
+		const endRoundButton = titleRow.createEl("button", {
+			cls: "editorialist-panel__settings-button",
+			attr: {
+				type: "button",
+				"aria-label": "End current round…",
+				...(this.plugin.getEndableRoundBatches().length === 0 ? { disabled: "true" } : {}),
+			},
+		});
+		setIcon(endRoundButton.createSpan({ cls: "editorialist-panel__settings-icon" }), "circle-stop");
+		this.bindImmediateAction(endRoundButton, () => { void this.plugin.endCurrentReviewRound(); });
+
 		const launcherButton = titleRow.createEl("button", {
 			cls: "editorialist-panel__settings-button editorialist-panel__launcher-button",
 			attr: {

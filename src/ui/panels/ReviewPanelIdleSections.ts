@@ -549,6 +549,7 @@ export function renderRecentActivityBlock(
 		});
 
 		const metaParts: string[] = [];
+		if (entry.status === "ended_early") metaParts.push("Ended early");
 		if (passCount > 1) {
 			metaParts.push(`${passCount} passes`);
 		}

@@ -42,6 +42,12 @@ export function registerCommands(plugin: EditorialistPlugin): void {
 	});
 
 	plugin.addCommand({
+		id: "end-current-review-round",
+		name: "End current round",
+		callback: () => { void plugin.endCurrentReviewRound(); },
+	});
+
+	plugin.addCommand({
 		id: "rescan-review-blocks",
 		name: "Rescan review blocks for cleanup",
 		callback: () => {

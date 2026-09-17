@@ -162,6 +162,7 @@ export function normalizeSweepRegistry(
 					activeBookLabel: entry?.activeBookLabel,
 					activeBookSourceFolder: entry?.activeBookSourceFolder,
 					cleanedAt: entry?.cleanedAt,
+					endedAt: entry?.endedAt,
 					editorialRevisionUpdatedNotePaths: [...(entry?.editorialRevisionUpdatedNotePaths ?? [])],
 					importedAt: entry?.importedAt ?? Date.now(),
 					importedNotePaths: [...(entry?.importedNotePaths ?? [])],

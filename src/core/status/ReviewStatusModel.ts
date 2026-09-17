@@ -27,6 +27,7 @@ export const REVIEW_SWEEP_STATUSES: readonly ReviewSweepStatus[] = [
 	"in_progress",
 	"completed",
 	"cleaned",
+	"ended_early",
 ] as const;
 
 const REVIEW_STATUS_SET = new Set<string>(REVIEW_STATUSES);
@@ -118,6 +119,7 @@ const REVIEW_SWEEP_STATUS_LABELS: Record<ReviewSweepStatus, string> = {
 	in_progress: "In progress",
 	completed: "Completed",
 	cleaned: "Cleaned",
+	ended_early: "Ended early",
 };
 
 export function reviewStatusLabel(status: ReviewStatus): string {

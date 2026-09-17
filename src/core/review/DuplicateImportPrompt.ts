@@ -60,6 +60,18 @@ export function buildDuplicateImportPrompt(input: DuplicateImportPromptInput): D
 		};
 	}
 
+	if (input.status === "ended_early") {
+		return {
+			title: "You ended this review batch early",
+			description: "This feedback was removed from your scenes when you ended the round. Importing it again starts a new copy, including suggestions you left unfinished.",
+			details,
+			choices: [
+				{ label: "Cancel", value: "cancel", cta: true },
+				{ label: "Import anyway", value: "import" },
+			],
+		};
+	}
+
 	const cleaned = input.status === "cleaned";
 	return {
 		title: cleaned ? "You already reviewed and cleaned this batch" : "You already reviewed this batch",

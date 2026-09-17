@@ -444,6 +444,7 @@ export class ReviewRegistryService {
 	// its unstamped remainder; that is the conservative side, and the mixed
 	// case is pinned by test so the choice cannot drift silently.
 	getBatchDecisionStats(batchId: string): BatchDecisionStats {
+		const entry = this.getSweepRegistryEntry(batchId);
 		const exactStatuses = Object.values(this.reviewerSignalIndex)
 			.filter((record) => record.sessionId === batchId)
 			.map((record) => record.status);
@@ -451,7 +452,8 @@ export class ReviewRegistryService {
 			exactStatuses.length > 0 ? exactStatuses : this.getLegacyBatchSignalStatuses(batchId),
 		);
 
-		if (signalTotals.totalSuggestions > 0) {
+		// Ended rounds retain their final counts even while stale per-note signals are pruned.
+		if (signalTotals.totalSuggestions > 0 && entry?.status !== "ended_early") {
 			return {
 				accepted: signalTotals.accepted,
 				deferred: signalTotals.deferred,
@@ -460,7 +462,6 @@ export class ReviewRegistryService {
 			};
 		}
 
-		const entry = this.getSweepRegistryEntry(batchId);
 		if (entry) {
 			return {
 				accepted: entry.acceptedCount ?? 0,

@@ -80,3 +80,11 @@ describe("buildDuplicateImportPrompt", () => {
 		expect(buildDuplicateImportPrompt({ ...BASE, status: "completed", sceneCount: 3 }).details.join(" ")).toMatch(/3 scenes/);
 	});
 });
+
+
+it("warns about an ended round without claiming every suggestion was resolved", () => {
+	const prompt = buildDuplicateImportPrompt({ status: "ended_early", batchId: "b1", importedAtLabel: "yesterday", sceneCount: 17, decisions: { accepted: 4, rejected: 1, rewritten: 1, deferred: 2 } });
+	expect(prompt.title).toBe("You ended this review batch early");
+	expect(prompt.description).toContain("unfinished");
+	expect(prompt.choices.map(choice => choice.value)).toEqual(["cancel", "import"]);
+});

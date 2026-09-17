@@ -34,7 +34,7 @@ export type ReviewVerificationStatus =
 	| "advisory"
 	| "note_unresolved";
 
-export type ReviewSweepStatus = "in_progress" | "completed" | "cleaned";
+export type ReviewSweepStatus = "in_progress" | "completed" | "cleaned" | "ended_early";
 
 // A sweep the author has finished but not yet acknowledged or cleaned. Held
 // by the review store and read by core (the session axis), the orchestrators,
@@ -145,6 +145,7 @@ export interface ReviewSweepRegistryEntry {
 	activeBookLabel?: string;
 	activeBookSourceFolder?: string;
 	cleanedAt?: number;
+	endedAt?: number;
 	editorialRevisionUpdatedNotePaths?: string[];
 	importedAt: number;
 	importedNotePaths: string[];

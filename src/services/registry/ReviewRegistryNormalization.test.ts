@@ -106,3 +106,10 @@ describe("normalizeSweepRegistry", () => {
 		expect(normalizeSweepRegistry(undefined)).toEqual({});
 	});
 });
+
+
+it("preserves ended rounds and their partial counts across reload", () => {
+	const saved = JSON.parse(JSON.stringify({ b1: { status: "ended_early", endedAt: 123, acceptedCount: 4, rejectedCount: 1, rewrittenCount: 1, deferredCount: 2 } }));
+	const out = normalizeSweepRegistry(saved);
+	expect(out.b1).toMatchObject({ status: "ended_early", endedAt: 123, acceptedCount: 4, rejectedCount: 1, rewrittenCount: 1, deferredCount: 2 });
+});

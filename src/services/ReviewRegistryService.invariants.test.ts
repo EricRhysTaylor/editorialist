@@ -902,3 +902,20 @@ describe("invariant: hand-removed blocks and deleted notes reconcile on the next
 		expect(service.getSceneReviewRecords().map((entry) => entry.notePath)).toEqual(["B.md"]);
 	});
 });
+
+
+describe("ended-round statistics", () => {
+	it("keeps final counts while obsolete scene signals disappear and after reload", async () => {
+		const { service } = makeService();
+		await service.syncReviewerSignalsForSession(session("n.md", [suggestion("r1", "accepted")]), { persist: false, sessionId: "b1" });
+		service.load({ ...service.buildPluginData([]), sweepRegistry: { b1: { status: "ended_early", endedAt: FIXED_NOW, acceptedCount: 4, rejectedCount: 1, rewrittenCount: 1, deferredCount: 2 } } });
+		const expected = { accepted: 4, rejected: 1, rewritten: 1, deferred: 2 };
+		expect(service.getBatchDecisionStats("b1")).toEqual(expected);
+		await service.syncReviewerSignalsForSession(session("n.md", []), { persist: false });
+		expect(service.getBatchDecisionStats("b1")).toEqual(expected);
+		const reloaded = makeService();
+		reloaded.service.load(service.buildPluginData([]));
+		expect(reloaded.service.getBatchDecisionStats("b1")).toEqual(expected);
+		expect(reloaded.service.getReviewActivitySummary()).toMatchObject({ inProgressSweeps: 0, completedSweeps: 0 });
+	});
+});

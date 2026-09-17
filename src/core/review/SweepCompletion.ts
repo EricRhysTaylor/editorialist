@@ -94,7 +94,7 @@ export function isBatchReadyToClean(
 	entry: { status: string; totalSuggestions: number },
 	stats: { accepted: number; rejected: number; rewritten: number; deferred: number },
 ): boolean {
-	if (entry.status === "cleaned") {
+	if (entry.status === "cleaned" || entry.status === "ended_early") {
 		return false;
 	}
 	if (entry.totalSuggestions <= 0 || stats.deferred > 0) {
@@ -117,7 +117,7 @@ export function isSweepComplete(suggestions: readonly ReviewSuggestion[]): boole
 export function getSweepStatus(
 	counts: SweepBlockingCounts,
 	options?: { cleaned?: boolean },
-): ReviewSweepStatus {
+): Exclude<ReviewSweepStatus, "ended_early"> {
 	if (options?.cleaned) {
 		return "cleaned";
 	}

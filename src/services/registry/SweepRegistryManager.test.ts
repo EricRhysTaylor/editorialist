@@ -260,3 +260,15 @@ describe("SweepRegistryManager — recovering batches that have blocks but no en
 		expect(built.b9?.totalSuggestions).toBe(3);
 	});
 });
+
+
+describe("ended rounds", () => {
+	it("preserves ended status and frozen counts through repeated inventory rebuilds", () => {
+		const manager = makeManager();
+		const original = entry({ status: "ended_early", endedAt: 500, acceptedCount: 4, rejectedCount: 1, rewrittenCount: 1, deferredCount: 2 });
+		const next = manager.buildFromSceneInventory({ b1: original }, new Map(), {}, 600);
+		const again = manager.buildFromSceneInventory(next, new Map(), {}, 700);
+		expect(again.b1).toMatchObject({ status: "ended_early", endedAt: 500, acceptedCount: 4, rejectedCount: 1, rewrittenCount: 1, deferredCount: 2, importedNotePaths: [], sceneOrder: ["s1.md"] });
+		expect(again.b1!.updatedAt).toBe(next.b1!.updatedAt);
+	});
+});

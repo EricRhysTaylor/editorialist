@@ -1,3 +1,4 @@
+import { endReviewRound, getEndableRoundBatches } from "./orchestrators/EndReviewRound";
 import type { EditorView } from "@codemirror/view";
 import { MarkdownView, Menu, normalizePath, Notice, Plugin, TFile, type App, type WorkspaceLeaf } from "obsidian";
 import { registerCommands } from "./commands/Commands";
@@ -1185,6 +1186,81 @@ export default class EditorialistPlugin extends Plugin {
 
 	getSweepRegistryEntries(): ReviewSweepRegistryEntry[] {
 		return this.registry.getSweepRegistryEntries();
+	}
+
+	private endingReviewRound = false;
+
+	getEndableRoundBatches(): ReviewSweepRegistryEntry[] {
+		return getEndableRoundBatches(
+			this.getSweepRegistryEntries(), this.getActiveBookScopeInfo().sourceFolder,
+			(this.getGuidedSweep()?.batchId ?? this.getCurrentBatchId()),
+		);
+	}
+
+	async endCurrentReviewRound(): Promise<void> {
+		if (this.endingReviewRound) return;
+		this.endingReviewRound = true;
+		try {
+			await this.registry.syncSceneInventory();
+			const scope = this.getActiveBookScopeInfo();
+			const entries = this.getEndableRoundBatches().map((entry) => structuredClone(entry));
+			if (entries.length === 0) {
+				new Notice("No removable review batches in the current book. Open a scene with feedback or select your manuscript folder.");
+				return;
+			}
+			let selected = entries;
+			if (entries.length > 1) {
+				const currentId = (this.getGuidedSweep()?.batchId ?? this.getCurrentBatchId());
+				const current = entries.find((entry) => entry.batchId === currentId);
+				const choice = await openEditorialistChoiceModal(this.app, {
+					title: "End current round",
+					description: `Choose the feedback to remove from ${scope.label ?? "the current scene"}. Your manuscript edits will be kept.`,
+					details: entries.map((entry) => `${entry.batchId} · ${entry.importedNotePaths.length} scenes`),
+					choices: [
+						...(current ? [{ label: "Current batch only", value: "current" }] : []),
+						{ label: "All remaining batches in this book", value: "all" },
+						{ label: "Cancel", value: "cancel" },
+					],
+				});
+				if (!choice || choice === "cancel") return;
+				if (choice === "current" && current) selected = [current];
+			}
+			const paths = [...new Set(selected.flatMap((entry) => entry.importedNotePaths))];
+			const choice = await openEditorialistChoiceModal(this.app, {
+				title: "End this round?",
+				description: `Remove ${selected.length} review batch${selected.length === 1 ? "" : "es"} from ${paths.length} scene${paths.length === 1 ? "" : "s"}? Your manuscript edits and decision counts will be kept. Unfinished suggestions will be retired without counting as rejected. Feedback text will be removed without an archive.`,
+				details: [...selected.map((entry) => `Batch: ${entry.batchId}`), ...paths],
+				choices: [
+					{ label: "End round and clear feedback", value: "end" },
+					{ label: "Cancel", value: "cancel" },
+				],
+			});
+			if (choice !== "end") return;
+			if (selected.some((entry) => JSON.stringify(entry.importedNotePaths) !== JSON.stringify(this.getSweepRegistryEntry(entry.batchId)?.importedNotePaths))) {
+				throw new Error("The selected scenes changed. Open End current round again.");
+			}
+			await endReviewRound({
+				app: this.app,
+				getNoteContextByPath: (path) => this.getNoteContextByPath(path),
+				getScopeFolder: () => this.getActiveBookScopeInfo().sourceFolder,
+				getEntry: (id) => this.getSweepRegistryEntry(id),
+				getDecisionStats: (id) => this.getBatchDecisionStats(id),
+				updateEntry: (id, updates) => this.registry.updateSweepRegistry(id, updates, { persist: false }),
+				sync: async () => { await this.registry.syncSceneInventory(); await this.savePluginData(); },
+				clearNavigation: (ids) => {
+					if (ids.includes(this.getGuidedSweep()?.batchId ?? "")) this.store.setGuidedSweep(null);
+					if (ids.includes(this.store.getCompletedSweep()?.batchId ?? "")) this.store.setCompletedSweep(null);
+					this.store.setAppliedReview(null);
+					this.resyncSessionForActiveNote();
+					this.refreshReviewPanel();
+				},
+			}, selected.map((entry) => entry.batchId), scope.sourceFolder);
+			new Notice("Round ended. Your edits and decision counts were kept. You can import the revised feedback now.");
+		} catch (error) {
+			new Notice(error instanceof Error ? error.message : "Could not end the review round.", 10000);
+		} finally {
+			this.endingReviewRound = false;
+		}
 	}
 
 	// Sweep batches in the active book that are fully decided and still carry a
