@@ -6912,6 +6912,10 @@
 	color: var(--text-normal);
 }
 
+.editorialist-plan__backlog-list > button {
+	margin-top: 12px;
+}
+
 .editorialist-plan__backlog-row {
 	--editorialist-source-color: var(--color-blue);
 
