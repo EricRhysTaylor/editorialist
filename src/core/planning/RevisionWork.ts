@@ -1,3 +1,4 @@
+import { pendingWorkTitle } from "./WorkPresentation";
 import type { Editorialism } from "../../models/Editorialism";
 import type { PendingEditsSession } from "../../models/PendingEditSegment";
 import type { ReviewSession } from "../../models/ReviewSuggestion";
@@ -7,7 +8,7 @@ import type { WorkCandidate } from "./RevisionPlan";
 
 export function pendingWork(session: PendingEditsSession): WorkCandidate[] {
 	return session.scenes.flatMap((scene) => splitFieldLines(scene.rawField).filter((line) => line.trim()).map((line) => ({
-		kind: "pending", path: scene.scenePath, locator: line.trim(), title: line.trim(), detail: scene.sceneTitle, complete: false, deferred: false,
+		kind: "pending", path: scene.scenePath, locator: line.trim(), title: pendingWorkTitle(line), detail: scene.sceneTitle, complete: false, deferred: false,
 	})));
 }
 export function directiveWork(document: Editorialism, params: EffortParams): WorkCandidate[] {
@@ -28,7 +29,7 @@ export function batchWork(session: ReviewSession): WorkCandidate[] {
 		const remaining = suggestions.filter((item) => !["accepted", "rejected", "rewritten"].includes(item.status));
 		return { kind: "batch", path: session.notePath, locator: id,
 			title: `Review ${session.notePath.split("/").pop()?.replace(/\.md$/i, "") ?? session.notePath}`,
-			detail: `${[...new Set([...suggestions, ...memos].map((item) => item.contributor.displayName))].join(", ")} · ${remaining.length} suggestions remaining · ${memos.length} notes`,
+			detail: `${[...new Set([...suggestions, ...memos].map((item) => item.contributor.displayName))].join(", ")} · ${remaining.length} ${remaining.length === 1 ? "suggestion" : "suggestions"} remaining${memos.length ? ` · ${memos.length} ${memos.length === 1 ? "note" : "notes"}` : ""}`,
 			// Memos have no general completion decision; finish their planned session explicitly.
 			complete: remaining.length === 0 && memos.length === 0,
 			deferred: remaining.some((item) => item.status === "deferred"),

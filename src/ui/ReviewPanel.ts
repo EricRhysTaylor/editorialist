@@ -37,6 +37,7 @@ import {
 	renderContinueReviewCard,
 	renderContributorsBlock,
 	renderIdleStateCard,
+	renderReviewWelcomeCard,
 	renderRecentActivityBlock,
 	renderWorkflowsDisclosure,
 	type IdleSectionsHost,
@@ -294,6 +295,8 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			// a separate cleanup chore and is rendered lower down, not here.
 			if (launchTarget) {
 				renderContinueReviewCard(this, this.plugin, this.contentEl, launchTarget, overview);
+			} else if (!overview?.pending.length) {
+				renderReviewWelcomeCard(this.plugin, this.contentEl);
 			}
 			if (overview) {
 				this.renderUpNextPendingScenes(overview.pending, launchTarget?.notePath ?? null, Boolean(launchTarget));

@@ -1,4 +1,5 @@
-import { ItemView, Notice, type WorkspaceLeaf } from "obsidian";
+import { pendingWorkTitle, planDayLabel } from "../core/planning/WorkPresentation";
+import { ItemView, Notice, setIcon, type WorkspaceLeaf } from "obsidian";
 import type EditorialistPlugin from "../main";
 import { renderPanelHeader } from "./primitives/PanelHeader";
 import { emptyRevisionPlan, forecastPlan, isDate, isPlanEntryComplete, localDate, movePlanEntry, resolvePlanSource, sourceKey, type PlanEntry, type RevisionPlan, type WorkCandidate } from "../core/planning/RevisionPlan";
@@ -21,6 +22,7 @@ export class RevisionPlanPanel extends ItemView {
 	private sourceRevision = 0;
 	private search = "";
 	private sourceFilter = "all";
+	private backlogLimit = 12;
 	constructor(leaf: WorkspaceLeaf, private readonly plugin: EditorialistPlugin) { super(leaf); }
 	getViewType(): string { return REVISION_PLAN_VIEW_TYPE; }
 	getDisplayText(): string { return "Revision plan"; }
@@ -105,26 +107,38 @@ export class RevisionPlanPanel extends ItemView {
 		const expanded = new Set(Array.from(root.querySelectorAll<HTMLDetailsElement>("details[data-plan-section]")).filter((item) => item.open).map((item) => item.dataset.planSection));
 		root.empty();
 		renderPanelHeader(root, this.plugin, REVISION_PLAN_VIEW_TYPE, "Revision plan");
-		const toolbar = root.createDiv({ cls: "editorialist-plan__actions" });
-		this.button(toolbar, this.busy ? "Loading…" : "Refresh", () => { void this.refresh(); });
-		this.button(toolbar, "Queue", () => { this.view = "queue"; this.render(); }, this.view === "queue");
-		this.button(toolbar, "Days", () => { this.view = "days"; this.render(); }, this.view === "days");
-		root.createEl("p", { cls: "editorialist-plan__freshness", text: this.stale ? "Sources changed. Refresh before opening work or relying on estimates." : "Plan sessions here; resolve feedback in its source." });
+		const toolbar = root.createDiv({ cls: "editorialist-plan__toolbar" });
+		const tabs = toolbar.createDiv({ cls: "editorialist-plan__tabs", attr: { "aria-label": "Plan layout" } });
+		for (const [value, label, icon] of [["queue", "Queue", "list-ordered"], ["days", "Days", "calendar-days"]] as const) {
+			const tab = this.button(tabs, label, () => { this.view = value; this.render(); });
+			tab.setAttribute("aria-pressed", String(this.view === value));
+			setIcon(tab.createSpan(), icon);
+		}
+		const refresh = this.button(toolbar, "", () => { void this.refresh(); });
+		refresh.addClass("editorialist-plan__icon-button");
+		refresh.setAttribute("aria-label", this.busy ? "Refreshing sources" : "Refresh sources");
+		refresh.setAttribute("title", "Refresh sources");
+		setIcon(refresh.createSpan(), "refresh-cw");
+		root.createEl("p", { cls: "editorialist-plan__freshness", text: this.stale ? "Sources changed. Refresh to update your plan." : "", attr: { role: "status" } });
 		for (const warning of this.warnings) root.createEl("p", { cls: "editorialist-plan__warning", text: warning });
 		if (!this.book || !this.loaded) return;
 		this.renderSummary(root);
 		this.renderCapacity(root);
 		const open = this.plan.entries.filter((entry) => !isPlanEntryComplete(entry, this.candidates));
-		root.createEl("h3", { text: "Planned work" });
-		if (!open.length) root.createEl("p", { text: "Add work from the backlog below. Planning is optional; your existing review tools still work independently." });
+		if (open.length) {
+			const heading = root.createDiv({ cls: "editorialist-plan__section-heading" });
+			heading.createEl("h3", { text: this.view === "queue" ? "Your work queue" : "Your schedule" });
+			heading.createSpan({ text: `${open.length} tasks` });
+		}
 		if (this.view === "queue") {
-			root.createEl("p", { cls: "editorialist-plan__hint", text: "Drag a task title to reorder, or use Move up and Move down." });
+			if (open.length) root.createEl("p", { cls: "editorialist-plan__hint", text: "Drag to prioritize · Scheduling options on each task" });
 			for (const entry of open) this.renderEntry(root, entry);
 		} else {
-			const dates = [...new Set([localDate(new Date()), ...open.map((entry) => entry.day).filter((day): day is string => day !== null)])].sort();
+			const dates = [...new Set([...this.weekDays(), ...open.map((entry) => entry.day).filter((day): day is string => day !== null)])].sort();
 			for (const day of [...dates, null]) {
 				const group = root.createDiv({ cls: "editorialist-plan__day" });
-				group.createEl("h4", { text: day ?? "Unscheduled" });
+				group.setAttribute("data-plan-day", day ?? "unscheduled");
+				group.createEl("h4", { text: day ? `${new Date(day + "T12:00:00").toLocaleDateString(undefined, { weekday: "long" })} · ${planDayLabel(day)}` : "Unscheduled" });
 				if (day) {
 					const load = open.filter((entry) => entry.day === day);
 					const upper = load.reduce((sum, entry) => sum + (entry.highMinutes ?? 0), 0);
@@ -144,26 +158,79 @@ export class RevisionPlanPanel extends ItemView {
 		this.renderBacklog(root);
 		for (const item of Array.from(root.querySelectorAll<HTMLDetailsElement>("details[data-plan-section]"))) if (expanded.has(item.dataset.planSection)) item.open = true;
 	}
+	private weekDays(): string[] {
+		return Array.from({ length: 7 }, (_, index) => { const day = new Date(); day.setDate(day.getDate() + index); return localDate(day); });
+	}
 	private renderSummary(root: HTMLElement): void {
 		const forecast = forecastPlan(this.plan, this.candidates);
+		const open = this.plan.entries.filter((entry) => !isPlanEntryComplete(entry, this.candidates));
 		const summary = root.createDiv({ cls: "editorialist-plan__summary" });
-		summary.createEl("strong", { text: `Required work: ${duration(forecast.lowMinutes)}–${duration(forecast.highMinutes)}` });
-		summary.createEl("p", { text: `${forecast.unknownCount} unestimated · ${forecast.unlinkedCount} need relinking · ${forecast.unscheduledCount} unscheduled` });
-		if (forecast.availableMinutes !== null) {
-			summary.createEl("p", { text: `${duration(forecast.availableMinutes)} available through ${this.plan.deadline}, after ${duration(this.plan.reserveMinutes)} reserve.` });
-			const uncertain = forecast.unknownCount || forecast.unlinkedCount || this.warnings.length || this.stale;
-			summary.createEl("p", { cls: "editorialist-plan__forecast-status", text: forecast.highMinutes > forecast.availableMinutes ? "Estimated required work exceeds your available time." : uncertain ? "The estimate is incomplete; a finish date is not yet reliable." : "Estimated required work fits the time budget. Check day loads and dependencies below." });
+		const label = summary.createDiv({ cls: "editorialist-plan__summary-label" });
+		setIcon(label.createSpan(), "calendar-check");
+		label.createSpan({ text: this.plan.deadline ? `Working toward ${planDayLabel(this.plan.deadline)}` : "Your revision plan" });
+		if (!this.plan.entries.length) {
+			summary.createEl("h2", { text: "Choose what comes next." });
+			summary.createEl("p", { text: "Bring scene notes, review batches, and directives into one working queue." });
+			const choose = this.button(summary, "Choose work", () => {
+				const backlog = root.querySelector<HTMLDetailsElement>(".editorialist-plan__backlog");
+				if (backlog) { backlog.open = true; backlog.scrollIntoView({ block: "start", behavior: "smooth" }); backlog.querySelector<HTMLInputElement>("input")?.focus(); }
+			});
+			choose.addClass("mod-cta", "editorialist-plan__choose");
+			setIcon(choose.createSpan(), "arrow-down");
+			return;
 		}
-		if (forecast.afterDeadlineCount) summary.createEl("p", { text: `${forecast.afterDeadlineCount} required tasks are scheduled after the deadline.` });
-		if (forecast.overloadedDays.length) summary.createEl("p", { text: `Over capacity: ${forecast.overloadedDays.join(", ")}.` });
-		if (forecast.dependencyWarnings.length) summary.createEl("p", { text: `${forecast.dependencyWarnings.length} tasks have prerequisites missing or scheduled later. Check their After fields.` });
-		const overdue = this.plan.entries.filter((entry) => entry.day && entry.day < localDate(new Date()) && !isPlanEntryComplete(entry, this.candidates));
-		if (overdue.length) summary.createEl("p", { text: `${overdue.length} unfinished tasks have past dates. Reassign them to available days.` });
-		summary.createEl("small", { text: "Totals cover selected required work only. Backlog and optional work are excluded; day loads include optional work." });
+		const metric = summary.createDiv({ cls: "editorialist-plan__hero-metric" });
+		metric.createSpan({ text: !open.length ? "All planned work finished" : forecast.unknownCount === open.filter((item) => item.required).length && forecast.unknownCount > 0 ? "Time to be estimated" : `${duration(forecast.lowMinutes)}–${duration(forecast.highMinutes)}` });
+		summary.createDiv({ cls: "editorialist-plan__hint", text: forecast.unknownCount ? "Known estimate · Some required work is unestimated" : "Estimated time for required work" });
+		const stats = summary.createDiv({ cls: "editorialist-plan__stats" });
+		for (const [value, text] of [[open.length, "To do"], [forecast.unknownCount, "Unestimated"], [forecast.unscheduledCount, "Unscheduled"]] as const) {
+			const stat = stats.createDiv(); stat.createEl("strong", { text: String(value) }); stat.createSpan({ text });
+		}
+		const resolved = this.plan.entries.length - open.length;
+		const progress = summary.createEl("progress", { cls: "editorialist-plan__progress", attr: { max: String(this.plan.entries.length), value: String(resolved), "aria-label": `${resolved} of ${this.plan.entries.length} planning tasks finished` } });
+		progress.createSpan({ text: `${resolved} / ${this.plan.entries.length}` });
+		if (forecast.availableMinutes !== null) {
+			const uncertain = forecast.unknownCount || forecast.unlinkedCount || this.warnings.length || this.stale;
+			const over = forecast.highMinutes > forecast.availableMinutes;
+			const status = summary.createEl("p", { cls: "editorialist-plan__forecast-status", text: over ? `Over budget · ${duration(forecast.availableMinutes)} available` : uncertain ? "Estimate incomplete · Add time ranges to plan confidently" : `${duration(forecast.availableMinutes)} available · Required work fits` });
+			if (over) status.addClass("is-warning");
+		}
+		const issues = [
+			forecast.unlinkedCount ? `${forecast.unlinkedCount} ${forecast.unlinkedCount === 1 ? "task needs" : "tasks need"} relinking` : "",
+			forecast.afterDeadlineCount ? `${forecast.afterDeadlineCount} required tasks fall after the deadline` : "",
+			forecast.overloadedDays.length ? `Over capacity: ${forecast.overloadedDays.map(planDayLabel).join(", ")}` : "",
+			forecast.dependencyWarnings.length ? `${forecast.dependencyWarnings.length} tasks need prerequisite checks` : "",
+			open.some((entry) => entry.day && entry.day < localDate(new Date())) ? "Past dates need rescheduling" : "",
+		].filter(Boolean);
+		for (const issue of issues) summary.createDiv({ cls: "editorialist-plan__warning", text: issue });
+		const notes = summary.createEl("details", { cls: "editorialist-plan__estimate-notes", attr: { "data-plan-section": "estimate-notes" } });
+		notes.createEl("summary", { text: "How this estimate works" });
+		notes.createEl("p", { text: `Selected required work only. Optional work still occupies daily capacity. ${duration(this.plan.reserveMinutes)} reserved for surprises. Unestimated work is not counted as zero.` });
+		if (open.length) this.renderWeek(root, forecast.dailyLoads);
+	}
+	private renderWeek(root: HTMLElement, loads: Record<string, number>): void {
+		const week = root.createDiv({ cls: "editorialist-plan__week", attr: { "aria-label": "Next seven days" } });
+		for (const day of this.weekDays()) {
+			const date = new Date(day + "T12:00:00");
+			const capacity = this.plan.capacity[date.getDay()] ?? 0;
+			const load = loads[day] ?? 0;
+			const cell = this.button(week, "", () => { this.view = "days"; this.render(); root.querySelector<HTMLElement>(`[data-plan-day="${day}"]`)?.scrollIntoView({ block: "nearest" }); });
+			cell.setAttribute("aria-label", `${planDayLabel(day)}: ${load} estimated minutes of ${capacity} available`);
+			cell.setAttribute("title", `${load} / ${capacity} min`);
+			if (day === localDate(new Date())) cell.addClass("is-today");
+			if (load > capacity) cell.addClass("is-overloaded");
+			cell.createSpan({ cls: "editorialist-plan__week-label", text: date.toLocaleDateString(undefined, { weekday: "short" }) });
+			cell.createEl("strong", { text: String(date.getDate()) });
+			const bar = cell.createDiv({ cls: "editorialist-plan__week-load" });
+			bar.createSpan().style.setProperty("--editorialist-day-load", `${capacity ? Math.min(100, load / capacity * 100) : load ? 100 : 0}%`);
+		}
 	}
 	private renderCapacity(root: HTMLElement): void {
-		const details = root.createEl("details", { attr: { "data-plan-section": "capacity" } });
-		details.createEl("summary", { text: "Deadline and available time" });
+		const details = root.createEl("details", { cls: "editorialist-plan__capacity", attr: { "data-plan-section": "capacity" } });
+		const summary = details.createEl("summary");
+		setIcon(summary.createSpan(), "sliders-horizontal");
+		summary.createSpan({ text: "Deadline & capacity" });
+		summary.createSpan({ cls: "editorialist-plan__capacity-value", text: this.plan.deadline ? planDayLabel(this.plan.deadline) : "Set up" });
 		this.input(details, "Deadline", "date", this.plan.deadline ?? "", (value) => { void this.change((plan) => { plan.deadline = isDate(value) ? value : null; }); });
 		const days = details.createDiv({ cls: "editorialist-plan__fields" });
 		["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].forEach((day, index) => {
@@ -174,19 +241,31 @@ export class RevisionPlanPanel extends ItemView {
 		details.createEl("p", { text: "Set zero for days off. Reserve leaves room for surprises. Capacity repeats weekly and includes a full allowance for today." });
 	}
 	private renderEntry(parent: HTMLElement, entry: PlanEntry): void {
-		const row = parent.createDiv({ cls: "editorialist-plan__entry" });
+		const row = parent.createDiv({ cls: "editorialist-plan__entry", attr: { "data-work-kind": entry.source.kind } });
 		const resolved = resolvePlanSource(entry.source, this.candidates);
-		const title = row.createEl("div", { cls: "editorialist-plan__task-title", text: entry.title, attr: { draggable: "true", title: "Drag to reorder or assign a day" } });
-		title.addEventListener("dragstart", (event) => { this.dragging = entry.id; event.dataTransfer?.setData("text/plain", entry.id); });
-		title.addEventListener("dragend", () => { this.dragging = null; });
+		const heading = row.createDiv({ cls: "editorialist-plan__entry-heading" });
+		const badge = heading.createSpan({ cls: "editorialist-plan__kind" });
+		setIcon(badge.createSpan(), { pending: "pencil-line", batch: "messages-square", directive: "list-checks" }[entry.source.kind]);
+		badge.createSpan({ text: kindLabels[entry.source.kind] });
+		if (entry.done) heading.createSpan({ cls: "editorialist-plan__done-label", text: "Finished" });
+		const title = row.createEl("div", { cls: "editorialist-plan__task-title", attr: { draggable: "true", title: "Drag to reorder or assign a day" } });
+		setIcon(title.createSpan({ cls: "editorialist-plan__grip" }), "grip-vertical");
+		title.createSpan({ text: resolved.state === "ready" ? resolved.candidate.title : entry.source.kind === "pending" ? pendingWorkTitle(entry.title) : entry.title });
+		title.addEventListener("dragstart", (event) => { this.dragging = entry.id; row.addClass("is-dragging"); event.dataTransfer?.setData("text/plain", entry.id); });
+		title.addEventListener("dragend", () => { this.dragging = null; row.removeClass("is-dragging"); });
 		if (this.view === "queue") this.dropTarget(row, (id) => { void this.change((plan) => { plan.entries = movePlanEntry(plan.entries, id, entry.id); }); });
-		row.createEl("p", { cls: "editorialist-plan__hint", text: `${kindLabels[entry.source.kind]} · ${resolved.state === "ready" ? resolved.candidate.detail : entry.source.path}${resolved.state === "ready" && resolved.candidate.deferred ? " · Deferred at source" : ""}` });
-		row.createEl("p", { text: `${entry.day ?? "Unscheduled"} · ${entry.lowMinutes === null || entry.highMinutes === null ? "Estimate needed" : `${entry.lowMinutes}–${entry.highMinutes} min`}${entry.required ? "" : " · Optional"}${entry.done ? " · Session finished" : ""}` });
-		const actions = row.createDiv({ cls: "editorialist-plan__actions" });
+		row.createEl("p", { cls: "editorialist-plan__task-context", text: `${resolved.state === "ready" ? resolved.candidate.detail : entry.source.path}${resolved.state === "ready" && resolved.candidate.deferred ? " · Deferred at source" : ""}` });
+		const metadata = row.createDiv({ cls: "editorialist-plan__task-meta" });
+		for (const [icon, text] of [["calendar", entry.day ? planDayLabel(entry.day) : "Unscheduled"], ["clock-3", entry.lowMinutes === null || entry.highMinutes === null ? "Add estimate" : `${entry.lowMinutes}–${entry.highMinutes} min`]]) {
+			const chip = metadata.createSpan(); setIcon(chip.createSpan(), icon!); chip.createSpan({ text });
+		}
+		if (!entry.required) metadata.createSpan({ text: "Optional" });
+		const footer = row.createDiv({ cls: "editorialist-plan__entry-footer" });
+		const actions = footer.createDiv({ cls: "editorialist-plan__actions" });
 		this.sourceButton(actions, "Open source", () => { if (resolved.state === "ready") void this.plugin.openRevisionWork(resolved.candidate); }, resolved.state !== "ready" || this.stale);
-		this.button(actions, entry.done ? "Reopen session" : "Finish session", () => { void this.edit(entry.id, (item) => { item.done = !item.done; }); });
-		const details = row.createEl("details", { attr: { "data-plan-section": entry.id } });
-		details.createEl("summary", { text: "Schedule and task options" });
+		this.button(actions, entry.done ? "Reopen" : "Finish session", () => { void this.edit(entry.id, (item) => { item.done = !item.done; }); });
+		const details = footer.createEl("details", { attr: { "data-plan-section": entry.id } });
+		details.createEl("summary", { text: "Schedule & options" });
 		details.createEl("p", { cls: "editorialist-plan__hint", text: "Finish session changes this plan only. It does not accept edits or resolve the source instruction." });
 		const fields = details.createDiv({ cls: "editorialist-plan__fields" });
 		this.input(fields, "Day", "date", entry.day ?? "", (value) => { void this.edit(entry.id, (item) => { item.day = isDate(value) ? value : null; }); });
@@ -228,29 +307,41 @@ export class RevisionPlanPanel extends ItemView {
 		return this.candidates.filter((candidate) => !candidate.complete && !planned.has(sourceKey(candidate)) && resolvePlanSource(candidate, this.candidates).state === "ready");
 	}
 	private renderBacklog(root: HTMLElement): void {
-		const details = root.createEl("details", { attr: { open: "" } });
+		const details = root.createEl("details", { cls: "editorialist-plan__backlog", attr: { open: "" } });
 		const available = this.available();
-		details.createEl("summary", { text: `Available work (${available.length})` });
-		const search = details.createEl("input", { type: "search", value: this.search, attr: { placeholder: "Find scene or instruction", "aria-label": "Find available work" } });
-		const filter = details.createEl("select", { attr: { "aria-label": "Work type" } });
-		for (const [value, text] of Object.entries({ all: "All types", ...kindLabels })) filter.createEl("option", { value, text });
-		filter.value = this.sourceFilter;
-		const list = details.createDiv();
+		const heading = details.createEl("summary");
+		heading.createSpan({ text: "Available work" });
+		heading.createSpan({ cls: "editorialist-plan__count", text: String(available.length) });
+		const searchWrap = details.createDiv({ cls: "editorialist-plan__search" });
+		setIcon(searchWrap.createSpan(), "search");
+		const search = searchWrap.createEl("input", { type: "search", value: this.search, attr: { placeholder: "Find a scene or instruction…", "aria-label": "Find available work" } });
+		const filters = details.createDiv({ cls: "editorialist-plan__filters", attr: { "aria-label": "Work type" } });
+		const list = details.createDiv({ cls: "editorialist-plan__backlog-list" });
 		const render = (): void => {
 			list.empty();
-			const shown = available.filter((candidate) => (this.sourceFilter === "all" || candidate.kind === this.sourceFilter) && `${candidate.title} ${candidate.detail}`.toLowerCase().includes(this.search.toLowerCase()));
-			for (const candidate of shown) {
-				const row = list.createDiv({ cls: "editorialist-plan__backlog-row" });
-				row.createEl("strong", { text: candidate.title });
-				row.createEl("p", { text: `${kindLabels[candidate.kind]} · ${candidate.detail}${candidate.deferred ? " · Deferred" : ""}` });
-				this.sourceButton(row, "Add to plan", () => { void this.change((plan) => { plan.entries.push({ id: crypto.randomUUID(), source: { kind: candidate.kind, path: candidate.path, locator: candidate.locator }, title: candidate.title, lowMinutes: null, highMinutes: null, day: null, required: true, done: false, afterId: null }); }); }, this.stale);
+			const shown = available.filter((candidate) => (this.sourceFilter === "all" || candidate.kind === this.sourceFilter) && `${candidate.title} ${candidate.detail} ${candidate.locator}`.toLowerCase().includes(this.search.toLowerCase()));
+			for (const candidate of shown.slice(0, this.backlogLimit)) {
+				const row = list.createDiv({ cls: "editorialist-plan__backlog-row", attr: { "data-work-kind": candidate.kind } });
+				const icon = row.createSpan({ cls: "editorialist-plan__source-icon" });
+				setIcon(icon, { pending: "pencil-line", batch: "messages-square", directive: "list-checks" }[candidate.kind]);
+				const content = row.createDiv({ cls: "editorialist-plan__backlog-content" });
+				content.createEl("strong", { text: candidate.title, attr: { title: candidate.title } });
+				content.createEl("p", { text: `${candidate.detail}${candidate.deferred ? " · Deferred" : ""}` });
+				this.sourceButton(row, "", () => { void this.change((plan) => { plan.entries.push({ id: crypto.randomUUID(), source: { kind: candidate.kind, path: candidate.path, locator: candidate.locator }, title: candidate.title, lowMinutes: null, highMinutes: null, day: null, required: true, done: false, afterId: null }); }); }, this.stale);
+				const add = row.querySelector<HTMLButtonElement>("button")!;
+				add.addClass("editorialist-plan__add");
+				add.setAttribute("aria-label", `Add to plan: ${candidate.title}`); add.setAttribute("title", "Add to plan"); setIcon(add.createSpan(), "plus");
 			}
-			if (!shown.length) list.createEl("p", { text: "No available work matches this filter." });
+			if (shown.length > this.backlogLimit) this.button(list, `Show ${Math.min(12, shown.length - this.backlogLimit)} more`, () => { this.backlogLimit += 12; render(); });
+			if (!shown.length) list.createEl("p", { cls: "editorialist-plan__empty-copy", text: "No available work matches this filter." });
 		};
-		search.addEventListener("input", () => { this.search = search.value; render(); });
-		filter.addEventListener("change", () => { this.sourceFilter = filter.value; render(); });
+		for (const [value, label] of Object.entries({ all: "All", pending: "Notes", batch: "Batches", directive: "Directives" })) {
+			const button = this.button(filters, label, () => { this.sourceFilter = value; this.backlogLimit = 12; for (const item of Array.from(filters.querySelectorAll("button"))) item.setAttribute("aria-pressed", String(item === button)); render(); });
+			button.setAttribute("aria-pressed", String(this.sourceFilter === value));
+		}
+		search.addEventListener("input", () => { this.search = search.value; this.backlogLimit = 12; render(); });
 		render();
 		const ambiguous = this.candidates.filter((candidate) => resolvePlanSource(candidate, this.candidates).state === "ambiguous");
-		if (ambiguous.length) details.createEl("p", { cls: "editorialist-plan__warning", text: `${ambiguous.length} duplicate instructions cannot be added safely. Give each distinct wording in its source and refresh.` });
+		if (ambiguous.length) details.createEl("p", { cls: "editorialist-plan__warning", text: `${ambiguous.length} duplicate instructions need distinct wording before they can be added.` });
 	}
 }

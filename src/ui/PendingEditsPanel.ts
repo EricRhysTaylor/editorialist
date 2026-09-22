@@ -92,18 +92,18 @@ export class PendingEditsPanel extends ItemView {
 		empty.createDiv({ cls: "editorialist-pending-panel__empty-title", text: "No pending edits" });
 		empty.createDiv({
 			cls: "editorialist-pending-panel__empty-copy",
-			text: "Accepted edits and author queries waiting to be applied across the active book appear here, grouped by scene.",
+			text: "Your revision notes and Inquiry follow-ups appear here, grouped by scene.",
 		});
 	}
 
 	private renderSummary(parent: HTMLElement, summary: PendingEditsSummary): void {
 		const card = parent.createDiv({ cls: "editorialist-pending-panel__summary" });
-		const itemNoun = summary.segmentCount === 1 ? "item" : "items";
-		const sceneNoun = summary.sceneCount === 1 ? "scene" : "scenes";
-		card.createDiv({
-			cls: "editorialist-pending-panel__summary-total",
-			text: `${summary.segmentCount} pending ${itemNoun} across ${summary.sceneCount} ${sceneNoun}`,
-		});
+		const metrics = card.createDiv({ cls: "editorialist-pending-panel__metrics" });
+		for (const [value, label] of [[summary.segmentCount, "Pending items"], [summary.sceneCount, "Scenes to revisit"]] as const) {
+			const metric = metrics.createDiv();
+			metric.createEl("strong", { text: String(value) });
+			metric.createSpan({ text: label });
+		}
 
 		const button = card.createEl("button", {
 			cls: "editorialist-pending-panel__review-all",

@@ -97,6 +97,18 @@ The rules around that:
   change was made, not just what moved. Match the existing history's voice:
   an imperative subject line, then prose paragraphs.
 
+## Visual review is required for UI changes
+
+UI changes must be rendered, screenshotted, and visually inspected before delivery.
+Typechecks, tests, and builds do not establish visual quality. Inspect populated,
+empty, and relevant interaction states at normal and narrow sidebar widths, with
+light and dark themes. Fix awkward spacing, weak hierarchy, clipping, poor contrast,
+and default-control clutter. Use a separate test vault for interaction fixtures;
+never seed or alter the author's manuscript to stage screenshots. Report what was
+actually viewed and tested, and retain screenshot evidence outside the public repo
+when it contains private manuscript text. If visual access is blocked, report the
+blocker explicitly rather than calling the UI finished.
+
 ## Release artifacts
 
 GitHub Release assets for an Obsidian release are exactly three files,

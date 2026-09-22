@@ -841,7 +841,7 @@ export default class EditorialistPlugin extends Plugin {
 				const session = this.registry.applyPersistedReviewState(this.reviewEngine.buildSession(path, text, null));
 				candidates.push(...batchWork(session).filter((item) => activeBatches.some((batch) => batch.batchId === item.locator)).map((item) => {
 					const importedAt = activeBatches.find((batch) => batch.batchId === item.locator)?.importedAt;
-					return { ...item, detail: `${item.detail}${importedAt ? ` · ${new Date(importedAt).toLocaleString()}` : ""}` };
+					return { ...item, detail: `${item.detail}${importedAt ? ` · ${new Date(importedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : ""}` };
 				}));
 			} catch { warnings.push(`Could not load review work in ${path}.`); }
 		}

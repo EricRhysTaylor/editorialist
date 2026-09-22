@@ -52,5 +52,6 @@ first remaining suggestion from the planned batch when there is one.
 Validation covers migration, persistence/rollback, note renames, source identity,
 memo completion, mixed-batch separation, estimate uncertainty, dependencies and
 calendar arithmetic. Type/lint/CSS/compliance checks and production bundling also
-run. Live Obsidian rendering, drag behavior, and theme/narrow-pane appearance
-still need an in-app visual pass; automated tests do not simulate Obsidian DOM.
+run. The follow-up visual pass is documented in PANEL-VISUAL-REVIEW.md, including
+rendered Obsidian captures, drag behavior, and theme/narrow-pane checks. Unit
+tests remain separate from that rendered validation.

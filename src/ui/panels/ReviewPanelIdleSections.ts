@@ -817,3 +817,16 @@ function sceneNumberKey(title: string): number {
 	return match ? Number(match[1]) : Number.POSITIVE_INFINITY;
 }
 
+
+/** Give idle reviewers an obvious next action without expanding administration. */
+export function renderReviewWelcomeCard(plugin: EditorialistPlugin, parent: HTMLElement): void {
+	const card = parent.createDiv({ cls: "editorialist-panel__welcome" });
+	setIcon(card.createSpan({ cls: "editorialist-panel__welcome-icon" }), "messages-square");
+	card.createEl("h3", { text: "Ready for your next review" });
+	card.createEl("p", { text: "Import an editor’s notes, or organize your next revision session in the plan." });
+	const actions = card.createDiv({ cls: "editorialist-panel__welcome-actions" });
+	const start = actions.createEl("button", { text: "Import feedback", cls: "mod-cta", attr: { type: "button" } });
+	start.addEventListener("click", () => { void plugin.openEditorialistModal(); });
+	const plan = actions.createEl("button", { text: "Open plan", attr: { type: "button" } });
+	plan.addEventListener("click", () => { void plugin.openRevisionPlanPanel(); });
+}
