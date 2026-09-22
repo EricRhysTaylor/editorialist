@@ -6,7 +6,7 @@ import { renderPanelHeader } from "./primitives/PanelHeader";
 import { emptyRevisionPlan, forecastPlan, isDate, isPlanEntryComplete, localDate, movePlanEntry, resolvePlanSource, sourceKey, type PlanEntry, type RevisionPlan, type WorkCandidate } from "../core/planning/RevisionPlan";
 
 export const REVISION_PLAN_VIEW_TYPE = "editorialist-revision-plan";
-const kindLabels = { pending: "Pending edit", batch: "Scene batch", directive: "Directive" };
+const kindLabels = { pending: "Pending edit", batch: "Scene batch", directive: "Editorialism" };
 const duration = (minutes: number): string => `${Math.round(minutes / 6) / 10} h`;
 
 /** Planning writes only plugin data. Source editing stays in the existing tools. */
@@ -256,6 +256,7 @@ export class RevisionPlanPanel extends ItemView {
 		title.addEventListener("dragend", () => { this.dragging = null; row.removeClass("is-dragging"); });
 		if (this.view === "queue") this.dropTarget(row, (id) => { void this.change((plan) => { plan.entries = movePlanEntry(plan.entries, id, entry.id); }); });
 		row.createEl("p", { cls: "editorialist-plan__task-context", text: `${resolved.state === "ready" ? resolved.candidate.detail : entry.source.path}${resolved.state === "ready" && resolved.candidate.deferred ? " · Deferred at source" : ""}` });
+		if (resolved.state === "ready" && resolved.candidate.inactive) row.createEl("p", { cls: "editorialist-plan__hint", text: "Source inactive · Kept in your plan. Keep this task or remove it in Schedule & options." });
 		const metadata = row.createDiv({ cls: "editorialist-plan__task-meta" });
 		for (const [icon, text] of [["calendar", entry.day ? planDayLabel(entry.day) : "Unscheduled"], ["clock-3", entry.lowMinutes === null || entry.highMinutes === null ? "Add estimate" : `${entry.lowMinutes}–${entry.highMinutes} min`]]) {
 			const chip = metadata.createSpan(); setIcon(chip.createSpan(), icon!); chip.createSpan({ text });
@@ -272,7 +273,7 @@ export class RevisionPlanPanel extends ItemView {
 		this.input(fields, "Day", "date", entry.day ?? "", (value) => { void this.edit(entry.id, (item) => { item.day = isDate(value) ? value : null; }); });
 		this.input(fields, "Low minutes", "number", entry.lowMinutes === null ? "" : String(entry.lowMinutes), (value) => { void this.edit(entry.id, (item) => { item.lowMinutes = value === "" ? null : Number(value); }); });
 		this.input(fields, "High minutes", "number", entry.highMinutes === null ? "" : String(entry.highMinutes), (value) => { void this.edit(entry.id, (item) => { item.highMinutes = value === "" ? null : Number(value); }); });
-		if (resolved.state === "ready" && resolved.candidate.suggestedMinutes !== undefined) details.createEl("p", { cls: "editorialist-plan__hint", text: `Directive heuristic: about ${Math.round(resolved.candidate.suggestedMinutes)} min. Enter your own range; this is not measured editing time.` });
+		if (resolved.state === "ready" && resolved.candidate.suggestedMinutes !== undefined) details.createEl("p", { cls: "editorialist-plan__hint", text: `Editorialism estimate: about ${Math.round(resolved.candidate.suggestedMinutes)} min. Enter your own range; this is not measured editing time.` });
 		const required = this.input(details, "Required for deadline", "checkbox", "", () => { void this.edit(entry.id, (item) => { item.required = required.checked; }); });
 		required.checked = entry.required;
 		const label = details.createEl("label", { text: "After", cls: "editorialist-plan__field" });
@@ -305,7 +306,7 @@ export class RevisionPlanPanel extends ItemView {
 	}
 	private available(): WorkCandidate[] {
 		const planned = new Set(this.plan.entries.map((entry) => sourceKey(entry.source)));
-		return this.candidates.filter((candidate) => !candidate.complete && !planned.has(sourceKey(candidate)) && resolvePlanSource(candidate, this.candidates).state === "ready");
+		return this.candidates.filter((candidate) => !candidate.inactive && !candidate.complete && !planned.has(sourceKey(candidate)) && resolvePlanSource(candidate, this.candidates).state === "ready");
 	}
 	private renderBacklog(root: HTMLElement): void {
 		const details = root.createEl("details", { cls: "editorialist-plan__backlog", attr: { open: "" } });
@@ -336,7 +337,7 @@ export class RevisionPlanPanel extends ItemView {
 			if (shown.length > this.backlogLimit) this.button(list, `Show ${Math.min(12, shown.length - this.backlogLimit)} more`, () => { this.backlogLimit += 12; render(); });
 			if (!shown.length) list.createEl("p", { cls: "editorialist-plan__empty-copy", text: "No available work matches this filter." });
 		};
-		for (const [value, label] of Object.entries({ all: "All", pending: "Notes", batch: "Batches", directive: "Directives" })) {
+		for (const [value, label] of Object.entries({ all: "All", pending: "Notes", batch: "Batches", directive: "Editorialisms" })) {
 			const button = this.button(filters, label, () => { this.sourceFilter = value; this.backlogLimit = 12; for (const item of Array.from(filters.querySelectorAll("button"))) item.setAttribute("aria-pressed", String(item === button)); render(); });
 			button.setAttribute("aria-pressed", String(this.sourceFilter === value));
 		}

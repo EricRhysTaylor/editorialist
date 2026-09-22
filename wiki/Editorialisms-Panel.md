@@ -108,3 +108,13 @@ Directives do not only wait here. When you run a review sweep on a scene these d
 | Broad note that keeps sending you hunting for the passages | Add anchors to the directive |
 | Author note or Radial Timeline Inquiry follow-up | [Pending Edits](Pending-Edits) |
 | A reviewer sends both line edits and structural notes | Both formats in one reply — each goes to its own surface |
+
+## Activate or deactivate files
+
+The Editorialisms panel lists files for the current book. Use **Active**, **Inactive**, or **All** to filter the list; each filter shows its file count. Each file shows its total and remaining item counts, with an **Activate** or **Deactivate** button. The same control is available when a file is open.
+
+Deactivation writes `status: inactive` in that Editorialism file's frontmatter. It preserves the file, its checklist progress, attribution, and anchors. Its items no longer appear in the revision plan's **Available work** or as scene-review suggestions. Existing files remain active unless their status is explicitly `inactive`. Activation writes `status: active`.
+
+Tasks already added to a revision plan stay there with **Source inactive** displayed. They continue to count toward estimates and the deadline until you explicitly finish or remove them. Reactivating a file makes its unfinished, unplanned items available again.
+
+The revision plan's **Editorialisms** filter refers to the individual checklist items within these files.

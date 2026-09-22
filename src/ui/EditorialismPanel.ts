@@ -1,11 +1,12 @@
 import { renderPanelHeader } from "./primitives/PanelHeader";
-import { DropdownComponent, Menu, ItemView, TFile, setIcon, type WorkspaceLeaf } from "obsidian";
+import { DropdownComponent, Menu, Notice, ItemView, TFile, setIcon, type WorkspaceLeaf } from "obsidian";
 import type EditorialistPlugin from "../main";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
 import { formatEffortDuration } from "../core/EffortEstimate";
 import { formatReviewerTypeLabel } from "../core/ContributorIdentity";
 import {
 	isAnchorProcessed,
+	isEditorialismActive,
 	type Editorialism,
 	type EditorialismAnchor,
 	type EditorialismAttribution,
@@ -31,6 +32,7 @@ function formatWords(words: number): string {
 
 export class EditorialismPanel extends ItemView {
 	private summaries: EditorialismSummary[] = [];
+	private activityFilter: "active" | "inactive" | "all" = "active";
 	private activeFilePath: string | null = null;
 	private activeEditorialism: Editorialism | null = null;
 	private isLoading = false;
@@ -132,9 +134,19 @@ export class EditorialismPanel extends ItemView {
 			this.renderEmptyState(parent);
 			return;
 		}
+		const filters = parent.createDiv({ cls: "editorialist-editorialism-panel__filters" });
+		for (const [value, label] of [["active", "Active"], ["inactive", "Inactive"], ["all", "All"]] as const) {
+			const count = this.summaries.filter((item) => value === "all" || isEditorialismActive(item) === (value === "active")).length;
+			const button = filters.createEl("button", { text: `${label} (${count})`, attr: { type: "button", "aria-pressed": String(this.activityFilter === value) } });
+			button.addEventListener("click", () => { this.activityFilter = value; this.render(); });
+		}
+		parent.createEl("p", { cls: "editorialist-plan__hint", text: "Deactivate older files to hide their items from available work. Files and progress stay in your vault." });
 		const list = parent.createDiv({ cls: "editorialist-editorialism-panel__list" });
-		for (const summary of this.summaries) {
-			const row = list.createEl("button", { cls: "editorialist-editorialism-panel__list-row", attr: { type: "button" } });
+		const visible = this.summaries.filter((item) => this.activityFilter === "all" || isEditorialismActive(item) === (this.activityFilter === "active"));
+		if (!visible.length) list.createEl("p", { text: `No ${this.activityFilter} editorialism files.` });
+		for (const summary of visible) {
+			const card = list.createDiv({ cls: "editorialist-editorialism-panel__file" });
+			const row = card.createEl("button", { cls: "editorialist-editorialism-panel__list-row", attr: { type: "button" } });
 			row.addEventListener("click", () => {
 				this.activeFilePath = summary.filePath;
 				void this.refresh();
@@ -147,7 +159,7 @@ export class EditorialismPanel extends ItemView {
 			});
 			const meta = main.createDiv({ cls: "editorialist-editorialism-panel__list-meta" });
 			meta.createSpan({
-				text: `${summary.totalItems - summary.doneItems} remaining${summary.deferredItems ? ` · ${summary.deferredItems} deferred` : ""}${summary.remainingMinutes ? ` · ~${formatEffortDuration(summary.remainingMinutes)}` : ""}`,
+				text: `${summary.totalItems} items · ${summary.totalItems - summary.doneItems} remaining${summary.deferredItems ? ` · ${summary.deferredItems} deferred` : ""}${summary.remainingMinutes ? ` · ~${formatEffortDuration(summary.remainingMinutes)}` : ""}`,
 			});
 			const attribution = formatAttribution(summary);
 			if (attribution) {
@@ -156,7 +168,7 @@ export class EditorialismPanel extends ItemView {
 					text: attribution,
 				});
 			}
-			if (summary.status && summary.status !== "in-progress") {
+			if (summary.status && !["in-progress", "active", "inactive"].includes(summary.status.toLowerCase())) {
 				meta.createSpan({
 					cls: "editorialist-editorialism-panel__list-status",
 					text: summary.status,
@@ -168,7 +180,20 @@ export class EditorialismPanel extends ItemView {
 			const fraction = summary.totalItems > 0 ? summary.doneItems / summary.totalItems : 0;
 			const fill = progress.createDiv({ cls: "editorialist-editorialism-panel__list-progress-fill" });
 			fill.style.setProperty("--editorialist-progress", `${Math.round(fraction * 100)}%`);
+			this.renderActivation(card, summary);
 		}
+	}
+
+	private renderActivation(parent: HTMLElement, document: Editorialism | EditorialismSummary): void {
+		const active = isEditorialismActive(document);
+		const bar = parent.createDiv({ cls: "editorialist-editorialism-panel__activation" });
+		bar.createSpan({ text: active ? "Active" : "Inactive" });
+		const button = bar.createEl("button", { text: active ? "Deactivate" : "Activate", attr: { type: "button", "aria-label": `${active ? "Deactivate" : "Activate"} ${document.title}` } });
+		button.addEventListener("click", async () => {
+			button.disabled = true;
+			try { await this.plugin.setEditorialismActive(document.filePath, !active); await this.refresh(); }
+			catch { new Notice("Could not change the file's active status. Please try again."); button.disabled = false; }
+		});
 	}
 
 	private renderEmptyState(parent: HTMLElement): void {
@@ -224,6 +249,7 @@ export class EditorialismPanel extends ItemView {
 			void this.app.workspace.openLinkText(editorialism.filePath, editorialism.filePath, false);
 		});
 
+		this.renderActivation(detail, editorialism);
 		const subtitle = detail.createDiv({ cls: "editorialist-editorialism-panel__detail-subtitle" });
 		const totals = this.computeTotals(editorialism);
 		subtitle.createSpan({
@@ -235,7 +261,7 @@ export class EditorialismPanel extends ItemView {
 				text: editorialism.book,
 			});
 		}
-		if (editorialism.status) {
+		if (editorialism.status && !["active", "inactive"].includes(editorialism.status.toLowerCase())) {
 			subtitle.createSpan({
 				cls: "editorialist-editorialism-panel__detail-meta-chip",
 				text: editorialism.status,
@@ -269,7 +295,7 @@ export class EditorialismPanel extends ItemView {
 		this.lastRelevanceSceneNumber = sceneContext?.sceneNumber ?? null;
 
 		const filters = detail.createDiv({ cls: "editorialist-editorialism-panel__filters" });
-		new DropdownComponent(filters).addOptions({ open: "Open directives", scene: "This scene", all: "All directives" }).setValue(this.itemFilter).onChange((value) => { this.itemFilter = value; this.render(); });
+		new DropdownComponent(filters).addOptions({ open: "Open items", scene: "This scene", all: "All items" }).setValue(this.itemFilter).onChange((value) => { this.itemFilter = value; this.render(); });
 		for (const section of editorialism.sections) {
 			const visible = section.items.filter((item) => this.itemFilter === "all" || (item.status !== "done" && (this.itemFilter !== "scene" || (sceneContext !== null && scopeRelatesToScene(item.scope, sceneContext)))));
 			if (visible.length === 0) continue;
@@ -312,7 +338,7 @@ export class EditorialismPanel extends ItemView {
 			parts.push(`${estimate.newScenes} new scene${estimate.newScenes === 1 ? "" : "s"} (~${formatWords(estimate.newWords)})`);
 		}
 		if (estimate.directiveItems > 0) {
-			parts.push(`${estimate.directiveItems} directive${estimate.directiveItems === 1 ? "" : "s"}`);
+			parts.push(`${estimate.directiveItems} item${estimate.directiveItems === 1 ? "" : "s"}`);
 		}
 		if (parts.length > 0) {
 			card.createDiv({

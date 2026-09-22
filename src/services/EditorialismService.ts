@@ -65,6 +65,14 @@ export class EditorialismService {
 		return this.tryLoad(file);
 	}
 
+	async setActive(filePath: string, active: boolean): Promise<void> {
+		const file = this.app.vault.getAbstractFileByPath(filePath);
+		if (!(file instanceof TFile) || !await this.tryLoad(file)) throw new Error("Editorialism file is unavailable.");
+		await this.app.fileManager.processFrontMatter(file, (frontmatter: Record<string, unknown>) => {
+			frontmatter.status = active ? "active" : "inactive";
+		});
+	}
+
 	async setItemStatus(
 		filePath: string,
 		lineIndex: number,

@@ -7,6 +7,8 @@ export interface WorkSource {
 	locator: string;
 }
 export interface WorkCandidate extends WorkSource {
+	/** Retained for planned entries, excluded from available work. */
+	inactive?: boolean;
 	title: string;
 	detail: string;
 	complete: boolean;

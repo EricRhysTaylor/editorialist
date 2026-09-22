@@ -7,7 +7,7 @@ import { parseEditorialism } from "../EditorialismParser";
 import { DEFAULT_EFFORT_PARAMS } from "../EffortEstimate";
 import { buildSceneItems } from "../PendingEditsSegments";
 import { batchWork, directiveWork, pendingWork } from "./RevisionWork";
-import { resolvePlanSource } from "./RevisionPlan";
+import { emptyRevisionPlan, forecastPlan, resolvePlanSource, type PlanEntry } from "./RevisionPlan";
 
 describe("Mixed revision work", () => {
 	it("preserves separate pending instructions and refuses ambiguous duplicates", () => {
@@ -27,6 +27,22 @@ describe("Mixed revision work", () => {
 		expect(directiveWork(document, DEFAULT_EFFORT_PARAMS)[0]).toMatchObject({ complete: false, deferred: true });
 		expect(directiveWork(document, DEFAULT_EFFORT_PARAMS)[0]!.suggestedMinutes).toBeGreaterThan(0);
 	});
+	it("retains planned identities and estimates across deactivation and reactivation", () => {
+		const text = "---\ntype: editorialism\nbook: Book\n---\n## Pacing\n- [ ] Rewrite ending\n- [x] Completed instruction\n";
+		const document = parseEditorialism("agenda.md", text);
+		const active = directiveWork(document, DEFAULT_EFFORT_PARAMS);
+		expect(active.every((item) => !item.inactive)).toBe(true);
+		document.status = "inactive";
+		const inactive = directiveWork(document, DEFAULT_EFFORT_PARAMS);
+		expect(inactive.every((item) => item.inactive)).toBe(true);
+		expect(inactive[1]!.complete).toBe(true);
+		expect(resolvePlanSource(active[0]!, inactive)).toMatchObject({ state: "ready", candidate: { inactive: true, complete: false } });
+		const entry: PlanEntry = { id: "one", source: active[0]!, title: "Rewrite ending", lowMinutes: 30, highMinutes: 60, day: null, required: true, done: false, afterId: null };
+		expect(forecastPlan({ ...emptyRevisionPlan(), entries: [entry] }, inactive)).toMatchObject({ lowMinutes: 30, highMinutes: 60, unlinkedCount: 0 });
+		document.status = "active";
+		expect(directiveWork(document, DEFAULT_EFFORT_PARAMS)).toEqual(active);
+	});
+
 	it("separates batches in one scene and never treats unread memos as completed", () => {
 		const block = (id: string, body: string): string => `\n\x60\x60\x60editorialist-review\nImportedBy: Editorialist\nBatchId: ${id}\nReviewer: Marla\n${body}\n\x60\x60\x60\n`;
 		const engine = new ReviewEngine(new SuggestionParser(new ContributorDirectory()), new MatchEngine());

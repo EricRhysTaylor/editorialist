@@ -7118,3 +7118,33 @@
 .editorialist-panel__welcome-actions button {
 	font-size: 12px;
 }
+
+.editorialist-editorialism-panel__file > .editorialist-editorialism-panel__list-row {
+	width: 100%;
+}
+
+.editorialist-editorialism-panel__activation {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 10px 12px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.editorialist-editorialism-panel__file {
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.editorialist-editorialism-panel__filters {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: 12px 0;
+}
+
+.editorialist-editorialism-panel__filters button[aria-pressed="true"] {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}

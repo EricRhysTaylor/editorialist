@@ -1,5 +1,5 @@
 import { pendingWorkTitle } from "./WorkPresentation";
-import type { Editorialism } from "../../models/Editorialism";
+import { isEditorialismActive, type Editorialism } from "../../models/Editorialism";
 import type { PendingEditsSession } from "../../models/PendingEditSegment";
 import type { ReviewSession } from "../../models/ReviewSuggestion";
 import { splitFieldLines } from "../PendingEditsSegments";
@@ -13,7 +13,7 @@ export function pendingWork(session: PendingEditsSession): WorkCandidate[] {
 }
 export function directiveWork(document: Editorialism, params: EffortParams): WorkCandidate[] {
 	return document.sections.flatMap((section) => section.items.map((item) => ({
-		kind: "directive", path: document.filePath,
+		kind: "directive", path: document.filePath, inactive: !isEditorialismActive(document),
 		// Status and line position can change without changing the instruction.
 		locator: JSON.stringify([section.heading, item.text, item.scope?.raw ?? ""]),
 		title: item.text, detail: [document.title, document.reviewer, item.scope?.raw].filter(Boolean).join(" · "),

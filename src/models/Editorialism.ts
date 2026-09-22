@@ -126,3 +126,8 @@ export interface EditorialismSummary extends EditorialismAttribution {
 	doneItems: number;
 	mtime: number;
 }
+
+/** Existing files stay active unless explicitly deactivated. */
+export function isEditorialismActive(document: { status: string | null }): boolean {
+	return document.status?.trim().toLowerCase() !== "inactive";
+}

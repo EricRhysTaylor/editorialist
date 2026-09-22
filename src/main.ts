@@ -85,7 +85,7 @@ import {
 	estimateEditorialismEffort,
 	type EffortEstimate,
 } from "./core/EffortEstimate";
-import type { Editorialism } from "./models/Editorialism";
+import { isEditorialismActive, type Editorialism } from "./models/Editorialism";
 import { selectCompletedSweepDurationLabel } from "./core/review/CompletedSweepDuration";
 import { collectSceneDirectives, type SceneDirective } from "./core/SceneDirectives";
 import { openAnchorTargetModal } from "./ui/modals/AnchorTargetModal";
@@ -963,6 +963,10 @@ export default class EditorialistPlugin extends Plugin {
 		return this.editorialismService.load(filePath);
 	}
 
+	async setEditorialismActive(filePath: string, active: boolean): Promise<void> {
+		await this.editorialismService.setActive(filePath, active);
+	}
+
 	async setEditorialismItemStatus(
 		filePath: string,
 		lineIndex: number,
@@ -986,7 +990,7 @@ export default class EditorialistPlugin extends Plugin {
 		const loaded: Editorialism[] = [];
 		for (const summary of summaries) {
 			const editorialism = await this.editorialismService.load(summary.filePath);
-			if (editorialism) {
+			if (editorialism && isEditorialismActive(editorialism)) {
 				loaded.push(editorialism);
 			}
 		}
