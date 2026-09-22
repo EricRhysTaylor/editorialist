@@ -1,3 +1,4 @@
+import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
 import { pendingWorkTitle, planDayLabel } from "../core/planning/WorkPresentation";
 import { ItemView, Notice, setIcon, type WorkspaceLeaf } from "obsidian";
 import type EditorialistPlugin from "../main";
@@ -26,7 +27,7 @@ export class RevisionPlanPanel extends ItemView {
 	constructor(leaf: WorkspaceLeaf, private readonly plugin: EditorialistPlugin) { super(leaf); }
 	getViewType(): string { return REVISION_PLAN_VIEW_TYPE; }
 	getDisplayText(): string { return "Revision plan"; }
-	getIcon(): string { return "calendar-check"; }
+	getIcon(): string { return EDITORIALIST_ICON_ID; }
 	async onOpen(): Promise<void> {
 		this.contentEl.addClass("editorialist-plan");
 		const markStale = (): void => {

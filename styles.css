@@ -6300,15 +6300,6 @@
 }
 
 /* Polished panel shell: native theme tokens, compact type, clear action levels. */
-.editorialist-panel__eyebrow {
-	font-size: 10px;
-	font-weight: 600;
-	letter-spacing: 0.13em;
-	text-transform: uppercase;
-	color: var(--text-muted);
-	margin-bottom: 8px;
-}
-
 .editorialist-panel__header .editorialist-panel__view-selector {
 	padding: 0;
 	background: transparent;
@@ -6347,6 +6338,12 @@
 	height: 13px;
 }
 
+.editorialist-panel__book-icon {
+	display: inline-flex;
+	align-items: center;
+	flex-shrink: 0;
+}
+
 .editorialist-panel__header .editorialist-panel__book {
 	display: flex;
 	align-items: center;
@@ -6356,6 +6353,8 @@
 }
 
 .editorialist-panel__header .editorialist-panel__settings-button {
+	margin-left: 0;
+	flex-shrink: 0;
 	width: 26px;
 	height: 26px;
 	padding: 4px;

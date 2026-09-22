@@ -5,7 +5,6 @@ import type EditorialistPlugin from "../../main";
 /** Consistent navigation; source-specific work stays in the panel body. */
 export function renderPanelHeader(parent: HTMLElement, plugin: EditorialistPlugin, viewType: string, label: string): HTMLElement {
 	const header = parent.createDiv({ cls: "editorialist-panel__header" });
-	header.createDiv({ cls: "editorialist-panel__eyebrow", text: "Editorialist" });
 	const row = header.createDiv({ cls: "editorialist-panel__title-row" });
 	const mode = row.createEl("button", {
 		cls: "editorialist-panel__view-selector",
@@ -35,7 +34,7 @@ export function renderPanelHeader(parent: HTMLElement, plugin: EditorialistPlugi
 		menu.showAtMouseEvent(event);
 	});
 	const book = header.createDiv({ cls: "editorialist-panel__book" });
-	setIcon(book.createSpan(), "book-open");
+	setIcon(book.createSpan({ cls: "editorialist-panel__book-icon" }), "book-open");
 	book.createSpan({ text: plugin.getActiveBookScopeInfo().label ?? "No active book selected" });
 	return header;
 }

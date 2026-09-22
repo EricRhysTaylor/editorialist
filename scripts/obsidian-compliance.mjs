@@ -124,9 +124,9 @@ for (const file of SOURCE_FILES) {
 			failLine(file, lineNumber, line, `detachLeavesOfType() inside onunload() is banned — Obsidian restores leaves automatically.`);
 		}
 
-		// Ribbon/command labels must not include the plugin name.
+		// Ribbon labels normally omit the name; Eric explicitly requested this launcher label.
 		const ribbonMatch = line.match(/addRibbonIcon\([^,]+,\s*(['"`])([^'"`]+)\1/);
-		if (ribbonMatch && /\beditorialist\b/i.test(ribbonMatch[2])) {
+		if (ribbonMatch && ribbonMatch[2] !== "Open editorialist side-panel" && /\beditorialist\b/i.test(ribbonMatch[2])) {
 			failLine(file, lineNumber, line, `Ribbon label "${ribbonMatch[2]}" must not include the plugin name. Obsidian adds it automatically.`);
 		}
 

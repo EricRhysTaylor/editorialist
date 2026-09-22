@@ -440,7 +440,7 @@ export default class EditorialistPlugin extends Plugin {
 		// One ribbon for the single Ed panel. Editorialism mode is reached by the
 		// in-panel swatch toggle or the "Toggle editorialism mode" command — no
 		// second icon, no second tab.
-		this.addRibbonIcon(EDITORIALIST_ICON_ID, "Open panel", () => {
+		this.addRibbonIcon(EDITORIALIST_ICON_ID, "Open editorialist side-panel", () => {
 			void this.openReviewPanel();
 		});
 		registerCommands(this);
@@ -883,22 +883,22 @@ export default class EditorialistPlugin extends Plugin {
 		await this.openReviewPanel();
 	}
 
-	// The swatch mode switcher: a small menu of the three panel modes, the
+	// The swatch mode switcher: a small menu of the four panel modes, the
 	// current one checked. Direct selection (no blind cycling) and it swaps the
 	// single Ed leaf in place. Each mode also has its own command.
 	showPanelModeMenu(event: MouseEvent, currentViewType: string): void {
-		const modes: Array<{ type: string; label: string; icon: string }> = [
-			{ type: REVISION_PLAN_VIEW_TYPE, label: "Revision plan", icon: "calendar-check" },
-			{ type: REVIEW_PANEL_VIEW_TYPE, label: "Review", icon: "messages-square" },
-			{ type: PENDING_EDITS_PANEL_VIEW_TYPE, label: "Pending edits", icon: "clipboard-list" },
-			{ type: EDITORIALISM_PANEL_VIEW_TYPE, label: "Editorialisms", icon: "list-checks" },
+		const modes: Array<{ type: string; label: string }> = [
+			{ type: REVISION_PLAN_VIEW_TYPE, label: "Revision plan" },
+			{ type: REVIEW_PANEL_VIEW_TYPE, label: "Review" },
+			{ type: PENDING_EDITS_PANEL_VIEW_TYPE, label: "Pending edits" },
+			{ type: EDITORIALISM_PANEL_VIEW_TYPE, label: "Editorialisms" },
 		];
 		const menu = new Menu();
 		for (const mode of modes) {
 			menu.addItem((item) => {
 				item
 					.setTitle(mode.label)
-					.setIcon(mode.icon)
+					.setIcon(EDITORIALIST_ICON_ID)
 					.setChecked(mode.type === currentViewType)
 					.onClick(() => {
 						if (mode.type !== currentViewType) {

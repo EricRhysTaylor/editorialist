@@ -56,6 +56,8 @@ of these is a build failure.
 - Ribbon icon labels, command names, and setting headings **must not** contain
   the plugin name. Obsidian adds the plugin name automatically, so including
   it produces "Editorialist: Editorialist Begin" style duplication.
+  Exception: the ribbon launcher reads "Open editorialist side-panel", explicitly
+  requested by Eric so its hover label identifies the panel it opens.
 - Command names should be descriptive verbs, not placeholders like
   "Begin" or "Start". They appear in the command palette alongside hundreds
   of other commands.
