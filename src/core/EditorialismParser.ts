@@ -1,12 +1,16 @@
-import type {
-	Editorialism,
-	EditorialismAnchor,
-	EditorialismItemEffort,
-	EditorialismItem,
-	EditorialismItemScope,
-	EditorialismItemStatus,
-	EditorialismSection,
+import {
+	EDITORIALISM_REVIEWER_KEY,
+	EDITORIALISM_REVIEWER_TYPE_KEY,
+	EDITORIALISM_SOURCE_KEY,
+	type Editorialism,
+	type EditorialismAnchor,
+	type EditorialismItem,
+	type EditorialismItemEffort,
+	type EditorialismItemScope,
+	type EditorialismItemStatus,
+	type EditorialismSection,
 } from "../models/Editorialism";
+import { normalizeReviewerType } from "./ContributorIdentity";
 
 const TASK_LINE_PATTERN = /^\s*-\s\[(.)\]\s+(.*)$/;
 const INDENT_PATTERN = /^[ \t]*/;
@@ -462,12 +466,19 @@ export function parseEditorialism(filePath: string, contents: string): Editorial
 	const baseName = filePath.split("/").pop()?.replace(/\.md$/i, "") ?? "Untitled";
 	const title = (frontmatter.title?.trim()) || titleFromHeading || baseName;
 
+	const rawReviewerType = frontmatter[EDITORIALISM_REVIEWER_TYPE_KEY]?.trim();
 	return {
 		filePath,
 		title,
 		book: frontmatter.book?.trim() || null,
 		status: frontmatter.status?.trim() || null,
 		created: frontmatter.created?.trim() || null,
+		reviewer: frontmatter[EDITORIALISM_REVIEWER_KEY]?.trim() || null,
+		// Normalized so the panel can label the role; null when absent rather
+		// than defaulting to author, because an unattributed agenda is unknown,
+		// not the author's.
+		reviewerType: rawReviewerType ? normalizeReviewerType(rawReviewerType) : null,
+		source: frontmatter[EDITORIALISM_SOURCE_KEY]?.trim() || null,
 		sections,
 	};
 }

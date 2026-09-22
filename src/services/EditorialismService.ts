@@ -17,6 +17,9 @@ export const EDITORIALISM_FOLDER_NAME = "Editorialist";
 export interface SaveEditorialismResult {
 	filePath: string;
 	created: boolean;
+	// True when the title path held a different reviewer's agenda and this one
+	// was saved beside it under a reviewer-suffixed name instead.
+	keptApart: boolean;
 }
 
 // Reduce a frontmatter value (book / title) to a single safe path segment:
@@ -97,10 +100,17 @@ export class EditorialismService {
 	// Folders are created as needed. The path is deterministic from book+title,
 	// so re-saving an updated version of the same agenda overwrites in place —
 	// matching the "save over the prior version, same path" workflow.
+	//
+	// Two reviewers can both deliver "Developmental review". Overwriting the
+	// first with the second would lose an editor's agenda, so when the file at
+	// the title path names a different reviewer, the new one is saved beside it
+	// as `<Title> (<Reviewer>).md` instead. Same reviewer, or neither named,
+	// is treated as the deliberate update it always was.
 	async saveEditorialismFile(file: {
 		content: string;
 		title: string;
 		book: string | null;
+		reviewer?: string | null;
 	}): Promise<SaveEditorialismResult> {
 		const folderSegments = [EDITORIALISM_FOLDER_NAME];
 		const bookSegment = file.book ? sanitizePathSegment(file.book) : "";
@@ -110,12 +120,28 @@ export class EditorialismService {
 		const folderPath = normalizePath(folderSegments.join("/"));
 		await this.ensureFolderExists(folderPath);
 
-		const fileName = `${sanitizePathSegment(file.title) || "Editorialism"}.md`;
-		const filePath = normalizePath(`${folderPath}/${fileName}`);
+		const titleSegment = sanitizePathSegment(file.title) || "Editorialism";
 		const body = file.content.endsWith("\n") ? file.content : `${file.content}\n`;
+		const incomingReviewer = file.reviewer?.trim() || null;
 
-		const existing = this.app.vault.getAbstractFileByPath(filePath);
-		if (existing instanceof TFile) {
+		const titlePath = normalizePath(`${folderPath}/${titleSegment}.md`);
+		const atTitle = this.app.vault.getAbstractFileByPath(titlePath);
+		let filePath = titlePath;
+		let existing: TFile | null = atTitle instanceof TFile ? atTitle : null;
+		let keptApart = false;
+
+		if (existing && (await this.isDifferentReviewersAgenda(existing, incomingReviewer))) {
+			const reviewerSegment = sanitizePathSegment(incomingReviewer ?? "") || "unattributed";
+			filePath = normalizePath(`${folderPath}/${titleSegment} (${reviewerSegment}).md`);
+			const atReviewerPath = this.app.vault.getAbstractFileByPath(filePath);
+			existing = atReviewerPath instanceof TFile ? atReviewerPath : null;
+			if (existing && (await this.isDifferentReviewersAgenda(existing, incomingReviewer))) {
+				throw new Error(`Another reviewer's agenda already lives at ${filePath}; rename the title and save again.`);
+			}
+			keptApart = true;
+		}
+
+		if (existing) {
 			// Manuscript safety, mirroring CutArchiveService.backup: the path here is
 			// derived from a user-supplied title, so a collision could resolve onto a
 			// real scene note — and `modify` overwrites the whole file. Refuse rather
@@ -124,10 +150,22 @@ export class EditorialismService {
 				throw new Error(`Editorialism path resolves to a scene note: ${filePath}`);
 			}
 			await this.app.vault.modify(existing, body);
-			return { filePath, created: false };
+			return { filePath, created: false, keptApart };
 		}
 		await this.app.vault.create(filePath, body);
-		return { filePath, created: true };
+		return { filePath, created: true, keptApart };
+	}
+
+	// True when `existing` is an editorialism whose reviewer differs from the
+	// incoming one. Both unnamed counts as the same agenda (legacy files); a
+	// non-editorialism at the path is left to the scene guard.
+	private async isDifferentReviewersAgenda(existing: TFile, incomingReviewer: string | null): Promise<boolean> {
+		const current = await this.tryLoad(existing);
+		if (!current) {
+			return false;
+		}
+		const normalize = (value: string | null): string => (value ?? "").trim().toLowerCase();
+		return normalize(current.reviewer) !== normalize(incomingReviewer);
 	}
 
 	private async ensureFolderExists(folderPath: string): Promise<void> {
@@ -208,6 +246,9 @@ export class EditorialismService {
 			title: editorialism.title,
 			book: editorialism.book,
 			status: editorialism.status,
+			reviewer: editorialism.reviewer,
+			reviewerType: editorialism.reviewerType,
+			source: editorialism.source,
 			totalItems: total,
 			doneItems: done,
 			mtime,

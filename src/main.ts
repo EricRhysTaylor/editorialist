@@ -859,6 +859,20 @@ export default class EditorialistPlugin extends Plugin {
 			return false;
 		}
 		const result = await this.editorialismService.saveEditorialismFile(extracted);
+		if (result.keptApart) {
+			new Notice(`A different reviewer's “${extracted.title}” already exists — saved this one beside it.`);
+		}
+		// The agenda's reviewer joins the contributor directory like a batch
+		// reviewer would, so a developmental editor whose work arrives as a
+		// checklist still has a profile. Directives carry no accept/reject, so
+		// nothing here touches stats — identity only.
+		if (extracted.reviewer) {
+			this.reviewerDirectory.resolveContributor({
+				rawName: extracted.reviewer,
+				rawType: extracted.reviewerType ?? undefined,
+			});
+			await this.persistContributorProfilesIfNeeded();
+		}
 		new Notice(
 			`${result.created ? "Saved" : "Updated"} editorialism “${extracted.title}” at ${result.filePath}.`,
 		);

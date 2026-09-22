@@ -41,6 +41,9 @@ function editorialism(items: EditorialismItem[], heading = "Grief"): Editorialis
 		book: "Book",
 		status: "in-progress",
 		created: "2026-06-10",
+		reviewer: null,
+		reviewerType: null,
+		source: null,
 		sections: [{ heading, items }],
 	};
 }

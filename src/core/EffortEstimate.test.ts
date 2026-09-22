@@ -29,6 +29,9 @@ function doc(items: EditorialismItem[]): Editorialism {
 		book: null,
 		status: null,
 		created: null,
+		reviewer: null,
+		reviewerType: null,
+		source: null,
 		sections: [{ heading: "S", items }],
 	};
 }

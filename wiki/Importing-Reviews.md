@@ -138,6 +138,9 @@ For structural work — scene-range directives, manuscript-wide design intent, a
 type: editorialism
 title: <Short, descriptive title>
 book: <Active book name — must match the book label exactly>
+reviewer: <Who the notes are from>
+reviewer_type: <developmental-editor | editor | line-editor | copy-editor | agent | beta-reader | ai-editor>
+source: <Optional [[wiki link]] to the letter this was distilled from>
 status: in-progress
 created: 2026-06-10
 ---
@@ -160,6 +163,11 @@ Paste the reply into the review launcher: when it contains an editorialism file,
 **Required:**
 - Frontmatter `type: editorialism` — files without this are ignored.
 - `book:` must match the active book label exactly.
+
+**Attribution (recommended):**
+- `reviewer:` — whose directives these are. The panel shows the name beside the title, and saving through the launcher adds them to the contributor directory (identity only, no stats).
+- `reviewer_type:` — the same role vocabulary as a review batch's `ReviewerType:`.
+- `source:` — optional wiki link to the letter or document the agenda came from.
 
 **Inline metadata per item:**
 - `[scope:: <value>]` (recommended): `manuscript` (whole book), a scene number (`22`), a range (`13–22`, en-dash or hyphen), or `subplot:<name>`.

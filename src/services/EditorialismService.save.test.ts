@@ -43,6 +43,10 @@ class FakeVault {
 	async modify(file: TFile, data: string): Promise<void> {
 		this.contents.set(file.path, data);
 	}
+
+	async cachedRead(file: TFile): Promise<string> {
+		return this.contents.get(file.path) ?? "";
+	}
 }
 
 function makeService(): {
@@ -147,5 +151,71 @@ describe("EditorialismService.saveEditorialismFile", () => {
 		const second = await service.saveEditorialismFile({ content: "v2", title: "Act 2", book: "Book One" });
 		expect(second.created).toBe(false);
 		expect(vault.contents.get(first.filePath)).toContain("v2");
+	});
+});
+
+describe("EditorialismService.saveEditorialismFile — two reviewers, one title", () => {
+	const agenda = (reviewer: string | null, body: string) => ({
+		content: [
+			"---",
+			"type: editorialism",
+			"title: Developmental review",
+			"book: Book One",
+			...(reviewer ? [`reviewer: ${reviewer}`] : []),
+			"---",
+			body,
+		].join("\n"),
+		title: "Developmental review",
+		book: "Book One",
+		reviewer,
+	});
+
+	it("saves a different reviewer's agenda beside the first instead of overwriting it", async () => {
+		const { service, vault } = makeService();
+		const first = await service.saveEditorialismFile(agenda("Marla Quist", "Marla's notes"));
+		const second = await service.saveEditorialismFile(agenda("Theo Brandt", "Theo's notes"));
+
+		expect(first.keptApart).toBe(false);
+		expect(second.keptApart).toBe(true);
+		expect(second.created).toBe(true);
+		expect(second.filePath).toBe("Editorialist/Book One/Developmental review (Theo Brandt).md");
+		expect(vault.contents.get(first.filePath)).toContain("Marla's notes");
+		expect(vault.contents.get(second.filePath)).toContain("Theo's notes");
+	});
+
+	it("still updates in place when the same reviewer re-saves", async () => {
+		const { service, vault } = makeService();
+		const first = await service.saveEditorialismFile(agenda("Marla Quist", "v1"));
+		const second = await service.saveEditorialismFile(agenda("marla quist", "v2"));
+		expect(second.filePath).toBe(first.filePath);
+		expect(second.keptApart).toBe(false);
+		expect(vault.contents.get(first.filePath)).toContain("v2");
+	});
+
+	it("treats two unattributed saves as the same agenda, as before", async () => {
+		const { service } = makeService();
+		const first = await service.saveEditorialismFile(agenda(null, "v1"));
+		const second = await service.saveEditorialismFile(agenda(null, "v2"));
+		expect(second.filePath).toBe(first.filePath);
+		expect(second.keptApart).toBe(false);
+	});
+
+	it("keeps re-saves from the second reviewer on their own file", async () => {
+		const { service, vault } = makeService();
+		await service.saveEditorialismFile(agenda("Marla Quist", "Marla"));
+		const theo1 = await service.saveEditorialismFile(agenda("Theo Brandt", "Theo v1"));
+		const theo2 = await service.saveEditorialismFile(agenda("Theo Brandt", "Theo v2"));
+		expect(theo2.filePath).toBe(theo1.filePath);
+		expect(theo2.created).toBe(false);
+		expect(vault.contents.get(theo1.filePath)).toContain("Theo v2");
+	});
+
+	it("refuses when both the title path and the reviewer path belong to other reviewers", async () => {
+		const { service, vault } = makeService();
+		await service.saveEditorialismFile(agenda("Marla Quist", "Marla"));
+		// Someone hand-saved a third reviewer's file at Theo's would-be path.
+		await vault.create("Editorialist/Book One/Developmental review (Theo Brandt).md",
+			"---\ntype: editorialism\ntitle: Developmental review\nreviewer: Someone Else\n---\nx");
+		await expect(service.saveEditorialismFile(agenda("Theo Brandt", "Theo"))).rejects.toThrow(/Another reviewer/);
 	});
 });

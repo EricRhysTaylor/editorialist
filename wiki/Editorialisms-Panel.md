@@ -18,10 +18,17 @@ Editorialism files live under `Editorialist/<Book>/<Title>.md` and are recognize
 type: editorialism
 title: Middle-act compression
 book: <must match the active book label exactly>
+reviewer: Marla Quist
+reviewer_type: developmental-editor
+source: "[[Marla — editorial letter, June 2026]]"
 status: in-progress
 created: 2026-06-10
 ---
 ```
+
+`reviewer:` and `reviewer_type:` say whose agenda this is, and the panel shows them beside the title. Saving a file through the launcher also adds that reviewer to the [contributor directory](Settings-Reference#contributors-tab), identity only — directives have no accept or reject, so no stats are recorded for them. `source:` is an optional link to a note that already exists in your vault holding the letter or document the agenda was distilled from; the panel renders it as a clickable chip. Editorialist does not save the letter for you. All three fields are optional, and an agenda without them is shown unattributed rather than given a guessed author.
+
+When a second reviewer delivers an agenda with the same `title:` as one already saved, the launcher keeps them apart: the new file is saved as `<Title> (<Reviewer>).md` instead of overwriting the first. Re-saving from the same reviewer, or with neither file naming a reviewer, updates in place as before.
 
 Files without `type: editorialism` are ignored. The full file format — section headings, task items, `[scope:: …]` and `[tags:: …]` metadata — is documented in [Importing Reviews § Format B](Importing-Reviews#format-b--the-editorialism-file). Reviewers (human or AI) can produce these files directly; the launcher's template includes the format.
 

@@ -11,7 +11,11 @@
 //      code fences on copy, so the unfenced path keeps the feature working —
 //      the trade-off is that trailing chat commentary after the file can be
 //      swept in, which the author trims after the file is created.
-import { EDITORIALISM_TYPE_VALUE } from "../models/Editorialism";
+import {
+	EDITORIALISM_REVIEWER_KEY,
+	EDITORIALISM_REVIEWER_TYPE_KEY,
+	EDITORIALISM_TYPE_VALUE,
+} from "../models/Editorialism";
 
 export const EDITORIALISM_FENCE = "editorialism";
 
@@ -22,6 +26,10 @@ export interface ExtractedEditorialismFile {
 	title: string;
 	/** Frontmatter `book:` (trimmed) or null when unset. */
 	book: string | null;
+	/** Frontmatter `reviewer:` as written, or null. */
+	reviewer: string | null;
+	/** Frontmatter `reviewer_type:` as written (not yet normalized), or null. */
+	reviewerType: string | null;
 }
 
 const FRONTMATTER_FENCE = "---";
@@ -126,5 +134,11 @@ export function extractEditorialismFileFromText(rawText: string): ExtractedEdito
 
 	const title = frontmatter.title?.trim() || deriveTitleFromBody(trimmed) || "Editorialism";
 	const book = frontmatter.book?.trim() || null;
-	return { content: trimmed, title, book };
+	return {
+		content: trimmed,
+		title,
+		book,
+		reviewer: frontmatter[EDITORIALISM_REVIEWER_KEY]?.trim() || null,
+		reviewerType: frontmatter[EDITORIALISM_REVIEWER_TYPE_KEY]?.trim() || null,
+	};
 }

@@ -1,3 +1,5 @@
+import type { ReviewerType } from "./ContributorProfile";
+
 // Editorialism — a manuscript-level / subplot-level editorial agenda.
 // Lives as a markdown file under `Editorialist/<Book>/<Title>.md`.
 // The author's source of truth is the markdown; Editorialist parses + renders.
@@ -6,6 +8,12 @@
 // here, beside the shape it identifies, so core parsers and the service that
 // saves the files read the same word.
 export const EDITORIALISM_TYPE_VALUE = "editorialism";
+
+// Frontmatter keys for attribution, shared by the parser, the paste extractor
+// and the template so the spelling lives in one place.
+export const EDITORIALISM_REVIEWER_KEY = "reviewer";
+export const EDITORIALISM_REVIEWER_TYPE_KEY = "reviewer_type";
+export const EDITORIALISM_SOURCE_KEY = "source";
 
 export type EditorialismItemStatus =
 	| "open"
@@ -88,7 +96,17 @@ export interface EditorialismSection {
 	items: EditorialismItem[];
 }
 
-export interface Editorialism {
+// Who the agenda came from, mirroring a review batch's Reviewer / ReviewerType
+// header. `reviewerType` is the normalized role; `reviewer` is the display
+// name as written. `source` is the frontmatter value verbatim — usually a
+// wiki link to the editorial letter or document the agenda was distilled from.
+export interface EditorialismAttribution {
+	reviewer: string | null;
+	reviewerType: ReviewerType | null;
+	source: string | null;
+}
+
+export interface Editorialism extends EditorialismAttribution {
 	filePath: string;
 	title: string;
 	book: string | null;
@@ -97,7 +115,7 @@ export interface Editorialism {
 	sections: EditorialismSection[];
 }
 
-export interface EditorialismSummary {
+export interface EditorialismSummary extends EditorialismAttribution {
 	filePath: string;
 	title: string;
 	book: string | null;

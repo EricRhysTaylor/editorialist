@@ -400,3 +400,28 @@ describe("rewriteTaskMarker", () => {
 		expect(rewriteTaskMarker(md, 0, "done")).toBe(md);
 	});
 });
+
+describe("parseEditorialism — attribution", () => {
+	it("reads reviewer, normalizes reviewer_type, and keeps source verbatim", () => {
+		const result = parseEditorialism("Editorialist/Book/Agenda.md", [
+			"---",
+			"type: editorialism",
+			"title: Agenda",
+			"reviewer: Marla Quist",
+			"reviewer_type: Developmental Editor",
+			"source: [[Marla — editorial letter]]",
+			"---",
+			"- [ ] Item",
+		].join("\n"));
+		expect(result.reviewer).toBe("Marla Quist");
+		expect(result.reviewerType).toBe("developmental-editor");
+		expect(result.source).toBe("[[Marla — editorial letter]]");
+	});
+
+	it("leaves attribution null rather than defaulting an unattributed agenda to the author", () => {
+		const result = parseEditorialism("Editorialist/Book/Agenda.md", "---\ntype: editorialism\n---\n- [ ] Item");
+		expect(result.reviewer).toBeNull();
+		expect(result.reviewerType).toBeNull();
+		expect(result.source).toBeNull();
+	});
+});

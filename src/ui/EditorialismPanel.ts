@@ -2,19 +2,21 @@ import { ItemView, TFile, setIcon, type WorkspaceLeaf } from "obsidian";
 import type EditorialistPlugin from "../main";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
 import { formatEffortDuration } from "../core/EffortEstimate";
+import { formatReviewerTypeLabel } from "../core/ContributorIdentity";
+import {
+	isAnchorProcessed,
+	type Editorialism,
+	type EditorialismAnchor,
+	type EditorialismAttribution,
+	type EditorialismItem,
+	type EditorialismSummary,
+} from "../models/Editorialism";
 import { scopeRelatesToScene, type SceneRelevanceContext } from "../core/SceneRelevance";
 import {
 	STATUS_ICON,
 	STATUS_LABEL,
 	nextStatusInCycle,
 } from "./editorialism/EditorialismStatusPresentation";
-import {
-	isAnchorProcessed,
-	type Editorialism,
-	type EditorialismAnchor,
-	type EditorialismItem,
-	type EditorialismSummary,
-} from "../models/Editorialism";
 
 export const EDITORIALISM_PANEL_VIEW_TYPE = "editorialist-editorialism-panel";
 
@@ -173,6 +175,13 @@ export class EditorialismPanel extends ItemView {
 			meta.createSpan({
 				text: `${summary.doneItems} / ${summary.totalItems} done`,
 			});
+			const attribution = formatAttribution(summary);
+			if (attribution) {
+				meta.createSpan({
+					cls: "editorialist-editorialism-panel__list-reviewer",
+					text: attribution,
+				});
+			}
 			if (summary.status) {
 				meta.createSpan({
 					cls: "editorialist-editorialism-panel__list-status",
@@ -254,6 +263,27 @@ export class EditorialismPanel extends ItemView {
 			subtitle.createSpan({
 				cls: "editorialist-editorialism-panel__detail-meta-chip",
 				text: editorialism.status,
+			});
+		}
+		const attribution = formatAttribution(editorialism);
+		if (attribution) {
+			subtitle.createSpan({
+				cls: "editorialist-editorialism-panel__detail-meta-chip",
+				text: attribution,
+			});
+		}
+		const sourceTarget = editorialism.source ? extractLinkTarget(editorialism.source) : null;
+		if (editorialism.source) {
+			// The source is the editor's own wording, which matters most when a
+			// directive compresses several paragraphs into one line. It links an
+			// existing note; nothing is saved on the author's behalf.
+			const sourceChip = subtitle.createEl("button", {
+				cls: "editorialist-editorialism-panel__detail-meta-chip editorialist-editorialism-panel__detail-source",
+				text: `Source: ${sourceTarget ?? editorialism.source}`,
+				attr: { type: "button", "aria-label": "Open the source document" },
+			});
+			sourceChip.addEventListener("click", () => {
+				void this.app.workspace.openLinkText(sourceTarget ?? editorialism.source ?? "", editorialism.filePath);
 			});
 		}
 
@@ -538,4 +568,21 @@ export class EditorialismPanel extends ItemView {
 		}
 		return { total, done };
 	}
+}
+
+// "Marla Quist · Developmental editor", "Marla Quist", "Developmental editor",
+// or null when the agenda is unattributed — never a guessed author.
+function formatAttribution(attribution: EditorialismAttribution): string | null {
+	const role = attribution.reviewerType ? formatReviewerTypeLabel(attribution.reviewerType) : null;
+	if (attribution.reviewer && role) {
+		return `${attribution.reviewer} · ${role}`;
+	}
+	return attribution.reviewer ?? role;
+}
+
+// `[[Note]]`, `[[Note|Alias]]`, or a bare note name → the link target.
+function extractLinkTarget(value: string): string | null {
+	const match = value.match(/\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/);
+	const target = (match?.[1] ?? value).trim();
+	return target.length > 0 ? target : null;
 }

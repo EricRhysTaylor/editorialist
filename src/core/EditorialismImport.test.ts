@@ -79,3 +79,25 @@ describe("extractEditorialismFileFromText", () => {
 		expect(result?.title).toBe("Loose Notes");
 	});
 });
+
+describe("extractEditorialismFileFromText — attribution", () => {
+	it("carries reviewer and reviewer_type out of the frontmatter so the save path can register them", () => {
+		const extracted = extractEditorialismFileFromText([
+			"---",
+			"type: editorialism",
+			"title: Letter agenda",
+			"reviewer: Marla Quist",
+			"reviewer_type: developmental-editor",
+			"---",
+			"# Letter agenda",
+		].join("\n"));
+		expect(extracted?.reviewer).toBe("Marla Quist");
+		expect(extracted?.reviewerType).toBe("developmental-editor");
+	});
+
+	it("reports null attribution when the file has none", () => {
+		const extracted = extractEditorialismFileFromText(FILE_BODY);
+		expect(extracted?.reviewer).toBeNull();
+		expect(extracted?.reviewerType).toBeNull();
+	});
+});

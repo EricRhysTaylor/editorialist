@@ -181,3 +181,20 @@ describe("buildReviewTemplate — reviewer roles", () => {
 		expect(out).not.toContain("human-editor");
 	});
 });
+
+describe("buildReviewTemplate — editorialism attribution", () => {
+	const out = buildReviewTemplate("Plain prose.");
+
+	it("asks for reviewer, reviewer_type and source on the editorialism file", () => {
+		const fileTemplate = out.slice(out.indexOf("type: editorialism"));
+		expect(fileTemplate).toContain("reviewer:");
+		expect(fileTemplate).toContain("reviewer_type:");
+		expect(fileTemplate).toContain("source:");
+	});
+
+	it("tells an AI converting a human letter to name the human, not itself", () => {
+		expect(out).toContain("CONVERSION");
+		expect(out).toContain("human, not yourself");
+		expect(out).toContain("YOUR OWN READ");
+	});
+});
