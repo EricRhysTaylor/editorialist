@@ -162,6 +162,15 @@ describe("isReviewTemplateText", () => {
 	});
 });
 
+describe("buildReviewTemplate — memo-only batches", () => {
+	const out = buildReviewTemplate("Plain prose.");
+
+	it("tells the reviewer a memo-only batch is a valid shape for an editorial letter", () => {
+		expect(out).toContain("A batch may be MEMOs only");
+		expect(out).toContain("editorial letter");
+	});
+});
+
 describe("buildReviewTemplate — reviewer roles", () => {
 	const out = buildReviewTemplate("Plain prose.");
 

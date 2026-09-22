@@ -382,3 +382,152 @@ describe("ImportEngine — payloads containing a code fence", () => {
 		expect(cleaned.text).toContain("She loses her exultant feeling quickly");
 	});
 });
+
+describe("ImportEngine — memo-only batches and memos on scenes without edits", () => {
+	const sceneA = "Book/Scenes/Scene A.md";
+	const sceneB = "Book/Scenes/Scene B.md";
+	const scenes = () =>
+		createMockApp([
+			{ path: sceneA, body: "Alpha sentence one.", frontmatter: { Class: "Scene", id: "scn_aaaa" } },
+			{ path: sceneB, body: "Beta sentence one.", frontmatter: { Class: "Scene", id: "scn_bbbb" } },
+		]);
+	const header = ["Reviewer: Marla Quist", "ReviewerType: developmental-editor", ""];
+
+	it("imports a memo-only batch, one scene-scoped memo per scene, with the reviewer on each block", async () => {
+		const app = scenes();
+		const engine = createImportEngine(app);
+		const paste = [
+			...header,
+			"=== MEMO ===",
+			"SceneId: scn_aaaa",
+			"Issues: The opening promises a mystery the scene never returns to.",
+			"",
+			"=== MEMO ===",
+			"SceneId: scn_bbbb",
+			"Strengths: The reversal lands.",
+		].join("\n");
+
+		const batch = await engine.inspectBatch(paste);
+		expect(batch.summary.totalSuggestions).toBe(0);
+		expect(batch.summary.totalMemos).toBe(2);
+		expect(batch.summary.totalRoutedMemos).toBe(2);
+		expect(batch.unroutedMemos).toHaveLength(0);
+		expect(batch.groups.map((group) => group.filePath).sort()).toEqual([sceneA, sceneB]);
+		for (const group of batch.groups) {
+			expect(group.isReady).toBe(true);
+			expect(group.suggestions).toHaveLength(0);
+			expect(group.memos).toHaveLength(1);
+		}
+
+		const imported = await engine.importBatch(batch);
+		expect(imported).toHaveLength(2);
+		const writtenA = app.peek(sceneA);
+		expect(writtenA).toContain("Reviewer: Marla Quist");
+		expect(writtenA).toContain("ReviewerType: developmental-editor");
+		expect(writtenA).toContain("Issues: The opening promises a mystery the scene never returns to.");
+		expect(writtenA).not.toContain("The reversal lands.");
+		expect(app.peek(sceneB)).toContain("Strengths: The reversal lands.");
+	});
+
+	it("gives a scene-scoped memo its own group when that scene received no edits", async () => {
+		const engine = createImportEngine(scenes());
+		const paste = [
+			...header,
+			"=== MEMO ===",
+			"SceneId: scn_bbbb",
+			"Issues: Beta needs a stronger exit.",
+			"",
+			"=== EDIT ===",
+			"SceneId: scn_aaaa",
+			"Original: Alpha sentence one.",
+			"Revised: Alpha sentence first.",
+		].join("\n");
+
+		const batch = await engine.inspectBatch(paste);
+		const groupB = batch.groups.find((group) => group.filePath === sceneB);
+		expect(groupB).toBeDefined();
+		expect(groupB!.suggestions).toHaveLength(0);
+		expect(groupB!.memos[0]!.issues).toContain("stronger exit");
+		expect(groupB!.isReady).toBe(true);
+		expect(batch.groups.find((group) => group.filePath === sceneA)?.memos).toHaveLength(0);
+	});
+
+	it("duplicates an unscoped memo into a memo-only group as well as the edit groups", async () => {
+		const engine = createImportEngine(scenes());
+		const paste = [
+			...header,
+			"=== MEMO ===",
+			"Issues: Whole-book pacing note.",
+			"",
+			"=== MEMO ===",
+			"SceneId: scn_bbbb",
+			"Issues: Beta-only note.",
+			"",
+			"=== EDIT ===",
+			"SceneId: scn_aaaa",
+			"Original: Alpha sentence one.",
+			"Revised: Alpha sentence first.",
+		].join("\n");
+
+		const batch = await engine.inspectBatch(paste);
+		const issuesFor = (path: string) => batch.groups.find((group) => group.filePath === path)!.memos.map((memo) => memo.issues);
+		expect(issuesFor(sceneA)).toEqual(["Whole-book pacing note."]);
+		expect(issuesFor(sceneB).sort()).toEqual(["Beta-only note.", "Whole-book pacing note."]);
+		expect(batch.summary.totalRoutedMemos).toBe(2);
+	});
+
+	it("routes an unscoped memo-only batch to the active scene", async () => {
+		const app = scenes();
+		const engine = createImportEngine(app);
+		const paste = [...header, "=== MEMO ===", "Strengths: The voice is sure of itself throughout."].join("\n");
+
+		const batch = await engine.inspectBatch(paste, { activeNotePath: sceneB });
+		expect(batch.groups).toHaveLength(1);
+		expect(batch.groups[0]!.filePath).toBe(sceneB);
+		expect(batch.groups[0]!.sceneId).toBe("scn_bbbb");
+		expect(batch.summary.totalRoutedMemos).toBe(1);
+
+		await engine.importBatch(batch);
+		expect(app.peek(sceneB)).toContain("Strengths: The voice is sure of itself throughout.");
+		expect(app.peek(sceneA)).not.toContain("=== MEMO ===");
+	});
+
+	it("reports an unscoped memo-only batch as unrouted when no scene is open", async () => {
+		const engine = createImportEngine(scenes());
+		const paste = [...header, "=== MEMO ===", "Strengths: Unplaceable praise."].join("\n");
+
+		const batch = await engine.inspectBatch(paste);
+		expect(batch.groups).toHaveLength(0);
+		expect(batch.summary.totalMemos).toBe(1);
+		expect(batch.summary.totalRoutedMemos).toBe(0);
+		expect(batch.unroutedMemos).toHaveLength(1);
+		expect(batch.unroutedMemos[0]!.reason).toMatch(/no scene/i);
+	});
+
+	it("lists a memo with an unmatched SceneId as not imported instead of dropping it", async () => {
+		const app = scenes();
+		const engine = createImportEngine(app);
+		const paste = [
+			...header,
+			"=== MEMO ===",
+			"SceneId: scn_invented",
+			"Issues: Stale id from the chat thread.",
+			"",
+			"=== EDIT ===",
+			"SceneId: scn_aaaa",
+			"Original: Alpha sentence one.",
+			"Revised: Alpha sentence first.",
+		].join("\n");
+
+		const batch = await engine.inspectBatch(paste, { activeNotePath: sceneA });
+		expect(batch.groups).toHaveLength(1);
+		expect(batch.groups[0]!.memos).toHaveLength(0);
+		expect(batch.unroutedMemos).toHaveLength(1);
+		expect(batch.unroutedMemos[0]!.memo.routing?.sceneId).toBe("scn_invented");
+		expect(batch.unroutedMemos[0]!.reason).toContain("scn_invented");
+		expect(batch.summary.totalRoutedMemos).toBe(0);
+
+		await engine.importBatch(batch);
+		expect(app.peek(sceneA)).not.toContain("Stale id from the chat thread.");
+	});
+});

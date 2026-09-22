@@ -7,7 +7,12 @@ import {
 	SUPPORTED_REVIEW_OPERATION_SUMMARY,
 	isReviewTemplateText,
 } from "../core/ReviewTemplate";
-import type { ReviewImportBatch, ReviewImportSuggestionResult } from "../models/ReviewImport";
+import {
+	hasImportableEntries,
+	type ReviewImportBatch,
+	type ReviewImportNoteGroup,
+	type ReviewImportSuggestionResult,
+} from "../models/ReviewImport";
 
 export interface ClipboardReviewBatch {
 	batch: ReviewImportBatch;
@@ -406,7 +411,7 @@ export class EditorialistModal extends Modal {
 		const sceneNoun = matched === 1 ? "scene" : "scenes";
 		banner.createSpan({
 			cls: "editorialist-control-modal__validation-ok-text",
-			text: `${batch.summary.totalSuggestions} suggestion${batch.summary.totalSuggestions === 1 ? "" : "s"} ready · ${matched} matched ${sceneNoun}`,
+			text: `${this.describeBatchEntries(batch)} ready · ${matched} matched ${sceneNoun}`,
 		});
 	}
 
@@ -505,7 +510,7 @@ export class EditorialistModal extends Modal {
 		const destinationPlural = this.getDestinationNounPlural(batch);
 		const summary = parent.createDiv({ cls: "editorialist-control-modal__summary" });
 		summary.createDiv({
-			text: `${batch.summary.totalMatchedScenes} matched ${destinationPlural} • ${batch.summary.totalSuggestions} formatted revision notes • ${batch.summary.totalUnresolvedScenes} unresolved ${destinationPlural} • ${batch.summary.totalMismatches} mismatches`,
+			text: `${batch.summary.totalMatchedScenes} matched ${destinationPlural} • ${this.describeBatchEntries(batch)} • ${batch.summary.totalUnresolvedScenes} unresolved ${destinationPlural} • ${batch.summary.totalMismatches} mismatches`,
 		});
 		summary.createDiv({
 			text: `${batch.summary.totalResolvedScenes} ready • ${batch.summary.totalExactMatches} exact • ${batch.summary.totalAdvisoryOnly} advisory • ${batch.summary.totalUnresolvedMatches} need attention`,
@@ -520,10 +525,7 @@ export class EditorialistModal extends Modal {
 			});
 			card.createDiv({
 				cls: "editorialist-control-modal__group-meta",
-				text:
-					group.inferredCount > 0 && group.declaredCount === 0 && group.exactInferredCount === group.suggestions.length
-						? `${group.exactInferredCount} exact match${group.exactInferredCount === 1 ? "" : "es"}`
-						: `${group.suggestions.length} formatted revision notes • ${group.exactCount} exact • ${group.advisoryCount} advisory • ${group.mismatchCount} mismatched • ${group.unresolvedCount} unresolved`,
+				text: this.describeGroupMeta(group),
 			});
 			card.createDiv({
 				cls: "editorialist-control-modal__group-path",
@@ -539,7 +541,7 @@ export class EditorialistModal extends Modal {
 		}
 
 		const unresolved = batch.results.filter((result) => !result.resolvedPath);
-		if (unresolved.length === 0) {
+		if (unresolved.length === 0 && batch.unroutedMemos.length === 0) {
 			return;
 		}
 
@@ -554,6 +556,38 @@ export class EditorialistModal extends Modal {
 				text: `${result.suggestion.routing?.sceneId ?? result.suggestion.id} • ${this.getRouteSourceLabel(result.routeStrategy)} • ${result.routeReason}`,
 			});
 		}
+		// A memo with nowhere to go is not imported. Name it here so an editorial
+		// letter's paragraph never disappears without the author seeing why.
+		for (const { memo, reason } of batch.unroutedMemos) {
+			unresolvedCard.createDiv({
+				cls: "editorialist-control-modal__item",
+				text: `${memo.routing?.sceneId ?? memo.id} • Memo not imported • ${reason}`,
+			});
+		}
+	}
+
+	private describeBatchEntries(batch: ReviewImportBatch): string {
+		const suggestions = batch.summary.totalSuggestions;
+		const memos = batch.summary.totalRoutedMemos;
+		const parts: string[] = [];
+		if (suggestions > 0 || memos === 0) {
+			parts.push(`${suggestions} suggestion${suggestions === 1 ? "" : "s"}`);
+		}
+		if (memos > 0) {
+			parts.push(`${memos} memo${memos === 1 ? "" : "s"}`);
+		}
+		return parts.join(" and ");
+	}
+
+	private describeGroupMeta(group: ReviewImportNoteGroup): string {
+		if (group.suggestions.length === 0) {
+			return `${group.memos.length} memo${group.memos.length === 1 ? "" : "s"} • no line edits`;
+		}
+		if (group.inferredCount > 0 && group.declaredCount === 0 && group.exactInferredCount === group.suggestions.length) {
+			return `${group.exactInferredCount} exact match${group.exactInferredCount === 1 ? "" : "es"}`;
+		}
+		const memoSuffix = group.memos.length > 0 ? ` • ${group.memos.length} memo${group.memos.length === 1 ? "" : "s"}` : "";
+		return `${group.suggestions.length} formatted revision notes • ${group.exactCount} exact • ${group.advisoryCount} advisory • ${group.mismatchCount} mismatched • ${group.unresolvedCount} unresolved${memoSuffix}`;
 	}
 
 	private renderExample(parent: HTMLElement): void {
@@ -823,14 +857,36 @@ export class EditorialistModal extends Modal {
 	}
 
 	private diagnoseManualBatch(batch: ReviewImportBatch): ManualImportError | null {
-		if (batch.summary.totalSuggestions === 0) {
+		if (batch.summary.totalSuggestions === 0 && batch.summary.totalMemos === 0) {
 			return {
 				headline: "No formatted revision notes detected",
 				details: [
 					"Editorialist looks for `=== EDIT ===`, `=== MEMO ===`, `=== CUT ===`, `=== CONDENSE ===`, `=== EXPAND ===`, or `=== MOVE ===` section markers.",
-					"The paste needs a metadata header (Template:, Reviewer:, etc.) followed by at least one operation block.",
+					"The paste needs a metadata header (Template:, Reviewer:, etc.) followed by at least one section block.",
 				],
 				hint: "Click 'Copy formatting instructions' below to see the expected shape, then run it through your AI again.",
+			};
+		}
+
+		// Memo-only batch (an editorial letter, no line edits) whose memos found
+		// no scene: either their SceneIds matched nothing, or they carried no
+		// SceneId and no scene was open to receive them.
+		if (!hasImportableEntries(batch.summary)) {
+			const memoCount = batch.summary.totalMemos;
+			const unmatchedIds = [...new Set(
+				batch.unroutedMemos.map(({ memo }) => memo.routing?.sceneId?.trim()).filter((id): id is string => Boolean(id)),
+			)].slice(0, 3);
+			const details: string[] = [];
+			if (unmatchedIds.length > 0) {
+				details.push(`Unmatched SceneId ${unmatchedIds.length === 1 ? "id" : "ids"}: ${unmatchedIds.join(", ")}.`);
+				details.push("These ids don't exist in the active book. Most likely the AI invented them.");
+			} else {
+				details.push("The memos carry no SceneId, so they attach to the scene you are viewing — and no scene in the active book is open.");
+			}
+			return {
+				headline: `${memoCount} memo${memoCount === 1 ? "" : "s"} parsed, but none could be placed`,
+				details,
+				hint: "Open the scene the notes are about, then import again — or have the AI add real SceneIds from 'Copy formatting instructions'.",
 			};
 		}
 

@@ -26,12 +26,13 @@ import type { BatchDecisionStats } from "../services/ReviewRegistryService";
 import { buildDuplicateImportPrompt } from "../core/review/DuplicateImportPrompt";
 import type { ClipboardReviewBatch } from "../ui/EditorialistModal";
 import type { ImportEngine } from "../core/ImportEngine";
-import type {
-	CompletedSweepState,
-	ReviewImportBatch,
-	ReviewImportNoteGroup,
-	ReviewSweepRegistryEntry,
-	ReviewSweepStatus,
+import {
+	hasImportableEntries,
+	type CompletedSweepState,
+	type ReviewImportBatch,
+	type ReviewImportNoteGroup,
+	type ReviewSweepRegistryEntry,
+	type ReviewSweepStatus,
 } from "../models/ReviewImport";
 import type { GuidedSweepState } from "../state/ReviewStore";
 
@@ -129,7 +130,7 @@ export class ReviewBatchProcessor {
 				activeNotePath: context?.filePath,
 			});
 			await this.host.persistContributorProfilesIfNeeded();
-			if (batch.summary.totalSuggestions === 0) {
+			if (!hasImportableEntries(batch.summary)) {
 				return null;
 			}
 
@@ -157,7 +158,7 @@ export class ReviewBatchProcessor {
 
 		if (!startReview) {
 			new Notice(
-				`Imported ${importedGroups.reduce((count, group) => count + group.suggestions.length, 0)} suggestions into ${importedGroups.length} note${importedGroups.length === 1 ? "" : "s"}.`,
+				`Imported ${describeImportedEntries(importedGroups)} into ${importedGroups.length} note${importedGroups.length === 1 ? "" : "s"}.`,
 			);
 		}
 
@@ -237,7 +238,7 @@ export class ReviewBatchProcessor {
 		}
 
 		const batch = await this.inspectReviewBatch(rawBlockText, { activeNotePath: context.filePath });
-		if (batch.summary.totalSuggestions === 0) {
+		if (!hasImportableEntries(batch.summary)) {
 			new Notice("Review block found, but no valid review entries were parsed.");
 			return;
 		}
@@ -552,4 +553,19 @@ export class ReviewBatchProcessor {
 		}
 		return { removedCount, skippedUnfencedCount };
 	}
+}
+
+// "3 suggestions", "2 memos", or "3 suggestions and 2 memos" — a memo-only
+// batch must not report zero suggestions as if nothing landed.
+export function describeImportedEntries(groups: readonly ReviewImportNoteGroup[]): string {
+	const suggestions = groups.reduce((count, group) => count + group.suggestions.length, 0);
+	const memos = groups.reduce((count, group) => count + group.memos.length, 0);
+	const parts: string[] = [];
+	if (suggestions > 0 || memos === 0) {
+		parts.push(`${suggestions} suggestion${suggestions === 1 ? "" : "s"}`);
+	}
+	if (memos > 0) {
+		parts.push(`${memos} memo${memos === 1 ? "" : "s"}`);
+	}
+	return parts.join(" and ");
 }

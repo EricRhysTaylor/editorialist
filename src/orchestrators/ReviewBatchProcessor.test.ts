@@ -4,7 +4,7 @@
 // findDuplicateSweep returns null in the import paths.
 
 import { describe, it, expect, vi } from "vitest";
-import { ReviewBatchProcessor, type ReviewBatchProcessorHost } from "./ReviewBatchProcessor";
+import { ReviewBatchProcessor, describeImportedEntries, type ReviewBatchProcessorHost } from "./ReviewBatchProcessor";
 import type { ReviewImportBatch, ReviewImportNoteGroup } from "../models/ReviewImport";
 import { buildReviewTemplate } from "../core/ReviewTemplate";
 
@@ -92,7 +92,7 @@ describe("ReviewBatchProcessor.importReviewBatch", () => {
 	it("records the batch and starts the sweep when startReview is true", async () => {
 		const { host, calls, importEngine } = makeHost();
 		const groups = [
-			{ filePath: "a.md", suggestions: [{}, {}] },
+			{ filePath: "a.md", suggestions: [{}, {}], memos: [] },
 		] as unknown as ReviewImportNoteGroup[];
 		importEngine.importBatch.mockResolvedValue(groups);
 		await new ReviewBatchProcessor(host).importReviewBatch(batch, true);
@@ -102,7 +102,7 @@ describe("ReviewBatchProcessor.importReviewBatch", () => {
 	it("records the batch but does NOT start a sweep when startReview is false", async () => {
 		const { host, calls, importEngine } = makeHost();
 		importEngine.importBatch.mockResolvedValue([
-			{ filePath: "a.md", suggestions: [{}] },
+			{ filePath: "a.md", suggestions: [{}], memos: [] },
 		] as unknown as ReviewImportNoteGroup[]);
 		await new ReviewBatchProcessor(host).importReviewBatch(batch, false);
 		expect(calls).toContain("recordImportedBatch");
@@ -335,5 +335,28 @@ describe("ReviewBatchProcessor.loadClipboardReviewBatch", () => {
 		} finally {
 			vi.unstubAllGlobals();
 		}
+	});
+});
+
+describe("describeImportedEntries", () => {
+	const group = (suggestions: number, memos: number) =>
+		({ suggestions: new Array(suggestions).fill({}), memos: new Array(memos).fill({}) }) as unknown as ReviewImportNoteGroup;
+
+	it("counts suggestions alone when there are no memos", () => {
+		expect(describeImportedEntries([group(3, 0)])).toBe("3 suggestions");
+		expect(describeImportedEntries([group(1, 0)])).toBe("1 suggestion");
+	});
+
+	it("names memos on their own for a memo-only import instead of reporting zero suggestions", () => {
+		expect(describeImportedEntries([group(0, 2), group(0, 1)])).toBe("3 memos");
+		expect(describeImportedEntries([group(0, 1)])).toBe("1 memo");
+	});
+
+	it("joins both when a batch carries both", () => {
+		expect(describeImportedEntries([group(2, 1)])).toBe("2 suggestions and 1 memo");
+	});
+
+	it("reports zero suggestions for an empty import", () => {
+		expect(describeImportedEntries([])).toBe("0 suggestions");
 	});
 });

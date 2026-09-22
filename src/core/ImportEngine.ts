@@ -27,8 +27,15 @@ import type {
 	ReviewImportSummary,
 	ReviewProposedCorrection,
 	ReviewRouteStrategy,
+	ReviewUnroutedMemo,
 } from "../models/ReviewImport";
-import type { ParsedReviewDocument, ReviewSuggestion, SceneMemo, SupportedReviewOperationType } from "../models/ReviewSuggestion";
+import type {
+	ParsedReviewDocument,
+	ReviewSuggestion,
+	ReviewSuggestionRouting,
+	SceneMemo,
+	SupportedReviewOperationType,
+} from "../models/ReviewSuggestion";
 
 interface ResolvedFileMatch {
 	file?: TFile;
@@ -102,8 +109,15 @@ export class ImportEngine {
 		}
 
 		const groups = this.buildGroups(results);
-		this.routeMemosToGroups(parsedDocument.memos, groups);
-		const summary = this.buildSummary(results, groups);
+		const unroutedMemos = this.routeMemosToGroups(
+			parsedDocument.memos,
+			groups,
+			markdownFiles,
+			scopeFiles,
+			bookScope.declaredFolder,
+			activeNotePath,
+		);
+		const summary = this.buildSummary(results, groups, parsedDocument.memos.length, unroutedMemos.length);
 
 		return {
 			batchId: `batch-${createdAt.toString(36)}-${contentHash.slice(0, 8)}`,
@@ -112,6 +126,7 @@ export class ImportEngine {
 			rawText,
 			results,
 			groups,
+			unroutedMemos,
 			summary,
 		};
 	}
@@ -246,88 +261,11 @@ export class ImportEngine {
 			}
 		}
 
-		const routing = suggestion.routing;
-		const sceneId = routing?.sceneId?.trim();
-		let sceneIdFailureReason: string | null = null;
-
-		if (sceneId) {
-			// Draft copies retain scene IDs. Resolve identity inside the selected
-			// book, never by whichever sibling the vault happens to enumerate first.
-			const sceneMatches = markdownFiles.filter((file) =>
-				this.isWithinDeclaredScope(file, declaredScopeFolder) && this.matchesSceneId(file, sceneId),
-			);
-			if (sceneMatches.length > 1) {
-				return {
-					status: "unresolved",
-					strategy: "unresolved",
-					reason: `Multiple notes match SceneId ${sceneId} within the current scope.`,
-				};
-			} else if (sceneMatches.length === 0) {
-				sceneIdFailureReason = `No note matches SceneId ${sceneId}.`;
-			}
-
-			const resolvedFile = sceneMatches[0];
-			if (resolvedFile) {
-				const mismatchReason = this.getRoutingMismatchReason(resolvedFile, suggestion);
-				if (!mismatchReason) {
-					return {
-						file: resolvedFile,
-						status: "resolved",
-						strategy: "declared_scene_id",
-						reason: `Resolved via SceneId ${sceneId}.`,
-					};
-				}
-
-				sceneIdFailureReason = mismatchReason;
-			}
+		const declared = this.resolveDeclaredRoute(suggestion.routing, markdownFiles, declaredScopeFolder);
+		if (declared.match) {
+			return declared.match;
 		}
-
-		// Path / Note / Scene name hints resolve against the whole vault, so they
-		// are the one route that can land a suggestion on a note outside the book
-		// (a content log, a brief, scratch). When a book scope is declared (Radial
-		// Timeline OR the configured manuscript folder), confine these hints to
-		// that folder; an out-of-book hit is rejected so the suggestion falls
-		// through to inference / the active-note fallback instead of writing a
-		// review block into an unrelated note. With no declared scope, behavior is
-		// unchanged (vault-wide).
-		const pathMatch = this.resolvePathHint(routing?.path);
-		if (pathMatch && this.isWithinDeclaredScope(pathMatch, declaredScopeFolder)) {
-			return {
-				file: pathMatch,
-				status: "resolved",
-				strategy: "declared_path",
-				reason: this.combineRoutingReasons(
-					sceneIdFailureReason,
-					"Resolved via Path hint.",
-				),
-			};
-		}
-
-		const noteMatch = this.resolveUniqueFileByName(routing?.note, markdownFiles);
-		if (noteMatch && this.isWithinDeclaredScope(noteMatch, declaredScopeFolder)) {
-			return {
-				file: noteMatch,
-				status: "resolved",
-				strategy: "declared_note",
-				reason: this.combineRoutingReasons(
-					sceneIdFailureReason,
-					"Resolved via Note hint.",
-				),
-			};
-		}
-
-		const sceneMatch = this.resolveUniqueFileByName(routing?.scene, markdownFiles);
-		if (sceneMatch && this.isWithinDeclaredScope(sceneMatch, declaredScopeFolder)) {
-			return {
-				file: sceneMatch,
-				status: "resolved",
-				strategy: "declared_scene",
-				reason: this.combineRoutingReasons(
-					sceneIdFailureReason,
-					"Resolved via Scene hint.",
-				),
-			};
-		}
+		const sceneIdFailureReason = declared.sceneIdFailureReason;
 
 		const inferredMatch = await this.inferFileForSuggestion(suggestion, scopeFiles, noteTextCache);
 		if (inferredMatch) {
@@ -375,6 +313,107 @@ export class ImportEngine {
 					? "No SceneId, Path, Note, or safe inferred scene match could be resolved."
 					: "No SceneId, Path, or Note hint could be resolved, and no active-book scene scope was available for inferred matching.",
 		};
+	}
+
+	// The declared-routing half of resolution, shared by suggestions and memos:
+	// SceneId first, then Path / Note / Scene name hints. Returns the match when
+	// one hint lands, or the SceneId failure to fold into whatever the caller
+	// tries next (inference and the active-note fallback for a suggestion;
+	// nothing for a memo, which has no prose to infer from).
+	private resolveDeclaredRoute(
+		routing: ReviewSuggestionRouting | undefined,
+		markdownFiles: TFile[],
+		declaredScopeFolder: string | null,
+	): { match: ResolvedFileMatch | null; sceneIdFailureReason: string | null } {
+		const sceneId = routing?.sceneId?.trim();
+		let sceneIdFailureReason: string | null = null;
+
+		if (sceneId) {
+			// Draft copies retain scene IDs. Resolve identity inside the selected
+			// book, never by whichever sibling the vault happens to enumerate first.
+			const sceneMatches = markdownFiles.filter((file) =>
+				this.isWithinDeclaredScope(file, declaredScopeFolder) && this.matchesSceneId(file, sceneId),
+			);
+			if (sceneMatches.length > 1) {
+				return {
+					match: {
+						status: "unresolved",
+						strategy: "unresolved",
+						reason: `Multiple notes match SceneId ${sceneId} within the current scope.`,
+					},
+					sceneIdFailureReason: null,
+				};
+			} else if (sceneMatches.length === 0) {
+				sceneIdFailureReason = `No note matches SceneId ${sceneId}.`;
+			}
+
+			const resolvedFile = sceneMatches[0];
+			if (resolvedFile) {
+				const mismatchReason = this.getRoutingMismatchReason(resolvedFile, routing);
+				if (!mismatchReason) {
+					return {
+						match: {
+							file: resolvedFile,
+							status: "resolved",
+							strategy: "declared_scene_id",
+							reason: `Resolved via SceneId ${sceneId}.`,
+						},
+						sceneIdFailureReason: null,
+					};
+				}
+
+				sceneIdFailureReason = mismatchReason;
+			}
+		}
+
+		// Path / Note / Scene name hints resolve against the whole vault, so they
+		// are the one route that can land a suggestion on a note outside the book
+		// (a content log, a brief, scratch). When a book scope is declared (Radial
+		// Timeline OR the configured manuscript folder), confine these hints to
+		// that folder; an out-of-book hit is rejected so the suggestion falls
+		// through to inference / the active-note fallback instead of writing a
+		// review block into an unrelated note. With no declared scope, behavior is
+		// unchanged (vault-wide).
+		const pathMatch = this.resolvePathHint(routing?.path);
+		if (pathMatch && this.isWithinDeclaredScope(pathMatch, declaredScopeFolder)) {
+			return {
+				match: {
+					file: pathMatch,
+					status: "resolved",
+					strategy: "declared_path",
+					reason: this.combineRoutingReasons(sceneIdFailureReason, "Resolved via Path hint."),
+				},
+				sceneIdFailureReason,
+			};
+		}
+
+		const noteMatch = this.resolveUniqueFileByName(routing?.note, markdownFiles);
+		if (noteMatch && this.isWithinDeclaredScope(noteMatch, declaredScopeFolder)) {
+			return {
+				match: {
+					file: noteMatch,
+					status: "resolved",
+					strategy: "declared_note",
+					reason: this.combineRoutingReasons(sceneIdFailureReason, "Resolved via Note hint."),
+				},
+				sceneIdFailureReason,
+			};
+		}
+
+		const sceneMatch = this.resolveUniqueFileByName(routing?.scene, markdownFiles);
+		if (sceneMatch && this.isWithinDeclaredScope(sceneMatch, declaredScopeFolder)) {
+			return {
+				match: {
+					file: sceneMatch,
+					status: "resolved",
+					strategy: "declared_scene",
+					reason: this.combineRoutingReasons(sceneIdFailureReason, "Resolved via Scene hint."),
+				},
+				sceneIdFailureReason,
+			};
+		}
+
+		return { match: null, sceneIdFailureReason };
 	}
 
 	private resolveActiveNoteFallback(activeNotePath: string | undefined, scopeFiles: TFile[]): TFile | null {
@@ -452,8 +491,8 @@ export class ImportEngine {
 		return matchesSceneId(this.app, file, sceneId);
 	}
 
-	private getRoutingMismatchReason(file: TFile, suggestion: ReviewSuggestion): string | null {
-		const pathHint = suggestion.routing?.path?.trim();
+	private getRoutingMismatchReason(file: TFile, routing: ReviewSuggestionRouting | undefined): string | null {
+		const pathHint = routing?.path?.trim();
 		if (pathHint) {
 			const normalizedHint = normalizePath(pathHint);
 			if (normalizePath(file.path) !== normalizedHint) {
@@ -461,12 +500,12 @@ export class ImportEngine {
 			}
 		}
 
-		const noteHint = suggestion.routing?.note?.trim();
+		const noteHint = routing?.note?.trim();
 		if (noteHint && file.basename !== noteHint) {
 			return `SceneId resolves to ${file.basename}, but Note says ${noteHint}.`;
 		}
 
-		const sceneHint = suggestion.routing?.scene?.trim();
+		const sceneHint = routing?.scene?.trim();
 		if (sceneHint && file.basename !== sceneHint) {
 			return `SceneId resolves to ${file.basename}, but Scene says ${sceneHint}.`;
 		}
@@ -794,44 +833,132 @@ export class ImportEngine {
 			});
 	}
 
-	private routeMemosToGroups(memos: SceneMemo[], groups: ReviewImportNoteGroup[]): void {
-		if (groups.length === 0) {
-			return;
+	// Memos attach to groups after suggestions have been routed. A memo with a
+	// SceneId / Note / Path hint goes to that note, opening a memo-only group
+	// when the note received no line edits — a reviewer who scoped a note to a
+	// scene meant that scene, edits or not. An unrouted memo is manuscript-wide:
+	// it is duplicated into every group in the batch, and when the batch has no
+	// groups at all (an editorial letter with no line edits) it lands on the
+	// active scene, the same fallback a suggestion with no anchor text uses.
+	// Anything that still has no destination is returned rather than dropped,
+	// so the launcher can say so.
+	private routeMemosToGroups(
+		memos: SceneMemo[],
+		groups: ReviewImportNoteGroup[],
+		markdownFiles: TFile[],
+		scopeFiles: TFile[],
+		declaredScopeFolder: string | null,
+		activeNotePath: string | undefined,
+	): ReviewUnroutedMemo[] {
+		const unrouted: ReviewUnroutedMemo[] = [];
+		const hasRouting = (memo: SceneMemo): boolean =>
+			Boolean(memo.routing?.sceneId?.trim() || memo.routing?.note?.trim() || memo.routing?.path?.trim() || memo.routing?.scene?.trim());
+
+		// Routed memos first, so a scene-scoped memo can open the group that a
+		// manuscript-wide memo is then duplicated into as well.
+		for (const memo of memos.filter(hasRouting)) {
+			// A group that declared the same SceneId / Note / Path wins even when
+			// its file was found by text inference (the declared id matched no
+			// note): the memo follows the edits it was written alongside.
+			const declaredGroup = this.findGroupByDeclaredRouting(groups, memo.routing);
+			if (declaredGroup) {
+				declaredGroup.memos.push(memo);
+				continue;
+			}
+			const declared = this.resolveDeclaredRoute(memo.routing, markdownFiles, declaredScopeFolder);
+			const file = declared.match?.file;
+			if (!file) {
+				unrouted.push({
+					memo,
+					reason:
+						declared.match?.reason ??
+						this.combineRoutingReasons(
+							declared.sceneIdFailureReason,
+							"No Note or Path hint resolved to a note in the current scope.",
+						),
+				});
+				continue;
+			}
+			this.ensureGroupForFile(groups, file, memo.routing?.sceneId?.trim()).memos.push(memo);
 		}
 
-		for (const memo of memos) {
-			const sceneId = memo.routing?.sceneId?.trim();
-			const note = memo.routing?.note?.trim();
-			const path = memo.routing?.path?.trim();
-
-			if (sceneId || note || path) {
-				const target = groups.find((group) => {
-					if (sceneId && group.sceneId === sceneId) {
-						return true;
-					}
-					if (path && normalizePath(group.filePath) === normalizePath(path)) {
-						return true;
-					}
-					if (note && group.fileName === note) {
-						return true;
-					}
-					return false;
-				});
-				if (target) {
-					target.memos.push(memo);
+		for (const memo of memos.filter((candidate) => !hasRouting(candidate))) {
+			if (groups.length > 0) {
+				for (const group of groups) {
+					group.memos.push(memo);
 				}
 				continue;
 			}
 
-			for (const group of groups) {
-				group.memos.push(memo);
+			const fallback = this.resolveActiveNoteFallback(activeNotePath, scopeFiles);
+			if (fallback) {
+				this.ensureGroupForFile(groups, fallback).memos.push(memo);
+				continue;
 			}
+
+			unrouted.push({
+				memo,
+				reason: "No SceneId, and no scene in the active book is open to receive it.",
+			});
 		}
+
+		return unrouted;
 	}
 
-	private buildSummary(results: ReviewImportSuggestionResult[], groups: ReviewImportNoteGroup[]): ReviewImportSummary {
+	private findGroupByDeclaredRouting(
+		groups: ReviewImportNoteGroup[],
+		routing: ReviewSuggestionRouting | undefined,
+	): ReviewImportNoteGroup | undefined {
+		const sceneId = routing?.sceneId?.trim();
+		const note = routing?.note?.trim();
+		const path = routing?.path?.trim();
+		return groups.find((group) => {
+			if (sceneId && group.sceneId === sceneId) {
+				return true;
+			}
+			if (path && normalizePath(group.filePath) === normalizePath(path)) {
+				return true;
+			}
+			return Boolean(note && group.fileName === note);
+		});
+	}
+
+	private ensureGroupForFile(groups: ReviewImportNoteGroup[], file: TFile, declaredSceneId?: string): ReviewImportNoteGroup {
+		const existing = groups.find((group) => group.filePath === file.path);
+		if (existing) {
+			return existing;
+		}
+		const group: ReviewImportNoteGroup = {
+			filePath: file.path,
+			fileName: file.basename,
+			sceneId: declaredSceneId || getSceneIdForFile(this.app, file),
+			suggestions: [],
+			memos: [],
+			exactCount: 0,
+			declaredCount: 0,
+			inferredCount: 0,
+			exactInferredCount: 0,
+			advisoryCount: 0,
+			unresolvedCount: 0,
+			mismatchCount: 0,
+			// Nothing to verify: a memo carries no target text, so a memo-only
+			// group is always writable.
+			isReady: true,
+		};
+		groups.push(group);
+		return group;
+	}
+
+	private buildSummary(
+		results: ReviewImportSuggestionResult[],
+		groups: ReviewImportNoteGroup[],
+		totalMemos: number,
+		unroutedMemoCount: number,
+	): ReviewImportSummary {
 		return {
 			totalSuggestions: results.length,
+			totalMemos,
+			totalRoutedMemos: totalMemos - unroutedMemoCount,
 			totalMatchedScenes: groups.length,
 			totalResolvedScenes: groups.filter((group) => group.isReady).length,
 			totalUnresolvedScenes: new Set(
@@ -854,7 +981,7 @@ export class ImportEngine {
 	}
 
 	private serializeGroup(batchId: string, createdAt: number, group: ReviewImportNoteGroup): string {
-		const metadata = this.extractMetadata(group.suggestions);
+		const metadata = this.extractMetadata(group);
 		// Body only — createReviewBlock adds the fence, sizing it past any backtick
 		// run a payload happens to carry. Assembling the fence here would reopen the
 		// truncation this centralizing fixed.
@@ -966,15 +1093,17 @@ export class ImportEngine {
 		return createReviewBlock(lines.join("\n"));
 	}
 
-	private extractMetadata(results: ReviewImportSuggestionResult[]): ReviewMetadata {
-		const firstSuggestion = results[0]?.suggestion;
-		const raw = firstSuggestion?.contributor.raw;
+	private extractMetadata(group: ReviewImportNoteGroup): ReviewMetadata {
+		// A memo-only group has no suggestion to read the reviewer from; the
+		// memos carry the same parsed contributor.
+		const contributor = group.suggestions[0]?.suggestion.contributor ?? group.memos[0]?.contributor;
+		const raw = contributor?.raw;
 
 		return {
-			reviewer: firstSuggestion?.contributor.displayName || raw?.rawName?.trim() || "Unknown contributor",
-			reviewerType: firstSuggestion?.contributor.reviewerType ?? "author",
-			provider: firstSuggestion?.contributor.provider ?? raw?.rawProvider?.trim(),
-			model: firstSuggestion?.contributor.model ?? raw?.rawModel?.trim(),
+			reviewer: contributor?.displayName || raw?.rawName?.trim() || "Unknown contributor",
+			reviewerType: contributor?.reviewerType ?? "author",
+			provider: contributor?.provider ?? raw?.rawProvider?.trim(),
+			model: contributor?.model ?? raw?.rawModel?.trim(),
 		};
 	}
 

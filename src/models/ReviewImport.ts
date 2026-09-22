@@ -116,8 +116,23 @@ export interface ReviewImportNoteGroup {
 	isReady: boolean;
 }
 
+// A memo the importer could not place anywhere. A routed memo (SceneId / Note /
+// Path) whose hint resolves to nothing, or an unrouted memo in a batch with no
+// destination at all. Surfaced in the launcher so an editorial letter never
+// vanishes silently; never written to a note.
+export interface ReviewUnroutedMemo {
+	memo: SceneMemo;
+	reason: string;
+}
+
 export interface ReviewImportSummary {
 	totalSuggestions: number;
+	// Memos parsed from the batch, and how many of them landed in a group. A
+	// batch can be memo-only (an editorial letter with no line edits), so the
+	// import gates must count routed memos, not just suggestions — see
+	// hasImportableEntries.
+	totalMemos: number;
+	totalRoutedMemos: number;
 	totalMatchedScenes: number;
 	totalResolvedScenes: number;
 	totalUnresolvedScenes: number;
@@ -136,7 +151,16 @@ export interface ReviewImportBatch {
 	rawText: string;
 	results: ReviewImportSuggestionResult[];
 	groups: ReviewImportNoteGroup[];
+	unroutedMemos: ReviewUnroutedMemo[];
 	summary: ReviewImportSummary;
+}
+
+// The single rule for "is there anything here to import". A suggestion counts
+// whether or not it routed (the launcher explains unmatched ones); a memo
+// counts only once it has a destination, because an unplaced memo has no note
+// to be written into.
+export function hasImportableEntries(summary: ReviewImportSummary): boolean {
+	return summary.totalSuggestions > 0 || summary.totalRoutedMemos > 0;
 }
 
 export interface ReviewSweepRegistryEntry {
