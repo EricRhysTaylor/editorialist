@@ -1,3 +1,4 @@
+import { normalizeEditorialDeliveries, updateDelivery, type EditorialDelivery } from "../core/EditorialDeliveries";
 import { normalizeRevisionPlans, emptyRevisionPlan, type RevisionPlan, type RevisionPlanStore } from "../core/planning/RevisionPlan";
 import { TFile, type App } from "obsidian";
 import { findImportedReviewBlocks } from "../core/ReviewBlockFormat";
@@ -109,6 +110,7 @@ export class ReviewRegistryService {
 	private sceneReviewIndex: Record<string, SceneReviewRecord> = {};
 	private sweepRegistry: Record<string, ReviewSweepRegistryEntry> = {};
 	private batchAttributionVersion = 0;
+	private editorialDeliveries = normalizeEditorialDeliveries(undefined);
 	private revisionPlans: RevisionPlanStore = normalizeRevisionPlans(undefined);
 	private settings: EditorialistSettings = defaultEditorialistSettings();
 	private readonly statsProjector: ReviewerStatsProjector;
@@ -178,6 +180,10 @@ export class ReviewRegistryService {
 			changed = true;
 		}
 
+		for (const delivery of this.editorialDeliveries.deliveries) {
+			if (delivery.files.includes(oldPath)) { delivery.files = delivery.files.map((path) => path === oldPath ? newPath : path); changed = true; }
+			if (delivery.source === oldPath) { delivery.source = newPath; changed = true; }
+		}
 		for (const plan of Object.values(this.revisionPlans.books)) {
 			for (const entry of plan.entries) {
 				if (entry.source.path === oldPath) {
@@ -206,6 +212,16 @@ export class ReviewRegistryService {
 		this.batchAttributionVersion = normalizeBatchAttributionVersion(savedData?.batchAttributionVersion);
 		this.settings = normalizeEditorialistSettings(savedData?.settings);
 		this.revisionPlans = normalizeRevisionPlans(savedData?.revisionPlans);
+		this.editorialDeliveries = normalizeEditorialDeliveries(savedData?.editorialDeliveries);
+	}
+
+	getEditorialDeliveries(): EditorialDelivery[] { return structuredClone(this.editorialDeliveries.deliveries); }
+	async saveEditorialDelivery(delivery: EditorialDelivery): Promise<void> {
+		const previous = this.editorialDeliveries;
+		const next = updateDelivery(previous, delivery);
+		this.editorialDeliveries = next;
+		try { await this.persistData(); }
+		catch (error) { if (this.editorialDeliveries === next) this.editorialDeliveries = previous; throw error; }
 	}
 
 	getRevisionPlan(book: string): RevisionPlan {
@@ -291,6 +307,7 @@ export class ReviewRegistryService {
 		return {
 			version: EDITORIALIST_PLUGIN_DATA_VERSION,
 			revisionPlans: structuredClone(this.revisionPlans),
+			editorialDeliveries: structuredClone(this.editorialDeliveries),
 			batchAttributionVersion: this.batchAttributionVersion,
 			reviewerProfiles,
 			reviewerSignalIndex: this.reviewerSignalIndex,

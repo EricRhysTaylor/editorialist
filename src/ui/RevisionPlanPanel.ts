@@ -23,6 +23,7 @@ export class RevisionPlanPanel extends ItemView {
 	private sourceRevision = 0;
 	private search = "";
 	private sourceFilter = "all";
+	private deliveryFilter = "all";
 	private backlogLimit = 12;
 	constructor(leaf: WorkspaceLeaf, private readonly plugin: EditorialistPlugin) { super(leaf); }
 	getViewType(): string { return REVISION_PLAN_VIEW_TYPE; }
@@ -49,7 +50,7 @@ export class RevisionPlanPanel extends ItemView {
 		const folder = this.plugin.getActiveBookScopeInfo().sourceFolder?.replace(/\/$/, "");
 		return folder ? JSON.stringify(["folder", folder]) : null;
 	}
-	private async refresh(): Promise<void> {
+	async refresh(): Promise<void> {
 		if (this.busy) return;
 		this.busy = true;
 		this.render();
@@ -257,6 +258,7 @@ export class RevisionPlanPanel extends ItemView {
 		if (this.view === "queue") this.dropTarget(row, (id) => { void this.change((plan) => { plan.entries = movePlanEntry(plan.entries, id, entry.id); }); });
 		row.createEl("p", { cls: "editorialist-plan__task-context", text: `${resolved.state === "ready" ? resolved.candidate.detail : entry.source.path}${resolved.state === "ready" && resolved.candidate.deferred ? " · Deferred at source" : ""}` });
 		if (resolved.state === "ready" && resolved.candidate.inactive) row.createEl("p", { cls: "editorialist-plan__hint", text: "Source inactive · Kept in your plan. Keep this task or remove it in Schedule & options." });
+		if (resolved.state === "ready" && resolved.candidate.due && entry.day && entry.day > resolved.candidate.due) row.createEl("p", { cls: "editorialist-plan__hint", text: `Scheduled after delivery deadline (${resolved.candidate.due}).` });
 		const metadata = row.createDiv({ cls: "editorialist-plan__task-meta" });
 		for (const [icon, text] of [["calendar", entry.day ? planDayLabel(entry.day) : "Unscheduled"], ["clock-3", entry.lowMinutes === null || entry.highMinutes === null ? "Add estimate" : `${entry.lowMinutes}–${entry.highMinutes} min`]]) {
 			const chip = metadata.createSpan(); setIcon(chip.createSpan(), icon!); chip.createSpan({ text });
@@ -318,10 +320,14 @@ export class RevisionPlanPanel extends ItemView {
 		setIcon(searchWrap.createSpan(), "search");
 		const search = searchWrap.createEl("input", { type: "search", value: this.search, attr: { placeholder: "Find a scene or instruction…", "aria-label": "Find available work" } });
 		const filters = details.createDiv({ cls: "editorialist-plan__filters", attr: { "aria-label": "Work type" } });
+		const deliveryFilter = details.createEl("select", { attr: { "aria-label": "Filter available work by delivery" } });
+		deliveryFilter.createEl("option", { value: "all", text: "All deliveries" });
+		for (const delivery of this.plugin.getEditorialDeliveries()) deliveryFilter.createEl("option", { value: delivery.id, text: delivery.title });
+		deliveryFilter.value = this.deliveryFilter;
 		const list = details.createDiv({ cls: "editorialist-plan__backlog-list" });
 		const render = (): void => {
 			list.empty();
-			const shown = available.filter((candidate) => (this.sourceFilter === "all" || candidate.kind === this.sourceFilter) && `${candidate.title} ${candidate.detail} ${candidate.locator}`.toLowerCase().includes(this.search.toLowerCase()));
+			const shown = available.filter((candidate) => (this.deliveryFilter === "all" || candidate.deliveryId === this.deliveryFilter) && (this.sourceFilter === "all" || candidate.kind === this.sourceFilter) && `${candidate.title} ${candidate.detail} ${candidate.locator}`.toLowerCase().includes(this.search.toLowerCase()));
 			for (const candidate of shown.slice(0, this.backlogLimit)) {
 				const row = list.createDiv({ cls: "editorialist-plan__backlog-row", attr: { "data-work-kind": candidate.kind } });
 				const icon = row.createSpan({ cls: "editorialist-plan__source-icon" });
@@ -341,6 +347,7 @@ export class RevisionPlanPanel extends ItemView {
 			const button = this.button(filters, label, () => { this.sourceFilter = value; this.backlogLimit = 12; for (const item of Array.from(filters.querySelectorAll("button"))) item.setAttribute("aria-pressed", String(item === button)); render(); });
 			button.setAttribute("aria-pressed", String(this.sourceFilter === value));
 		}
+		deliveryFilter.addEventListener("change", () => { this.deliveryFilter = deliveryFilter.value; this.backlogLimit = 12; render(); });
 		search.addEventListener("input", () => { this.search = search.value; this.backlogLimit = 12; render(); });
 		render();
 		const ambiguous = this.candidates.filter((candidate) => resolvePlanSource(candidate, this.candidates).state === "ambiguous");

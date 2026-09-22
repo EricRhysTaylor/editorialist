@@ -116,6 +116,7 @@ export interface Editorialism extends EditorialismAttribution {
 }
 
 export interface EditorialismSummary extends EditorialismAttribution {
+	created?: string | null;
 	remainingMinutes?: number;
 	deferredItems?: number;
 	filePath: string;

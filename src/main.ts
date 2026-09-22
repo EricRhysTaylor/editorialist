@@ -1,3 +1,5 @@
+import { EditorialDeliveriesModal } from "./ui/EditorialDeliveriesModal";
+import { deliveryCaption, type EditorialDelivery } from "./core/EditorialDeliveries";
 import { RevisionPlanPanel, REVISION_PLAN_VIEW_TYPE } from "./ui/RevisionPlanPanel";
 import type { RevisionPlan, WorkCandidate } from "./core/planning/RevisionPlan";
 import { batchWork, directiveWork, pendingWork } from "./core/planning/RevisionWork";
@@ -810,6 +812,20 @@ export default class EditorialistPlugin extends Plugin {
 	getRevisionPlan(book: string): RevisionPlan { return this.registry.getRevisionPlan(book); }
 	async saveRevisionPlan(book: string, plan: RevisionPlan): Promise<void> { await this.registry.setRevisionPlan(book, plan); }
 
+	getEditorialDeliveries(): EditorialDelivery[] {
+		const folder = this.getActiveBookScopeInfo().sourceFolder?.replace(/\/$/, "");
+		return this.registry.getEditorialDeliveries().filter((delivery) => delivery.bookFolder === folder);
+	}
+	openEditorialDeliveries(): void { new EditorialDeliveriesModal(this).open(); }
+	async saveEditorialDelivery(delivery: EditorialDelivery): Promise<void> {
+		if (delivery.bookFolder !== this.getActiveBookScopeInfo().sourceFolder?.replace(/\/$/, "")) throw new Error("The active book changed. Reopen deliveries before saving.");
+		await this.registry.saveEditorialDelivery(delivery);
+		this.refreshEditorialismPanel();
+		for (const leaf of this.app.workspace.getLeavesOfType(REVISION_PLAN_VIEW_TYPE)) {
+			if (leaf.view instanceof RevisionPlanPanel) await leaf.view.refresh();
+		}
+	}
+
 	async collectRevisionWork(): Promise<{ candidates: WorkCandidate[]; warnings: string[] }> {
 		const scope = this.getActiveBookScopeInfo();
 		const candidates: WorkCandidate[] = [];
@@ -844,6 +860,11 @@ export default class EditorialistPlugin extends Plugin {
 					return { ...item, detail: `${item.detail}${importedAt ? ` · ${new Date(importedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : ""}` };
 				}));
 			} catch { warnings.push(`Could not load review work in ${path}.`); }
+		}
+		const deliveries = this.getEditorialDeliveries();
+		for (const candidate of candidates) {
+			const delivery = deliveries.find((item) => candidate.kind === "directive" ? item.files.includes(candidate.path) : candidate.kind === "batch" && item.batchIds.includes(candidate.locator));
+			if (delivery) { candidate.deliveryId = delivery.id; candidate.due = delivery.due; candidate.detail += ` · ${deliveryCaption(delivery)}${delivery.due ? ` · Due ${delivery.due}` : ""}`; }
 		}
 		return { candidates, warnings };
 	}

@@ -256,6 +256,7 @@ export class EditorialismService {
 		return {
 			filePath: editorialism.filePath,
 			title: editorialism.title,
+			created: editorialism.created,
 			book: editorialism.book,
 			status: editorialism.status,
 			reviewer: editorialism.reviewer,

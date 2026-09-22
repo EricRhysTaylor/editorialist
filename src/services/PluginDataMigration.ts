@@ -1,3 +1,4 @@
+import { normalizeEditorialDeliveries } from "../core/EditorialDeliveries";
 import { normalizeRevisionPlans } from "../core/planning/RevisionPlan";
 // Versioning + migration shim for Editorialist persisted plugin data.
 //
@@ -114,6 +115,7 @@ export function emptyPluginData(): EditorialistPluginData {
 	return {
 		version: EDITORIALIST_PLUGIN_DATA_VERSION,
 		revisionPlans: normalizeRevisionPlans(undefined),
+	editorialDeliveries: normalizeEditorialDeliveries(undefined),
 		batchAttributionVersion: BATCH_ATTRIBUTION_VERSION,
 		reviewerProfiles: [],
 		reviewerSignalIndex: {},
@@ -159,6 +161,7 @@ function normalizeIntoCurrent(raw: Record<string, unknown>): EditorialistPluginD
 	return {
 		version: EDITORIALIST_PLUGIN_DATA_VERSION,
 		revisionPlans: normalizeRevisionPlans(raw.revisionPlans),
+	editorialDeliveries: normalizeEditorialDeliveries(raw.editorialDeliveries),
 		batchAttributionVersion: normalizeBatchAttributionVersion(raw.batchAttributionVersion),
 		reviewerProfiles,
 		reviewerSignalIndex: normalizeReviewerSignalIndex(

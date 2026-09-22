@@ -947,3 +947,21 @@ describe("revision plan persistence", () => {
 		expect(service.getRevisionPlan("book").deadline).toBe(null);
 	});
 });
+
+describe("Editorial delivery persistence", () => {
+	const delivery = { id: "round", bookFolder: "Book", title: "Round one", reviewer: "Editor", role: "Copy editor", received: null, due: "2026-10-03", source: "Letter.md", files: ["Agenda.md"], batchIds: ["batch"] };
+	it("persists dates and links across reload and tracks file renames", async () => {
+		const { service } = makeService();
+		await service.saveEditorialDelivery(delivery);
+		await service.renameNotePath("Agenda.md", "Renamed.md");
+		await service.renameNotePath("Letter.md", "Original letter.md");
+		const restored = makeService().service;
+		restored.load(service.buildPluginData([]));
+		expect(restored.getEditorialDeliveries()).toEqual([{ ...delivery, files: ["Renamed.md"], source: "Original letter.md" }]);
+	});
+	it("rolls back failed persistence", async () => {
+		const service = new ReviewRegistryService(makeApp([]), makeEngine({}), new ContributorDirectory(), async () => { throw new Error("disk full"); }, () => null);
+		await expect(service.saveEditorialDelivery(delivery)).rejects.toThrow("disk full");
+		expect(service.getEditorialDeliveries()).toEqual([]);
+	});
+});

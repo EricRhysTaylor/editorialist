@@ -170,6 +170,7 @@ describe("migratePluginData", () => {
 				"reviewerProfiles",
 				"reviewerSignalIndex",
 				"revisionPlans",
+				"editorialDeliveries",
 				"sceneReviewIndex",
 				"settings",
 				"batchAttributionVersion",

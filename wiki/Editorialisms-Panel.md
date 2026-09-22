@@ -118,3 +118,15 @@ Deactivation writes `status: inactive` in that Editorialism file's frontmatter. 
 Tasks already added to a revision plan stay there with **Source inactive** displayed. They continue to count toward estimates and the deadline until you explicitly finish or remove them. Reactivating a file makes its unfinished, unplanned items available again.
 
 The revision plan's **Editorialisms** filter refers to the individual checklist items within these files.
+
+## Editorial deliveries, dates, and deadlines
+
+Choose **Editorial deliveries** in the Editorialisms view, or from any panel's three-dot menu. Create a delivery for one editor's handoff, such as “Developmental edit — Round 1”. Enter the reviewer, role, received date, return deadline, and an optional existing source note path. Link its imported batches and Editorialism files using the checkboxes. Linking does not duplicate feedback or change original reviewer attribution.
+
+A source can belong to one delivery. To move it, unlink it from its current delivery first. Deliveries show checklist progress per file and suggestion decisions per batch; batch memos do not have completion decisions. Missing linked sources remain visible as unavailable.
+
+Editorialism cards show the delivery and its dates. Old files without a known receipt date say **Received date unknown**; a recorded `created` date is shown separately when present. Cards sort by receipt date, then recorded creation date when receipt is unknown, with undated files last. Last-modified timestamps are available on hover over the date block and never treated as receipt dates. Filter the list by delivery or reviewer; unattributed files are labeled explicitly.
+
+Revision-plan Available work can also be filtered by delivery. Linked items show the delivery's return deadline. A planned task scheduled after that deadline displays a warning. Delivery deadlines do not change the book-level deadline, your daily capacity, or scheduled work dates.
+
+Deliveries are saved in plugin data alongside revision plans. Existing feedback remains unassigned until you link it. Imports still use the separate batch and Editorialism actions; creating a delivery does not automatically convert an editor's original document.

@@ -1,3 +1,5 @@
+import { deliveryDate } from "../core/EditorialDeliveries";
+import { isDate } from "../core/planning/RevisionPlan";
 import { renderPanelHeader } from "./primitives/PanelHeader";
 import { DropdownComponent, Menu, Notice, ItemView, TFile, setIcon, type WorkspaceLeaf } from "obsidian";
 import type EditorialistPlugin from "../main";
@@ -32,6 +34,8 @@ function formatWords(words: number): string {
 
 export class EditorialismPanel extends ItemView {
 	private summaries: EditorialismSummary[] = [];
+	private deliveryFilter = "all";
+	private reviewerFilter = "all";
 	private activityFilter: "active" | "inactive" | "all" = "active";
 	private activeFilePath: string | null = null;
 	private activeEditorialism: Editorialism | null = null;
@@ -127,6 +131,8 @@ export class EditorialismPanel extends ItemView {
 
 	private renderHeader(parent: HTMLElement): void {
 		renderPanelHeader(parent, this.plugin, EDITORIALISM_PANEL_VIEW_TYPE, "Editorialisms");
+		const manage = parent.createEl("button", { text: "Editorial deliveries", cls: "editorialist-editorialism-panel__deliveries", attr: { type: "button" } });
+		manage.addEventListener("click", () => this.plugin.openEditorialDeliveries());
 	}
 
 	private renderList(parent: HTMLElement): void {
@@ -141,9 +147,34 @@ export class EditorialismPanel extends ItemView {
 			button.addEventListener("click", () => { this.activityFilter = value; this.render(); });
 		}
 		parent.createEl("p", { cls: "editorialist-plan__hint", text: "Deactivate older files to hide their items from available work. Files and progress stay in your vault." });
+		const deliveries = this.plugin.getEditorialDeliveries();
+		const controls = parent.createDiv({ cls: "editorialist-editorialism-panel__source-filters" });
+		const deliverySelect = controls.createEl("select", { attr: { "aria-label": "Filter by delivery" } });
+		deliverySelect.createEl("option", { value: "all", text: "All deliveries" });
+		deliverySelect.createEl("option", { value: "unassigned", text: "Unassigned" });
+		for (const delivery of deliveries) deliverySelect.createEl("option", { value: delivery.id, text: delivery.title });
+		deliverySelect.value = this.deliveryFilter;
+		deliverySelect.addEventListener("change", () => { this.deliveryFilter = deliverySelect.value; this.render(); });
+		const reviewerSelect = controls.createEl("select", { attr: { "aria-label": "Filter by reviewer" } });
+		reviewerSelect.createEl("option", { value: "all", text: "All reviewers" });
+		const reviewers = (item: EditorialismSummary): string[] => {
+			const names = [item.reviewer, deliveries.find((delivery) => delivery.files.includes(item.filePath))?.reviewer].filter((name): name is string => Boolean(name));
+			return names.length ? names : ["Unattributed"];
+		};
+		for (const name of [...new Set(this.summaries.flatMap(reviewers))].sort()) reviewerSelect.createEl("option", { value: name, text: name });
+		reviewerSelect.value = this.reviewerFilter;
+		reviewerSelect.addEventListener("change", () => { this.reviewerFilter = reviewerSelect.value; this.render(); });
 		const list = parent.createDiv({ cls: "editorialist-editorialism-panel__list" });
-		const visible = this.summaries.filter((item) => this.activityFilter === "all" || isEditorialismActive(item) === (this.activityFilter === "active"));
-		if (!visible.length) list.createEl("p", { text: `No ${this.activityFilter} editorialism files.` });
+		const visible = this.summaries.filter((item) => {
+			const delivery = deliveries.find((value) => value.files.includes(item.filePath));
+			return (this.activityFilter === "all" || isEditorialismActive(item) === (this.activityFilter === "active")) &&
+				(this.deliveryFilter === "all" || (this.deliveryFilter === "unassigned" ? !delivery : delivery?.id === this.deliveryFilter)) &&
+				(this.reviewerFilter === "all" || reviewers(item).includes(this.reviewerFilter));
+		}).sort((a, b) => {
+			const date = (item: EditorialismSummary): string => deliveries.find((value) => value.files.includes(item.filePath))?.received ?? (isDate(item.created?.slice(0, 10)) ? item.created!.slice(0, 10) : "");
+			return date(b).localeCompare(date(a)) || a.title.localeCompare(b.title);
+		});
+		if (!visible.length) list.createEl("p", { text: "No editorialism files match these filters." });
 		for (const summary of visible) {
 			const card = list.createDiv({ cls: "editorialist-editorialism-panel__file" });
 			const row = card.createEl("button", { cls: "editorialist-editorialism-panel__list-row", attr: { type: "button" } });
@@ -161,7 +192,7 @@ export class EditorialismPanel extends ItemView {
 			meta.createSpan({
 				text: `${summary.totalItems} items · ${summary.totalItems - summary.doneItems} remaining${summary.deferredItems ? ` · ${summary.deferredItems} deferred` : ""}${summary.remainingMinutes ? ` · ~${formatEffortDuration(summary.remainingMinutes)}` : ""}`,
 			});
-			const attribution = formatAttribution(summary);
+			const attribution = formatAttribution(summary) || deliveries.find((delivery) => delivery.files.includes(summary.filePath))?.reviewer || "Unattributed";
 			if (attribution) {
 				meta.createSpan({
 					cls: "editorialist-editorialism-panel__list-reviewer",
@@ -174,6 +205,7 @@ export class EditorialismPanel extends ItemView {
 					text: summary.status,
 				});
 			}
+			this.renderTiming(main, summary);
 			const completion = row.createDiv({ cls: "editorialist-editorialism-panel__completion" });
 			completion.createSpan({ text: `${summary.doneItems}/${summary.totalItems}` });
 			const progress = completion.createDiv({ cls: "editorialist-editorialism-panel__list-progress" });
@@ -182,6 +214,21 @@ export class EditorialismPanel extends ItemView {
 			fill.style.setProperty("--editorialist-progress", `${Math.round(fraction * 100)}%`);
 			this.renderActivation(card, summary);
 		}
+	}
+
+	private renderTiming(parent: HTMLElement, document: Editorialism | EditorialismSummary): void {
+		const delivery = this.plugin.getEditorialDeliveries().find((item) => item.files.includes(document.filePath));
+		const meta = parent.createDiv({ cls: "editorialist-editorialism-panel__timing" });
+		if (delivery) {
+			meta.createDiv({ text: delivery.title });
+			if (delivery.reviewer && document.reviewer && delivery.reviewer !== document.reviewer) meta.createDiv({ text: `From ${delivery.reviewer}` });
+		}
+		meta.createDiv({ text: delivery?.received ? `Received ${deliveryDate(delivery.received)}` : "Received date unknown" });
+		const created = document.created?.slice(0, 10);
+		if (!delivery?.received && isDate(created)) meta.createDiv({ text: `Created ${deliveryDate(created!)}` });
+		if (delivery?.due) meta.createDiv({ text: `Due ${deliveryDate(delivery.due)}` });
+		const modified = "mtime" in document ? document.mtime : this.app.vault.getAbstractFileByPath(document.filePath) instanceof TFile ? (this.app.vault.getAbstractFileByPath(document.filePath) as TFile).stat.mtime : null;
+		if (modified) meta.setAttribute("title", `Last updated ${new Date(modified).toLocaleString()}`);
 	}
 
 	private renderActivation(parent: HTMLElement, document: Editorialism | EditorialismSummary): void {
@@ -249,6 +296,7 @@ export class EditorialismPanel extends ItemView {
 			void this.app.workspace.openLinkText(editorialism.filePath, editorialism.filePath, false);
 		});
 
+		this.renderTiming(detail, editorialism);
 		this.renderActivation(detail, editorialism);
 		const subtitle = detail.createDiv({ cls: "editorialist-editorialism-panel__detail-subtitle" });
 		const totals = this.computeTotals(editorialism);
@@ -267,7 +315,7 @@ export class EditorialismPanel extends ItemView {
 				text: editorialism.status,
 			});
 		}
-		const attribution = formatAttribution(editorialism);
+		const attribution = formatAttribution(editorialism) || this.plugin.getEditorialDeliveries().find((delivery) => delivery.files.includes(editorialism.filePath))?.reviewer || "Unattributed";
 		if (attribution) {
 			subtitle.createSpan({
 				cls: "editorialist-editorialism-panel__detail-meta-chip",

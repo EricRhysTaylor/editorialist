@@ -9,6 +9,8 @@ export interface WorkSource {
 export interface WorkCandidate extends WorkSource {
 	/** Retained for planned entries, excluded from available work. */
 	inactive?: boolean;
+	deliveryId?: string;
+	due?: string | null;
 	title: string;
 	detail: string;
 	complete: boolean;

@@ -22,6 +22,8 @@ export function renderPanelHeader(parent: HTMLElement, plugin: EditorialistPlugi
 	setIcon(more.createSpan(), "ellipsis");
 	more.addEventListener("click", (event) => {
 		const menu = new Menu();
+		menu.addItem((item) => item.setTitle("Editorial deliveries").setIcon("package").onClick(() => plugin.openEditorialDeliveries()));
+		menu.addSeparator();
 		menu.addItem((item) => item.setTitle("Insert author query").setIcon("message-square-plus").onClick(() => { void plugin.insertAuthorQuery(); }));
 		const cut = plugin.cutFiles.getActiveSceneCutStatus();
 		menu.addItem((item) => item.setTitle(cut.hasCutFile ? `Open cut file for ${cut.sceneName}` : "No cut file for this scene").setIcon("scissors").setDisabled(!cut.hasCutFile).onClick(() => { void plugin.cutFiles.openCutFileForActiveScene(); }));
