@@ -1,4 +1,4 @@
-import type { ReviewSuggestion, SceneMemo } from "./ReviewSuggestion";
+import type { ReviewSuggestion, ReviewSuggestionRouting, SceneMemo } from "./ReviewSuggestion";
 
 export type ReviewRouteStatus = "resolved" | "mismatch" | "unresolved";
 export type ReviewRouteStrategy =
@@ -161,6 +161,21 @@ export interface ReviewImportBatch {
 // to be written into.
 export function hasImportableEntries(summary: ReviewImportSummary): boolean {
 	return summary.totalSuggestions > 0 || summary.totalRoutedMemos > 0;
+}
+
+// True when nothing in the batch names a destination, so the whole paste
+// belongs to the note the author is looking at. Memos count as well as
+// suggestions: a memo-only batch whose memos carry SceneIds has already been
+// routed scene by scene, and collapsing it onto the current note would file
+// every memo in the wrong place.
+export function isLocalNoteBatch(batch: ReviewImportBatch): boolean {
+	const hasRouting = (routing: ReviewSuggestionRouting | undefined): boolean =>
+		Boolean(routing?.sceneId || routing?.note || routing?.path || routing?.scene);
+	if (batch.results.some((result) => hasRouting(result.suggestion.routing))) {
+		return false;
+	}
+	const memos = [...batch.groups.flatMap((group) => group.memos), ...batch.unroutedMemos.map((entry) => entry.memo)];
+	return !memos.some((memo) => hasRouting(memo.routing));
 }
 
 export interface ReviewSweepRegistryEntry {

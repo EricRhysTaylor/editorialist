@@ -9,6 +9,7 @@ import {
 } from "../core/ReviewTemplate";
 import {
 	hasImportableEntries,
+	isLocalNoteBatch,
 	type ReviewImportBatch,
 	type ReviewImportNoteGroup,
 	type ReviewImportSuggestionResult,
@@ -413,6 +414,34 @@ export class EditorialistModal extends Modal {
 			cls: "editorialist-control-modal__validation-ok-text",
 			text: `${this.describeBatchEntries(batch)} ready · ${matched} matched ${sceneNoun}`,
 		});
+		this.renderUnroutedMemoWarning(parent, batch);
+	}
+
+	// A memo with no destination is left out of the import. Say so where the
+	// import button is, not only in the optional destination preview.
+	private renderUnroutedMemoWarning(parent: HTMLElement, batch: ReviewImportBatch): void {
+		const count = batch.unroutedMemos.length;
+		if (count === 0) {
+			return;
+		}
+		const banner = parent.createDiv({ cls: "editorialist-control-modal__validation-warn" });
+		const icon = banner.createSpan({ cls: "editorialist-control-modal__validation-warn-icon" });
+		setIcon(icon, "alert-triangle");
+		banner.createSpan({
+			cls: "editorialist-control-modal__validation-warn-text",
+			text: `${this.describeUnroutedMemos(batch)} — see Preview destinations.`,
+		});
+	}
+
+	private describeUnroutedMemos(batch: ReviewImportBatch): string {
+		const count = batch.unroutedMemos.length;
+		const ids = [...new Set(
+			batch.unroutedMemos.map(({ memo }) => memo.routing?.sceneId?.trim()).filter((id): id is string => Boolean(id)),
+		)];
+		const cause = ids.length > 0
+			? `SceneId ${ids.slice(0, 3).join(", ")}${ids.length > 3 ? ", …" : ""} matched no scene`
+			: "no scene is open to receive them";
+		return `${count} memo${count === 1 ? "" : "s"} will not be imported: ${cause}`;
 	}
 
 	private collectProposedCorrections(batch: ReviewImportBatch): ReviewImportSuggestionResult[] {
@@ -515,6 +544,12 @@ export class EditorialistModal extends Modal {
 		summary.createDiv({
 			text: `${batch.summary.totalResolvedScenes} ready • ${batch.summary.totalExactMatches} exact • ${batch.summary.totalAdvisoryOnly} advisory • ${batch.summary.totalUnresolvedMatches} need attention`,
 		});
+		if (batch.unroutedMemos.length > 0) {
+			summary.createDiv({
+				cls: "editorialist-control-modal__summary-warning",
+				text: this.describeUnroutedMemos(batch),
+			});
+		}
 
 		const list = parent.createDiv({ cls: "editorialist-control-modal__list" });
 		for (const group of batch.groups) {
@@ -982,15 +1017,13 @@ export class EditorialistModal extends Modal {
 		return `${total} matched ${noun} ready · ${shown}${more}`;
 	}
 
-	private hasAnySceneMatch(batch: ReviewImportBatch): boolean {
-		return batch.summary.totalMatchedScenes > 0 || batch.summary.totalResolvedScenes > 0;
+	private formatUnroutedMemoSuffix(batch: ReviewImportBatch): string {
+		const count = batch.unroutedMemos.length;
+		return count > 0 ? ` · ${count} memo${count === 1 ? "" : "s"} not placed` : "";
 	}
 
-	private isLocalNoteBatch(batch: ReviewImportBatch): boolean {
-		return batch.results.every((result) => {
-			const routing = result.suggestion.routing;
-			return !routing?.sceneId && !routing?.note && !routing?.path && !routing?.scene;
-		});
+	private hasAnySceneMatch(batch: ReviewImportBatch): boolean {
+		return batch.summary.totalMatchedScenes > 0 || batch.summary.totalResolvedScenes > 0;
 	}
 
 	// The launcher offers in-place formalizing only when the author has opted in
@@ -1048,7 +1081,7 @@ export class EditorialistModal extends Modal {
 
 	private getDetectionItems(batch?: ReviewImportBatch): DetectionItem[] {
 		const activeBatch = this.clipboardBatch?.batch ?? batch;
-		const localNoteBatch = activeBatch ? this.isLocalNoteBatch(activeBatch) : false;
+		const localNoteBatch = activeBatch ? isLocalNoteBatch(activeBatch) : false;
 		const currentUnitLabel = this.options.noteUnitLabel ?? "note";
 		const currentNoteStatus = this.options.currentNoteStatus ?? "ready";
 		const isCurrentComplete = currentNoteStatus === "completed";
@@ -1130,10 +1163,12 @@ export class EditorialistModal extends Modal {
 					description: localNoteBatch
 						? "Ready for this note"
 						: readyGroups && activeBatch
-							? this.formatReadyScenesDescription(activeBatch)
+							? this.formatReadyScenesDescription(activeBatch) + this.formatUnroutedMemoSuffix(activeBatch)
 						: hasSceneMatches
 							? "Only ambiguous or unresolved scene matches found"
-							: "No matching scene text found",
+							: activeBatch && activeBatch.unroutedMemos.length > 0
+								? "Memo SceneIds matched no scene in the active book"
+								: "No matching scene text found",
 					tone: localNoteBatch || readyGroups ? "success" : "danger",
 				},
 			];
@@ -1200,20 +1235,29 @@ export class EditorialistModal extends Modal {
 				return;
 			}
 
-			if (this.isLocalNoteBatch(this.clipboardBatch.batch)) {
+			if (isLocalNoteBatch(this.clipboardBatch.batch)) {
 				await this.options.onImportRawToActiveNote(this.clipboardBatch.rawText, true);
 				this.close();
 				return;
 			}
 
 			if (!this.hasImportReadyGroup(this.clipboardBatch.batch)) {
-				if (this.hasAnySceneMatch(this.clipboardBatch.batch)) {
+				if (this.hasAnySceneMatch(this.clipboardBatch.batch) || this.clipboardBatch.batch.unroutedMemos.length > 0) {
 					this.showAssignments = true;
 					this.render();
 					return;
 				}
 
 				new Notice("No matching scene text was found in the active notes.");
+				return;
+			}
+
+			// A memo that found no scene is left out of the import. One click from
+			// the clipboard card must not do that silently: open the destination
+			// preview, which lists the omission, and import from there.
+			if (this.clipboardBatch.batch.unroutedMemos.length > 0) {
+				this.showAssignments = true;
+				this.render();
 				return;
 			}
 
@@ -1329,7 +1373,7 @@ export class EditorialistModal extends Modal {
 	}
 
 	private getDestinationNounPlural(batch: ReviewImportBatch): string {
-		return this.isLocalNoteBatch(batch) ? "notes" : "scenes";
+		return isLocalNoteBatch(batch) ? "notes" : "scenes";
 	}
 
 }

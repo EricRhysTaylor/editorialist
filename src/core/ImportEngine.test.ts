@@ -6,6 +6,7 @@ import { SuggestionParser } from "./SuggestionParser";
 import { ContributorDirectory } from "../state/ContributorDirectory";
 import { createMockApp, type MockApp } from "../../tests/mocks/vault";
 import { extractReviewBlocks, removeImportedReviewBlocks } from "./ReviewBlockFormat";
+import { isLocalNoteBatch } from "../models/ReviewImport";
 
 function createImportEngine(app: MockApp): ImportEngine {
 	const reviewers = new ContributorDirectory();
@@ -529,5 +530,44 @@ describe("ImportEngine — memo-only batches and memos on scenes without edits",
 
 		await engine.importBatch(batch);
 		expect(app.peek(sceneA)).not.toContain("Stale id from the chat thread.");
+	});
+});
+
+describe("isLocalNoteBatch — memos take part in the current-note decision", () => {
+	const sceneA = "Book/Scenes/Scene A.md";
+	const sceneB = "Book/Scenes/Scene B.md";
+	const scenes = () =>
+		createMockApp([
+			{ path: sceneA, body: "Alpha sentence one.", frontmatter: { Class: "Scene", id: "scn_aaaa" } },
+			{ path: sceneB, body: "Beta sentence one.", frontmatter: { Class: "Scene", id: "scn_bbbb" } },
+		]);
+
+	it("is NOT local when memo-only memos carry SceneIds, so the launcher never collapses them onto the current note", async () => {
+		const engine = createImportEngine(scenes());
+		const batch = await engine.inspectBatch(
+			["Reviewer: Marla Quist", "", "=== MEMO ===", "SceneId: scn_aaaa", "Issues: A.", "", "=== MEMO ===", "SceneId: scn_bbbb", "Issues: B."].join("\n"),
+			{ activeNotePath: sceneA },
+		);
+		expect(batch.groups).toHaveLength(2);
+		expect(isLocalNoteBatch(batch)).toBe(false);
+	});
+
+	it("is NOT local when the only routed memo failed to resolve", async () => {
+		const engine = createImportEngine(scenes());
+		const batch = await engine.inspectBatch(
+			["Reviewer: Marla Quist", "", "=== MEMO ===", "SceneId: scn_invented", "Issues: Lost."].join("\n"),
+			{ activeNotePath: sceneA },
+		);
+		expect(batch.unroutedMemos).toHaveLength(1);
+		expect(isLocalNoteBatch(batch)).toBe(false);
+	});
+
+	it("is local when neither suggestions nor memos name a destination", async () => {
+		const engine = createImportEngine(scenes());
+		const batch = await engine.inspectBatch(
+			["Reviewer: Marla Quist", "", "=== MEMO ===", "Strengths: Whole-book note."].join("\n"),
+			{ activeNotePath: sceneA },
+		);
+		expect(isLocalNoteBatch(batch)).toBe(true);
 	});
 });

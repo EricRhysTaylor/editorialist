@@ -238,7 +238,9 @@ export class ReviewBatchProcessor {
 		}
 
 		const batch = await this.inspectReviewBatch(rawBlockText, { activeNotePath: context.filePath });
-		if (!hasImportableEntries(batch.summary)) {
+		// This path stamps the block where it already sits, so routing is moot:
+		// anything that parsed — a suggestion or a memo — is worth formalizing.
+		if (batch.summary.totalSuggestions === 0 && batch.summary.totalMemos === 0) {
 			new Notice("Review block found, but no valid review entries were parsed.");
 			return;
 		}
