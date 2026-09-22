@@ -7065,7 +7065,7 @@
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 6px 10px;
+	gap: 12px 10px;
 }
 
 .editorialist-plan__entry-footer > .editorialist-plan__actions {
@@ -7073,11 +7073,9 @@
 }
 
 .editorialist-plan__entry-footer > details {
-	margin-left: auto;
-}
-
-.editorialist-plan__entry-footer > details[open] {
 	flex-basis: 100%;
+	padding-top: 12px;
+	border-top: 1px solid var(--background-modifier-border);
 }
 
 .editorialist-panel__welcome {
