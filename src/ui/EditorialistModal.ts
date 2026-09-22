@@ -8,6 +8,12 @@ import {
 	isReviewTemplateText,
 } from "../core/ReviewTemplate";
 import {
+	decideClipboardImport,
+	describeAssignmentsImport,
+	hasAnySceneMatch,
+	hasImportReadyGroup,
+} from "../core/review/ClipboardImportDecision";
+import {
 	hasImportableEntries,
 	isLocalNoteBatch,
 	type ReviewImportBatch,
@@ -137,6 +143,10 @@ export class EditorialistModal extends Modal {
 		const batchToPreview = this.getPreviewBatch();
 		if (this.showAssignments && batchToPreview) {
 			this.renderAssignments(shell, batchToPreview);
+			// The manual section already carries its own import button above.
+			if (!this.showManualPaste) {
+				this.renderAssignmentsFooter(shell, batchToPreview);
+			}
 		}
 
 		this.renderExample(shell);
@@ -601,6 +611,54 @@ export class EditorialistModal extends Modal {
 		}
 	}
 
+	// The preview is where a partial import is confirmed, so it must be able to
+	// finish the job. Without this the clipboard card sent an author here and
+	// then left them with nothing to click but the card that sent them.
+	private renderAssignmentsFooter(parent: HTMLElement, batch: ReviewImportBatch): void {
+		const action = describeAssignmentsImport(batch);
+		const buttons = [];
+		if (this.collectProposedCorrections(batch).length > 0) {
+			buttons.push(
+				this.makeActionButtonSpec({
+					text: "Review mis-targeted entries",
+					cta: true,
+					icon: "wand-2",
+					onClick: async () => {
+						this.openManualPasteWithBatch(batch.rawText, batch);
+					},
+				}),
+			);
+		} else {
+			buttons.push(
+				this.makeActionButtonSpec({
+					text: action.label,
+					cta: true,
+					disabled: !action.importable,
+					icon: "download",
+					onClick: async () => {
+						await this.options.onImportBatch(batch, true);
+						this.close();
+					},
+				}),
+			);
+		}
+		buttons.push(
+			this.makeActionButtonSpec({
+				text: "Close preview",
+				icon: "x",
+				subtle: true,
+				onClick: async () => {
+					this.showAssignments = false;
+					this.render();
+				},
+			}),
+		);
+		buildModalFooter(parent, {
+			className: "editorialist-control-modal__actions",
+			buttons,
+		});
+	}
+
 	private describeBatchEntries(batch: ReviewImportBatch): string {
 		const suggestions = batch.summary.totalSuggestions;
 		const memos = batch.summary.totalRoutedMemos;
@@ -991,7 +1049,7 @@ export class EditorialistModal extends Modal {
 	}
 
 	private hasImportReadyGroup(batch: ReviewImportBatch): boolean {
-		return batch.groups.some((group) => group.isReady);
+		return hasImportReadyGroup(batch);
 	}
 
 	private getReadySceneShortLabels(batch: ReviewImportBatch): string[] {
@@ -1023,7 +1081,7 @@ export class EditorialistModal extends Modal {
 	}
 
 	private hasAnySceneMatch(batch: ReviewImportBatch): boolean {
-		return batch.summary.totalMatchedScenes > 0 || batch.summary.totalResolvedScenes > 0;
+		return hasAnySceneMatch(batch);
 	}
 
 	// The launcher offers in-place formalizing only when the author has opted in
@@ -1234,48 +1292,43 @@ export class EditorialistModal extends Modal {
 			if (!this.clipboardBatch) {
 				return;
 			}
+			const { batch, rawText } = this.clipboardBatch;
 
-			if (isLocalNoteBatch(this.clipboardBatch.batch)) {
-				await this.options.onImportRawToActiveNote(this.clipboardBatch.rawText, true);
-				this.close();
-				return;
-			}
-
-			if (!this.hasImportReadyGroup(this.clipboardBatch.batch)) {
-				if (this.hasAnySceneMatch(this.clipboardBatch.batch) || this.clipboardBatch.batch.unroutedMemos.length > 0) {
+			switch (decideClipboardImport(batch)) {
+				case "import_to_active_note":
+					await this.options.onImportRawToActiveNote(rawText, true);
+					this.close();
+					return;
+				case "preview":
+					// The preview lists what was left out and carries its own import
+					// action for what did resolve — see renderAssignmentsFooter.
 					this.showAssignments = true;
 					this.render();
 					return;
-				}
-
-				new Notice("No matching scene text was found in the active notes.");
-				return;
+				case "no_destination":
+					new Notice("No matching scene text was found in the active notes.");
+					return;
+				case "review_corrections":
+					// Mis-targeted entries must never auto-import. Drop into the manual
+					// paste view so the author sees the correction panel and decides.
+					this.openManualPasteWithBatch(rawText, batch);
+					return;
+				case "import":
+					await this.options.onImportBatch(batch, true);
+					this.close();
+					return;
 			}
-
-			// A memo that found no scene is left out of the import. One click from
-			// the clipboard card must not do that silently: open the destination
-			// preview, which lists the omission, and import from there.
-			if (this.clipboardBatch.batch.unroutedMemos.length > 0) {
-				this.showAssignments = true;
-				this.render();
-				return;
-			}
-
-			// Mis-targeted entries must never auto-import. Drop into the manual
-			// paste view so the author sees the correction panel and decides.
-			if (this.collectProposedCorrections(this.clipboardBatch.batch).length > 0) {
-				this.manualText = this.clipboardBatch.rawText;
-				this.manualBatch = this.clipboardBatch.batch;
-				this.manualValidationState = "ok";
-				this.manualImportError = null;
-				this.showManualPaste = true;
-				this.render();
-				return;
-			}
-
-			await this.options.onImportBatch(this.clipboardBatch.batch, true);
-			this.close();
 		}
+	}
+
+	private openManualPasteWithBatch(rawText: string, batch: ReviewImportBatch): void {
+		this.manualText = rawText;
+		this.manualBatch = batch;
+		this.manualValidationState = "ok";
+		this.manualImportError = null;
+		this.showManualPaste = true;
+		this.showAssignments = false;
+		this.render();
 	}
 
 	// Adapter that maps EditorialistModal's per-action button shape (cta /
