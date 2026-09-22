@@ -13,6 +13,11 @@ const REVIEWER_TYPE_ALIASES: Record<string, ReviewerType> = {
 	"beta-reader": "beta-reader",
 	betareader: "beta-reader",
 	editor: "editor",
+	// The "human-" prefix mirrors "ai-editor", so reviewers and the wiki reach
+	// for it; without this row it fell through to "author".
+	"human editor": "editor",
+	"human-editor": "editor",
+	humaneditor: "editor",
 	"developmental editor": "developmental-editor",
 	"developmental-editor": "developmental-editor",
 	developmentaleditor: "developmental-editor",

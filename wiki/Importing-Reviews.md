@@ -63,7 +63,7 @@ The lines before the first `=== SECTION ===` marker identify the batch and the c
 | Field | Purpose |
 |---|---|
 | `Reviewer:` | Display name of the contributor (person or model) |
-| `ReviewerType:` | Role — e.g. `human-editor`, `beta-reader`, `ai-editor` |
+| `ReviewerType:` | Role. Human: `editor`, `developmental-editor`, `line-editor`, `copy-editor`, `publisher-editor`, `agent`, `beta-reader`, `sensitivity-reader` (`human-editor` is accepted as `editor`). AI: `ai-editor`, `ai-developmental-editor`, `ai-line-editor`, `ai-copy-editor`. Anything unrecognised is treated as the author. |
 | `Provider:` / `Model:` | For AI contributors — drives the provider brand icon in the [contributor directory](Settings-Reference#contributors-tab) |
 | `Template:` / `TemplateYear:` / `SupportedOperations:` | Emitted by the template; identifies which format version produced the batch |
 

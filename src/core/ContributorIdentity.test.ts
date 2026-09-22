@@ -3,6 +3,7 @@ import {
 	buildResolvedContributor,
 	buildUnresolvedContributor,
 	contributorSlug,
+	normalizeReviewerType,
 } from "./ContributorIdentity";
 import type { ContributorProfile } from "../models/ContributorProfile";
 
@@ -71,5 +72,17 @@ describe("buildResolvedContributor", () => {
 			suggestedReviewerIds: [],
 			raw,
 		});
+	});
+});
+
+describe("normalizeReviewerType", () => {
+	it("accepts the human- prefix that mirrors ai-editor and maps it to editor", () => {
+		expect(normalizeReviewerType("human-editor")).toBe("editor");
+		expect(normalizeReviewerType("Human Editor")).toBe("editor");
+		expect(normalizeReviewerType("humaneditor")).toBe("editor");
+	});
+
+	it("still falls back to author for an unknown human role", () => {
+		expect(normalizeReviewerType("proofreader")).toBe("author");
 	});
 });

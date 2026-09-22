@@ -161,3 +161,14 @@ describe("isReviewTemplateText", () => {
 		expect(isReviewTemplateText("")).toBe(false);
 	});
 });
+
+describe("buildReviewTemplate — reviewer roles", () => {
+	const out = buildReviewTemplate("Plain prose.");
+
+	it("names the accepted human ReviewerType values so converted notes are credited to the right role", () => {
+		expect(out).toContain("developmental-editor");
+		expect(out).toContain("copy-editor");
+		expect(out).toContain("beta-reader");
+		expect(out).not.toContain("human-editor");
+	});
+});
