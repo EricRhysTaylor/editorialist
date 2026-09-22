@@ -1,3 +1,4 @@
+import { normalizeRevisionPlans, emptyRevisionPlan, type RevisionPlan, type RevisionPlanStore } from "../core/planning/RevisionPlan";
 import { TFile, type App } from "obsidian";
 import { findImportedReviewBlocks } from "../core/ReviewBlockFormat";
 import type { ReviewEngine } from "../core/ReviewEngine";
@@ -108,6 +109,7 @@ export class ReviewRegistryService {
 	private sceneReviewIndex: Record<string, SceneReviewRecord> = {};
 	private sweepRegistry: Record<string, ReviewSweepRegistryEntry> = {};
 	private batchAttributionVersion = 0;
+	private revisionPlans: RevisionPlanStore = normalizeRevisionPlans(undefined);
 	private settings: EditorialistSettings = defaultEditorialistSettings();
 	private readonly statsProjector: ReviewerStatsProjector;
 	private readonly sweepManager: SweepRegistryManager;
@@ -176,6 +178,15 @@ export class ReviewRegistryService {
 			changed = true;
 		}
 
+		for (const plan of Object.values(this.revisionPlans.books)) {
+			for (const entry of plan.entries) {
+				if (entry.source.path === oldPath) {
+					entry.source.path = newPath;
+					changed = true;
+				}
+			}
+		}
+
 		if (this.sweepManager.renameNotePath(this.sweepRegistry, oldPath, newPath)) {
 			changed = true;
 		}
@@ -194,6 +205,16 @@ export class ReviewRegistryService {
 		this.sweepRegistry = normalizeSweepRegistry(savedData?.sweepRegistry);
 		this.batchAttributionVersion = normalizeBatchAttributionVersion(savedData?.batchAttributionVersion);
 		this.settings = normalizeEditorialistSettings(savedData?.settings);
+		this.revisionPlans = normalizeRevisionPlans(savedData?.revisionPlans);
+	}
+
+	getRevisionPlan(book: string): RevisionPlan {
+		return structuredClone(this.revisionPlans.books[book] ?? emptyRevisionPlan());
+	}
+
+	async setRevisionPlan(book: string, plan: RevisionPlan): Promise<void> {
+		this.revisionPlans = normalizeRevisionPlans({ version: 1, books: { ...this.revisionPlans.books, [book]: plan } });
+		await this.persistData();
 	}
 
 	getSettings(): EditorialistSettings {
@@ -266,6 +287,7 @@ export class ReviewRegistryService {
 	buildPluginData(reviewerProfiles: ContributorProfile[]): EditorialistPluginData {
 		return {
 			version: EDITORIALIST_PLUGIN_DATA_VERSION,
+			revisionPlans: structuredClone(this.revisionPlans),
 			batchAttributionVersion: this.batchAttributionVersion,
 			reviewerProfiles,
 			reviewerSignalIndex: this.reviewerSignalIndex,

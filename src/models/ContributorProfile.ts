@@ -1,3 +1,4 @@
+import type { RevisionPlanStore } from "../core/planning/RevisionPlan";
 import type { ReviewSweepRegistryEntry } from "./ReviewImport";
 import type { SupportedReviewOperationType } from "./ReviewSuggestion";
 
@@ -158,6 +159,7 @@ export interface AuthorQueryDecisionRecord {
 }
 
 export interface EditorialistPluginData {
+	revisionPlans?: RevisionPlanStore;
 	version: number;
 	// Schema marker for per-batch attribution in the reviewer-signal index AND
 	// the review-decision index. 0 (or absent) means those indexes predate

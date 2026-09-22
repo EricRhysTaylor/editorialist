@@ -1,18 +1,9 @@
+import { normalizeRevisionPlans } from "../core/planning/RevisionPlan";
 // Versioning + migration shim for Editorialist persisted plugin data.
 //
-// Today the on-disk shape predates an explicit schema version. This module
-// introduces EDITORIALIST_PLUGIN_DATA_VERSION = 1, the read-side migrator,
-// and the empty-data factory. Sub-shape normalization (indices, sweep
-// registry, legacy enum aliases) is delegated to the existing pure
-// normalize* functions so behavior stays byte-identical with prior loads.
-//
-// The migrator is intentionally tolerant of every input shape — null,
-// garbage, partial, current, and future on-disk objects all yield a
-// fully-formed EditorialistPluginData stamped with the current version.
-// Future-version inputs are explicitly logged (not silently downgraded
-// without notice). When a real schema change lands, add a numbered branch
-// here and bump EDITORIALIST_PLUGIN_DATA_VERSION; the normalize* layer
-// continues to handle within-version field-level legacy values.
+// Version 2 adds per-book revision plans. Legacy review shapes continue to use
+// their existing normalizers. Unknown plan versions stop loading rather than
+// silently discard scheduling data.
 
 import type {
 	AuthorQueryDecisionRecord,
@@ -32,7 +23,7 @@ import {
 	normalizeSweepRegistry,
 } from "./registry/ReviewRegistryNormalization";
 
-export const EDITORIALIST_PLUGIN_DATA_VERSION = 1 as const;
+export const EDITORIALIST_PLUGIN_DATA_VERSION = 2 as const;
 
 // Current shape of per-batch attribution across BOTH persisted indexes.
 // Version 1 is the first shape where a record — reviewer signal or review
@@ -122,6 +113,7 @@ export function normalizeEditorialistSettings(raw: unknown): EditorialistSetting
 export function emptyPluginData(): EditorialistPluginData {
 	return {
 		version: EDITORIALIST_PLUGIN_DATA_VERSION,
+		revisionPlans: normalizeRevisionPlans(undefined),
 		batchAttributionVersion: BATCH_ATTRIBUTION_VERSION,
 		reviewerProfiles: [],
 		reviewerSignalIndex: {},
@@ -154,15 +146,7 @@ export function migratePluginData(
 		);
 	}
 
-	// Today there is only v1. Missing/malformed/older/current/future all
-	// route through the same normalization. When a real schema change ships,
-	// add the branch here:
-	//
-	//   if (detectedVersion === null || detectedVersion < 2) {
-	//       raw = migrateV1ToV2(raw);
-	//   }
-	//
-	// keeping each step pure and idempotent.
+	// v2 adds versioned revision plans. Older data starts with an empty plan store.
 
 	return normalizeIntoCurrent(raw);
 }
@@ -174,6 +158,7 @@ function normalizeIntoCurrent(raw: Record<string, unknown>): EditorialistPluginD
 
 	return {
 		version: EDITORIALIST_PLUGIN_DATA_VERSION,
+		revisionPlans: normalizeRevisionPlans(raw.revisionPlans),
 		batchAttributionVersion: normalizeBatchAttributionVersion(raw.batchAttributionVersion),
 		reviewerProfiles,
 		reviewerSignalIndex: normalizeReviewerSignalIndex(
