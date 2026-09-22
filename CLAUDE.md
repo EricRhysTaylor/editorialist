@@ -72,7 +72,7 @@ and `backup`, and both are Eric's to run.
 The compliance script (`scripts/obsidian-compliance.mjs`) runs on every build
 and `check`, so submission blockers are caught before a commit ever lands.
 
-## Commit policy — always commit, never push
+## Delivery policy — always commit, copy to vaults, and push
 
 **Commit your work without being asked.** Every finished unit of work gets a
 commit; do not leave changes sitting in the working tree waiting for a
@@ -84,11 +84,13 @@ The rules around that:
 
 - **Commit directly to `main`.** This repo has a linear, direct-to-main
   history and no PR workflow. Do not open branches for ordinary work.
-- **Never push.** `git push` is Eric's call, always, and he does it himself.
-  The repo is public, so pushing makes work visible the moment it lands. The
-  two scripts that push — `npm run release` and `npm run backup` — are his
-  to run, never an agent's; `npm run build` does not push (see Build / check
-  / release above). Commit freely; leave the pushing alone.
+- **Always deliver finished work.** After checks pass, commit, run `npm run build`
+  to produce and copy the plugin to all configured vaults, and push `main` to
+  GitHub without asking again. This is Eric's standing instruction, updated
+  September 22, 2026. Verify the copied artifacts and remote commit before
+  reporting delivery complete. Never force-push or include unrelated local files.
+- **Releases remain separate.** Do not run `npm run release` or `npm run backup`
+  for routine delivery; use the normal build and `git push origin main`.
 - **`npm run check` must pass before you commit.** It is the gate that keeps
   submission blockers out of the history — see Build / check / release above.
 - **One commit per coherent change**, with a message that explains *why* the
