@@ -1,6 +1,7 @@
 import type EditorialistPlugin from "../main";
 
 export function registerCommands(plugin: EditorialistPlugin): void {
+	plugin.addCommand({ id: "open-revision-plan", name: "Open revision plan", callback: () => { void plugin.openRevisionPlanPanel(); } });
 	plugin.addCommand({
 		id: "open-review-launcher",
 		name: "Open review launcher",

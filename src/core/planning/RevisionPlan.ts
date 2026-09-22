@@ -87,7 +87,7 @@ export function normalizeRevisionPlans(raw: unknown): RevisionPlanStore {
 			plan.entries.push({
 				id: entry.id, source: { kind: source.kind as WorkKind, path: source.path, locator: source.locator },
 				title: typeof entry.title === "string" ? entry.title : source.path,
-				lowMinutes: low, highMinutes: high === null || low === null ? null : Math.max(low, high),
+				lowMinutes: low, highMinutes: high === null ? null : Math.max(low ?? 0, high),
 				day: isDate(entry.day) ? entry.day : null, required: entry.required !== false, done: entry.done === true,
 				afterId: typeof entry.afterId === "string" && entry.afterId !== entry.id ? entry.afterId : null,
 			});
@@ -141,10 +141,11 @@ export function forecastPlan(plan: RevisionPlan, candidates: readonly WorkCandid
 		}
 	}
 	if (plan.deadline && isDate(today)) {
-		let total = 0;
-		const date = new Date(`${today}T12:00:00`);
-		// Bound iteration; a deadline more than ten years away is not a useful daily forecast.
-		for (let day = 0; day < 3660 && localDate(date) <= plan.deadline; day++, date.setDate(date.getDate() + 1)) total += plan.capacity[date.getDay()] ?? 0;
+		// UTC calendar dates avoid daylight-saving shifts; full weeks need no loop.
+		const days = Math.max(0, Math.round((Date.parse(plan.deadline + "T00:00:00Z") - Date.parse(today + "T00:00:00Z")) / 86400000) + 1);
+		let total = Math.floor(days / 7) * plan.capacity.reduce((sum, value) => sum + value, 0);
+		const startDay = new Date(today + "T12:00:00").getDay();
+		for (let day = 0; day < days % 7; day++) total += plan.capacity[(startDay + day) % 7] ?? 0;
 		result.availableMinutes = Math.max(0, total - plan.reserveMinutes);
 	}
 	result.overloadedDays = Object.keys(result.dailyLoads).filter((day) => result.dailyLoads[day]! > (plan.capacity[new Date(`${day}T12:00:00`).getDay()] ?? 0));

@@ -1,3 +1,7 @@
+import { RevisionPlanPanel, REVISION_PLAN_VIEW_TYPE } from "./ui/RevisionPlanPanel";
+import type { RevisionPlan, WorkCandidate } from "./core/planning/RevisionPlan";
+import { batchWork, directiveWork, pendingWork } from "./core/planning/RevisionWork";
+import { collectPendingEdits, describeCollectFailure } from "./core/PendingEditsCollector";
 import { endReviewRound, getEndableRoundBatches } from "./orchestrators/EndReviewRound";
 import type { EditorView } from "@codemirror/view";
 import { MarkdownView, Menu, normalizePath, Notice, Plugin, TFile, type App, type WorkspaceLeaf } from "obsidian";
@@ -428,6 +432,7 @@ export default class EditorialistPlugin extends Plugin {
 		// panel finds "editorialist-logo" (and the RT mark) already available.
 		registerEditorialistIcon();
 		registerRadialTimelineIcon();
+		this.registerView(REVISION_PLAN_VIEW_TYPE, (leaf) => new RevisionPlanPanel(leaf, this));
 		this.registerView(REVIEW_PANEL_VIEW_TYPE, (leaf) => new ReviewPanel(leaf, this));
 		this.registerView(EDITORIALISM_PANEL_VIEW_TYPE, (leaf) => new EditorialismPanel(leaf, this));
 		this.registerView(PENDING_EDITS_PANEL_VIEW_TYPE, (leaf) => new PendingEditsPanel(leaf, this));
@@ -655,6 +660,7 @@ export default class EditorialistPlugin extends Plugin {
 			...this.app.workspace.getLeavesOfType(REVIEW_PANEL_VIEW_TYPE),
 			...this.app.workspace.getLeavesOfType(EDITORIALISM_PANEL_VIEW_TYPE),
 			...this.app.workspace.getLeavesOfType(PENDING_EDITS_PANEL_VIEW_TYPE),
+			...this.app.workspace.getLeavesOfType(REVISION_PLAN_VIEW_TYPE),
 		];
 		const [primary, ...duplicates] = existing;
 		for (const duplicate of duplicates) {
@@ -797,6 +803,65 @@ export default class EditorialistPlugin extends Plugin {
 		await this.savePluginData();
 	}
 
+	async openRevisionPlanPanel(): Promise<void> {
+		await this.openEditorialistPanel(REVISION_PLAN_VIEW_TYPE);
+	}
+
+	getRevisionPlan(book: string): RevisionPlan { return this.registry.getRevisionPlan(book); }
+	async saveRevisionPlan(book: string, plan: RevisionPlan): Promise<void> { await this.registry.setRevisionPlan(book, plan); }
+
+	async collectRevisionWork(): Promise<{ candidates: WorkCandidate[]; warnings: string[] }> {
+		const scope = this.getActiveBookScopeInfo();
+		const candidates: WorkCandidate[] = [];
+		const warnings: string[] = [];
+		const folder = scope.sourceFolder?.replace(/\/$/, "");
+		if (!folder) return { candidates, warnings: ["Select an active book with a source folder to plan revisions."] };
+		try {
+			const pending = await collectPendingEdits(this.app);
+			if (pending.ok && pending.session.sourceFolder.replace(/\/$/, "") === folder) candidates.push(...pendingWork(pending.session));
+			else if (pending.ok) warnings.push("Pending edits belong to a different active book. Refresh after selecting the intended book.");
+			else if (pending.reason !== "no_scenes_with_pending_edits") warnings.push(describeCollectFailure(pending.reason));
+		} catch { warnings.push("Pending edits could not be loaded. Their absence is not a completed backlog."); }
+		try {
+			for (const summary of await this.listEditorialismsForActiveBook(scope.label)) {
+				const document = await this.loadEditorialism(summary.filePath);
+				if (document) {
+					if (!document.book) { warnings.push(`“${document.title}” has no book attribution. Assign its book before adding it to a plan.`); continue; }
+					candidates.push(...directiveWork(document, effortParamsFromSettings(this.getEffortSettings())));
+				}
+			}
+		} catch { warnings.push("Some editorial agendas could not be loaded. Refresh before relying on the backlog."); }
+		const activeBatches = this.getSweepRegistryEntries().filter((batch) => batch.status !== "cleaned" && batch.status !== "ended_early");
+		const paths = new Set(activeBatches.flatMap((batch) => batch.importedNotePaths).filter((path) => path.startsWith(folder + "/")));
+		for (const path of paths) {
+			try {
+				const file = this.app.vault.getAbstractFileByPath(path);
+				if (!(file instanceof TFile)) continue;
+				const text = this.resolveOpenNoteText(path) ?? await this.app.vault.cachedRead(file);
+				const session = this.registry.applyPersistedReviewState(this.reviewEngine.buildSession(path, text, null));
+				candidates.push(...batchWork(session).filter((item) => activeBatches.some((batch) => batch.batchId === item.locator)).map((item) => {
+					const importedAt = activeBatches.find((batch) => batch.batchId === item.locator)?.importedAt;
+					return { ...item, detail: `${item.detail}${importedAt ? ` · ${new Date(importedAt).toLocaleString()}` : ""}` };
+				}));
+			} catch { warnings.push(`Could not load review work in ${path}.`); }
+		}
+		return { candidates, warnings };
+	}
+
+	async openRevisionWork(candidate: WorkCandidate): Promise<void> {
+		if (candidate.kind === "batch") {
+			await this.startOrResumeReviewForNote(candidate.path);
+			const suggestion = this.store.getSession()?.suggestions.find((item) => item.source.batchId === candidate.locator && !["accepted", "rejected", "rewritten"].includes(item.status));
+			if (suggestion) this.store.selectSuggestion(suggestion.id);
+			return;
+		}
+		// Open the exact instruction in its source. Pending sessions can contain
+		// several lines, so starting their aggregate sweep would broaden this task.
+		const file = this.app.vault.getAbstractFileByPath(candidate.path);
+		if (!(file instanceof TFile)) { new Notice("This source is no longer available. Refresh and relink the task."); return; }
+		await this.app.workspace.openLinkText(file.path, "", false, candidate.line === undefined ? undefined : { eState: { line: candidate.line } });
+	}
+
 	async openPendingEditsPanel(): Promise<void> {
 		await this.openEditorialistPanel(PENDING_EDITS_PANEL_VIEW_TYPE);
 	}
@@ -809,7 +874,8 @@ export default class EditorialistPlugin extends Plugin {
 		const existing =
 			this.app.workspace.getLeavesOfType(REVIEW_PANEL_VIEW_TYPE)[0] ??
 			this.app.workspace.getLeavesOfType(PENDING_EDITS_PANEL_VIEW_TYPE)[0] ??
-			this.app.workspace.getLeavesOfType(EDITORIALISM_PANEL_VIEW_TYPE)[0];
+			this.app.workspace.getLeavesOfType(EDITORIALISM_PANEL_VIEW_TYPE)[0] ??
+			this.app.workspace.getLeavesOfType(REVISION_PLAN_VIEW_TYPE)[0];
 		if (existing) {
 			await this.app.workspace.revealLeaf(existing);
 			return;
@@ -822,6 +888,7 @@ export default class EditorialistPlugin extends Plugin {
 	// single Ed leaf in place. Each mode also has its own command.
 	showPanelModeMenu(event: MouseEvent, currentViewType: string): void {
 		const modes: Array<{ type: string; label: string; icon: string }> = [
+			{ type: REVISION_PLAN_VIEW_TYPE, label: "Revision plan", icon: "calendar-check" },
 			{ type: REVIEW_PANEL_VIEW_TYPE, label: "Review", icon: "messages-square" },
 			{ type: PENDING_EDITS_PANEL_VIEW_TYPE, label: "Pending edits", icon: "clipboard-list" },
 			{ type: EDITORIALISM_PANEL_VIEW_TYPE, label: "Editorialisms", icon: "list-checks" },

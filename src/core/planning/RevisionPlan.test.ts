@@ -51,3 +51,17 @@ it("preserves plans through the plugin migration while older saves start empty",
 	expect(migratePluginData({ version: 1 }).revisionPlans?.books).toEqual({});
 	expect(migratePluginData(migrated)).toEqual(migrated);
 });
+
+it("preserves a partial estimate entered high-first and keeps it unknown", () => {
+	const plan = { ...emptyRevisionPlan(), entries: [{ ...entry("a"), lowMinutes: null, highMinutes: 90 }] };
+	const normalized = normalizeRevisionPlans({ version: 1, books: { book: plan } }).books.book!;
+	expect(normalized.entries[0]!.highMinutes).toBe(90);
+	expect(forecastPlan(normalized, [source])).toMatchObject({ unknownCount: 1, highMinutes: 0 });
+});
+
+it("computes weekday capacity across daylight saving and long deadlines", () => {
+	const plan = { ...emptyRevisionPlan(), reserveMinutes: 0, deadline: "2026-11-08" };
+	expect(forecastPlan(plan, [], "2026-11-01").availableMinutes).toBe(600);
+	plan.deadline = "2040-01-01";
+	expect(forecastPlan(plan, [], "2026-01-01").availableMinutes).toBeGreaterThan(400000);
+});

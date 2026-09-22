@@ -38,6 +38,7 @@ Editorialist ships a format, not an AI. It never makes a network call and holds 
 - `Open review launcher` — opens the launcher modal to import a review batch or start pending-edits review.
 - `Open review panel` — opens the review side panel for the active note.
 - `Open editorialism panel` — opens the Editorialisms panel for structural guidance documents.
+- `Open revision plan` — orders mixed revision work and plans author estimates against daily capacity and a deadline.
 - `Open pending edits panel` — opens the Pending edits panel for author notes and Inquiry follow-ups.
 - `Review pending edits in active book` — starts the pending-edits review flow across the active book.
 - `End current round` — removes the current batch or all remaining batches in the book, keeping manuscript edits and decision counts. Unfinished feedback is marked ended early; no archive is created.

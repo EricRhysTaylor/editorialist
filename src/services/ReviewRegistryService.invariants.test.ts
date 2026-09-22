@@ -922,3 +922,28 @@ describe("ended-round statistics", () => {
 		expect(reloaded.service.getReviewActivitySummary()).toMatchObject({ inProgressSweeps: 0, completedSweeps: 0 });
 	});
 });
+
+// Planning must survive unrelated review saves and never mutate source decisions.
+describe("revision plan persistence", () => {
+	it("round-trips ordering, follows a note rename, and returns detached snapshots", async () => {
+		const { service } = makeService();
+		const plan = service.getRevisionPlan("book");
+		plan.entries.push({ id: "stable", source: { kind: "pending", path: "Book/A.md", locator: "Rewrite ending" }, title: "Ending", lowMinutes: 30, highMinutes: 90, day: "2026-09-25", required: true, done: false, afterId: null });
+		await service.setRevisionPlan("book", plan);
+		plan.entries[0]!.day = null;
+		expect(service.getRevisionPlan("book").entries[0]!.day).toBe("2026-09-25");
+		await service.renameNotePath("Book/A.md", "Book/Renamed.md");
+		const saved = service.buildPluginData([]);
+		const restored = makeService().service;
+		restored.load(saved);
+		expect(restored.getRevisionPlan("book").entries[0]).toMatchObject({ id: "stable", day: "2026-09-25", source: { path: "Book/Renamed.md" } });
+		expect(saved.reviewDecisionIndex).toEqual({});
+	});
+	it("rolls back a failed plan save instead of reporting unsaved changes as persisted", async () => {
+		const service = new ReviewRegistryService(makeApp([]), makeEngine({}), new ContributorDirectory(), async () => { throw new Error("disk full"); }, () => null);
+		const plan = service.getRevisionPlan("book");
+		plan.deadline = "2026-09-25";
+		await expect(service.setRevisionPlan("book", plan)).rejects.toThrow("disk full");
+		expect(service.getRevisionPlan("book").deadline).toBe(null);
+	});
+});

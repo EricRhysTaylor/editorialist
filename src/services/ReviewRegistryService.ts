@@ -213,8 +213,11 @@ export class ReviewRegistryService {
 	}
 
 	async setRevisionPlan(book: string, plan: RevisionPlan): Promise<void> {
-		this.revisionPlans = normalizeRevisionPlans({ version: 1, books: { ...this.revisionPlans.books, [book]: plan } });
-		await this.persistData();
+		const previous = this.revisionPlans;
+		const next = normalizeRevisionPlans({ version: 1, books: { ...previous.books, [book]: plan } });
+		this.revisionPlans = next;
+		try { await this.persistData(); }
+		catch (error) { if (this.revisionPlans === next) this.revisionPlans = previous; throw error; }
 	}
 
 	getSettings(): EditorialistSettings {
