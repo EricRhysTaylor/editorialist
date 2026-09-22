@@ -1,4 +1,5 @@
-import { ItemView, TFile, setIcon, type WorkspaceLeaf } from "obsidian";
+import { renderPanelHeader } from "./primitives/PanelHeader";
+import { DropdownComponent, Menu, ItemView, TFile, setIcon, type WorkspaceLeaf } from "obsidian";
 import type EditorialistPlugin from "../main";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
 import { formatEffortDuration } from "../core/EffortEstimate";
@@ -33,6 +34,7 @@ export class EditorialismPanel extends ItemView {
 	private activeFilePath: string | null = null;
 	private activeEditorialism: Editorialism | null = null;
 	private isLoading = false;
+	private itemFilter = "open";
 	// Last scene number the relevance highlights were rendered against; lets us
 	// re-render only when the author actually moves to a different scene.
 	private lastRelevanceSceneNumber: number | null | undefined = undefined;
@@ -122,36 +124,7 @@ export class EditorialismPanel extends ItemView {
 	}
 
 	private renderHeader(parent: HTMLElement): void {
-		// Shared header chrome with the review panel (logo + title + controls), so
-		// the swatch-book toggle reads as one panel changing modes.
-		const header = parent.createDiv({ cls: "editorialist-panel__header" });
-		const titleRow = header.createDiv({ cls: "editorialist-panel__title-row" });
-		setIcon(titleRow.createSpan({ cls: "editorialist-panel__title-icon" }), EDITORIALIST_ICON_ID);
-		titleRow.createEl("h2", { text: "Editorialisms" });
-
-		const modeToggle = titleRow.createEl("button", {
-			cls: "editorialist-panel__mode-toggle",
-			attr: { "aria-label": "Switch panel mode", type: "button" },
-		});
-		setIcon(modeToggle.createSpan({ cls: "editorialist-panel__settings-icon" }), "swatch-book");
-		modeToggle.addEventListener("click", (event) => {
-			this.plugin.showPanelModeMenu(event, EDITORIALISM_PANEL_VIEW_TYPE);
-		});
-
-		const settingsButton = titleRow.createEl("button", {
-			cls: "editorialist-panel__settings-button",
-			attr: { "aria-label": "Open Editorialist settings", type: "button" },
-		});
-		setIcon(settingsButton.createSpan({ cls: "editorialist-panel__settings-icon" }), "settings");
-		settingsButton.addEventListener("click", () => {
-			this.plugin.openSettings();
-		});
-
-		const book = this.plugin.getActiveBookScopeInfo().label;
-		header.createDiv({
-			cls: "editorialist-editorialism-panel__subtitle",
-			text: book ? `Active book: ${book}` : "No active book selected",
-		});
+		renderPanelHeader(parent, this.plugin, EDITORIALISM_PANEL_VIEW_TYPE, "Editorialisms");
 	}
 
 	private renderList(parent: HTMLElement): void {
@@ -161,7 +134,7 @@ export class EditorialismPanel extends ItemView {
 		}
 		const list = parent.createDiv({ cls: "editorialist-editorialism-panel__list" });
 		for (const summary of this.summaries) {
-			const row = list.createDiv({ cls: "editorialist-editorialism-panel__list-row" });
+			const row = list.createEl("button", { cls: "editorialist-editorialism-panel__list-row", attr: { type: "button" } });
 			row.addEventListener("click", () => {
 				this.activeFilePath = summary.filePath;
 				void this.refresh();
@@ -173,7 +146,7 @@ export class EditorialismPanel extends ItemView {
 			});
 			const meta = main.createDiv({ cls: "editorialist-editorialism-panel__list-meta" });
 			meta.createSpan({
-				text: `${summary.doneItems} / ${summary.totalItems} done`,
+				text: `${summary.totalItems - summary.doneItems} remaining${summary.deferredItems ? ` · ${summary.deferredItems} deferred` : ""}${summary.remainingMinutes ? ` · ~${formatEffortDuration(summary.remainingMinutes)}` : ""}`,
 			});
 			const attribution = formatAttribution(summary);
 			if (attribution) {
@@ -182,7 +155,7 @@ export class EditorialismPanel extends ItemView {
 					text: attribution,
 				});
 			}
-			if (summary.status) {
+			if (summary.status && summary.status !== "in-progress") {
 				meta.createSpan({
 					cls: "editorialist-editorialism-panel__list-status",
 					text: summary.status,
@@ -239,7 +212,7 @@ export class EditorialismPanel extends ItemView {
 			cls: "editorialist-editorialism-panel__detail-open",
 			attr: {
 				type: "button",
-				"aria-label": "Open source Markdown",
+				"aria-label": "Open agenda",
 			},
 		});
 		const openIcon = openSource.createSpan({ cls: "editorialist-editorialism-panel__detail-open-icon" });
@@ -279,7 +252,7 @@ export class EditorialismPanel extends ItemView {
 			// existing note; nothing is saved on the author's behalf.
 			const sourceChip = subtitle.createEl("button", {
 				cls: "editorialist-editorialism-panel__detail-meta-chip editorialist-editorialism-panel__detail-source",
-				text: `Source: ${sourceTarget ?? editorialism.source}`,
+				text: `Original feedback: ${sourceTarget ?? editorialism.source}`,
 				attr: { type: "button", "aria-label": "Open the source document" },
 			});
 			sourceChip.addEventListener("click", () => {
@@ -292,13 +265,17 @@ export class EditorialismPanel extends ItemView {
 		const sceneContext = this.plugin.getSceneRelevanceContext();
 		this.lastRelevanceSceneNumber = sceneContext?.sceneNumber ?? null;
 
+		const filters = detail.createDiv({ cls: "editorialist-editorialism-panel__filters" });
+		new DropdownComponent(filters).addOptions({ open: "Open directives", scene: "This scene", all: "All directives" }).setValue(this.itemFilter).onChange((value) => { this.itemFilter = value; this.render(); });
 		for (const section of editorialism.sections) {
+			const visible = section.items.filter((item) => this.itemFilter === "all" || (item.status !== "done" && (this.itemFilter !== "scene" || (sceneContext !== null && scopeRelatesToScene(item.scope, sceneContext)))));
+			if (visible.length === 0) continue;
 			const sectionEl = detail.createDiv({ cls: "editorialist-editorialism-panel__section" });
 			sectionEl.createDiv({
 				cls: "editorialist-editorialism-panel__section-heading",
 				text: section.heading,
 			});
-			for (const item of section.items) {
+			for (const item of visible) {
 				this.renderItem(sectionEl, editorialism, item, sceneContext);
 			}
 		}
@@ -363,14 +340,18 @@ export class EditorialismPanel extends ItemView {
 			cls: "editorialist-editorialism-panel__item-status",
 			attr: {
 				type: "button",
-				"aria-label": `Status: ${STATUS_LABEL[item.status]} (click to advance)`,
+				"aria-label": `Change status: ${STATUS_LABEL[item.status]}`, "aria-haspopup": "menu",
 			},
 		});
 		const checkboxIcon = checkbox.createSpan({ cls: "editorialist-editorialism-panel__item-status-icon" });
 		setIcon(checkboxIcon, STATUS_ICON[item.status]);
 		checkbox.addEventListener("click", (event) => {
 			event.preventDefault();
-			void this.advanceItemStatus(editorialism.filePath, item);
+			const menu = new Menu();
+			for (const status of Object.keys(STATUS_LABEL) as Array<EditorialismItem["status"]>) {
+				menu.addItem((entry) => entry.setTitle(STATUS_LABEL[status]).setChecked(item.status === status).onClick(async () => { await this.plugin.setEditorialismItemStatus(editorialism.filePath, item.lineIndex, status); await this.refresh(); }));
+			}
+			menu.showAtMouseEvent(event);
 		});
 
 		const main = row.createDiv({ cls: "editorialist-editorialism-panel__item-main" });
@@ -403,8 +384,8 @@ export class EditorialismPanel extends ItemView {
 		}
 
 		const processed = item.anchors.filter((anchor) => isAnchorProcessed(anchor.status)).length;
-		const list = parent.createDiv({ cls: "editorialist-editorialism-panel__anchors" });
-		list.createDiv({
+		const list = parent.createEl("details", { cls: "editorialist-editorialism-panel__anchors" });
+		list.createEl("summary", {
 			cls: "editorialist-editorialism-panel__anchors-count",
 			text: `${processed} / ${item.anchors.length} passages processed`,
 		});
@@ -548,11 +529,6 @@ export class EditorialismPanel extends ItemView {
 			default:
 				return scope.raw;
 		}
-	}
-
-	private async advanceItemStatus(filePath: string, item: EditorialismItem): Promise<void> {
-		await this.plugin.setEditorialismItemStatus(filePath, item.lineIndex, nextStatusInCycle(item.status));
-		await this.refresh();
 	}
 
 	private computeTotals(editorialism: Editorialism): { total: number; done: number } {

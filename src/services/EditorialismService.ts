@@ -1,3 +1,4 @@
+import { estimateEditorialismEffort, type EffortParams } from "../core/EffortEstimate";
 import { normalizePath, TFile, TFolder, type App } from "obsidian";
 import { isSceneClassFile } from "../core/VaultScope";
 import {
@@ -37,7 +38,7 @@ function sanitizePathSegment(value: string): string {
 export class EditorialismService {
 	constructor(private readonly app: App) {}
 
-	async listForBook(bookLabel: string | null): Promise<EditorialismSummary[]> {
+	async listForBook(bookLabel: string | null, effortParams?: EffortParams): Promise<EditorialismSummary[]> {
 		const files = this.collectCandidateFiles();
 		const summaries: EditorialismSummary[] = [];
 		for (const file of files) {
@@ -48,7 +49,10 @@ export class EditorialismService {
 			if (bookLabel && editorialism.book && editorialism.book.trim() !== bookLabel.trim()) {
 				continue;
 			}
-			summaries.push(this.summarize(editorialism, file.stat.mtime));
+			summaries.push({ ...this.summarize(editorialism, file.stat.mtime),
+				remainingMinutes: estimateEditorialismEffort(editorialism, effortParams).totalMinutes,
+				deferredItems: editorialism.sections.flatMap((section) => section.items).filter((item) => item.status === "deferred").length,
+			});
 		}
 		return summaries.sort((left, right) => right.mtime - left.mtime);
 	}

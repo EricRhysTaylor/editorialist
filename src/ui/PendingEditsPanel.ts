@@ -1,3 +1,4 @@
+import { renderPanelHeader } from "./primitives/PanelHeader";
 import { ItemView, TFile, debounce, setIcon, type Debouncer, type WorkspaceLeaf } from "obsidian";
 import type EditorialistPlugin from "../main";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
@@ -70,7 +71,12 @@ export class PendingEditsPanel extends ItemView {
 
 		const summary = this.summary;
 		if (!summary || summary.segmentCount <= 0) {
-			this.renderEmpty(shell);
+			const unavailable = this.plugin.pendingEdits.getUnavailableReason();
+			if (unavailable) {
+				shell.createDiv({ cls: "editorialist-pending-panel__empty", text: unavailable });
+			} else {
+				this.renderEmpty(shell);
+			}
 			return;
 		}
 		this.renderSummary(shell, summary);
@@ -78,34 +84,7 @@ export class PendingEditsPanel extends ItemView {
 	}
 
 	private renderHeader(parent: HTMLElement): void {
-		const header = parent.createDiv({ cls: "editorialist-panel__header" });
-		const titleRow = header.createDiv({ cls: "editorialist-panel__title-row" });
-		setIcon(titleRow.createSpan({ cls: "editorialist-panel__title-icon" }), EDITORIALIST_ICON_ID);
-		titleRow.createEl("h2", { text: "Pending edits" });
-
-		const modeToggle = titleRow.createEl("button", {
-			cls: "editorialist-panel__mode-toggle",
-			attr: { "aria-label": "Switch panel mode", type: "button" },
-		});
-		setIcon(modeToggle.createSpan({ cls: "editorialist-panel__settings-icon" }), "swatch-book");
-		modeToggle.addEventListener("click", (event) => {
-			this.plugin.showPanelModeMenu(event, PENDING_EDITS_PANEL_VIEW_TYPE);
-		});
-
-		const settingsButton = titleRow.createEl("button", {
-			cls: "editorialist-panel__settings-button",
-			attr: { "aria-label": "Open Editorialist settings", type: "button" },
-		});
-		setIcon(settingsButton.createSpan({ cls: "editorialist-panel__settings-icon" }), "settings");
-		settingsButton.addEventListener("click", () => {
-			this.plugin.openSettings();
-		});
-
-		const book = this.plugin.getActiveBookScopeInfo().label;
-		header.createDiv({
-			cls: "editorialist-editorialism-panel__subtitle",
-			text: book ? `Active book: ${book}` : "No active book selected",
-		});
+		renderPanelHeader(parent, this.plugin, PENDING_EDITS_PANEL_VIEW_TYPE, "Pending edits");
 	}
 
 	private renderEmpty(parent: HTMLElement): void {
@@ -140,9 +119,9 @@ export class PendingEditsPanel extends ItemView {
 	private renderSceneList(parent: HTMLElement, summary: PendingEditsSummary): void {
 		const list = parent.createDiv({ cls: "editorialist-pending-panel__list" });
 		for (const scene of summary.scenes) {
-			const row = list.createDiv({
+			const row = list.createEl("button", {
 				cls: "editorialist-pending-panel__row",
-				attr: { "aria-label": `Review pending edits in ${scene.title}` },
+				attr: { type: "button", "aria-label": `Review pending edits in ${scene.title}` },
 			});
 			const head = row.createDiv({ cls: "editorialist-pending-panel__row-head" });
 			head.createDiv({ cls: "editorialist-pending-panel__row-title", text: scene.title });

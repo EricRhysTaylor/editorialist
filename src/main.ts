@@ -887,7 +887,7 @@ export default class EditorialistPlugin extends Plugin {
 	async listEditorialismsForActiveBook(bookLabel: string | null): Promise<
 		Awaited<ReturnType<EditorialismService["listForBook"]>>
 	> {
-		return this.editorialismService.listForBook(bookLabel);
+		return this.editorialismService.listForBook(bookLabel, effortParamsFromSettings(this.getEffortSettings()));
 	}
 
 	async loadEditorialism(filePath: string): Promise<

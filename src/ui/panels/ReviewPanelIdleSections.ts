@@ -530,7 +530,7 @@ export function renderRecentActivityBlock(
 		});
 		batchLine.createSpan({
 			cls: "editorialist-panel__history-batch-id",
-			text: lastFinished.batchId,
+			text: `${formatRecentReviewSceneTitle(lastFinished, scopeFolder)} · ${formatRelativeTime(lastFinished.updatedAt)}`,
 			attr: { title: `${lastFinished.batchId} — ${formatRelativeTime(lastFinished.updatedAt)}` },
 		});
 	}

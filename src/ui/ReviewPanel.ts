@@ -1,3 +1,4 @@
+import { renderPanelHeader } from "./primitives/PanelHeader";
 import { ButtonComponent, DropdownComponent, ItemView, setIcon, type WorkspaceLeaf } from "obsidian";
 import { formatContributorIdentityLabel } from "../core/ContributorIdentity";
 import { getEffectiveSuggestionStatus, getSuggestionCopyBlocks, getSuggestionReason as getOperationSuggestionReason, isImplicitlyAcceptedSuggestion, isMoveSuggestion } from "../core/OperationSupport";
@@ -108,7 +109,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	private reviewerPickerValue: string | null = null;
 	private starredOnly = false;
 	private reviewStateProcessedExpanded = false;
-	private commentsCollapsed = false;
+	private commentsCollapsed = true;
 	// The completed sweep whose memos have already been auto-expanded, so the
 	// expansion fires once when a pass finishes rather than fighting the author
 	// every time they fold the card in the completion view.
@@ -125,7 +126,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	// scene's directives.
 	private sceneDirectivesKey: string | null = null;
 	private sceneDirectivesLoading = false;
-	private sceneDirectivesCollapsed = false;
+	private sceneDirectivesCollapsed = true;
 	// null = follow the cold-start default; an explicit boolean once the user
 	// toggles the onboarding disclosure within this view session.
 	private onboardingExpanded: boolean | null = null;
@@ -228,143 +229,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			? this.plugin.getNextLogicalReviewLaunchTarget()
 			: null;
 
-		const header = this.contentEl.createDiv({ cls: "editorialist-panel__header" });
-		const titleRow = header.createDiv({ cls: "editorialist-panel__title-row" });
-		const titleIcon = titleRow.createSpan({ cls: "editorialist-panel__title-icon" });
-		setIcon(titleIcon, EDITORIALIST_ICON_ID);
-		titleRow.createEl("h2", { text: "Editorialist" });
-
-		// Mode switch: small toggle beside the title that swaps this leaf to the
-		// editorialism view in place. Smaller than the action buttons.
-		const modeToggle = titleRow.createEl("button", {
-			cls: "editorialist-panel__mode-toggle",
-			attr: { "aria-label": "Switch panel mode", type: "button" },
-		});
-		setIcon(modeToggle.createSpan({ cls: "editorialist-panel__settings-icon" }), "swatch-book");
-		modeToggle.addEventListener("click", (event) => {
-			this.plugin.showPanelModeMenu(event, REVIEW_PANEL_VIEW_TYPE);
-		});
-
-		// Clean-batches header action: a single persistent control so cleanup is
-		// always reachable without hunting for per-card links. Accent + enabled
-		// when fully-resolved batches exist; muted + disabled (with an explanatory
-		// label) when there is nothing to clean.
-		const cleanableBatchIds = this.plugin.getCleanableBatchIds();
-		const cleanableCount = cleanableBatchIds.length;
-		const cleanButton = titleRow.createEl("button", {
-			cls: `editorialist-panel__settings-button editorialist-panel__clean-button${cleanableCount > 0 ? " is-active" : ""}`,
-			attr: {
-				// The disabled label states the rule rather than just the outcome:
-				// "No resolved batches to clean" tells an author nothing about
-				// what to go do, and a greyed button is where they otherwise
-				// discover the block. Deliberately not a live count of what is
-				// open — that would be a second derivation of the gate in
-				// SweepCompletion.isBatchReadyToClean and could disagree with
-				// the button's own enabled state.
-				"aria-label": cleanableCount > 0
-					? `Clean ${cleanableCount} resolved batch${cleanableCount === 1 ? "" : "es"} from their scenes`
-					: "Nothing to clean yet — a batch clears once every suggestion in it is accepted, rejected, or rewritten",
-				type: "button",
-				...(cleanableCount === 0 ? { disabled: "true" } : {}),
-			},
-		});
-		const cleanIcon = cleanButton.createSpan({ cls: "editorialist-panel__settings-icon" });
-		setIcon(cleanIcon, "eraser");
-		if (cleanableCount > 0) {
-			this.bindImmediateAction(cleanButton, () => {
-				void this.plugin.cleanReadyBatches();
-			});
-		}
-
-		const endRoundButton = titleRow.createEl("button", {
-			cls: "editorialist-panel__settings-button",
-			attr: {
-				type: "button",
-				"aria-label": "End current round…",
-				...(this.plugin.getEndableRoundBatches().length === 0 ? { disabled: "true" } : {}),
-			},
-		});
-		setIcon(endRoundButton.createSpan({ cls: "editorialist-panel__settings-icon" }), "circle-stop");
-		this.bindImmediateAction(endRoundButton, () => { void this.plugin.endCurrentReviewRound(); });
-
-		const launcherButton = titleRow.createEl("button", {
-			cls: "editorialist-panel__settings-button editorialist-panel__launcher-button",
-			attr: {
-				// aria-label only — see the note on the settings button below for why
-				// we avoid a native `title` on these re-rendered header controls.
-				"aria-label": "Open review launcher",
-				type: "button",
-			},
-		});
-		const launcherIcon = launcherButton.createSpan({ cls: "editorialist-panel__settings-icon" });
-		setIcon(launcherIcon, "file-down");
-		this.bindImmediateAction(launcherButton, () => {
-			void this.plugin.openEditorialistModal();
-		});
-
-		// Author-query header action: drop a hidden %%ai:…%% question into the
-		// active scene without hand-typing the marker. Inserts into the scene
-		// editor, or copies to the clipboard when no manuscript is in view.
-		const authorQueryButton = titleRow.createEl("button", {
-			cls: "editorialist-panel__settings-button editorialist-panel__author-query-button",
-			attr: {
-				"aria-label": "Insert author query",
-				type: "button",
-			},
-		});
-		const authorQueryIcon = authorQueryButton.createSpan({ cls: "editorialist-panel__settings-icon" });
-		setIcon(authorQueryIcon, "message-square-plus");
-		this.bindImmediateAction(authorQueryButton, () => {
-			void this.plugin.insertAuthorQuery();
-		});
-
-		// Cut-file header action: a quick way to pull up the active scene's cut
-		// file without selecting text first. Active + accented when the scene has a
-		// cut file to open; muted + disabled (with an explanatory label) when none
-		// exists yet. Opens it in the lower split beneath this panel, same as the
-		// toolbar's Shift-open — see openCutFileForActiveScene.
-		// Name the detected scene in the label so there's no ambiguity about which
-		// scene the button acts on. Falls back to generic wording only when no
-		// scene is detected at all.
-		const { sceneName, hasCutFile } = this.plugin.cutFiles.getActiveSceneCutStatus();
-		const cutLabel = sceneName
-			? hasCutFile
-				? `Open cut file for “${sceneName}”`
-				: `No cut file for “${sceneName}” yet`
-			: "Open a scene note to view its cut file";
-		const cutButton = titleRow.createEl("button", {
-			cls: `editorialist-panel__settings-button editorialist-panel__cut-button${hasCutFile ? " is-active" : ""}`,
-			attr: {
-				// aria-label only — see the note on the settings button below for why
-				// we avoid a native `title` on these re-rendered header controls.
-				"aria-label": cutLabel,
-				type: "button",
-				...(hasCutFile ? {} : { disabled: "true" }),
-			},
-		});
-		const cutIcon = cutButton.createSpan({ cls: "editorialist-panel__settings-icon" });
-		setIcon(cutIcon, "scissors");
-		if (hasCutFile) {
-			this.bindImmediateAction(cutButton, () => {
-				void this.plugin.cutFiles.openCutFileForActiveScene();
-			});
-		}
-
-		const settingsButton = titleRow.createEl("button", {
-			cls: "editorialist-panel__settings-button",
-			attr: {
-				// aria-label only — no native `title`. The panel re-renders on every
-				// store change, and Chromium re-shows an orphaned title-tooltip at the
-				// cursor (over the editor) when the hovered node is destroyed.
-				"aria-label": "Open Editorialist settings",
-				type: "button",
-			},
-		});
-		const settingsIcon = settingsButton.createSpan({ cls: "editorialist-panel__settings-icon" });
-		setIcon(settingsIcon, "settings");
-		this.bindImmediateAction(settingsButton, () => {
-			this.plugin.openSettings();
-		});
+		const header = renderPanelHeader(this.contentEl, this.plugin, REVIEW_PANEL_VIEW_TYPE, "Review");
 
 		if (branch === "completed_sweep") {
 			if (!completedSweep) {
@@ -437,7 +302,9 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			// 2. Recent review sessions. (Pending edits are deliberately absent
 			// from the review view — the workflow lives entirely in the panel's
 			// Pending edits mode, reachable from the mode toggle.)
-			renderRecentActivityBlock(this.plugin, this.contentEl);
+			const history = this.contentEl.createEl("details", { cls: "editorialist-panel__disclosure" });
+			history.createEl("summary", { text: "Recent reviews" });
+			renderRecentActivityBlock(this.plugin, history);
 
 			// 3. Ready to clean — processed sweeps awaiting cleanup. Distinct from
 			// the pending work above: it's post-resolution housekeeping, so it sits
@@ -447,7 +314,9 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			}
 
 			// 4. Contributors.
-			renderContributorsBlock(this.plugin, this.contentEl);
+			const contributors = this.contentEl.createEl("details", { cls: "editorialist-panel__disclosure" });
+			contributors.createEl("summary", { text: "Contributors" });
+			renderContributorsBlock(this.plugin, contributors);
 
 			// 5. Onboarding — demoted to a disclosure. Auto-expanded only on a
 			// cold-start vault where there is nothing else to anchor on.

@@ -90,6 +90,7 @@ const PENDING_EDITS_SUMMARY_MIN_REFRESH_MS = 2000;
 export class PendingEditsCoordinator {
 	private pendingEditsSession: PendingEditsSession | null = null;
 	private pendingEditsSummary: PendingEditsSummary | null = null;
+	private unavailableReason: string | null = null;
 	private pendingEditsSummaryInflight: Promise<void> | null = null;
 	private pendingEditsSummaryLastRefreshAt = 0;
 	private inquiryBriefResolver: InquiryBriefResolver | null = null;
@@ -118,6 +119,10 @@ export class PendingEditsCoordinator {
 		return this.pendingEditsSession;
 	}
 
+	getUnavailableReason(): string | null {
+		return this.unavailableReason;
+	}
+
 	getPendingEditsSummary(): PendingEditsSummary | null {
 		return this.pendingEditsSummary;
 	}
@@ -144,10 +149,12 @@ export class PendingEditsCoordinator {
 			try {
 				const result = await collectPendingEdits(this.host.app);
 				if (!result.ok) {
+					this.unavailableReason = result.reason === "no_scenes_with_pending_edits" ? null : describeCollectFailure(result.reason);
 					this.pendingEditsSummary = null;
 					return;
 				}
 
+				this.unavailableReason = null;
 				let humanCount = 0;
 				let inquiryCount = 0;
 				const scenePaths = new Set<string>();

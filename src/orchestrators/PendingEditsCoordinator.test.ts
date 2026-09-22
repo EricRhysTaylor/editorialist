@@ -404,3 +404,20 @@ describe("PendingEditsCoordinator — summary scenes", () => {
 		expect(excerpt).not.toContain("  ");
 	});
 });
+
+
+describe("Pending edits availability", () => {
+	it("distinguishes collection failure from an empty queue and clears the failure on recovery", async () => {
+		const { host } = makeHost();
+		const coordinator = new PendingEditsCoordinator(host);
+		collectResult = { ok: false, reason: "radial_timeline_missing" };
+		await coordinator.refreshPendingEditsSummary({ force: true });
+		expect(coordinator.getUnavailableReason()).toBe("failure");
+		collectResult = { ok: false, reason: "no_scenes_with_pending_edits" };
+		await coordinator.refreshPendingEditsSummary({ force: true });
+		expect(coordinator.getUnavailableReason()).toBeNull();
+		collectResult = { ok: true, session: session([inquirySegment("one")]) };
+		await coordinator.refreshPendingEditsSummary({ force: true });
+		expect(coordinator.getPendingEditsSummary()?.segmentCount).toBe(1);
+	});
+});
