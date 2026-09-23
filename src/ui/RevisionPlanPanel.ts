@@ -282,7 +282,7 @@ export class RevisionPlanPanel extends ItemView {
 		if (resolved.state === "ready" && resolved.candidate.suggestedMinutes !== undefined) details.createEl("p", { cls: "editorialist-plan__hint", text: `Suggested estimate: about ${Math.round(resolved.candidate.suggestedMinutes)} min. Enter your own range; this is not measured editing time.` });
 		const required = this.input(details, "Required for deadline", "checkbox", "", () => { void this.edit(entry.id, (item) => { item.required = required.checked; }); });
 		required.checked = entry.required;
-		const locked = this.input(details, "Lock against auto-scheduling", "checkbox", "", () => { void this.edit(entry.id, (item) => { item.locked = locked.checked; }); });
+		const locked = this.input(details, "Keep this date", "checkbox", "", () => { void this.edit(entry.id, (item) => { item.locked = locked.checked; }); });
 		locked.checked = entry.locked === true;
 		const label = details.createEl("label", { text: "After", cls: "editorialist-plan__field" });
 		const select = label.createEl("select", { attr: { "aria-label": "Prerequisite task" } });

@@ -44,6 +44,9 @@ class FakeVault {
 		this.contents.set(file.path, data);
 	}
 
+	async read(file: TFile): Promise<string> { return this.contents.get(file.path) ?? ""; }
+	async process(file: TFile, callback: (text: string) => string): Promise<string> { const text = callback(await this.read(file)); await this.modify(file, text); return text; }
+
 	async cachedRead(file: TFile): Promise<string> {
 		return this.contents.get(file.path) ?? "";
 	}
@@ -217,5 +220,24 @@ describe("EditorialismService.saveEditorialismFile — two reviewers, one title"
 		await vault.create("Editorialist/Book One/Developmental review (Theo Brandt).md",
 			"---\ntype: editorialism\ntitle: Developmental review\nreviewer: Someone Else\n---\nx");
 		await expect(service.saveEditorialismFile(agenda("Theo Brandt", "Theo"))).rejects.toThrow(/Another reviewer/);
+	});
+});
+
+describe("safe agenda updates", () => {
+	const file = { content: "---\ntype: editorialism\ntitle: Agenda\n---\n# Agenda\n- [x] Clarify motivation\n", title: "Agenda", book: "Book" };
+	it("recognizes repeats even after the author has completed a task", async () => {
+		const { service } = makeService(); await service.saveEditorialismFile(file);
+		const result = await service.saveEditorialismFile({ ...file, content: file.content.replace("[x]", "[ ]") }, async () => { throw new Error("Should not prompt"); });
+		expect(result.unchanged).toBe(true);
+	});
+	it("leaves the original untouched when an update is declined", async () => {
+		const { service, vault } = makeService(); const first = await service.saveEditorialismFile(file);
+		const result = await service.saveEditorialismFile({ ...file, content: file.content + "- [ ] Rewrite ending\n" }, async () => false);
+		expect(result.cancelled).toBe(true); expect(vault.contents.get(first.filePath)).toBe(file.content);
+	});
+	it("refuses an update if the file changes during confirmation", async () => {
+		const { service, vault } = makeService(); const first = await service.saveEditorialismFile(file);
+		await expect(service.saveEditorialismFile({ ...file, content: file.content + "- [ ] Rewrite ending\n" }, async () => { vault.contents.set(first.filePath, file.content + "Author addition"); return true; })).rejects.toThrow("changed while");
+		expect(vault.contents.get(first.filePath)).toContain("Author addition");
 	});
 });

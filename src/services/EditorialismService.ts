@@ -1,3 +1,4 @@
+import { prepareEditorialismUpdate } from "../core/EditorialismUpdate";
 import { estimateEditorialismEffort, type EffortParams } from "../core/EffortEstimate";
 import { normalizePath, TFile, TFolder, type App } from "obsidian";
 import { isSceneClassFile } from "../core/VaultScope";
@@ -18,6 +19,8 @@ export const EDITORIALISM_FOLDER_NAME = "Editorialist";
 export interface SaveEditorialismResult {
 	filePath: string;
 	created: boolean;
+	unchanged?: boolean;
+	cancelled?: boolean;
 	// True when the title path held a different reviewer's agenda and this one
 	// was saved beside it under a reviewer-suffixed name instead.
 	keptApart: boolean;
@@ -123,7 +126,7 @@ export class EditorialismService {
 		title: string;
 		book: string | null;
 		reviewer?: string | null;
-	}): Promise<SaveEditorialismResult> {
+	}, confirmUpdate?: (details: string[]) => Promise<boolean>): Promise<SaveEditorialismResult> {
 		const folderSegments = [EDITORIALISM_FOLDER_NAME];
 		const bookSegment = file.book ? sanitizePathSegment(file.book) : "";
 		if (bookSegment) {
@@ -161,7 +164,20 @@ export class EditorialismService {
 			if (isSceneClassFile(this.app, existing)) {
 				throw new Error(`Editorialism path resolves to a scene note: ${filePath}`);
 			}
-			await this.app.vault.modify(existing, body);
+			const before = await this.app.vault.read(existing);
+			const update = prepareEditorialismUpdate(before, body);
+			if (before.replace(/\r\n/g, "\n").trimEnd() === update.content.trimEnd()) {
+				return { filePath, created: false, keptApart, unchanged: true };
+			}
+			if (confirmUpdate && !await confirmUpdate([
+				...update.added.map((text) => `Add: ${text}`),
+				...update.removed.map((text) => `Remove: ${text}`),
+				...(!update.added.length && !update.removed.length ? ["Update document details or wording around the checklist."] : []),
+			])) return { filePath, created: false, keptApart, cancelled: true };
+			await this.app.vault.process(existing, (latest) => {
+				if (latest !== before) throw new Error("This agenda changed while you were reviewing it. Paste it again to compare the latest version.");
+				return update.content;
+			});
 			return { filePath, created: false, keptApart };
 		}
 		await this.app.vault.create(filePath, body);

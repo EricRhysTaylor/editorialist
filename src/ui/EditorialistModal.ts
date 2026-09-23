@@ -1,3 +1,5 @@
+import { extractEditorialismFileFromText } from "../core/EditorialismImport";
+import { parseEditorialism } from "../core/EditorialismParser";
 import { ButtonComponent, Modal, Notice, TextAreaComponent, setIcon, type App } from "obsidian";
 import { buildModalFooter, type ModalFooterButtonSpec } from "./primitives/ModalFooter";
 import { getReviewBlockFenceLabel, type NoteReviewBlockState } from "../core/ReviewBlockFormat";
@@ -134,7 +136,7 @@ export class EditorialistModal extends Modal {
 		const shell = this.contentEl.createDiv({ cls: "editorialist-control-modal__content" });
 
 		this.renderHeader(shell);
-		this.renderPrimaryState(shell);
+		if (!this.showManualPaste || !this.manualText.trim()) this.renderPrimaryState(shell);
 
 		if (this.showManualPaste) {
 			this.renderManualPaste(shell);
@@ -319,7 +321,12 @@ export class EditorialistModal extends Modal {
 				? this.collectProposedCorrections(this.manualBatch)
 				: [];
 
-		if (this.manualImportError) {
+		const editorialism = extractEditorialismFileFromText(this.manualText);
+		const hasEditorialism = Boolean(editorialism);
+		const remaining = editorialism ? this.manualText.replace(editorialism.content, "") : this.manualText;
+		const hasBatchText = /===\s*(?:EDIT|MEMO|CUT|CONDENSE|EXPAND|MOVE|QUERY)\s*===|```editorialist-review|^Reviewer:/m.test(remaining);
+		const onlyEditorialism = hasEditorialism && !hasBatchText;
+		if (this.manualImportError && !onlyEditorialism) {
 			this.renderManualImportError(section, this.manualImportError);
 		} else if (corrections.length > 0) {
 			this.renderProposedCorrections(section, corrections);
@@ -337,13 +344,13 @@ export class EditorialistModal extends Modal {
 		// Format B detection runs independently of the review-batch (Format A)
 		// validation: a paste may carry an editorialism file, a review block, or
 		// both, and each gets its own action.
-		const hasEditorialism = hasText && this.options.detectEditorialism(this.manualText);
+		const itemCount = editorialism ? parseEditorialism("", editorialism.content).sections.reduce((sum, section) => sum + section.items.length, 0) : 0;
 		if (hasEditorialism) {
 			const banner = section.createDiv({ cls: "editorialist-control-modal__editorialism-note" });
 			const bannerIcon = banner.createSpan({ cls: "editorialist-control-modal__editorialism-note-icon" });
 			setIcon(bannerIcon, "list-checks");
 			banner.createSpan({
-				text: "Editorialism file detected — save it to your Editorialist folder and open the Editorialisms panel.",
+				text: `Editorialism detected · ${itemCount} ${itemCount === 1 ? "item" : "items"}. Import checks for an existing agenda before saving.`,
 			});
 		}
 
@@ -360,7 +367,11 @@ export class EditorialistModal extends Modal {
 					}
 
 					await this.options.onImportBatch(batch, true);
-					this.close();
+					if (editorialism) {
+						this.manualText = editorialism.content;
+						this.manualBatch = null;
+						this.scheduleManualValidation();
+					} else this.close();
 				},
 			}),
 			this.makeActionButtonSpec({
@@ -381,16 +392,23 @@ export class EditorialistModal extends Modal {
 			}),
 		];
 
+		if (onlyEditorialism) buttons.splice(0, buttons.length);
 		if (hasEditorialism) {
 			buttons.push(
 				this.makeActionButtonSpec({
-					text: "Save editorialism file",
+					text: "Import editorialism",
+					cta: onlyEditorialism,
 					icon: "list-checks",
-					subtle: true,
+					subtle: !onlyEditorialism,
 					onClick: async () => {
-						const saved = await this.options.onSaveEditorialism(this.manualText);
-						if (saved) {
-							this.close();
+						try {
+							const saved = await this.options.onSaveEditorialism(this.manualText);
+							if (saved && hasBatchText && editorialism) {
+								this.manualText = this.manualText.replace(editorialism.content, "").replace(/```editorialism\s*```/g, "");
+								this.scheduleManualValidation();
+							} else if (saved) this.close();
+						} catch (error) {
+							new Notice(error instanceof Error ? error.message : "Could not import editorialism.");
 						}
 					},
 				}),

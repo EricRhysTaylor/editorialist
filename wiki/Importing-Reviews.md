@@ -158,7 +158,7 @@ created: 2026-06-10
 - [ ] Subplot-level work [scope:: subplot:Shail IT subplot]
 ```
 
-Paste the reply into the review launcher: when it contains an editorialism file, the launcher shows a **Save editorialism file** action that writes it to `Editorialist/<Book>/<Title>.md` (creating the folder), then opens the [Editorialisms Panel](Editorialisms-Panel). Re-saving the same title and reviewer updates the prior file in place; a different reviewer’s agenda is kept separately. You can still create the file by hand if you prefer — the panel picks up any `type: editorialism` file under `Editorialist/`.
+Paste the reply into the review launcher: when it contains an editorialism file, the launcher shows a **Import editorialism** action that writes it to `Editorialist/<Book>/<Title>.md` (creating the folder), then opens the [Editorialisms Panel](Editorialisms-Panel). Re-importing identical content leaves the file untouched. Changed content with the same title and reviewer requires an update confirmation and retains progress on unchanged instructions; a different reviewer’s agenda is kept separately. You can still create the file by hand if you prefer — the panel picks up any `type: editorialism` file under `Editorialist/`.
 
 **Required:**
 - Frontmatter `type: editorialism` — files without this are ignored.
@@ -208,3 +208,5 @@ A memo is commentary without an individual completion checkbox. Put independentl
 After importing, open **… → Editorial deliveries**, link the batches and files, record the known received date and return deadline, then choose **Plan this delivery**. See [Revision Plan](Revision-Plan). Neither format automatically creates a delivery, scheduled sessions, or Pending edits. Dates, priorities, prerequisites, scheduling phases, and minute ranges belong in the planner; inventing extra import fields will not set them.
 
 When replacing an existing agenda, preserve unchanged item text, section headings, scope, and completion markers. These identify planned work. Use a distinct title for a new editorial round; deactivate older files instead of deleting them when they no longer apply.
+
+A checklist-only paste is a valid import; no batch is required. Choose **Import editorialism**. Identical agendas open the existing library without rewriting the file, including when your completion markers have changed since the original import. Changed agendas show an update confirmation with added and removed instructions. Progress on uniquely matched, unchanged instructions and anchors is retained; changed wording or scope is treated as different work. With both formats in one paste, completing one import leaves the other available.

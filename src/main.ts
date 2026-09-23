@@ -818,7 +818,7 @@ export default class EditorialistPlugin extends Plugin {
 		return this.registry.getEditorialDeliveries().filter((delivery) => delivery.bookFolder === folder);
 	}
 	openEditorialDeliveries(): void { new EditorialDeliveriesModal(this).open(); }
-	openDeliveryScheduler(delivery: EditorialDelivery): void { new AutoScheduleModal(this, delivery).open(); }
+	openDeliveryScheduler(delivery: EditorialDelivery, adjusting = false): void { new AutoScheduleModal(this, delivery, adjusting).open(); }
 	async applyScheduledPlan(book: string, expected: RevisionPlan, next: RevisionPlan): Promise<void> {
 		const active = JSON.stringify(["folder", this.getActiveBookScopeInfo().sourceFolder?.replace(/\/$/, "")]);
 		if (book !== active || JSON.stringify(this.getRevisionPlan(book)) !== JSON.stringify(expected)) throw new Error("The book or plan changed. Reopen the planner before applying.");
@@ -954,7 +954,16 @@ export default class EditorialistPlugin extends Plugin {
 			new Notice("No editorialism file found in the pasted text.");
 			return false;
 		}
-		const result = await this.editorialismService.saveEditorialismFile(extracted);
+		const result = await this.editorialismService.saveEditorialismFile(extracted, async (details) => {
+			const choice = await openEditorialistChoiceModal(this.app, {
+				title: "Update existing editorialism?",
+				description: "This agenda already exists. Progress on unchanged instructions and anchors stays intact. Review additions and removals before updating.",
+				details,
+				choices: [{ label: "Cancel", value: "cancel" }, { label: "Update agenda", value: "update", cta: true }],
+			});
+			return choice === "update";
+		});
+		if (result.cancelled) return false;
 		if (result.keptApart) {
 			new Notice(`A different reviewer's “${extracted.title}” already exists — saved this one beside it.`);
 		}
@@ -970,7 +979,7 @@ export default class EditorialistPlugin extends Plugin {
 			await this.persistContributorProfilesIfNeeded();
 		}
 		new Notice(
-			`${result.created ? "Saved" : "Updated"} editorialism “${extracted.title}” at ${result.filePath}.`,
+			`${result.unchanged ? "Already imported" : result.created ? "Saved" : "Updated"} editorialism “${extracted.title}” at ${result.filePath}.`,
 		);
 		await this.openEditorialismPanel();
 		const file = this.app.vault.getAbstractFileByPath(result.filePath);
