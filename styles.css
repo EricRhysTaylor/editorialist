@@ -5662,7 +5662,12 @@
 .editorialist-editorialism-panel__shell {
 	display: flex;
 	flex-direction: column;
-	gap: 0.85rem;
+	gap: 12px;
+}
+
+/* The shell owns list spacing; child margins otherwise stack with its gap. */
+.editorialist-editorialism-panel__shell > :is(.editorialist-panel__header, .editorialist-editorialism-panel__deliveries, .editorialist-editorialism-panel__filters, .editorialist-editorialism-panel__source-filters, .editorialist-plan__hint) {
+	margin: 0;
 }
 
 .editorialist-editorialism-panel__header {
