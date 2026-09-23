@@ -1,6 +1,6 @@
 Editorialisms is the manuscript-wide commentary mode. Where [Review](Review-Panel) handles scene-level batches with line edits and [Pending Edits](Pending-Edits) handles author / Inquiry follow-ups, Editorialisms manages **Editorialism documents** — separate structural guidance files that span scenes, subplots, or the whole manuscript. It is for general feedback, not line edits.
 
-<!-- Screenshot still needed: Editorialisms panel with a document open (images/panel-editorialisms.png) -->
+<p align="center"><img src="images/panel-editorialisms.png" alt="Editorialisms library with active and inactive filters, reviewer attribution, received dates, and per-file progress" width="460"></p>
 
 ## What an Editorialism is
 
@@ -32,14 +32,14 @@ When a second reviewer delivers an agenda with the same `title:` as one already 
 
 Files without `type: editorialism` are ignored. The full file format — section headings, task items, `[scope:: …]` and `[tags:: …]` metadata — is documented in [Importing Reviews § Format B](Importing-Reviews#format-b--the-editorialism-file). Reviewers (human or AI) can produce these files directly; the launcher's template includes the format.
 
-**Getting a file into the panel.** The fastest path is the [review launcher](Importing-Reviews): paste an AI reply that contains an editorialism file (a ```` ```editorialism ```` fenced block, or just the `type: editorialism` frontmatter) and click **Save editorialism file**. Editorialist writes it to `Editorialist/<Book>/<Title>.md`, creating the folder, and opens this panel. Re-saving the same `title:` overwrites in place. Creating the file by hand works too.
+**Getting a file into the panel.** The fastest path is the [review launcher](Importing-Reviews): paste an AI reply that contains an editorialism file (a ```` ```editorialism ```` fenced block, or just the `type: editorialism` frontmatter) and click **Save editorialism file**. Editorialist writes it to `Editorialist/<Book>/<Title>.md`, creating the folder, and opens this panel. Re-saving the same title and reviewer updates in place; different reviewers are kept apart. Creating the file by hand works too.
 
 > Only files whose `book:` matches the active book label appear while that book is active. If a saved file doesn't show up, check that its `book:` value matches exactly.
 
 ## The panel
 
 - **Header** — the active book label (or "No active book selected").
-- **Document list** — every Editorialism for the active book, each showing its completion (done items / total items).
+- **Document list** — files for the active book, filtered by activity, delivery, and reviewer; each shows remaining work, attribution, dates, and completion.
 - **Detail view** — select a document to see its items grouped by section.
 
 ### Working items
@@ -56,7 +56,6 @@ Because Editorialisms are plain markdown task lists, they stay fully readable an
 
 When you are working in a scene, Editorialist marks related Editorialism items with a green left accent. This helps you spot broad guidance that matters to the scene in front of you, without rereading the whole agenda.
 
-<p align="center"><img src="images/panel-side-editorialism-active-rounded.png" alt="Editorialism item with a green current-scene accent for the Cesena thread" width="655"></p>
 
 Highlighting applies only to scene notes of the active book. Cut archives are always excluded, and in a Radial Timeline vault a note must carry `Class: Scene` — so a numbered Beat or outline note such as `29.01` does not light up as scene 29. Vaults without `Class` frontmatter are unaffected: there, any note in the book folder counts.
 
@@ -131,22 +130,6 @@ Revision-plan Available work can also be filtered by delivery. Linked items show
 
 Deliveries are saved in plugin data alongside revision plans. Existing feedback remains unassigned until you link it. Imports still use the separate batch and Editorialism actions; creating a delivery does not automatically convert an editor's original document.
 
-## Automatically plan a delivery
+## Plan the work
 
-Open **Editorial deliveries**, then choose **Plan this delivery** on a delivery card. Link its batches and Editorialism files first. The planner uses unfinished, active work from that delivery; items already in your plan are not duplicated.
-
-Choose a preset:
-
-- **Developmental revision:** structural decisions, then scene rewrites, then prose refinement; manuscript order within each phase.
-- **Copy-edit pass:** manuscript order, grouped by scene.
-- **Mixed editorial delivery:** structural decisions first, then rewrites and prose refinement together scene by scene.
-
-Phase suggestions use words in the instruction, not an AI assessment of your manuscript. **Review ordering & estimates** lets you change phases, enter effort ranges, or leave individual items out. Unknown phases or effort appear under **Needs attention** with a shortcut to adjust the item.
-
-Set your planning window, session length, working minutes for each weekday, and reserve time. **Generate draft** previews the proposed sessions without saving. Scheduling uses the upper estimate, subtracts existing commitments, leaves reserve time at the end, and respects the earlier book or delivery deadline. Existing dated work without an estimate reserves its entire day. Work that cannot fit stays unscheduled; work lacking a phase or valid estimate stays in Available work.
-
-Suggested effort is a starting assumption: existing Editorialism heuristics, or five minutes per remaining batch suggestion and fifteen per memo, with a ±25% range. Replace these with your own ranges when known. Large tasks split into numbered sessions that keep their original source link. **Finish session** completes only that planning session; it does not check off an Editorialism or accept suggestions.
-
-**Apply draft schedule** saves the plan and its defaults for this book. If feedback, the delivery, or the plan changes while the preview is open, reopen the planner and generate a fresh draft.
-
-For later adjustments, enable **Replan unlocked auto-scheduled sessions from this delivery**. It retains manual tasks, completed sessions, other deliveries, locked sessions, and prerequisites of preserved tasks. Use **Lock against auto-scheduling** under a task's **Schedule & options** to preserve a commitment. Regeneration moves eligible existing sessions; it does not recalculate their effort or split them again.
+See [Revision Plan](Revision-Plan#automatically-plan-a-delivery) for presets, effort ranges, working capacity, locks, and draft schedules. One delivery can contain both batches and Editorialism files.

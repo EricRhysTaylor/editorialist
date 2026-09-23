@@ -118,7 +118,7 @@ A cut file is a general-purpose archive, reachable wherever you are working:
 
 - **Editor right-click** — select any passage and choose **Ed — backup selection to cut file**. The `Backup selection to cut file` command does the same from the palette.
 - **Suggestion toolbar** — **Backup to cut file** archives the suggestion's target passage; Shift + click opens the cut file instead.
-- **Side panel header** — the scissors button opens the active scene's cut file in the split below the panel.
+- **Side panel actions menu** — **… → Open cut file** opens the active scene's cut file in the split below the panel.
 
 Back a passage up before you accept a **Cut** if you want a copy kept. Accepting removes the passage from the manuscript immediately, and the only way back is the single-step, same-note [Undo](Review-Panel#undo).
 

@@ -1,6 +1,6 @@
 **Editorialist turns outside feedback and author notes into controlled revision workflows inside Obsidian.**
 
-It is for writers who get notes from human editors, beta readers, or AI and want to work through those notes without losing control of the manuscript. Editorialist gives the Ed side panel three modes: scene-level review batches, manuscript-wide Editorialisms, and pending edits gathered from author notes or Radial Timeline Inquiry.
+It is for writers who get notes from human editors, beta readers, or AI and want to work through those notes without losing control of the manuscript. Editorialist gives the Ed side panel four modes: Revision plan, Review, Pending edits, and Editorialisms. Plan the work together, then resolve each item in its source workflow.
 
 The plugin does not rewrite your prose on import. Line edits, memos, author questions, and pending-edit notes stay reviewable until you decide what to do with them. Any passage can be archived to a per-scene cut file — from the editor's right-click menu, the suggestion toolbar, or the command palette — and completed sweeps update revision history, contributor stats, and per-scene progress.
 
@@ -37,12 +37,15 @@ The standard Review workflow supports a full set of scene-level editorial moves:
 | **Expand** | Develop, slow down, or decompress a beat with finished prose or advisory guidance. |
 | **Memo** | Keep general thoughts, strengths, issues, or scene notes beside the sweep without changing prose. |
 
-## Three Panel Modes
+## Four Panel Modes
 
-<p align="center"><img src="images/ui-side-panel-dropdown-rounded.png" alt="Editorialist mode menu with Review, Pending edits, and Editorialisms" width="653"></p>
+Use the view name beside the Ed logo to switch modes. Every mode shares the active-book header, **Import**, and the **…** actions menu.
+
+<p align="center"><img src="images/panel-revision-plan.png" alt="Revision plan combines editorial work into an ordered queue with a deadline forecast" width="460"></p>
 
 | Mode | Use it for |
 |---|---|
+| **Revision plan** | Prioritize and schedule tasks from all three feedback sources, or generate a draft schedule for an editor’s delivery. |
 | **Review** | Traditional Editorialist review batches: scene-level edits such as expand, condense, cut, move, and line edits, plus `%%ai: question%%` responses and scene memos. Each scene can carry multiple batches from different manuscript shares or review passes. |
 | **Pending edits** | Author pending-edit notes and Radial Timeline Inquiry follow-ups gathered across the active book, then walked scene by scene. |
 | **Editorialisms** | Manuscript-wide commentary: structural guidance, theme/subplot notes, and general feedback with no line edits. |
@@ -54,6 +57,8 @@ The standard Review workflow supports a full set of scene-level editorial moves:
 | **Review batch** | The AI's formatted response: line edits, cuts, moves, condenses, expands, and memos | After you send the formatting instructions and manuscript text to an AI, or ask an AI to convert human notes | On your clipboard until you import it |
 | **Review block** | The imported part of a review batch for one scene | When you import a review batch through the launcher | Appended to the bottom of each targeted scene note |
 | **Editorialism** | A structural checklist or manuscript-level directive set | When a reviewer gives broad guidance that should be worked over time | A separate markdown file under `Editorialist/<Book>/` |
+| **Editorial delivery** | One editor’s handoff, with attribution, received date, return deadline, and links to feedback | After importing and linking its sources | Plugin data for the book |
+| **Planning session** | A dated or unscheduled task with an effort range | When you add work or apply a draft schedule | Revision plan, linked to the original feedback |
 | **Pending edit** | A note-to-self or Inquiry follow-up to review later | When it is written into Radial Timeline / scene revision metadata | Read from the active book and shown in Pending edits mode |
 
 ## Core Workflow
@@ -64,11 +69,14 @@ The standard Review workflow supports a full set of scene-level editorial moves:
 4. **Walk the [guided review sweep](Review-Panel)** — accept, reject, rewrite, or defer each suggestion.
 5. **Finish.** Per-scene progress, contributor stats, and revision history update as each sweep completes.
 
+For a large handoff, group imported batches and Editorialisms into an **Editorial delivery**, then choose **Plan this delivery**. Review the draft before applying it; priorities and estimates are editable. See [Revision Plan](Revision-Plan).
+
 ## Pages
 
 | Page | What's there |
 |---|---|
 | [Getting Started](Getting-Started) | Commands and your first review sweep |
+| [Revision Plan](Revision-Plan) | Priorities, delivery tracking, deadlines, and automatic scheduling |
 | [Review Panel](Review-Panel) | The main working surface — sessions, the suggestion toolbar, statuses |
 | [Pending Edits](Pending-Edits) | The active-book queue for author notes and Inquiry follow-ups |
 | [Editorialisms Panel](Editorialisms-Panel) | Structural guidance documents and the checklist workflow |

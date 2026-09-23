@@ -2,36 +2,36 @@ The Review mode is traditional Editorialist: scene-level review batches with lin
 
 ## Idle state
 
-<p align="center"><img src="images/panel-side-home.png" alt="Review panel idle state: imported review pass, pending edits sweep, contributor directory, recent reviews, contributors" width="340"></p>
+<p align="center"><img src="images/panel-review.png" alt="Review panel with the next scene in a sweep and disclosures for recent reviews, contributors, and help" width="460"></p>
 
 Between sessions the panel shows:
 
 - **Active book** — which book Editorialist is currently scoped to (via [Radial Timeline](Radial-Timeline-Integration) when installed).
-- **Pending workflow cards** — imported batches and pending edits waiting for review, each with a start button.
-- **Recent activity** — the latest decisions and completed sweeps.
+- **Next in sweep / up next** — start or continue imported scene review work. Pending edits has its own mode.
+- **Recent reviews** — a disclosure containing recent review activity.
+- **Ready to clean** — resolved batches awaiting cleanup, when present.
 - **Contributors** — a compact view of who has been suggesting what.
 - **Onboarding** — a collapsible getting-started disclosure for new vaults.
 
 ### Panel controls
 
-<p align="center"><img src="images/ui-side-panel-buttons-rounded.png" alt="Editorialist side-panel controls: toggle modes, erase batches, import batch, insert AI directed inline comments, select text and back up to a cut file, and settings" width="653"></p>
-
-The header controls keep the most common actions close to the review panel:
-
 | Control | What it does |
 |---|---|
-| **Toggle modes** | Switch between Review, [Pending edits](Pending-Edits), and [Editorialisms](Editorialisms-Panel). |
-| **Erase batches** | Remove imported review batches after you are done with them. |
-| **Open review launcher** | Opens the launcher modal to import a review batch or start a pending-edits review. |
-| **Insert author query** | Adds a hidden `%%ai: …%%` marker for the next review pass. |
-| **Select text and backup to cut file** | Copy selected manuscript text into the scene's cut file. |
-| **Settings** | Open Editorialist settings. |
+| **View name / chevron** | Choose Revision plan, Review, Pending edits, or Editorialisms. The Ed logo stays the same. |
+| **Import** | Open the launcher. At narrow widths this becomes a **+** button. |
+| **… → Editorial deliveries** | Group batches and Editorialism files by handoff, record dates, and start planning. |
+| **… → Insert author query** | Add a hidden `%%ai: …%%` question to the manuscript. |
+| **… → Open cut file** | Open the active scene’s existing cut file. |
+| **… → Clean resolved batches** | Remove resolved imported review blocks. |
+| **… → End current round** | End selected batches and remove unfinished feedback without counting it as rejected. Manuscript changes and recorded decisions remain. |
+| **… → Settings** | Open Editorialist settings. |
+
+Use the editor toolbar, right-click menu, or command palette to back up selected prose to a cut file.
 
 ## Review sessions
 
 Starting a workflow card (or importing a review batch) begins a **guided review sweep**. The imported batch has already been split into review blocks at the bottom of the targeted scene notes; the panel reads those blocks and walks their suggestions scene by scene. A scene can hold multiple batches from different manuscript shares or review passes.
 
-<p align="center"><img src="images/panel-side-progressing.png" alt="Review panel during a sweep: next-in-sweep card with unresolved and resolved counts, start scene button, recent reviews" width="340"></p>
 
 ### What a batch can ask you to do
 
@@ -48,7 +48,6 @@ Starting a workflow card (or importing a review batch) begins a **guided review 
 
 **Condense** and **Expand** sometimes arrive as direction rather than replacement prose — there is nothing for Editorialist to write, so the card is labelled **Advisory** instead of Pending, and you resolve it by rewriting the passage yourself and clicking **Mark as rewritten**, or by rejecting it.
 
-<p align="center"><img src="images/panel-side-develop.png" alt="An advisory Expand suggestion in the review panel: the passage to expand, the reviewer's suggested direction and reasoning, and Mark as rewritten in the footer" width="380"></p>
 
 ### Navigation and filters
 
@@ -158,4 +157,4 @@ The **All revisions complete** card keeps the scene's memos and any [Editorialis
 
 ## Pending-edits review
 
-See [Pending Edits](Pending-Edits) — its own panel mode, which the Review panel points to when the active book or current scene has pending author notes or Radial Timeline Inquiry follow-ups.
+See [Pending Edits](Pending-Edits) — its own panel mode, available from the shared mode picker for active-book author notes and Radial Timeline Inquiry follow-ups.

@@ -22,15 +22,15 @@ Most revision passes use a **review batch**. Use an **Editorialism file** when t
 
 ## Format A — the review batch
 
-A review batch is usually a fenced code block labelled `editorialist-review`. It is the AI response you copy back into Editorialist:
+A review batch is usually a fenced code block labelled `editorialist-review`. It is the AI response you copy back into Editorialist. Replace attribution placeholders with the actual reviewer: credit the human when converting their feedback and omit Provider/Model; for an independent AI review, use its actual identity without guessing a model version. Keep any additional AI advice separate from the human’s notes.
 
 ````markdown
 ```editorialist-review
 Template: Editorialist advanced
-Reviewer: GPT-5.4
-ReviewerType: ai-editor
-Provider: OpenAI
-Model: GPT-5.4
+Reviewer: <Actual reviewer name or model name>
+ReviewerType: <Accepted role for the actual reviewer>
+Provider: <Actual AI provider; omit for human feedback>
+Model: <Actual model if known; otherwise omit>
 
 === MEMO ===
 Strengths:
@@ -87,7 +87,7 @@ A batch does not need any line edits. An editorial letter, a developmental read,
 
 ### Author queries
 
-An author query is a hidden `%%ai: <question>%%` marker you leave inline in a scene — run **Insert author query** (command palette, editor right-click menu, or the Review Panel's header button) to drop one at the cursor. It never renders in reading view; it just waits for the next review pass.
+An author query is a hidden `%%ai: <question>%%` marker you leave inline in a scene — run **Insert author query** (command palette, editor right-click menu, or the panel’s **… → Insert author query** action) to drop one at the cursor. It never renders in reading view; it just waits for the next review pass.
 
 The round trip:
 
@@ -119,7 +119,7 @@ Advisory is the honest answer when a beat needs your voice rather than the revie
 
 Every operation entry targets one scene via `SceneId:`. Items in the same block may target different scenes — the importer routes each entry to its own scene.
 
-- IDs must be **real values** from the manuscript or the scene-ID list the template includes. Invented or placeholder IDs (`scn_xxxxxxxx`) route a batch to the wrong scene silently.
+- IDs must be **real values** from the manuscript or the scene-ID list the template includes. Unmatched IDs are surfaced in the destination preview; a wrong ID that happens to name a real scene can misroute feedback, so never guess.
 - If a reviewer can't identify the scene for a passage, the right move is to **omit the SceneId entirely** — Editorialist routes those entries to the scene you're currently viewing and flags them for manual verification, which is recoverable. A confidently wrong ID is not.
 - If a Radial Timeline manuscript export was the reviewer's input, scene IDs appear inline in that export and match the template's list. See [Radial Timeline Integration](Radial-Timeline-Integration).
 
@@ -158,7 +158,7 @@ created: 2026-06-10
 - [ ] Subplot-level work [scope:: subplot:Shail IT subplot]
 ```
 
-Paste the reply into the review launcher: when it contains an editorialism file, the launcher shows a **Save editorialism file** action that writes it to `Editorialist/<Book>/<Title>.md` (creating the folder), then opens the [Editorialisms Panel](Editorialisms-Panel). Re-saving the same `title:` overwrites the prior version in place. You can still create the file by hand if you prefer — the panel picks up any `type: editorialism` file under `Editorialist/`.
+Paste the reply into the review launcher: when it contains an editorialism file, the launcher shows a **Save editorialism file** action that writes it to `Editorialist/<Book>/<Title>.md` (creating the folder), then opens the [Editorialisms Panel](Editorialisms-Panel). Re-saving the same title and reviewer updates the prior file in place; a different reviewer’s agenda is kept separately. You can still create the file by hand if you prefer — the panel picks up any `type: editorialism` file under `Editorialist/`.
 
 **Required:**
 - Frontmatter `type: editorialism` — files without this are ignored.
@@ -167,11 +167,12 @@ Paste the reply into the review launcher: when it contains an editorialism file,
 **Attribution (recommended):**
 - `reviewer:` — whose directives these are. The panel shows the name beside the title, and saving through the launcher adds them to the contributor directory (identity only, no stats).
 - `reviewer_type:` — the same role vocabulary as a review batch's `ReviewerType:`.
-- `source:` — optional wiki link to the letter or document the agenda came from.
+- `source:` — optional wiki link to an existing vault note holding the letter or document. The importer does not save that original document for you.
 
 **Inline metadata per item:**
 - `[scope:: <value>]` (recommended): `manuscript` (whole book), a scene number (`22`), a range (`13–22`, en-dash or hyphen), or `subplot:<name>`.
 - `[tags:: tag1, tag2]` (optional).
+- `[words:: <n>]` or `[scenes:: <n>]` for new prose, or `[effort:: light|medium|heavy]` for relative non-drafting effort (optional). These inform suggested effort, not fixed calendar commitments.
 
 **Status markers** (the character inside the task brackets):
 
@@ -191,9 +192,19 @@ Paste the reply into the review launcher: when it contains an editorialism file,
 
 Run **Open review launcher** (command palette). The launcher modal:
 
-1. **Checks your clipboard** — if it detects a review batch, one click imports it.
+1. **Checks your clipboard** — a recognized batch imports directly when placement is clear; entries needing attention open a preview.
 2. **Manual paste** — if the clipboard is empty or contains something else, open the manual-import area and paste; validation runs in real time with specific error messages.
-3. **Route assignment** — entries that need routing decisions (e.g. missing SceneIds) get an assignment step before anything is written.
+3. **Destination preview** — inspect placement warnings and unplaced entries. **Review mis-targeted entries** opens the correction step when needed. Otherwise use **Import placed entries** when some entries are omitted, or **Import and start review** when everything is placed. The action is disabled when nothing resolves.
 4. **Template copy** — the launcher's template button copies the full format guidance, both templates, and your book's actual scene-ID list to the clipboard.
 
 Import appends review blocks to the targeted scene notes. Nothing else in the note is touched, and no suggestion is applied until you act on it in the [Review Panel](Review-Panel).
+
+## After import: deliveries and planning
+
+The canonical formatting instructions include both formats, actual-reviewer attribution, supported effort metadata, and guidance for stable checklist updates. Copy them afresh from the launcher when starting a new review.
+
+A memo is commentary without an individual completion checkbox. Put independently actionable developmental tasks in Editorialism checklist items; keep supporting context in memos. One handoff may contain both without duplicating the same task.
+
+After importing, open **… → Editorial deliveries**, link the batches and files, record the known received date and return deadline, then choose **Plan this delivery**. See [Revision Plan](Revision-Plan). Neither format automatically creates a delivery, scheduled sessions, or Pending edits. Dates, priorities, prerequisites, scheduling phases, and minute ranges belong in the planner; inventing extra import fields will not set them.
+
+When replacing an existing agenda, preserve unchanged item text, section headings, scope, and completion markers. These identify planned work. Use a distinct title for a new editorial round; deactivate older files instead of deleting them when they no longer apply.

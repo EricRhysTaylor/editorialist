@@ -1,17 +1,20 @@
-Pending Edits is the third Ed side-panel mode. It gathers author notes and Radial Timeline Inquiry follow-ups across the active book, then lets you review them scene by scene.
+Pending Edits is an Ed side-panel mode. It gathers author notes and Radial Timeline Inquiry follow-ups across the active book, then lets you review them scene by scene.
 
 Use it when the work is already in your manuscript workflow as a pending revision note, not when an outside reviewer has supplied a formatted review batch.
+
+<p align="center"><img src="images/panel-pending-edits.png" alt="Pending edits summary with a review-all action and scene-specific revision notes" width="460"></p>
 
 ## What appears here
 
 - Author pending-edit notes written into scene metadata.
 - Radial Timeline Inquiry follow-ups attached to scenes.
-- Scene-level revision notes that need an accept / reject decision.
+- Scene-level revision notes to complete or leave queued for later.
 
 ## How it differs from the other modes
 
 | Mode | Best for |
 |---|---|
+| **Revision plan** | Scheduling these notes alongside batches and Editorialisms; finishing a session leaves the source note intact. |
 | **Review** | Imported review batches with concrete line edits, cuts, moves, condenses, expands, `%%ai: question%%` responses, and scene memos. |
 | **Pending edits** | Your own queued revision notes and Radial Timeline Inquiry follow-ups across the active book. |
 | **Editorialisms** | Manuscript-wide commentary and structural guidance with no line edits. |

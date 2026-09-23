@@ -18,13 +18,18 @@ Editorialist registers these commands in the command palette:
 | Command | What it does |
 |---|---|
 | **Open review launcher** | Opens the launcher modal to import a review batch or start a pending-edits review |
+| **Open revision plan** | Opens the combined [Revision Plan](Revision-Plan) queue and schedule |
 | **Open review panel** | Opens the [Review Panel](Review-Panel) in the sidebar |
 | **Open editorialism panel** | Opens the [Editorialisms Panel](Editorialisms-Panel) in the sidebar |
 | **Open pending edits panel** | Opens the [Pending Edits](Pending-Edits) panel in the sidebar |
 | **Review pending edits in active book** | Starts the pending-edits review flow across the active Radial Timeline book |
+| **End current round** | Removes remaining feedback from selected batches while preserving manuscript changes and recorded decisions |
+| **Anchor selection to editorialism directive** | Links selected prose to a checklist item |
+| **Go to next unprocessed anchor** | Opens the next unfinished passage anchor |
+| **Mark anchor processed and go to next** | Records the current anchor and advances |
 | **Rescan review blocks for cleanup** | Re-scans scene notes for review blocks that are ready to be cleaned up |
 | **Backup selection to cut file** | Copies selected text to the scene's cut file without changing the manuscript |
-| **Insert author query** | Inserts a hidden `%%ai: …%%` marker at the cursor so the next AI review answers it — the only command-palette entry point for author queries |
+| **Insert author query** | Inserts a hidden `%%ai: …%%` marker at the cursor so the next AI review answers it  |
 
 Editorialist ships **no default hotkeys** — assign your own under **Settings → Hotkeys** if you want them.
 
@@ -50,7 +55,7 @@ For a normal review sweep, you want a **review batch**. It contains scene-target
 
 ### 3. Import the batch
 
-Copy the reviewer's reply and run **Open review launcher** again. The launcher detects the review batch on your clipboard — one click imports it. (If detection misses, paste manually; validation runs as you type.) Editorialist appends a review block to the bottom of each targeted scene note. **Nothing has been applied to your prose yet.**
+Copy the reviewer's reply and run **Open review launcher** again. The launcher detects the review batch on your clipboard — the launcher imports directly when placement is clear, or opens a destination preview when entries need attention. Unplaced entries are flagged before you import the placed work. (If detection misses, paste manually; validation runs as you type.) Editorialist appends a review block to the bottom of each targeted scene note. **Nothing has been applied to your prose yet.**
 
 ### 4. Walk the sweep
 
@@ -60,6 +65,10 @@ The [Review Panel](Review-Panel) opens a guided sweep: each suggestion is highli
 
 When every suggestion is resolved, the sweep completes and the batch is recorded: per-scene polish state, contributor stats, and revision history all update. The **Core** settings tab shows your progress across the whole book — see the [Settings Reference](Settings-Reference).
 
+## Plan a larger editorial handoff
+
+Import line-level work as batches and structural tasks as Editorialisms. Open **… → Editorial deliveries**, link those sources to the editor’s handoff, and enter its received date and return deadline. Choose **Plan this delivery** to preview a schedule using your working capacity and preferred preset. The [Revision Plan](Revision-Plan) page explains triage, estimates, locks, and sessions.
+
 ## Where things live in your vault
 
 | Path | What it is |
@@ -67,3 +76,5 @@ When every suggestion is resolved, the sweep completes and the batch is recorded
 | Your scene notes | Review blocks are appended here on import, removed on cleanup |
 | `Editorialist/<Book>/` | [Editorialism](Editorialisms-Panel) structural guidance documents |
 | `<book-source-folder>/Cut/` | Per-scene cut files (default location; [configurable](Settings-Reference#configuration-tab)) |
+
+Delivery records and revision plans live in Editorialist’s plugin data; they reference these source files without replacing them.
