@@ -5249,7 +5249,7 @@
 
 /* === History (recent reviews) ============================================ */
 .editorialist-panel__history {
-	margin: var(--editorialist-space-lg) 0 0.85rem;
+	margin: 0;
 }
 
 .editorialist-panel__history-batch {
@@ -5421,7 +5421,7 @@
 
 /* === Contributors ======================================================== */
 .editorialist-panel__contributors {
-	margin: 0.85rem 0 var(--editorialist-space-sm);
+	margin: 0;
 }
 
 .editorialist-panel__contributors-list {
@@ -6275,8 +6275,56 @@
 }
 
 .editorialist-panel__disclosure > summary {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 4px;
+	border-radius: 6px;
+	list-style: none;
 	cursor: pointer;
+	font-size: var(--font-ui-small);
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.editorialist-panel__disclosure > summary::-webkit-details-marker {
+	display: none;
+}
+
+.editorialist-panel__disclosure-icon,
+.editorialist-panel__disclosure-caret {
+	display: inline-flex;
+	flex-shrink: 0;
 	color: var(--text-muted);
+}
+
+.editorialist-panel__disclosure-icon svg {
+	width: 16px;
+	height: 16px;
+	color: var(--interactive-accent);
+}
+
+.editorialist-panel__disclosure-caret svg {
+	width: 12px;
+	height: 12px;
+}
+
+.editorialist-panel__disclosure[open] > summary .editorialist-panel__disclosure-caret {
+	transform: rotate(90deg);
+}
+
+.editorialist-panel__disclosure-count {
+	margin-left: auto;
+	padding: 2px 7px;
+	border-radius: 6px;
+	background: var(--background-modifier-hover);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	font-variant-numeric: tabular-nums;
+}
+
+.editorialist-panel__disclosure[open] > summary {
+	margin-bottom: 10px;
 }
 
 .editorialist-pending-panel button.editorialist-pending-panel__row,

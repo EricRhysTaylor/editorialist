@@ -494,28 +494,29 @@ function findLastFinishedSweep(
 	);
 }
 
+function renderLibraryHeading(parent: HTMLElement, title: string, icon: string, count: number): void {
+	const summary = parent.createEl("summary");
+	setIcon(summary.createSpan({ cls: "editorialist-panel__disclosure-caret", attr: { "aria-hidden": "true" } }), "chevron-right");
+	setIcon(summary.createSpan({ cls: "editorialist-panel__disclosure-icon", attr: { "aria-hidden": "true" } }), icon);
+	summary.createSpan({ cls: "editorialist-panel__disclosure-title", text: title });
+	summary.createSpan({ cls: "editorialist-panel__disclosure-count", text: String(count), attr: { "aria-label": `${count} total` } });
+}
+
 export function renderRecentActivityBlock(
 	plugin: EditorialistPlugin,
 	parent: HTMLElement,
 ): void {
 	const allEntries = plugin.getSweepRegistryEntries();
-	if (allEntries.length === 0) {
-		return;
-	}
-
 	const scopeFolder = plugin.getActiveBookScopeInfo().sourceFolder;
 	const allGroups = groupRecentReviews(allEntries, scopeFolder);
+	renderLibraryHeading(parent, "Recent reviews", "history", allGroups.length);
+	if (!allGroups.length) {
+		parent.createEl("p", { cls: "editorialist-panel__section-meta", text: "No reviews for this book yet." });
+		return;
+	}
 	const groups = allGroups.slice(0, 5);
 
 	const section = parent.createDiv({ cls: "editorialist-panel__history" });
-	const heading = section.createDiv({ cls: "editorialist-panel__section-header" });
-	heading.createDiv({ cls: "editorialist-panel__section-title", text: "Recent reviews" });
-	// Counts scenes reviewed, not import batches. A batch count reads as a
-	// session count and inflates with every re-import of the same scene.
-	heading.createDiv({
-		cls: "editorialist-panel__section-meta",
-		text: `${allGroups.length} total`,
-	});
 
 	// The batch the author most recently finished, named above the list. Recent
 	// reviews is grouped by scene, so nothing in the rows themselves says which
@@ -633,18 +634,14 @@ export function formatGroupTooltip(
 
 export function renderContributorsBlock(plugin: EditorialistPlugin, parent: HTMLElement): void {
 	const allProfiles = plugin.getSortedReviewerProfiles();
+	renderLibraryHeading(parent, "Contributors", "users", allProfiles.length);
 	if (allProfiles.length === 0) {
+		parent.createEl("p", { cls: "editorialist-panel__section-meta", text: "Contributors appear here after importing feedback." });
 		return;
 	}
 
 	const profiles = allProfiles.slice(0, 5);
 	const section = parent.createDiv({ cls: "editorialist-panel__contributors" });
-	const heading = section.createDiv({ cls: "editorialist-panel__section-header" });
-	heading.createDiv({ cls: "editorialist-panel__section-title", text: "Contributors" });
-	heading.createDiv({
-		cls: "editorialist-panel__section-meta",
-		text: `${allProfiles.length} total`,
-	});
 
 	const list = section.createDiv({ cls: "editorialist-panel__contributors-list" });
 	for (const profile of profiles) {

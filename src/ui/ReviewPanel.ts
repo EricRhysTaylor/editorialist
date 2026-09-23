@@ -306,7 +306,6 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			// from the review view — the workflow lives entirely in the panel's
 			// Pending edits mode, reachable from the mode toggle.)
 			const history = this.contentEl.createEl("details", { cls: "editorialist-panel__disclosure" });
-			history.createEl("summary", { text: "Recent reviews" });
 			renderRecentActivityBlock(this.plugin, history);
 
 			// 3. Ready to clean — processed sweeps awaiting cleanup. Distinct from
@@ -318,7 +317,6 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 
 			// 4. Contributors.
 			const contributors = this.contentEl.createEl("details", { cls: "editorialist-panel__disclosure" });
-			contributors.createEl("summary", { text: "Contributors" });
 			renderContributorsBlock(this.plugin, contributors);
 
 			// 5. Onboarding — demoted to a disclosure. Auto-expanded only on a
