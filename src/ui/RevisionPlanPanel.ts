@@ -299,10 +299,11 @@ export class RevisionPlanPanel extends ItemView {
 		this.button(controls, "Remove from plan", () => { void this.change((plan) => { plan.entries = plan.entries.filter((item) => item.id !== entry.id); }); });
 		if (resolved.state !== "ready") {
 			row.createEl("p", { cls: "editorialist-plan__warning", text: resolved.state === "ambiguous" ? "Multiple source instructions match. Make them distinct in the source, refresh, then relink." : "Source changed or is unavailable. Refresh, then relink; its estimate and date are preserved." });
-			const relink = row.createEl("select", { attr: { "aria-label": `Relink ${entry.title}` } });
+			const controls = row.createDiv({ cls: "editorialist-plan__actions editorialist-plan__relink" });
+			const relink = controls.createEl("select", { attr: { "aria-label": `Relink ${entry.title}` } });
 			relink.createEl("option", { value: "", text: "Choose replacement source…" });
 			this.available().forEach((candidate) => relink.createEl("option", { value: sourceKey(candidate), text: `${kindLabels[candidate.kind]} · ${candidate.detail} · ${candidate.title}` }));
-			this.sourceButton(row, "Relink", () => { const candidate = this.available().find((item) => sourceKey(item) === relink.value); if (candidate) void this.edit(entry.id, (item) => { item.source = { kind: candidate.kind, path: candidate.path, locator: candidate.locator }; item.title = candidate.title; }); }, this.stale);
+			this.sourceButton(controls, "Relink", () => { const candidate = this.available().find((item) => sourceKey(item) === relink.value); if (candidate) void this.edit(entry.id, (item) => { item.source = { kind: candidate.kind, path: candidate.path, locator: candidate.locator }; item.title = candidate.title; }); }, this.stale);
 		}
 	}
 	private edit(id: string, update: (entry: PlanEntry) => void): Promise<void> {

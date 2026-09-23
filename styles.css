@@ -6769,6 +6769,17 @@
 	margin: 10px 0;
 }
 
+/* Relink controls share action-row gaps on both axes when they wrap. */
+.editorialist-plan__relink {
+	align-items: center;
+	margin-bottom: 0;
+}
+
+.editorialist-plan__relink select {
+	flex: 1 1 220px;
+	min-width: 0;
+}
+
 .editorialist-plan__actions button {
 	height: 27px;
 	font-size: 11px;
