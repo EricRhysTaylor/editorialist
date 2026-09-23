@@ -42,6 +42,7 @@ export class EditorialDeliveriesModal extends Modal {
 				}
 				if (!delivery.files.length && !delivery.batchIds.length) card.createEl("p", { text: "No feedback linked yet." });
 				const actions = card.createDiv({ cls: "editorialist-deliveries__actions" });
+				this.button(actions, "Plan this delivery", () => { this.close(); this.plugin.openDeliveryScheduler(delivery); }).addClass("mod-cta");
 				this.button(actions, "Edit delivery", () => { this.selected = structuredClone(delivery); void this.render(); });
 				if (delivery.source) this.button(actions, "Open source", () => { void this.app.workspace.openLinkText(delivery.source, "", false); });
 			}

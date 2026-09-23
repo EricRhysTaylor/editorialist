@@ -16,6 +16,7 @@ export function directiveWork(document: Editorialism, params: EffortParams): Wor
 		kind: "directive", path: document.filePath, inactive: !isEditorialismActive(document),
 		// Status and line position can change without changing the instruction.
 		locator: JSON.stringify([section.heading, item.text, item.scope?.raw ?? ""]),
+		sceneOrder: item.scope?.raw ?? document.title,
 		title: item.text, detail: [document.title, document.reviewer, item.scope?.raw].filter(Boolean).join(" · "),
 		complete: item.status === "done", deferred: item.status === "deferred", line: item.lineIndex,
 		suggestedMinutes: estimateEditorialismEffort({ ...document, sections: [{ ...section, items: [{ ...item, status: "open" }] }] }, params).totalMinutes,
@@ -28,6 +29,9 @@ export function batchWork(session: ReviewSession): WorkCandidate[] {
 		const memos = session.memos.filter((item) => item.source.batchId === id);
 		const remaining = suggestions.filter((item) => !["accepted", "rejected", "rewritten"].includes(item.status));
 		return { kind: "batch", path: session.notePath, locator: id,
+			sceneOrder: session.notePath.split("/").pop(),
+			// Planning heuristic only, shown as estimated and editable before applying.
+			suggestedMinutes: remaining.length * 5 + memos.length * 15,
 			title: `Review ${session.notePath.split("/").pop()?.replace(/\.md$/i, "") ?? session.notePath}`,
 			detail: `${[...new Set([...suggestions, ...memos].map((item) => item.contributor.displayName))].join(", ")} · ${remaining.length} ${remaining.length === 1 ? "suggestion" : "suggestions"} remaining${memos.length ? ` · ${memos.length} ${memos.length === 1 ? "note" : "notes"}` : ""}`,
 			// Memos have no general completion decision; finish their planned session explicitly.

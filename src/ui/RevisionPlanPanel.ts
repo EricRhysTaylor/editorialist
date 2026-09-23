@@ -249,6 +249,9 @@ export class RevisionPlanPanel extends ItemView {
 		const badge = heading.createSpan({ cls: "editorialist-plan__kind" });
 		setIcon(badge.createSpan(), { pending: "pencil-line", batch: "messages-square", directive: "list-checks" }[entry.source.kind]);
 		badge.createSpan({ text: kindLabels[entry.source.kind] });
+		if (entry.locked) heading.createSpan({ cls: "editorialist-plan__done-label", text: "Locked" });
+		if (entry.sessionCount) heading.createSpan({ cls: "editorialist-plan__done-label", text: `Session ${entry.sessionIndex}/${entry.sessionCount}` });
+		if (entry.estimated) heading.createSpan({ cls: "editorialist-plan__done-label", text: "Estimated" });
 		if (entry.done) heading.createSpan({ cls: "editorialist-plan__done-label", text: "Finished" });
 		const title = row.createEl("div", { cls: "editorialist-plan__task-title", attr: { draggable: "true", title: "Drag to reorder or assign a day" } });
 		setIcon(title.createSpan({ cls: "editorialist-plan__grip" }), "grip-vertical");
@@ -275,9 +278,11 @@ export class RevisionPlanPanel extends ItemView {
 		this.input(fields, "Day", "date", entry.day ?? "", (value) => { void this.edit(entry.id, (item) => { item.day = isDate(value) ? value : null; }); });
 		this.input(fields, "Low minutes", "number", entry.lowMinutes === null ? "" : String(entry.lowMinutes), (value) => { void this.edit(entry.id, (item) => { item.lowMinutes = value === "" ? null : Number(value); }); });
 		this.input(fields, "High minutes", "number", entry.highMinutes === null ? "" : String(entry.highMinutes), (value) => { void this.edit(entry.id, (item) => { item.highMinutes = value === "" ? null : Number(value); }); });
-		if (resolved.state === "ready" && resolved.candidate.suggestedMinutes !== undefined) details.createEl("p", { cls: "editorialist-plan__hint", text: `Editorialism estimate: about ${Math.round(resolved.candidate.suggestedMinutes)} min. Enter your own range; this is not measured editing time.` });
+		if (resolved.state === "ready" && resolved.candidate.suggestedMinutes !== undefined) details.createEl("p", { cls: "editorialist-plan__hint", text: `Suggested estimate: about ${Math.round(resolved.candidate.suggestedMinutes)} min. Enter your own range; this is not measured editing time.` });
 		const required = this.input(details, "Required for deadline", "checkbox", "", () => { void this.edit(entry.id, (item) => { item.required = required.checked; }); });
 		required.checked = entry.required;
+		const locked = this.input(details, "Lock against auto-scheduling", "checkbox", "", () => { void this.edit(entry.id, (item) => { item.locked = locked.checked; }); });
+		locked.checked = entry.locked === true;
 		const label = details.createEl("label", { text: "After", cls: "editorialist-plan__field" });
 		const select = label.createEl("select", { attr: { "aria-label": "Prerequisite task" } });
 		select.createEl("option", { value: "", text: "No prerequisite" });

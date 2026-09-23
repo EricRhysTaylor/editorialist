@@ -130,3 +130,23 @@ Editorialism cards show the delivery and its dates. Old files without a known re
 Revision-plan Available work can also be filtered by delivery. Linked items show the delivery's return deadline. A planned task scheduled after that deadline displays a warning. Delivery deadlines do not change the book-level deadline, your daily capacity, or scheduled work dates.
 
 Deliveries are saved in plugin data alongside revision plans. Existing feedback remains unassigned until you link it. Imports still use the separate batch and Editorialism actions; creating a delivery does not automatically convert an editor's original document.
+
+## Automatically plan a delivery
+
+Open **Editorial deliveries**, then choose **Plan this delivery** on a delivery card. Link its batches and Editorialism files first. The planner uses unfinished, active work from that delivery; items already in your plan are not duplicated.
+
+Choose a preset:
+
+- **Developmental revision:** structural decisions, then scene rewrites, then prose refinement; manuscript order within each phase.
+- **Copy-edit pass:** manuscript order, grouped by scene.
+- **Mixed editorial delivery:** structural decisions first, then rewrites and prose refinement together scene by scene.
+
+Phase suggestions use words in the instruction, not an AI assessment of your manuscript. **Review ordering & estimates** lets you change phases, enter effort ranges, or leave individual items out. Unknown phases or effort appear under **Needs attention** with a shortcut to adjust the item.
+
+Set your planning window, session length, working minutes for each weekday, and reserve time. **Generate draft** previews the proposed sessions without saving. Scheduling uses the upper estimate, subtracts existing commitments, leaves reserve time at the end, and respects the earlier book or delivery deadline. Existing dated work without an estimate reserves its entire day. Work that cannot fit stays unscheduled; work lacking a phase or valid estimate stays in Available work.
+
+Suggested effort is a starting assumption: existing Editorialism heuristics, or five minutes per remaining batch suggestion and fifteen per memo, with a ±25% range. Replace these with your own ranges when known. Large tasks split into numbered sessions that keep their original source link. **Finish session** completes only that planning session; it does not check off an Editorialism or accept suggestions.
+
+**Apply draft schedule** saves the plan and its defaults for this book. If feedback, the delivery, or the plan changes while the preview is open, reopen the planner and generate a fresh draft.
+
+For later adjustments, enable **Replan unlocked auto-scheduled sessions from this delivery**. It retains manual tasks, completed sessions, other deliveries, locked sessions, and prerequisites of preserved tasks. Use **Lock against auto-scheduling** under a task's **Schedule & options** to preserve a commitment. Regeneration moves eligible existing sessions; it does not recalculate their effort or split them again.

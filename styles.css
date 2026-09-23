@@ -6828,7 +6828,9 @@
 }
 
 .editorialist-plan__field input[type="checkbox"] {
-	width: auto;
+	width: var(--checkbox-size, 16px);
+	height: var(--checkbox-size, 16px);
+	flex: 0 0 var(--checkbox-size, 16px);
 }
 
 .editorialist-plan__day {
@@ -7228,4 +7230,39 @@
 .editorialist-deliveries__fields > label:first-child,
 .editorialist-deliveries__fields > label:last-child {
 	grid-column: 1 / -1;
+}
+
+.editorialist-autoschedule > details {
+	margin: 16px 0;
+}
+
+.editorialist-autoschedule summary {
+	cursor: pointer;
+	font-weight: 600;
+}
+
+.editorialist-autoschedule__task,
+.editorialist-autoschedule__issue {
+	padding: 12px 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.editorialist-autoschedule__task .editorialist-deliveries__fields {
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.editorialist-autoschedule__preview {
+	margin-top: 20px;
+	padding: 16px;
+	border: 1px solid color-mix(in srgb, var(--interactive-accent) 35%, var(--background-modifier-border));
+	border-radius: 12px;
+	background: var(--background-secondary);
+}
+
+.editorialist-autoschedule__preview > button {
+	margin-top: 16px;
+}
+
+.editorialist-autoschedule input[type="checkbox"] {
+	flex-shrink: 0;
 }

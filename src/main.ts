@@ -1,3 +1,4 @@
+import { AutoScheduleModal } from "./ui/AutoScheduleModal";
 import { EditorialDeliveriesModal } from "./ui/EditorialDeliveriesModal";
 import { deliveryCaption, type EditorialDelivery } from "./core/EditorialDeliveries";
 import { RevisionPlanPanel, REVISION_PLAN_VIEW_TYPE } from "./ui/RevisionPlanPanel";
@@ -817,6 +818,13 @@ export default class EditorialistPlugin extends Plugin {
 		return this.registry.getEditorialDeliveries().filter((delivery) => delivery.bookFolder === folder);
 	}
 	openEditorialDeliveries(): void { new EditorialDeliveriesModal(this).open(); }
+	openDeliveryScheduler(delivery: EditorialDelivery): void { new AutoScheduleModal(this, delivery).open(); }
+	async applyScheduledPlan(book: string, expected: RevisionPlan, next: RevisionPlan): Promise<void> {
+		const active = JSON.stringify(["folder", this.getActiveBookScopeInfo().sourceFolder?.replace(/\/$/, "")]);
+		if (book !== active || JSON.stringify(this.getRevisionPlan(book)) !== JSON.stringify(expected)) throw new Error("The book or plan changed. Reopen the planner before applying.");
+		await this.saveRevisionPlan(book, next);
+		for (const leaf of this.app.workspace.getLeavesOfType(REVISION_PLAN_VIEW_TYPE)) if (leaf.view instanceof RevisionPlanPanel) await leaf.view.refresh();
+	}
 	async saveEditorialDelivery(delivery: EditorialDelivery): Promise<void> {
 		if (delivery.bookFolder !== this.getActiveBookScopeInfo().sourceFolder?.replace(/\/$/, "")) throw new Error("The active book changed. Reopen deliveries before saving.");
 		await this.registry.saveEditorialDelivery(delivery);

@@ -1,3 +1,4 @@
+import { DEFAULT_SCHEDULE, type ScheduleDefaults, type WorkPhase } from "./ScheduleDefaults";
 /** Planning identity is independent of line numbers and pending-edit indexes. */
 export type WorkKind = "pending" | "batch" | "directive";
 export interface WorkSource {
@@ -17,8 +18,15 @@ export interface WorkCandidate extends WorkSource {
 	deferred: boolean;
 	suggestedMinutes?: number;
 	line?: number;
+	sceneOrder?: string;
 }
 export interface PlanEntry {
+	locked?: boolean;
+	autoDeliveryId?: string;
+	sessionIndex?: number;
+	sessionCount?: number;
+	estimated?: boolean;
+	phase?: WorkPhase;
 	id: string;
 	source: WorkSource;
 	title: string;
@@ -31,6 +39,7 @@ export interface PlanEntry {
 	afterId: string | null;
 }
 export interface RevisionPlan {
+	scheduling?: ScheduleDefaults;
 	deadline: string | null;
 	/** Sunday through Saturday; zero means a day off. */
 	capacity: number[];
@@ -74,6 +83,8 @@ export function normalizeRevisionPlans(raw: unknown): RevisionPlanStore {
 		const input = object(rawPlan);
 		if (!input) continue;
 		const plan = emptyRevisionPlan();
+		const scheduling = object(input.scheduling);
+		if (scheduling) plan.scheduling = { preset: ["developmental", "copy", "mixed"].includes(String(scheduling.preset)) ? scheduling.preset as ScheduleDefaults["preset"] : DEFAULT_SCHEDULE.preset, sessionMinutes: Math.max(15, Math.min(240, minutes(scheduling.sessionMinutes) ?? 60)), useEstimates: scheduling.useEstimates !== false };
 		plan.deadline = isDate(input.deadline) ? input.deadline : null;
 		plan.reserveMinutes = minutes(input.reserveMinutes) ?? plan.reserveMinutes;
 		if (Array.isArray(input.capacity) && input.capacity.length === 7) {
@@ -89,6 +100,12 @@ export function normalizeRevisionPlans(raw: unknown): RevisionPlanStore {
 			const low = minutes(entry.lowMinutes);
 			const high = minutes(entry.highMinutes);
 			plan.entries.push({
+				...(entry.locked === true ? { locked: true } : {}),
+				...(typeof entry.autoDeliveryId === "string" ? { autoDeliveryId: entry.autoDeliveryId } : {}),
+				...(typeof entry.sessionIndex === "number" && Number.isFinite(entry.sessionIndex) ? { sessionIndex: Math.max(1, Math.round(entry.sessionIndex)) } : {}),
+				...(typeof entry.sessionCount === "number" && Number.isFinite(entry.sessionCount) ? { sessionCount: Math.max(1, Math.round(entry.sessionCount)) } : {}),
+				...(entry.estimated === true ? { estimated: true } : {}),
+				...(["structure", "rewrite", "polish"].includes(String(entry.phase)) ? { phase: entry.phase as WorkPhase } : {}),
 				id: entry.id, source: { kind: source.kind as WorkKind, path: source.path, locator: source.locator },
 				title: typeof entry.title === "string" ? entry.title : source.path,
 				lowMinutes: low, highMinutes: high === null ? null : Math.max(low ?? 0, high),
