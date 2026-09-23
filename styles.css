@@ -6896,6 +6896,7 @@
 
 .editorialist-plan__search:focus-within {
 	border-color: var(--interactive-accent);
+	box-shadow: 0 0 0 1px var(--interactive-accent);
 }
 
 .editorialist-plan__filters {
@@ -7269,4 +7270,37 @@
 
 .editorialist-autoschedule input[type="checkbox"] {
 	flex-shrink: 0;
+}
+
+/* Shared interaction feedback. A theme overlay preserves selected/accent colors
+   while giving custom controls the same response as native Obsidian controls. */
+:is(.editorialist-panel, .editorialist-plan, .editorialist-pending-panel, .editorialist-editorialism-panel, .editorialist-settings, .editorialist-control-modal, .editorialist-choice-modal, .editorialist-contributor-modal, .editorialist-deliveries, .editorialist-autoschedule, .editorialist-toolbar)
+:is(button, a, [role="button"], summary, select):not(:disabled, [aria-disabled="true"], .is-disabled):hover {
+	background-image: linear-gradient(var(--background-modifier-hover), var(--background-modifier-hover));
+	cursor: pointer;
+}
+
+:is(.editorialist-panel, .editorialist-plan, .editorialist-pending-panel, .editorialist-editorialism-panel, .editorialist-settings, .editorialist-control-modal, .editorialist-choice-modal, .editorialist-contributor-modal, .editorialist-deliveries, .editorialist-autoschedule, .editorialist-toolbar)
+:is(button, a, [role="button"], summary, select):not(:disabled, [aria-disabled="true"], .is-disabled):focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}
+
+:is(.editorialist-panel, .editorialist-plan, .editorialist-pending-panel, .editorialist-editorialism-panel, .editorialist-settings, .editorialist-control-modal, .editorialist-choice-modal, .editorialist-contributor-modal, .editorialist-deliveries, .editorialist-autoschedule, .editorialist-toolbar)
+a:not([aria-disabled="true"], .is-disabled):hover {
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+.editorialist-plan__search:hover:not(:focus-within) {
+	background-image: linear-gradient(var(--background-modifier-hover), var(--background-modifier-hover));
+	border-color: var(--background-modifier-border-hover);
+}
+
+
+/* The wrapper is the field: prevent the native input's smaller hover/focus box. */
+.editorialist-plan__search input[type="search"]:is(:hover, :focus, :focus-visible) {
+	background: transparent;
+	box-shadow: none;
+	outline: none;
 }
