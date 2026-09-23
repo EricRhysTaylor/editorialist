@@ -570,13 +570,17 @@
 	flex: 1 1 auto;
 }
 
-/* === Review panel ======================================================= */
-.editorialist-panel {
+/* === Shared panel shell: identical inset and responsive container ========= */
+.editorialist-panel,
+.editorialist-pending-panel,
+.editorialist-editorialism-panel,
+.editorialist-plan {
 	container-type: inline-size;
-	padding: var(--editorialist-space-lg);
+	padding: var(--editorialist-space-md);
 }
 
 .editorialist-panel__header {
+	line-height: 1.3;
 	margin-bottom: var(--editorialist-space-lg);
 }
 
@@ -5526,17 +5530,7 @@
 
 /* === Editorialism panel ================================================== */
 
-.editorialist-editorialism-panel {
-	container-type: inline-size;
-	padding: 0.85rem;
-}
-
 /* Pending edits panel */
-.editorialist-pending-panel {
-	container-type: inline-size;
-	padding: 0.85rem;
-}
-
 .editorialist-pending-panel__shell {
 	display: flex;
 	flex-direction: column;
@@ -6287,7 +6281,6 @@
 	text-align: left;
 	white-space: normal;
 	box-shadow: none;
-	border: none;
 	border: 1px solid var(--background-modifier-border);
 	border-radius: var(--editorialist-radius-card);
 	background: var(--background-primary);
@@ -6317,8 +6310,7 @@
 	color: var(--interactive-accent);
 }
 
-.editorialist-panel__brand svg,
-.editorialist-plan .editorialist-panel__brand svg {
+.editorialist-panel__brand svg {
 	width: 26px;
 	height: 26px;
 }
@@ -6364,23 +6356,24 @@
 
 /* Revision plan. Information takes precedence over administrative controls. */
 .editorialist-plan {
-	padding: 18px 16px;
 	overflow-y: auto;
-	font-size: 13px;
-	line-height: 1.45;
-	container-type: inline-size;
 }
 
-.editorialist-plan p {
+.editorialist-plan__body {
+	font-size: 13px;
+	line-height: 1.45;
+}
+
+.editorialist-plan__body p {
 	margin: 8px 0;
 }
 
-.editorialist-plan button {
+.editorialist-plan__body button {
 	font-size: 12px;
 	box-shadow: none;
 }
 
-.editorialist-plan svg {
+.editorialist-plan__body svg {
 	width: 15px;
 	height: 15px;
 	flex-shrink: 0;
@@ -6977,11 +6970,11 @@
 	border-color: var(--interactive-accent);
 }
 
-.editorialist-plan select {
+.editorialist-plan__body select {
 	max-width: 100%;
 }
 
-.editorialist-plan :focus-visible {
+.editorialist-plan__body :focus-visible {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: 2px;
 }

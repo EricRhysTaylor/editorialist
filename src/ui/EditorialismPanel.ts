@@ -171,7 +171,7 @@ export class EditorialismPanel extends ItemView {
 				(this.deliveryFilter === "all" || (this.deliveryFilter === "unassigned" ? !delivery : delivery?.id === this.deliveryFilter)) &&
 				(this.reviewerFilter === "all" || reviewers(item).includes(this.reviewerFilter));
 		}).sort((a, b) => {
-			const date = (item: EditorialismSummary): string => deliveries.find((value) => value.files.includes(item.filePath))?.received ?? (isDate(item.created?.slice(0, 10)) ? item.created!.slice(0, 10) : "");
+			const date = (item: EditorialismSummary): string => deliveries.find((value) => value.files.includes(item.filePath))?.received ?? (isDate(item.created?.slice(0, 10)) ? item.created.slice(0, 10) : "");
 			return date(b).localeCompare(date(a)) || a.title.localeCompare(b.title);
 		});
 		if (!visible.length) list.createEl("p", { text: "No editorialism files match these filters." });
@@ -225,9 +225,10 @@ export class EditorialismPanel extends ItemView {
 		}
 		meta.createDiv({ text: delivery?.received ? `Received ${deliveryDate(delivery.received)}` : "Received date unknown" });
 		const created = document.created?.slice(0, 10);
-		if (!delivery?.received && isDate(created)) meta.createDiv({ text: `Created ${deliveryDate(created!)}` });
+		if (!delivery?.received && isDate(created)) meta.createDiv({ text: `Created ${deliveryDate(created)}` });
 		if (delivery?.due) meta.createDiv({ text: `Due ${deliveryDate(delivery.due)}` });
-		const modified = "mtime" in document ? document.mtime : this.app.vault.getAbstractFileByPath(document.filePath) instanceof TFile ? (this.app.vault.getAbstractFileByPath(document.filePath) as TFile).stat.mtime : null;
+		const file = this.app.vault.getAbstractFileByPath(document.filePath);
+		const modified = "mtime" in document ? document.mtime : file instanceof TFile ? file.stat.mtime : null;
 		if (modified) meta.setAttribute("title", `Last updated ${new Date(modified).toLocaleString()}`);
 	}
 
@@ -236,11 +237,12 @@ export class EditorialismPanel extends ItemView {
 		const bar = parent.createDiv({ cls: "editorialist-editorialism-panel__activation" });
 		bar.createSpan({ text: active ? "Active" : "Inactive" });
 		const button = bar.createEl("button", { text: active ? "Deactivate" : "Activate", attr: { type: "button", "aria-label": `${active ? "Deactivate" : "Activate"} ${document.title}` } });
-		button.addEventListener("click", async () => {
+		const changeActivity = async (): Promise<void> => {
 			button.disabled = true;
 			try { await this.plugin.setEditorialismActive(document.filePath, !active); await this.refresh(); }
 			catch { new Notice("Could not change the file's active status. Please try again."); button.disabled = false; }
-		});
+		};
+		button.addEventListener("click", () => { void changeActivity(); });
 	}
 
 	private renderEmptyState(parent: HTMLElement): void {

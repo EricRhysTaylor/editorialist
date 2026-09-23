@@ -28,7 +28,7 @@ export function normalizeEditorialDeliveries(raw: unknown): EditorialDeliverySto
 		const id = string(row.id), bookFolder = string(row.bookFolder).replace(/\/$/, ""), title = string(row.title);
 		if (!id || !bookFolder || !title || ids.has(id)) continue;
 		ids.add(id);
-		result.deliveries.push({ id, bookFolder, title, reviewer: string(row.reviewer), role: string(row.role), source: string(row.source), received: isDate(row.received) ? row.received as string : null, due: isDate(row.due) ? row.due as string : null, files: strings(row.files), batchIds: strings(row.batchIds) });
+		result.deliveries.push({ id, bookFolder, title, reviewer: string(row.reviewer), role: string(row.role), source: string(row.source), received: isDate(row.received) ? row.received : null, due: isDate(row.due) ? row.due : null, files: strings(row.files), batchIds: strings(row.batchIds) });
 	}
 	return result;
 }

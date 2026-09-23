@@ -50,7 +50,7 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 	};
 	for (const entry of next.entries) if (!movable.has(entry.id)) protect(entry.id);
 	const fixed = next.entries.filter((entry) => !movable.has(entry.id));
-	const pending = next.entries.filter((entry) => movable.has(entry.id)).map((entry) => ({ ...entry, day: null } as PlanEntry));
+	const pending: PlanEntry[] = next.entries.filter((entry) => movable.has(entry.id)).map((entry) => ({ ...entry, day: null }));
 	const existingKeys = new Set(next.entries.map((entry) => sourceKey(entry.source)));
 	const rank = (phase: WorkPhase | null): number => options.preset === "copy" ? 0 : phase === "structure" ? 0 : phase === "rewrite" ? 1 : 2;
 	const chosen = candidates.filter((candidate) => candidate.deliveryId === options.deliveryId && !candidate.inactive && !candidate.complete && !existingKeys.has(sourceKey(candidate)));
@@ -120,7 +120,7 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 			else if (entry.highMinutes === null || entry.lowMinutes === null) reason = "Needs an effort range.";
 			else {
 				entry.day = days.find((day) => day <= end && (parentDone || !parent?.day || day >= parent.day) && remaining.get(day)! >= entry.highMinutes!) ?? null;
-				if (entry.day) remaining.set(entry.day, remaining.get(entry.day)! - entry.highMinutes!);
+				if (entry.day) remaining.set(entry.day, remaining.get(entry.day)! - entry.highMinutes);
 				else reason = "Does not fit before the deadline with the current capacity and reserve.";
 			}
 			if (reason) issues.push({ title: `${entry.title}${entry.sessionCount ? ` · Session ${entry.sessionIndex}/${entry.sessionCount}` : ""}`, reason });

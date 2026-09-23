@@ -87,7 +87,7 @@ export class AutoScheduleModal extends Modal {
 		for (const warning of this.warnings) preview.createEl("p", { cls: "editorialist-plan__warning", text: warning });
 		if (draft.issues.length) {
 			preview.createEl("h4", { text: `Needs attention · ${draft.issues.length}` });
-			preview.createEl("p", { text: "Items without a phase or effort range stay in Available work. Sessions that do not fit are added to your plan without a date." });
+			preview.createEl("p", { text: "Items without a phase or effort range stay in available work. Sessions that do not fit are added to your plan without a date." });
 			for (const issue of draft.issues) {
 				const row = preview.createDiv({ cls: "editorialist-autoschedule__issue" }); row.createEl("strong", { text: issue.title }); row.createEl("p", { text: issue.reason });
 				if (issue.key) this.button(row, "Adjust this item", () => {

@@ -105,10 +105,11 @@ export class RevisionPlanPanel extends ItemView {
 		return input;
 	}
 	private render(): void {
-		const root = this.contentEl;
-		const expanded = new Set(Array.from(root.querySelectorAll<HTMLDetailsElement>("details[data-plan-section]")).filter((item) => item.open).map((item) => item.dataset.planSection));
-		root.empty();
-		renderPanelHeader(root, this.plugin, REVISION_PLAN_VIEW_TYPE, "Revision plan");
+		const container = this.contentEl;
+		const expanded = new Set(Array.from(container.querySelectorAll<HTMLDetailsElement>("details[data-plan-section]")).filter((item) => item.open).map((item) => item.dataset.planSection));
+		container.empty();
+		renderPanelHeader(container, this.plugin, REVISION_PLAN_VIEW_TYPE, "Revision plan");
+		const root = container.createDiv({ cls: "editorialist-plan__body" });
 		const toolbar = root.createDiv({ cls: "editorialist-plan__toolbar" });
 		const tabs = toolbar.createDiv({ cls: "editorialist-plan__tabs", attr: { "aria-label": "Plan layout" } });
 		for (const [value, label, icon] of [["queue", "Queue", "list-ordered"], ["days", "Days", "calendar-days"]] as const) {
@@ -133,7 +134,7 @@ export class RevisionPlanPanel extends ItemView {
 			heading.createSpan({ text: `${open.length} tasks` });
 		}
 		if (this.view === "queue") {
-			if (open.length) root.createEl("p", { cls: "editorialist-plan__hint", text: "Drag to prioritize · Scheduling options on each task" });
+			if (open.length) root.createEl("p", { cls: "editorialist-plan__hint", text: "Drag to prioritize · scheduling options on each task" });
 			for (const entry of open) this.renderEntry(root, entry);
 		} else {
 			const dates = [...new Set([...this.weekDays(), ...open.map((entry) => entry.day).filter((day): day is string => day !== null)])].sort();
@@ -253,14 +254,14 @@ export class RevisionPlanPanel extends ItemView {
 		if (entry.sessionCount) heading.createSpan({ cls: "editorialist-plan__done-label", text: `Session ${entry.sessionIndex}/${entry.sessionCount}` });
 		if (entry.estimated) heading.createSpan({ cls: "editorialist-plan__done-label", text: "Estimated" });
 		if (entry.done) heading.createSpan({ cls: "editorialist-plan__done-label", text: "Finished" });
-		const title = row.createEl("div", { cls: "editorialist-plan__task-title", attr: { draggable: "true", title: "Drag to reorder or assign a day" } });
+		const title = row.createDiv({ cls: "editorialist-plan__task-title", attr: { draggable: "true", title: "Drag to reorder or assign a day" } });
 		setIcon(title.createSpan({ cls: "editorialist-plan__grip" }), "grip-vertical");
 		title.createSpan({ text: resolved.state === "ready" ? resolved.candidate.title : entry.source.kind === "pending" ? pendingWorkTitle(entry.title) : entry.title });
 		title.addEventListener("dragstart", (event) => { this.dragging = entry.id; row.addClass("is-dragging"); event.dataTransfer?.setData("text/plain", entry.id); });
 		title.addEventListener("dragend", () => { this.dragging = null; row.removeClass("is-dragging"); });
 		if (this.view === "queue") this.dropTarget(row, (id) => { void this.change((plan) => { plan.entries = movePlanEntry(plan.entries, id, entry.id); }); });
 		row.createEl("p", { cls: "editorialist-plan__task-context", text: `${resolved.state === "ready" ? resolved.candidate.detail : entry.source.path}${resolved.state === "ready" && resolved.candidate.deferred ? " · Deferred at source" : ""}` });
-		if (resolved.state === "ready" && resolved.candidate.inactive) row.createEl("p", { cls: "editorialist-plan__hint", text: "Source inactive · Kept in your plan. Keep this task or remove it in Schedule & options." });
+		if (resolved.state === "ready" && resolved.candidate.inactive) row.createEl("p", { cls: "editorialist-plan__hint", text: "Source inactive · kept in your plan. Keep this task or remove it in schedule & options." });
 		if (resolved.state === "ready" && resolved.candidate.due && entry.day && entry.day > resolved.candidate.due) row.createEl("p", { cls: "editorialist-plan__hint", text: `Scheduled after delivery deadline (${resolved.candidate.due}).` });
 		const metadata = row.createDiv({ cls: "editorialist-plan__task-meta" });
 		for (const [icon, text] of [["calendar", entry.day ? planDayLabel(entry.day) : "Unscheduled"], ["clock-3", entry.lowMinutes === null || entry.highMinutes === null ? "Add estimate" : `${entry.lowMinutes}–${entry.highMinutes} min`]]) {

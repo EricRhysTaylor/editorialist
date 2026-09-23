@@ -55,8 +55,10 @@ export async function endReviewRound(
 	for (const path of new Set(entries.flatMap((entry) => entry.importedNotePaths))) {
 		const context = host.getNoteContextByPath(path);
 		const file = host.app.vault.getAbstractFileByPath(path);
-		if (!context && !(file instanceof TFile)) throw new Error(`Scene unavailable: ${path}`);
-		const before = context ? context.view.editor.getValue() : await host.app.vault.read(file as TFile);
+		let before: string;
+		if (context) before = context.view.editor.getValue();
+		else if (file instanceof TFile) before = await host.app.vault.read(file);
+		else throw new Error(`Scene unavailable: ${path}`);
 		let after = before;
 		const blocks = findImportedReviewBlocks(before).filter((block) => block.batchId && ids.includes(block.batchId));
 		for (const id of ids) {
