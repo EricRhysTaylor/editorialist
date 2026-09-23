@@ -6,8 +6,6 @@ import {
 	SUPPORTED_REVIEW_OPERATIONS,
 } from "../models/ReviewSuggestion";
 
-const ADVANCED_REVIEW_TEMPLATE_MODEL = "GPT-5.4";
-
 export const ADVANCED_REVIEW_TEMPLATE_YEAR = new Date().getFullYear();
 export const ADVANCED_REVIEW_TEMPLATE_TITLE = `Advanced template (${ADVANCED_REVIEW_TEMPLATE_YEAR})`;
 export const SUPPORTED_REVIEW_OPERATION_SUMMARY = SUPPORTED_REVIEW_OPERATIONS
@@ -19,10 +17,10 @@ export const REVIEW_TEMPLATE_BLOCK = [
 	"Template: Editorialist advanced",
 	`TemplateYear: ${ADVANCED_REVIEW_TEMPLATE_YEAR}`,
 	`SupportedOperations: ${SUPPORTED_REVIEW_OPERATION_SUMMARY}`,
-	`Reviewer: ${ADVANCED_REVIEW_TEMPLATE_MODEL}`,
-	"ReviewerType: ai-editor",
-	"Provider: OpenAI",
-	`Model: ${ADVANCED_REVIEW_TEMPLATE_MODEL}`,
+	"Reviewer: <Actual reviewer name or model name>",
+	"ReviewerType: <Accepted role for the actual reviewer>",
+	"Provider: <Actual AI provider; omit for human feedback>",
+	"Model: <Actual model if known; otherwise omit>",
 	"",
 	"=== MEMO ===",
 	"Strengths:",
@@ -89,7 +87,14 @@ export function isReviewTemplateText(text: string): boolean {
 	if (!text) {
 		return false;
 	}
-	return text.replace(/\r\n?/g, "\n").includes(REVIEW_TEMPLATE_BLOCK);
+	const normalized = text.replace(/\r\n?/g, "\n");
+	// Previously copied prompts remain instructions, even after attribution changed.
+	const legacyBlock = REVIEW_TEMPLATE_BLOCK
+		.replace("Reviewer: <Actual reviewer name or model name>", "Reviewer: GPT-5.4")
+		.replace("ReviewerType: <Accepted role for the actual reviewer>", "ReviewerType: ai-editor")
+		.replace("Provider: <Actual AI provider; omit for human feedback>", "Provider: OpenAI")
+		.replace("Model: <Actual model if known; otherwise omit>", "Model: GPT-5.4");
+	return normalized.includes(REVIEW_TEMPLATE_BLOCK) || normalized.includes(legacyBlock);
 }
 
 const REVIEW_TEMPLATE_GUIDANCE = [
@@ -109,6 +114,23 @@ const REVIEW_TEMPLATE_GUIDANCE = [
 	"             the author pastes your reply into the launcher, Editorialist saves",
 	`             it to \`Editorialist/<Book>/<Title>.md\` and opens the ${EDITORIALISM_TYPE_VALUE} panel.`,
 	"",
+	"DELIVERIES AND REVISION PLANNING",
+	"These two formats are feedback sources; they do not create a schedule or a delivery.",
+	"After importing, the author opens Editorial deliveries, creates a record for the",
+	"editor's handoff, links its batches and Editorialism files, and records the known",
+	"received date and return deadline. One delivery can contain both formats.",
+	"The author then chooses Plan this delivery, reviews a preset-driven draft against",
+	"working capacity and reserve time, and applies it. Large tasks split into sessions.",
+	"Finishing a planning session does not accept an edit or complete its source directive.",
+	"Pending edits remains the author's own scene-note queue; neither output format",
+	"automatically creates Pending edits. Do not duplicate the same task across formats.",
+	"",
+	"Delivery IDs, received dates, return deadlines, scheduling phases, priorities,",
+	"prerequisites, minute ranges, and session lengths are managed in Editorialist's UI.",
+	"Do not invent import fields for them: the formats below do not import those values.",
+	"Do not invent dates or estimates. A file's created date is not the receipt date of",
+	"the editor's feedback. Use only the supported effort metadata documented below.",
+	"",
 	"Note on code fences: most chat UIs strip outer triple-backtick fences when the user",
 	"copies your reply. Editorialist's importer accepts both fenced and unfenced output —",
 	"what matters is the metadata header and the `=== SECTION ===` markers. Don't worry",
@@ -127,10 +149,13 @@ const REVIEW_TEMPLATE_GUIDANCE = [
 	"appears above the line edits in each scene. Mix freely: one wide MEMO at the top for",
 	"manuscript-level patterns, then additional scoped MEMOs for scene-specific notes.",
 	"",
-	"A batch may be MEMOs only — no line edits at all. That is the right shape for an",
+	"A batch may be MEMOs only — no line edits at all. Use this for commentary from an",
 	"editorial letter or a developmental read: one scoped MEMO per scene it discusses, so",
 	"each lands in its own scene, plus unscoped MEMOs for the manuscript as a whole. With no",
 	"edits and no SceneIds, the memos attach to the scene the author has open.",
+	"MEMOs have no individual completion checkbox. Put independently actionable",
+	"developmental tasks in Format B so the author can plan and complete each one.",
+	"Keep context in MEMOs without repeating those tasks as separate assignments.",
 	"",
 	"Author queries: the manuscript may contain hidden `%%ai: <question>%%` markers anywhere",
 	"in the prose — questions the author embedded inline for you (they survive a Radial",
@@ -171,6 +196,12 @@ const REVIEW_TEMPLATE_GUIDANCE = [
 	"answer. Prefer it over inventing wording you are not confident in: a fabricated",
 	"`Suggestion:` is worse than an honest direction, because it arrives one click from the",
 	"manuscript and reads as finished prose.",
+	"",
+	"Replace every attribution placeholder with the actual reviewer, never a sample name.",
+	"When converting human feedback, Reviewer names the human; omit Provider and Model.",
+	"For your independent assessment, name yourself accurately and include your provider",
+	"and model only when known. Do not guess a model version. Keep your additions separate",
+	"from converted human feedback, with their own attribution.",
 	"",
 	"ReviewerType names the contributor's role. For a human whose notes you are converting,",
 	"use one of: editor, developmental-editor, line-editor, copy-editor, publisher-editor,",
@@ -238,8 +269,8 @@ const EDITORIALISM_TEMPLATE_GUIDANCE = [
 	"Wrap the entire markdown file (frontmatter included) in a ```editorialism fenced",
 	"block. The author pastes the reply into the launcher and Editorialist writes it to",
 	"`Editorialist/<Book>/<Title>.md` (deriving the path from `book:` and `title:`),",
-	"creating the folder and opening the panel. Re-emitting the same `title:` overwrites",
-	"the prior version in place, so an updated agenda supersedes cleanly. If the chat",
+	"creating the folder and opening the panel. The same title and reviewer update the",
+	"existing file; different reviewers are kept apart as described below. If the chat",
 	"strips the fence on copy, the `type: editorialism` frontmatter still lets Editorialist",
 	"find the file — but keep the fence so trailing commentary is never swept in.",
 	"",
@@ -304,6 +335,22 @@ const EDITORIALISM_TEMPLATE_GUIDANCE = [
 	"",
 	"Status markers (the character inside the brackets):",
 	"  `[ ]` open    `[/]` in progress    `[x]` done    `[-]` deferred    `[?]` question",
+	"",
+	"PLANNABLE TASKS AND SAFE UPDATES",
+	"Use one independently actionable task per checklist item, with an observable finish.",
+	"Start with a concrete action such as reorder, rewrite, expand, or trim; accurately",
+	"name the work rather than adding keywords to force the scheduler's suggested phase.",
+	"Split unrelated changes, but keep one coherent cross-scene change together with its",
+	"scope and anchors. The planner can split large tasks into sessions; do not pre-split",
+	"a directive into duplicate time blocks. Supply words/scenes/effort only when justified.",
+	"",
+	"When updating an existing agenda, preserve unchanged item wording, scope, section",
+	"headings, and completion markers. Planned links use the file, heading, item text,",
+	"and scope: cosmetic rewrites or moved items can require relinking. Make necessary",
+	"changes honestly and flag them for the author. If the current file is unavailable,",
+	"ask for it before producing a replacement; do not reset its progress from memory.",
+	"Use a distinct title for a new editorial round; use the existing title only for an",
+	"intentional update to that agenda. Older files can be deactivated without deletion.",
 	"",
 	"Write items as concrete directives, not paraphrased commentary. Every item should",
 	"be something the author can mark done. Group related directives under the same",

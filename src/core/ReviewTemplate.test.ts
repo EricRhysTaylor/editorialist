@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildReviewTemplate, isReviewTemplateText } from "./ReviewTemplate";
+import { buildReviewTemplate, isReviewTemplateText, REVIEW_TEMPLATE_BLOCK } from "./ReviewTemplate";
 
 // The injected contract + query listing live between the "AUTHOR QUERIES"
 // banner and the trailing "Passage:" label. Scope assertions to that region so
@@ -127,6 +127,15 @@ describe("buildReviewTemplate — plugin-owned fields", () => {
 });
 
 describe("isReviewTemplateText", () => {
+	it("still rejects the previous hardcoded-attribution prompt as importable feedback", () => {
+		const oldBlock = REVIEW_TEMPLATE_BLOCK
+			.replace("Reviewer: <Actual reviewer name or model name>", "Reviewer: GPT-5.4")
+			.replace("ReviewerType: <Accepted role for the actual reviewer>", "ReviewerType: ai-editor")
+			.replace("Provider: <Actual AI provider; omit for human feedback>", "Provider: OpenAI")
+			.replace("Model: <Actual model if known; otherwise omit>", "Model: GPT-5.4");
+		expect(isReviewTemplateText(oldBlock.replace(/\n/g, "\r\n"))).toBe(true);
+	});
+
 	it("recognises the copied prompt, with or without scene context and a passage", () => {
 		expect(isReviewTemplateText(buildReviewTemplate())).toBe(true);
 		expect(
@@ -196,5 +205,19 @@ describe("buildReviewTemplate — editorialism attribution", () => {
 		expect(out).toContain("CONVERSION");
 		expect(out).toContain("human, not yourself");
 		expect(out).toContain("YOUR OWN READ");
+	});
+});
+
+describe("buildReviewTemplate — planning handoff", () => {
+	it("keeps attribution and scheduling ownership explicit without changing source contracts", () => {
+		const out = buildReviewTemplate(undefined, { bookLabel: "Book", sceneIds: [{ id: "scn_real", title: "1 Arrival" }] });
+		expect(out).not.toContain("GPT-5.4");
+		expect(out).toContain("Plan this delivery");
+		expect(out).toContain("do not create a schedule or a delivery");
+		expect(out).toContain("MEMOs have no individual completion checkbox");
+		expect(out).toContain("preserve unchanged item wording");
+		expect(out).toContain("[effort:: light|medium|heavy]");
+		expect(out).toContain("scn_real — 1 Arrival");
+		expect(isReviewTemplateText(out)).toBe(true);
 	});
 });
