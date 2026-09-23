@@ -182,12 +182,10 @@ export class EditorialismPanel extends ItemView {
 				this.activeFilePath = summary.filePath;
 				void this.refresh();
 			});
-			setIcon(row.createSpan({ cls: "editorialist-editorialism-panel__agenda-icon" }), "notebook-pen");
 			const main = row.createDiv({ cls: "editorialist-editorialism-panel__list-main" });
-			main.createDiv({
-				cls: "editorialist-editorialism-panel__list-title",
-				text: summary.title,
-			});
+			const title = main.createDiv({ cls: "editorialist-editorialism-panel__list-title" });
+			setIcon(title.createSpan({ cls: "editorialist-editorialism-panel__agenda-icon", attr: { "aria-hidden": "true" } }), "notebook-pen");
+			title.createSpan({ text: summary.title });
 			const meta = main.createDiv({ cls: "editorialist-editorialism-panel__list-meta" });
 			meta.createSpan({
 				text: `${summary.totalItems} items · ${summary.totalItems - summary.doneItems} remaining${summary.deferredItems ? ` · ${summary.deferredItems} deferred` : ""}${summary.remainingMinutes ? ` · ~${formatEffortDuration(summary.remainingMinutes)}` : ""}`,
@@ -206,7 +204,7 @@ export class EditorialismPanel extends ItemView {
 				});
 			}
 			this.renderTiming(main, summary);
-			const completion = row.createDiv({ cls: "editorialist-editorialism-panel__completion" });
+			const completion = main.createDiv({ cls: "editorialist-editorialism-panel__completion" });
 			completion.createSpan({ text: `${summary.doneItems}/${summary.totalItems}` });
 			const progress = completion.createDiv({ cls: "editorialist-editorialism-panel__list-progress" });
 			const fraction = summary.totalItems > 0 ? summary.doneItems / summary.totalItems : 0;

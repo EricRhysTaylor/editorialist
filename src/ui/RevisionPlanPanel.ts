@@ -337,10 +337,11 @@ export class RevisionPlanPanel extends ItemView {
 			const shown = available.filter((candidate) => (this.deliveryFilter === "all" || candidate.deliveryId === this.deliveryFilter) && (this.sourceFilter === "all" || candidate.kind === this.sourceFilter) && `${candidate.title} ${candidate.detail} ${candidate.locator}`.toLowerCase().includes(this.search.toLowerCase()));
 			for (const candidate of shown.slice(0, this.backlogLimit)) {
 				const row = list.createDiv({ cls: "editorialist-plan__backlog-row", attr: { "data-work-kind": candidate.kind } });
-				const icon = row.createSpan({ cls: "editorialist-plan__source-icon" });
-				setIcon(icon, { pending: "pencil-line", batch: "messages-square", directive: "list-checks" }[candidate.kind]);
 				const content = row.createDiv({ cls: "editorialist-plan__backlog-content" });
-				content.createEl("strong", { text: candidate.title, attr: { title: candidate.title } });
+				const title = content.createEl("strong", { attr: { title: candidate.title } });
+				const icon = title.createSpan({ cls: "editorialist-plan__source-icon", attr: { "aria-hidden": "true" } });
+				setIcon(icon, { pending: "pencil-line", batch: "messages-square", directive: "list-checks" }[candidate.kind]);
+				title.createSpan({ text: candidate.title });
 				content.createEl("p", { text: `${candidate.detail}${candidate.deferred ? " · Deferred" : ""}` });
 				this.sourceButton(row, "", () => { void this.change((plan) => { plan.entries.push({ id: crypto.randomUUID(), source: { kind: candidate.kind, path: candidate.path, locator: candidate.locator }, title: candidate.title, lowMinutes: null, highMinutes: null, day: null, required: true, done: false, afterId: null }); }); }, this.stale);
 				const add = row.querySelector<HTMLButtonElement>("button")!;
