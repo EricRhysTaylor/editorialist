@@ -1,4 +1,4 @@
-import { Modal, Notice } from "obsidian";
+import { Modal, Notice, setIcon } from "obsidian";
 import type EditorialistPlugin from "../main";
 import { deliveryDate, type EditorialDelivery } from "../core/EditorialDeliveries";
 import { addDays, draftSchedule, estimateRange, suggestPhase, type ScheduleDraft, type ScheduleOptions } from "../core/planning/AutoSchedule";
@@ -81,10 +81,20 @@ export class AutoScheduleModal extends Modal {
 		const dated = draft.generated.filter((entry) => entry.day);
 		const unscheduled = draft.generated.length - dated.length;
 		const finish = dated.map((entry) => entry.day!).sort().at(-1);
-		preview.createEl("h3", { text: !draft.generated.length ? "No new work to schedule" : unscheduled || draft.issues.length || this.warnings.length ? "Some work needs attention" : `Fits by ${deliveryDate(finish ?? null)}` });
+		const attention = unscheduled > 0 || draft.issues.length > 0 || this.warnings.length > 0;
+		const heading = preview.createDiv({ cls: "editorialist-autoschedule__forecast" });
+		const icon = heading.createSpan({ cls: "editorialist-autoschedule__forecast-icon", attr: { "aria-hidden": "true" } });
+		setIcon(icon, attention ? "calendar-clock" : draft.generated.length ? "calendar-check" : "calendar");
+		if (attention) preview.addClass("is-attention");
+		const headingText = heading.createDiv();
+		headingText.createDiv({ cls: "editorialist-autoschedule__eyebrow", text: "Schedule preview" });
+		headingText.createEl("h3", { text: !draft.generated.length ? "No new work to schedule" : unscheduled || draft.issues.length || this.warnings.length ? "Some work needs attention" : `Fits by ${deliveryDate(finish ?? null)}` });
 		const low = draft.generated.reduce((sum, entry) => sum + (entry.lowMinutes ?? 0), 0);
 		const high = draft.generated.reduce((sum, entry) => sum + (entry.highMinutes ?? 0), 0);
-		preview.createEl("p", { text: `${Math.round(low / 6) / 10}–${Math.round(high / 6) / 10} hours · ${dated.length} ${dated.length === 1 ? "session" : "sessions"} over ${new Set(dated.map((entry) => entry.day)).size} working ${new Set(dated.map((entry) => entry.day)).size === 1 ? "day" : "days"}` });
+		const metrics = preview.createDiv({ cls: "editorialist-autoschedule__metrics" });
+		for (const [value, label] of [[`${Math.round(low / 6) / 10}–${Math.round(high / 6) / 10}`, "Estimated hours"], [String(draft.generated.length), "Sessions"], [String(new Set(dated.map((entry) => entry.day)).size), "Working days"]]) {
+			const metric = metrics.createDiv(); metric.createEl("strong", { text: value }); metric.createSpan({ text: label });
+		}
 		if (unscheduled) preview.createEl("p", { cls: "editorialist-plan__warning", text: `${unscheduled} sessions do not fit. Increase availability or shorten the selected work, then preview again.` });
 		if (this.adjusting) preview.createEl("p", { text: "Completed work, dates you kept, and other commitments stay in place." });
 		for (const warning of this.warnings) preview.createEl("p", { cls: "editorialist-plan__warning", text: warning });
@@ -100,8 +110,27 @@ export class AutoScheduleModal extends Modal {
 				});
 			}
 		}
-		const schedule = preview.createEl("details", { attr: { open: "" } }); schedule.createEl("summary", { text: "Proposed sessions" });
-		for (const entry of draft.generated) schedule.createEl("p", { text: `${entry.day ? deliveryDate(entry.day) : "Unscheduled"} · ${entry.title}${(entry.sessionCount ?? 1) > 1 ? ` · ${entry.sessionIndex}/${entry.sessionCount}` : ""} · ${entry.lowMinutes ?? "?"}–${entry.highMinutes ?? "?"} min` });
+		const schedule = preview.createEl("details", { cls: "editorialist-autoschedule__agenda", attr: { open: "" } });
+		schedule.createEl("summary", { text: "Proposed sessions" });
+		const days = new Map<string, typeof draft.generated>();
+		for (const entry of draft.generated) {
+			const key = entry.day ?? "Unscheduled";
+			const entries = days.get(key) ?? []; entries.push(entry); days.set(key, entries);
+		}
+		for (const [day, entries] of [...days].sort(([a], [b]) => a.localeCompare(b))) {
+			const group = schedule.createDiv({ cls: "editorialist-autoschedule__day" });
+			const date = group.createDiv({ cls: "editorialist-autoschedule__day-heading" });
+			date.createEl("h4", { text: day === "Unscheduled" ? day : deliveryDate(day) });
+			date.createSpan({ text: `${entries.reduce((sum, entry) => sum + (entry.highMinutes ?? 0), 0)} min planned` });
+			const list = group.createEl("ul", { cls: "editorialist-autoschedule__sessions" });
+			for (const entry of entries) {
+				const row = list.createEl("li");
+				const title = row.createDiv({ cls: "editorialist-autoschedule__session-title" });
+				title.createSpan({ text: entry.title });
+				if ((entry.sessionCount ?? 1) > 1) title.createSpan({ cls: "editorialist-autoschedule__session-part", text: `Part ${entry.sessionIndex} of ${entry.sessionCount}` });
+				row.createSpan({ cls: "editorialist-autoschedule__duration", text: `${entry.lowMinutes ?? "?"}–${entry.highMinutes ?? "?"} min` });
+			}
+		}
 		const apply = this.button(preview, "Use this plan", () => { apply.disabled = true; void this.apply(draft).catch((error: unknown) => { new Notice(error instanceof Error ? error.message : "Could not apply schedule."); this.invalidate(); }); });
 		apply.addClass("mod-cta"); apply.disabled = this.warnings.length > 0 || draft.generated.length === 0;
 		preview.scrollIntoView({ block: "start", behavior: "smooth" });
