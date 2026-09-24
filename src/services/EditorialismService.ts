@@ -5,6 +5,7 @@ import { isSceneClassFile } from "../core/VaultScope";
 import {
 	insertAnchorLine,
 	parseEditorialism,
+	rewriteItemDecision,
 	rewriteTaskMarker,
 } from "../core/EditorialismParser";
 import {
@@ -88,6 +89,14 @@ export class EditorialismService {
 		await this.app.vault.process(file, (currentText) =>
 			rewriteTaskMarker(currentText, lineIndex, nextStatus),
 		);
+	}
+
+	async setItemDecision(filePath: string, lineIndex: number, decision: string | null): Promise<void> {
+		const file = this.app.vault.getAbstractFileByPath(filePath);
+		if (!(file instanceof TFile)) {
+			throw new Error("Editorialism file is unavailable.");
+		}
+		await this.app.vault.process(file, (currentText) => rewriteItemDecision(currentText, lineIndex, decision));
 	}
 
 	// Append an anchor beneath an item. The markdown stays the source of truth:

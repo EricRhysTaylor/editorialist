@@ -17,4 +17,9 @@ describe("Editorialism update progress", () => {
 		const result = prepareEditorialismUpdate(header + "- [x] Tighten [scope:: 1]\n", header + "- [ ] Tighten [scope:: 2]\n");
 		expect(result.content).toContain("[ ] Tighten");
 	});
+	it("keeps a recorded decision when the re-export omits it", () => {
+		const current = header + "- [ ] Choose raspberries or blueberries [decision:: raspberries]\n";
+		const incoming = header + "- [?] Choose raspberries or blueberries\n";
+		expect(prepareEditorialismUpdate(current, incoming).content).toBe(current);
+	});
 });

@@ -1,5 +1,5 @@
 import { renderPanelHeader } from "./primitives/PanelHeader";
-import { ButtonComponent, DropdownComponent, ItemView, setIcon, type WorkspaceLeaf } from "obsidian";
+import { ButtonComponent, DropdownComponent, ItemView, Notice, setIcon, type WorkspaceLeaf } from "obsidian";
 import { formatContributorIdentityLabel } from "../core/ContributorIdentity";
 import { getEffectiveSuggestionStatus, getSuggestionCopyBlocks, getSuggestionReason as getOperationSuggestionReason, isImplicitlyAcceptedSuggestion, isMoveSuggestion } from "../core/OperationSupport";
 import { isOpenStatus, reviewStatusLabel } from "../core/status/ReviewStatusModel";
@@ -13,6 +13,7 @@ import {
 import { bindImmediateAction } from "./util/bindImmediateAction";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
 import { displayDirectiveText } from "../core/DirectiveText";
+import { renderDirectiveDecision } from "./editorialism/DirectiveDecision";
 import { findDirectivesAtPassage, type SceneDirective } from "../core/SceneDirectives";
 import type { EditorialismAnchor, EditorialismItemStatus } from "../models/Editorialism";
 import {
@@ -837,6 +838,9 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			cls: "editorialist-panel__directive-text",
 			text: displayDirectiveText(directive.item.text),
 		});
+		renderDirectiveDecision(entry, directive.item, () => {
+			void this.decideSceneDirective(directive);
+		});
 
 		if (directive.placement === "elsewhere") {
 			// Deliberately not a jump: leaving the scene mid-sweep would abandon
@@ -904,6 +908,17 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 				cls: "editorialist-panel__directive-anchor-warning",
 				text: unlocated,
 			});
+		}
+	}
+
+	private async decideSceneDirective(directive: SceneDirective): Promise<void> {
+		try {
+			if (await this.plugin.promptEditorialismItemDecision(directive.editorialismPath, directive.item)) {
+				this.sceneDirectivesKey = null;
+				this.render();
+			}
+		} catch (error) {
+			new Notice(error instanceof Error ? error.message : "Could not save the decision.");
 		}
 	}
 
@@ -1348,9 +1363,13 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		heading.createSpan({ text: "Editorialism on this passage" });
 		for (const { directive, anchor } of matches) {
 			const row = box.createDiv({ cls: "editorialist-suggestion__directive" });
-			row.createDiv({
+			const main = row.createDiv({ cls: "editorialist-suggestion__directive-main" });
+			main.createDiv({
 				cls: "editorialist-suggestion__directive-text",
 				text: displayDirectiveText(directive.item.text),
+			});
+			renderDirectiveDecision(main, directive.item, () => {
+				void this.decideSceneDirective(directive);
 			});
 			const done = row.createEl("button", {
 				cls: "editorialist-suggestion__directive-done",

@@ -94,9 +94,11 @@ function parseTaskLine(body: string): {
 	scope: EditorialismItemScope | null;
 	tags: string[];
 	effort?: EditorialismItemEffort;
+	decision?: string;
 } {
 	const tags: string[] = [];
 	let scope: EditorialismItemScope | null = null;
+	let decision: string | undefined;
 	const effort: EditorialismItemEffort = {};
 	const stripped = body.replace(INLINE_METADATA_PATTERN, (_match, key: string, value: string) => {
 		const lowerKey = key.toLowerCase();
@@ -120,6 +122,8 @@ function parseTaskLine(body: string): {
 			if (Number.isFinite(n) && n > 0) {
 				effort.scenes = n;
 			}
+		} else if (lowerKey === "decision") {
+			decision = trimmedValue;
 		} else if (lowerKey === "effort") {
 			const tier = trimmedValue.toLowerCase();
 			if (tier === "light" || tier === "medium" || tier === "heavy") {
@@ -129,7 +133,7 @@ function parseTaskLine(body: string): {
 		return "";
 	}).trim();
 	const hasEffort = effort.words !== undefined || effort.scenes !== undefined || effort.tier !== undefined;
-	return { text: stripped, scope, tags, effort: hasEffort ? effort : undefined };
+	return { text: stripped, scope, tags, effort: hasEffort ? effort : undefined, decision };
 }
 
 function measureIndent(line: string): number {
@@ -456,6 +460,7 @@ export function parseEditorialism(filePath: string, contents: string): Editorial
 			scope: parsed.scope,
 			tags: parsed.tags,
 			effort: parsed.effort,
+			...(parsed.decision !== undefined ? { decision: parsed.decision } : {}),
 			anchors: [],
 		};
 		currentSection.items.push(item);
@@ -481,6 +486,41 @@ export function parseEditorialism(filePath: string, contents: string): Editorial
 		source: frontmatter[EDITORIALISM_SOURCE_KEY]?.trim() || null,
 		sections,
 	};
+}
+
+const DECISION_METADATA_PATTERN = /\s*\[decision::[^\]]*\]/gi;
+
+// Inline metadata ends at the first `]`, and a task line ends at the newline,
+// so neither can survive inside a stored decision.
+export function sanitizeDecision(decision: string): string {
+	return decision.replace(/[\]\r\n]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+// Write (or with null, remove) an item's `[decision:: …]`. Recording a
+// decision on a `[?]` item also reopens it: the question is answered, and
+// what remains is carrying the answer through the manuscript. Any other
+// status is the author's and is left alone.
+export function rewriteItemDecision(
+	contents: string,
+	lineIndex: number,
+	decision: string | null,
+): string {
+	const lines = contents.split(/\r?\n/);
+	const line = lines[lineIndex];
+	const match = line?.match(TASK_LINE_PATTERN);
+	if (line === undefined || !match) {
+		return contents;
+	}
+	const cleaned = decision === null ? "" : sanitizeDecision(decision);
+	let next = line.replace(DECISION_METADATA_PATTERN, "").replace(/\s+$/, "");
+	if (cleaned) {
+		next = `${next} [decision:: ${cleaned}]`;
+		if (match[1] === "?") {
+			next = next.replace(/^(\s*-\s\[)\?(\])/, "$1 $2");
+		}
+	}
+	lines[lineIndex] = next;
+	return lines.join("\n");
 }
 
 export function rewriteTaskMarker(

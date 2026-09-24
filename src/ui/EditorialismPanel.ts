@@ -1,5 +1,6 @@
 import { deliveryDate } from "../core/EditorialDeliveries";
 import { displayDirectiveText } from "../core/DirectiveText";
+import { renderDirectiveDecision } from "./editorialism/DirectiveDecision";
 import { isDate } from "../core/planning/RevisionPlan";
 import { renderPanelHeader } from "./primitives/PanelHeader";
 import { DropdownComponent, Menu, Notice, ItemView, TFile, setIcon, type WorkspaceLeaf } from "obsidian";
@@ -436,6 +437,18 @@ export class EditorialismPanel extends ItemView {
 		main.createDiv({
 			cls: "editorialist-editorialism-panel__item-text",
 			text: displayDirectiveText(item.text),
+		});
+		renderDirectiveDecision(main, item, () => {
+			void this.plugin
+				.promptEditorialismItemDecision(editorialism.filePath, item)
+				.then(async (changed) => {
+					if (changed) {
+						await this.refresh();
+					}
+				})
+				.catch((error: unknown) => {
+					new Notice(error instanceof Error ? error.message : "Could not save the decision.");
+				});
 		});
 
 		const chips = main.createDiv({ cls: "editorialist-editorialism-panel__item-chips" });

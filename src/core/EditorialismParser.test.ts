@@ -7,6 +7,7 @@ import {
 	parseAnchorBody,
 	parseEditorialism,
 	parseScope,
+	rewriteItemDecision,
 	rewriteTaskMarker,
 	statusFromMarker,
 } from "./EditorialismParser";
@@ -423,5 +424,36 @@ describe("parseEditorialism — attribution", () => {
 		expect(result.reviewer).toBeNull();
 		expect(result.reviewerType).toBeNull();
 		expect(result.source).toBeNull();
+	});
+});
+
+describe("item decisions", () => {
+	const doc = (line: string) => `# Agenda\n## Queries\n${line}\n`;
+
+	it("parses a decision out of the item text", () => {
+		const item = parseEditorialism("a.md", doc("- [ ] Choose a fruit [decision:: raspberries]")).sections[0]?.items[0];
+		expect(item?.text).toBe("Choose a fruit");
+		expect(item?.decision).toBe("raspberries");
+	});
+
+	it("records a decision and reopens an answered question", () => {
+		expect(rewriteItemDecision(doc("- [?] Choose a fruit"), 2, "raspberries")).toBe(
+			doc("- [ ] Choose a fruit [decision:: raspberries]"),
+		);
+	});
+
+	it("replaces an existing decision and leaves other statuses alone", () => {
+		expect(rewriteItemDecision(doc("- [/] Choose [decision:: plums] [scope:: 3]"), 2, "figs")).toBe(
+			doc("- [/] Choose [scope:: 3] [decision:: figs]"),
+		);
+	});
+
+	it("clears a decision without touching the status", () => {
+		expect(rewriteItemDecision(doc("- [ ] Choose [decision:: plums]"), 2, null)).toBe(doc("- [ ] Choose"));
+	});
+
+	it("strips characters that would break the metadata", () => {
+		const written = rewriteItemDecision(doc("- [ ] Choose"), 2, "age 34]\nnot 36");
+		expect(parseEditorialism("a.md", written).sections[0]?.items[0]?.decision).toBe("age 34 not 36");
 	});
 });

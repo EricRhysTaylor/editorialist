@@ -88,6 +88,11 @@ export interface EditorialismItem {
 	scope: EditorialismItemScope | null;
 	tags: string[];
 	effort?: EditorialismItemEffort;
+	// The author's answer to a directive that asks for a choice ("Choose
+	// raspberries or blueberries…"), written back as `[decision:: …]` on the
+	// item line. Recording it once turns every anchor into a "make this match"
+	// check instead of a fresh deliberation in each scene.
+	decision?: string;
 	anchors: EditorialismAnchor[];
 }
 

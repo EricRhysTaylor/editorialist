@@ -1850,6 +1850,73 @@
 	height: 0.85rem;
 }
 
+.editorialist-directive-decision {
+	display: flex;
+	align-items: center;
+	gap: 0.35rem;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	line-height: 1.35;
+}
+
+.editorialist-directive-decision__icon {
+	display: inline-flex;
+	flex: 0 0 auto;
+	color: var(--text-accent);
+}
+
+.editorialist-directive-decision.is-decided .editorialist-directive-decision__icon {
+	color: var(--color-green);
+}
+
+.editorialist-directive-decision__icon svg {
+	width: 0.85rem;
+	height: 0.85rem;
+}
+
+.editorialist-directive-decision__label {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.editorialist-directive-decision__value {
+	color: var(--text-normal);
+	font-weight: 600;
+}
+
+.editorialist-directive-decision__button {
+	flex: 0 0 auto;
+	height: auto;
+	padding: 0.1rem 0.5rem;
+	border: 1px solid color-mix(in srgb, var(--text-accent) 45%, transparent);
+	border-radius: var(--editorialist-radius-xs);
+	background: transparent;
+	box-shadow: none;
+	color: var(--text-accent);
+	font-size: var(--font-ui-smaller);
+	cursor: pointer;
+}
+
+.editorialist-directive-decision.is-decided .editorialist-directive-decision__button {
+	border-color: transparent;
+	color: var(--text-faint);
+}
+
+.editorialist-directive-decision__button:hover {
+	color: var(--text-normal);
+	background: color-mix(in srgb, var(--background-modifier-border) 35%, transparent);
+}
+
+.editorialist-directive-decision__directive {
+	margin-top: 0;
+	color: var(--text-normal);
+}
+
+.editorialist-directive-decision__hint {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
 .editorialist-panel__comments {
 	display: flex;
 	flex-direction: column;
@@ -2668,9 +2735,15 @@
 	gap: 0.5rem;
 }
 
-.editorialist-suggestion__directive-text {
+.editorialist-suggestion__directive-main {
+	display: flex;
+	flex-direction: column;
+	gap: 0.3rem;
 	flex: 1 1 0;
 	min-width: 0;
+}
+
+.editorialist-suggestion__directive-text {
 	color: var(--text-normal);
 	font-size: var(--font-ui-smaller);
 	line-height: 1.4;

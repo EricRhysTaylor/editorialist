@@ -88,7 +88,9 @@ import {
 	estimateEditorialismEffort,
 	type EffortEstimate,
 } from "./core/EffortEstimate";
-import { isEditorialismActive, type Editorialism } from "./models/Editorialism";
+import { isEditorialismActive, type Editorialism, type EditorialismItem } from "./models/Editorialism";
+import { displayDirectiveText } from "./core/DirectiveText";
+import { DirectiveDecisionModal } from "./ui/modals/DirectiveDecisionModal";
 import { selectCompletedSweepDurationLabel } from "./core/review/CompletedSweepDuration";
 import { collectSceneDirectives, type SceneDirective } from "./core/SceneDirectives";
 import { openAnchorTargetModal } from "./ui/modals/AnchorTargetModal";
@@ -1011,6 +1013,19 @@ export default class EditorialistPlugin extends Plugin {
 		nextStatus: Parameters<EditorialismService["setItemStatus"]>[2],
 	): Promise<void> {
 		await this.editorialismService.setItemStatus(filePath, lineIndex, nextStatus);
+	}
+
+	// Asks for (or edits) the author's answer to a decision directive and writes
+	// it to the editorialism file. Cancel leaves the file untouched; an empty
+	// answer clears a recorded decision.
+	async promptEditorialismItemDecision(filePath: string, item: EditorialismItem): Promise<boolean> {
+		const answer = await new DirectiveDecisionModal(this.app, displayDirectiveText(item.text), item.decision ?? "").present();
+		if (answer === null) {
+			return false;
+		}
+		await this.editorialismService.setItemDecision(filePath, item.lineIndex, answer.trim() || null);
+		this.refreshEditorialismPanel();
+		return true;
 	}
 
 	// Directives from the active book's editorialisms that bear on a scene, for
