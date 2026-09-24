@@ -43,7 +43,21 @@ export interface SceneDirective {
 	// useless. Naming the scenes turns a dead row into a signpost.
 	anchorScenesElsewhere: string[];
 	anchorsElsewhereCount: number;
+	placement: SceneDirectivePlacement;
 }
+
+// Where the directive's work sits relative to the open scene. The card leads
+// with the work the author can do right here and pushes directives whose
+// passages all live in other scenes out of the way, instead of presenting
+// every in-scope directive as an equally weighted wall.
+//
+//   here      — has passages in this scene, or is scoped to exactly this scene
+//   covers    — its range or subplot includes this scene but it names no
+//               specific passages anywhere
+//   elsewhere — every passage it names lives in another scene
+export type SceneDirectivePlacement = "here" | "covers" | "elsewhere";
+
+const PLACEMENT_RANK: Record<SceneDirectivePlacement, number> = { here: 0, covers: 1, elsewhere: 2 };
 
 // Which scene an anchor points at. The anchor's own leading scene token wins;
 // a scene-scoped parent item supplies the fallback. This mirrors the precedence
@@ -96,6 +110,7 @@ export function collectSceneDirectives(
 					(anchor) => !anchorsInScene.includes(anchor),
 				);
 
+				const anchorScenesElsewhere = collectAnchorScenes(anchorsElsewhere, item);
 				out.push({
 					editorialismPath: editorialism.filePath,
 					editorialismTitle: editorialism.title,
@@ -103,14 +118,35 @@ export function collectSceneDirectives(
 					item,
 					anchorsInScene,
 					openAnchorsInScene: anchorsInScene.filter((anchor) => !isAnchorRetired(anchor.status)).length,
-					anchorScenesElsewhere: collectAnchorScenes(anchorsElsewhere, item),
+					anchorScenesElsewhere,
 					anchorsElsewhereCount: anchorsElsewhere.length,
+					placement: placeDirective(item, anchorsInScene.length, anchorScenesElsewhere.length),
 				});
 			}
 		}
 	}
 
-	return out;
+	// Work here first; within a placement, directives with open passages here
+	// lead, and otherwise the agenda's own order holds (the sort is stable).
+	return out.sort(
+		(left, right) =>
+			PLACEMENT_RANK[left.placement] - PLACEMENT_RANK[right.placement] ||
+			Number(right.openAnchorsInScene > 0) - Number(left.openAnchorsInScene > 0),
+	);
+}
+
+function placeDirective(
+	item: EditorialismItem,
+	anchorsHere: number,
+	scenesElsewhere: number,
+): SceneDirectivePlacement {
+	if (anchorsHere > 0) {
+		return "here";
+	}
+	if (scenesElsewhere > 0) {
+		return "elsewhere";
+	}
+	return item.scope?.kind === "scene" ? "here" : "covers";
 }
 
 // Distinct scene numbers an anchor set points at, ascending. Uses the same
@@ -133,8 +169,4 @@ function collectAnchorScenes(
 		}
 	}
 	return [...scenes].sort((left, right) => left - right).map((value) => String(value));
-}
-
-export function countOpenAnchors(directives: ReadonlyArray<SceneDirective>): number {
-	return directives.reduce((total, directive) => total + directive.openAnchorsInScene, 0);
 }

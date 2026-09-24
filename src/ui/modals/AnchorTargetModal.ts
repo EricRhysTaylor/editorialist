@@ -1,4 +1,5 @@
 import { SuggestModal, type App } from "obsidian";
+import { displayDirectiveText } from "../../core/DirectiveText";
 import type { Editorialism, EditorialismItem } from "../../models/Editorialism";
 
 export interface AnchorTargetChoice {
@@ -33,7 +34,7 @@ class AnchorTargetModal extends SuggestModal<AnchorTargetChoice> {
 
 	renderSuggestion(choice: AnchorTargetChoice, el: HTMLElement): void {
 		el.addClass("editorialist-anchor-target");
-		el.createDiv({ cls: "editorialist-anchor-target__item", text: choice.item.text });
+		el.createDiv({ cls: "editorialist-anchor-target__item", text: displayDirectiveText(choice.item.text) });
 		const meta = el.createDiv({ cls: "editorialist-anchor-target__meta" });
 		meta.createSpan({ text: choice.editorialism.title });
 		if (choice.item.scope) {

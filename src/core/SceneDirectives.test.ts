@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { anchorTargetsScene, collectSceneDirectives, countOpenAnchors } from "./SceneDirectives";
+import { anchorTargetsScene, collectSceneDirectives } from "./SceneDirectives";
 import type {
 	Editorialism,
 	EditorialismAnchor,
@@ -129,7 +129,6 @@ describe("collectSceneDirectives", () => {
 		});
 		const directives = collectSceneDirectives([editorialism([withAnchors])], sceneContext);
 		expect(directives[0]?.openAnchorsInScene).toBe(2);
-		expect(countOpenAnchors(directives)).toBe(2);
 	});
 
 	it("returns a directive with no anchors rather than dropping it", () => {
@@ -207,5 +206,31 @@ describe("out-of-scene anchors", () => {
 		const directives = collectSceneDirectives([editorialism([item()])], sceneContext);
 		expect(directives[0]?.anchorsElsewhereCount).toBe(0);
 		expect(directives[0]?.anchorScenesElsewhere).toEqual([]);
+	});
+});
+
+describe("placement and order", () => {
+	it("leads with directives that have passages here, then range-wide ones, then elsewhere-only", () => {
+		const elsewhere = item({ lineIndex: 0, text: "elsewhere", anchors: [anchor({ scene: "17" })] });
+		const covers = item({ lineIndex: 1, text: "covers" });
+		const here = item({ lineIndex: 2, text: "here", anchors: [anchor({ scene: "14" })] });
+		const directives = collectSceneDirectives([editorialism([elsewhere, covers, here])], sceneContext);
+		expect(directives.map((directive) => [directive.item.text, directive.placement])).toEqual([
+			["here", "here"],
+			["covers", "covers"],
+			["elsewhere", "elsewhere"],
+		]);
+	});
+
+	it("treats an anchorless directive scoped to exactly this scene as here", () => {
+		const scoped = item({ scope: { kind: "scene", scene: "14", raw: "14" } });
+		expect(collectSceneDirectives([editorialism([scoped])], sceneContext)[0]?.placement).toBe("here");
+	});
+
+	it("puts directives with open passages here ahead of ones whose passages here are finished", () => {
+		const finished = item({ lineIndex: 0, text: "finished", anchors: [anchor({ status: "done" })] });
+		const open = item({ lineIndex: 1, text: "open", anchors: [anchor()] });
+		const directives = collectSceneDirectives([editorialism([finished, open])], sceneContext);
+		expect(directives.map((directive) => directive.item.text)).toEqual(["open", "finished"]);
 	});
 });

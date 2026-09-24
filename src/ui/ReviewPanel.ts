@@ -12,7 +12,8 @@ import {
 } from "../core/review/SuggestionTraversal";
 import { bindImmediateAction } from "./util/bindImmediateAction";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
-import { countOpenAnchors, type SceneDirective } from "../core/SceneDirectives";
+import { displayDirectiveText } from "../core/DirectiveText";
+import type { SceneDirective } from "../core/SceneDirectives";
 import type { EditorialismAnchor } from "../models/Editorialism";
 import {
 	STATUS_ICON,
@@ -76,21 +77,34 @@ function compareReviewStateEntriesByNarrativeOrder(
 
 type ReviewerMenuAction = "assign" | "create" | "unresolved" | "save_alias";
 
-// What to say when a directive covers this scene but anchors none of its
-// passages here. Falls back to the bare statement only when the directive has
-// no anchors at all, or none whose scene could be resolved.
+// Where an elsewhere-only directive's passages live. Only rendered for the
+// "elsewhere" placement, which guarantees at least one resolvable scene.
 function formatAnchorsElsewhereLabel(directive: SceneDirective): string {
 	const scenes = directive.anchorScenesElsewhere;
-	if (directive.anchorsElsewhereCount === 0 || scenes.length === 0) {
-		return "No anchored passages in this scene.";
-	}
 	const count = directive.anchorsElsewhereCount;
 	const passages = `${count} passage${count === 1 ? "" : "s"}`;
 	const sceneList =
 		scenes.length === 1
 			? `scene ${scenes[0]}`
 			: `scenes ${scenes.slice(0, -1).join(", ")} and ${scenes[scenes.length - 1]}`;
-	return `${passages} in ${sceneList} — none in this scene.`;
+	return `${passages} in ${sceneList}`;
+}
+
+// The span a range- or subplot-wide directive covers, so a directive that
+// names no passages still says how far it reaches. Scene scope needs no label:
+// it is this scene.
+function formatDirectiveReach(directive: SceneDirective): string | null {
+	const scope = directive.item.scope;
+	if (!scope) {
+		return null;
+	}
+	if (scope.kind === "range" && scope.start && scope.end) {
+		return `Across scenes ${scope.start}–${scope.end}`;
+	}
+	if (scope.kind === "subplot" && scope.subplotName) {
+		return `Across the ${scope.subplotName} subplot`;
+	}
+	return null;
 }
 
 // An anchor's display label: one fragment, or the two-fragment span form, plus
@@ -128,6 +142,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	private sceneDirectivesKey: string | null = null;
 	private sceneDirectivesLoading = false;
 	private sceneDirectivesCollapsed = true;
+	private sceneDirectivesElsewhereOpen = false;
 	// null = follow the cold-start default; an explicit boolean once the user
 	// toggles the onboarding disclosure within this view session.
 	private onboardingExpanded: boolean | null = null;
@@ -723,27 +738,86 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		}
 
 		const body = card.createDiv({ cls: "editorialist-panel__directives-body" });
-		for (const directive of this.sceneDirectives) {
-			this.renderSceneDirectiveEntry(body, directive);
+		const local = this.sceneDirectives.filter((directive) => directive.placement !== "elsewhere");
+		const elsewhere = this.sceneDirectives.filter((directive) => directive.placement === "elsewhere");
+		// The source line repeats for every entry of one agenda; say it once
+		// per run instead of under every directive.
+		let previousSource: string | null = null;
+		for (const directive of local) {
+			previousSource = this.renderSceneDirectiveEntry(body, directive, previousSource);
+		}
+
+		if (elsewhere.length === 0) {
+			return;
+		}
+		// Directives whose passages all sit in other scenes are real work, but
+		// not work the author can do from here mid-sweep. They stay reachable
+		// behind one line rather than interleaving with this scene's agenda.
+		const group = body.createDiv({ cls: "editorialist-panel__directives-elsewhere" });
+		const groupToggle = group.createEl("button", {
+			cls: "editorialist-panel__directives-elsewhere-toggle",
+			attr: { type: "button", "aria-expanded": this.sceneDirectivesElsewhereOpen ? "true" : "false" },
+		});
+		setIcon(
+			groupToggle.createSpan({ cls: "editorialist-panel__directives-elsewhere-icon" }),
+			this.sceneDirectivesElsewhereOpen ? "chevron-down" : "chevron-right",
+		);
+		groupToggle.createSpan({
+			text: `${elsewhere.length} more with passages in other scenes`,
+		});
+		this.bindImmediateAction(groupToggle, () => {
+			this.sceneDirectivesElsewhereOpen = !this.sceneDirectivesElsewhereOpen;
+			this.render();
+		});
+		if (!this.sceneDirectivesElsewhereOpen) {
+			return;
+		}
+		previousSource = null;
+		for (const directive of elsewhere) {
+			previousSource = this.renderSceneDirectiveEntry(group, directive, previousSource);
 		}
 	}
 
-	// The summary must not imply the work is in this scene. A directive can be
-	// in scope here while every passage it names sits elsewhere, so passages are
-	// counted only when they are actually here, and labelled as such.
+	// Counts what belongs to this scene against what only points elsewhere, so
+	// the collapsed header already says whether there is work here at all. It
+	// shares a narrow header row with the title, so it stays two short terms.
 	private formatDirectivesSummary(): string {
-		const directiveCount = this.sceneDirectives.length;
-		const passageCount = countOpenAnchors(this.sceneDirectives);
-		const directiveLabel = `${directiveCount} directive${directiveCount === 1 ? "" : "s"}`;
-		if (passageCount === 0) {
-			return directiveLabel;
-		}
-		return `${directiveLabel} · ${passageCount} passage${passageCount === 1 ? "" : "s"} here`;
+		const elsewhere = this.sceneDirectives.filter((directive) => directive.placement === "elsewhere").length;
+		const local = this.sceneDirectives.length - elsewhere;
+		return elsewhere > 0 ? `${local} here · ${elsewhere} elsewhere` : `${local} here`;
 	}
 
-	private renderSceneDirectiveEntry(parent: HTMLElement, directive: SceneDirective): void {
+	// With one agenda in play its title is noise on every group label; name
+	// only the section. Multiple agendas need the title to tell them apart.
+	private formatDirectiveSource(directive: SceneDirective): string {
+		const singleAgenda = this.sceneDirectives.every(
+			(other) => other.editorialismPath === directive.editorialismPath,
+		);
+		if (singleAgenda && directive.sectionHeading) {
+			return directive.sectionHeading;
+		}
+		return directive.sectionHeading
+			? `${directive.editorialismTitle} · ${directive.sectionHeading}`
+			: directive.editorialismTitle;
+	}
+
+	// Returns the source label it rendered under, so the caller can skip the
+	// repeat on the next entry from the same agenda section.
+	private renderSceneDirectiveEntry(
+		parent: HTMLElement,
+		directive: SceneDirective,
+		previousSource: string | null,
+	): string {
+		const source = this.formatDirectiveSource(directive);
+		if (source !== previousSource) {
+			parent.createDiv({ cls: "editorialist-panel__directive-source", text: source });
+		}
+
 		const entry = parent.createDiv({ cls: "editorialist-panel__directive-entry" });
 
+		// The status control sits inline at the start of the sentence, so the
+		// directive's text wraps under it rather than leaving a gutter column
+		// down the whole card.
 		const head = entry.createDiv({ cls: "editorialist-panel__directive-head" });
 		const status = head.createEl("button", {
 			cls: "editorialist-panel__directive-status",
@@ -759,38 +833,35 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		this.bindImmediateAction(status, () => {
 			void this.advanceSceneDirectiveStatus(directive);
 		});
-
 		head.createSpan({
 			cls: "editorialist-panel__directive-text",
-			text: directive.item.text,
+			text: displayDirectiveText(directive.item.text),
 		});
 
-		entry.createDiv({
-			cls: "editorialist-panel__directive-source",
-			text: directive.sectionHeading
-				? `${directive.editorialismTitle} · ${directive.sectionHeading}`
-				: directive.editorialismTitle,
-		});
-
-		if (directive.anchorsInScene.length === 0) {
-			// A range- or subplot-scoped directive routinely applies here while
-			// every passage it names sits in another scene. Saying only "none
-			// here" is true and useless — it is the checklist row this card
-			// exists to replace. Name the scenes instead, so the directive still
-			// points somewhere. Deliberately not a jump: leaving the scene
-			// mid-sweep would abandon the batch the author is working. Walking
-			// the directive across scenes is the Editorialisms panel's job.
+		if (directive.placement === "elsewhere") {
+			// Deliberately not a jump: leaving the scene mid-sweep would abandon
+			// the batch the author is working. Walking the directive across
+			// scenes is the Editorialisms panel's job.
 			entry.createDiv({
-				cls: "editorialist-panel__directive-noanchors",
+				cls: "editorialist-panel__directive-reach",
 				text: formatAnchorsElsewhereLabel(directive),
 			});
-			return;
+			return source;
+		}
+
+		if (directive.anchorsInScene.length === 0) {
+			const reach = formatDirectiveReach(directive);
+			if (reach) {
+				entry.createDiv({ cls: "editorialist-panel__directive-reach", text: reach });
+			}
+			return source;
 		}
 
 		const anchors = entry.createDiv({ cls: "editorialist-panel__directive-anchors" });
 		for (const anchor of directive.anchorsInScene) {
 			this.renderSceneDirectiveAnchor(anchors, directive, anchor);
 		}
+		return source;
 	}
 
 	private renderSceneDirectiveAnchor(

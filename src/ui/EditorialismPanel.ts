@@ -1,4 +1,5 @@
 import { deliveryDate } from "../core/EditorialDeliveries";
+import { displayDirectiveText } from "../core/DirectiveText";
 import { isDate } from "../core/planning/RevisionPlan";
 import { renderPanelHeader } from "./primitives/PanelHeader";
 import { DropdownComponent, Menu, Notice, ItemView, TFile, setIcon, type WorkspaceLeaf } from "obsidian";
@@ -434,7 +435,7 @@ export class EditorialismPanel extends ItemView {
 		const main = row.createDiv({ cls: "editorialist-editorialism-panel__item-main" });
 		main.createDiv({
 			cls: "editorialist-editorialism-panel__item-text",
-			text: item.text,
+			text: displayDirectiveText(item.text),
 		});
 
 		const chips = main.createDiv({ cls: "editorialist-editorialism-panel__item-chips" });
