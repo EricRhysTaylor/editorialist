@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { anchorTargetsScene, collectSceneDirectives } from "./SceneDirectives";
+import { anchorTargetsScene, collectSceneDirectives, findDirectivesAtPassage } from "./SceneDirectives";
 import type {
 	Editorialism,
 	EditorialismAnchor,
@@ -232,5 +232,43 @@ describe("placement and order", () => {
 		const open = item({ lineIndex: 1, text: "open", anchors: [anchor()] });
 		const directives = collectSceneDirectives([editorialism([finished, open])], sceneContext);
 		expect(directives.map((directive) => directive.item.text)).toEqual(["open", "finished"]);
+	});
+});
+
+describe("findDirectivesAtPassage", () => {
+	const text = [
+		"She poured the coffee and didn't look up. Marla laughed.",
+		"",
+		"The rain kept on. Nobody spoke of the hospital.",
+	].join("\n");
+	const secondParagraph = text.indexOf("The rain");
+
+	function directivesFor(anchors: EditorialismAnchor[]) {
+		return collectSceneDirectives([editorialism([item({ anchors })])], sceneContext);
+	}
+
+	it("finds a directive anchored in the same paragraph as the suggestion", () => {
+		const directives = directivesFor([anchor({ opening: "She poured the coffee" })]);
+		const start = text.indexOf("Marla laughed");
+		const found = findDirectivesAtPassage(text, { start, end: start + 5 }, directives);
+		expect(found.map((entry) => entry.anchor.opening)).toEqual(["She poured the coffee"]);
+	});
+
+	it("ignores anchors in another paragraph", () => {
+		const directives = directivesFor([anchor({ opening: "She poured the coffee" })]);
+		expect(findDirectivesAtPassage(text, { start: secondParagraph, end: secondParagraph + 8 }, directives)).toEqual([]);
+	});
+
+	it("skips anchors the author already finished or parked", () => {
+		const directives = directivesFor([
+			anchor({ lineIndex: 1, opening: "She poured the coffee", status: "done" }),
+			anchor({ lineIndex: 2, opening: "Marla laughed", status: "deferred" }),
+		]);
+		expect(findDirectivesAtPassage(text, { start: 0, end: 5 }, directives)).toEqual([]);
+	});
+
+	it("drops an anchor whose fragment is no longer in the prose", () => {
+		const directives = directivesFor([anchor({ opening: "She poured the tea" })]);
+		expect(findDirectivesAtPassage(text, { start: 0, end: 5 }, directives)).toEqual([]);
 	});
 });

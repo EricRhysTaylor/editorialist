@@ -13,8 +13,8 @@ import {
 import { bindImmediateAction } from "./util/bindImmediateAction";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
 import { displayDirectiveText } from "../core/DirectiveText";
-import type { SceneDirective } from "../core/SceneDirectives";
-import type { EditorialismAnchor } from "../models/Editorialism";
+import { findDirectivesAtPassage, type SceneDirective } from "../core/SceneDirectives";
+import type { EditorialismAnchor, EditorialismItemStatus } from "../models/Editorialism";
 import {
 	STATUS_ICON,
 	STATUS_LABEL,
@@ -924,11 +924,15 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		// Advancing an anchor never touches the parent directive's status, even
 		// when this is the last open passage. Whether the underlying concern is
 		// addressed is the author's call, not an inference from the anchors.
-		await this.plugin.anchors.setEditorialismAnchorStatus(
-			directive.editorialismPath,
-			anchor,
-			nextStatusInCycle(anchor.status),
-		);
+		await this.setSceneDirectiveAnchorStatus(directive, anchor, nextStatusInCycle(anchor.status));
+	}
+
+	private async setSceneDirectiveAnchorStatus(
+		directive: SceneDirective,
+		anchor: EditorialismAnchor,
+		status: EditorialismItemStatus,
+	): Promise<void> {
+		await this.plugin.anchors.setEditorialismAnchorStatus(directive.editorialismPath, anchor, status);
 		this.sceneDirectivesKey = null;
 		this.render();
 	}
@@ -1292,6 +1296,10 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			text: this.getSuggestionReason(suggestion),
 		});
 
+		if (selected) {
+			this.renderPassageDirectives(card, suggestion);
+		}
+
 		this.renderSuggestionFooter(card, suggestion);
 
 		if (this.reviewerMenuSuggestionId === suggestion.id) {
@@ -1303,6 +1311,57 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		}
 
 		return card;
+	}
+
+	// Editorialism directives that name a passage in the paragraph this
+	// suggestion sits on. The sweep is where the author is actually working, so
+	// a structural note meets them here — in the prose it concerns — instead of
+	// waiting in a card they have to decide to open. "Done" retires only this
+	// anchor; whether the directive as a whole is addressed stays the author's
+	// call in the Editorialisms card.
+	private renderPassageDirectives(parent: HTMLElement, suggestion: ReviewSuggestion): void {
+		if (this.sceneDirectives.length === 0) {
+			return;
+		}
+		const note = this.plugin.getReviewNoteText();
+		// Directives are loaded for the active scene; only trust them against
+		// the note they were loaded for.
+		if (!note || this.sceneDirectivesKey?.startsWith(`${note.filePath}::`) !== true) {
+			return;
+		}
+		const target = suggestion.location.primary ?? suggestion.location.target;
+		if (target?.startOffset === undefined || target.endOffset === undefined) {
+			return;
+		}
+		const matches = findDirectivesAtPassage(
+			note.text,
+			{ start: target.startOffset, end: target.endOffset },
+			this.sceneDirectives,
+		);
+		if (matches.length === 0) {
+			return;
+		}
+
+		const box = parent.createDiv({ cls: "editorialist-suggestion__directives" });
+		const heading = box.createDiv({ cls: "editorialist-suggestion__directives-heading" });
+		setIcon(heading.createSpan({ cls: "editorialist-suggestion__directives-icon" }), "compass");
+		heading.createSpan({ text: "Editorialism on this passage" });
+		for (const { directive, anchor } of matches) {
+			const row = box.createDiv({ cls: "editorialist-suggestion__directive" });
+			row.createDiv({
+				cls: "editorialist-suggestion__directive-text",
+				text: displayDirectiveText(directive.item.text),
+			});
+			const done = row.createEl("button", {
+				cls: "editorialist-suggestion__directive-done",
+				attr: { type: "button", "aria-label": "Mark this passage done for the editorialism" },
+			});
+			setIcon(done.createSpan({ cls: "editorialist-suggestion__directive-done-icon" }), "check");
+			done.createSpan({ text: "Done" });
+			this.bindImmediateAction(done, () => {
+				void this.setSceneDirectiveAnchorStatus(directive, anchor, "done");
+			});
+		}
 	}
 
 	// Renders the unified footer row: contributor (left), then jump-options

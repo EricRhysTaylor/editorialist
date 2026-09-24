@@ -16,6 +16,7 @@
 // operation (Erase batches, cleanup) to reach an editorialism file. Nothing
 // here applies anything to the manuscript: a directive carries no payload.
 
+import { isLocated, locateAnchor, type AnchorRange } from "./EditorialismAnchorLocator";
 import { scopeRelatesToScene, type SceneRelevanceContext } from "./SceneRelevance";
 import {
 	isAnchorRetired,
@@ -169,4 +170,52 @@ function collectAnchorScenes(
 		}
 	}
 	return [...scenes].sort((left, right) => left - right).map((value) => String(value));
+}
+
+export interface PassageDirective {
+	directive: SceneDirective;
+	anchor: EditorialismAnchor;
+}
+
+// Directives with an open anchor in the same paragraph as `range` — the
+// passage a review suggestion is sitting on. This is how an editorialism
+// meets the author inside the sweep: when the batch lands on a paragraph a
+// directive also names, the suggestion card says so, and the structural note
+// is handled while the author is already standing in the prose.
+//
+// Paragraph, not exact overlap: a line edit and a directive's quoted fragment
+// rarely cover the same characters, but they are the same place to the
+// author. Anchors are re-located against the current text every call, the
+// same way navigation does, so a passage rewritten past recognition simply
+// stops matching instead of pointing somewhere plausible and wrong.
+export function findDirectivesAtPassage(
+	noteText: string,
+	range: AnchorRange,
+	directives: ReadonlyArray<SceneDirective>,
+): PassageDirective[] {
+	const paragraph = paragraphAround(noteText, range);
+	const out: PassageDirective[] = [];
+	for (const directive of directives) {
+		for (const anchor of directive.anchorsInScene) {
+			if (isAnchorRetired(anchor.status)) {
+				continue;
+			}
+			const location = locateAnchor(noteText, anchor);
+			if (isLocated(location) && location.start < paragraph.end && location.end > paragraph.start) {
+				out.push({ directive, anchor });
+			}
+		}
+	}
+	return out;
+}
+
+// The blank-line-delimited block containing `range`, widened to cover a range
+// that itself spans paragraphs.
+function paragraphAround(text: string, range: AnchorRange): AnchorRange {
+	const before = text.lastIndexOf("\n\n", Math.max(0, range.start - 1));
+	const after = text.indexOf("\n\n", range.end);
+	return {
+		start: before === -1 ? 0 : before + 2,
+		end: after === -1 ? text.length : after,
+	};
 }

@@ -1942,6 +1942,13 @@ export default class EditorialistPlugin extends Plugin {
 		return null;
 	}
 
+	// The review note's path and live text, for panel features that need to
+	// place something against the prose the sweep is walking.
+	getReviewNoteText(): { filePath: string; text: string } | null {
+		const context = this.getReviewNoteContext();
+		return context ? { filePath: context.filePath, text: context.text } : null;
+	}
+
 	private getReviewNoteContext(): ActiveNoteContext | null {
 		const session = this.store.getSession();
 		if (!session) {
