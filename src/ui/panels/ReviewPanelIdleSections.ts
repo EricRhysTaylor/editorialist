@@ -389,7 +389,7 @@ export function renderWorkflowsDisclosure(
 		{
 			icon: "users",
 			title: "Contributor directory",
-			body: "Track which feedback helps most — from alpha readers, editors, and AI models. Star trusted reviewers, resolve aliases on imported batches, and see who shaped each draft.",
+			body: "Track which feedback helps most — from alpha readers, editors, and AI models. Star trusted reviewers. See who shaped each draft.",
 		},
 	];
 	for (const wf of workflows) {
