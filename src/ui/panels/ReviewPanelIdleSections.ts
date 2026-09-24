@@ -274,7 +274,7 @@ export function renderContinueReviewCard(
 	overview: ReturnType<EditorialistPlugin["getReviewStateOverview"]>,
 ): void {
 	const entry = overview
-		? [...overview.pending, ...overview.processed].find(
+		? [...overview.pending, ...overview.reviewed].find(
 			(candidate) => candidate.notePath === launchTarget.notePath,
 		)
 		: undefined;

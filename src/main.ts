@@ -205,11 +205,16 @@ export interface ReviewStateIndexEntry {
 	deferredCount: number;
 	processedCount: number;
 	lastUpdated: number;
+	// Review blocks already removed from the note. The decisions are kept in
+	// history, but there is nothing left in the scene to step through.
+	cleaned: boolean;
 }
 
 export interface ReviewStateOverview {
 	pending: ReviewStateIndexEntry[];
-	processed: ReviewStateIndexEntry[];
+	// Every scene whose review work is finished, cleaned or not — the list the
+	// author walks back through, mirroring `pending` going forward.
+	reviewed: ReviewStateIndexEntry[];
 }
 
 interface ReviewLaunchTarget {
@@ -1700,15 +1705,13 @@ export default class EditorialistPlugin extends Plugin {
 	}
 
 	getReviewStateOverview(): ReviewStateOverview | null {
-		const records = this.getSceneReviewRecords({ activeBookOnly: true }).filter(
-			(record) => record.batchCount > 0 && record.status !== "cleaned",
-		);
+		const records = this.getSceneReviewRecords({ activeBookOnly: true }).filter((record) => record.batchCount > 0);
 		if (records.length === 0) {
 			return null;
 		}
 
 		const pending: ReviewStateIndexEntry[] = [];
-		const processed: ReviewStateIndexEntry[] = [];
+		const reviewed: ReviewStateIndexEntry[] = [];
 
 		for (const record of records) {
 			const entry: ReviewStateIndexEntry = {
@@ -1720,20 +1723,20 @@ export default class EditorialistPlugin extends Plugin {
 				deferredCount: record.deferredCount,
 				processedCount: record.acceptedCount + record.rejectedCount + record.rewrittenCount,
 				lastUpdated: record.lastUpdated,
+				cleaned: record.status === "cleaned",
 			};
 
-			if (record.status === "in_progress" || entry.pendingCount > 0 || entry.unresolvedCount > 0 || entry.deferredCount > 0) {
+			if (
+				!entry.cleaned &&
+				(record.status === "in_progress" || entry.pendingCount > 0 || entry.unresolvedCount > 0 || entry.deferredCount > 0)
+			) {
 				pending.push(entry);
 			} else {
-				processed.push(entry);
+				reviewed.push(entry);
 			}
 		}
 
-		if (pending.length === 0 && processed.length === 0) {
-			return null;
-		}
-
-		return { pending, processed };
+		return { pending, reviewed };
 	}
 
 	getPostCompletionIdleState(): PostCompletionIdleState | null {

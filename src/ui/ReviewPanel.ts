@@ -129,7 +129,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	private reviewerMenuAction: ReviewerMenuAction | null = null;
 	private reviewerPickerValue: string | null = null;
 	private starredOnly = false;
-	private reviewStateProcessedExpanded = false;
+	private reviewStateProcessedExpanded = true;
 	private commentsCollapsed = true;
 	// The completed sweep whose memos have already been auto-expanded, so the
 	// expansion fires once when a pass finishes rather than fighting the author
@@ -337,8 +337,8 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			// 3. Ready to clean — processed sweeps awaiting cleanup. Distinct from
 			// the pending work above: it's post-resolution housekeeping, so it sits
 			// after recent reviews rather than in the Up next cluster.
-			if (overview && overview.processed.length > 0) {
-				this.renderReadyToCleanCard(overview.processed);
+			if (overview && overview.reviewed.length > 0) {
+				this.renderReviewedScenesCard(overview.reviewed);
 			}
 
 			// 4. Contributors.
@@ -514,9 +514,13 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	// Processed sweeps awaiting review-block cleanup. Its own collapsible group
 	// (the group header carries the caret + count + Clean actions), rendered as
 	// a standalone secondary card below recent reviews.
-	private renderReadyToCleanCard(processed: ReviewStateIndexEntry[]): void {
+	// Scenes already reviewed, in the same rows and story order as Up next, so
+	// the author can walk back as easily as forward: a row reopens the scene's
+	// review to step through what was decided. Scenes whose blocks are still in
+	// the note keep their Clean action.
+	private renderReviewedScenesCard(reviewed: ReviewStateIndexEntry[]): void {
 		const card = this.contentEl.createDiv({ cls: "editorialist-panel__review-state" });
-		this.renderReviewStateGroup(card, "Ready to clean", processed, true, this.reviewStateProcessedExpanded, true);
+		this.renderReviewStateGroup(card, "Reviewed", reviewed, true, this.reviewStateProcessedExpanded, true);
 	}
 
 	private renderReviewStateGroup(
@@ -591,7 +595,10 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			text: entry.noteTitle,
 		});
 		this.bindImmediateAction(link, () => {
-			void this.plugin.startOrResumeReviewForNote(entry.notePath);
+			// A cleaned scene has no review block left to step through; open it.
+			void (entry.cleaned
+				? this.plugin.openSceneNote(entry.notePath)
+				: this.plugin.startOrResumeReviewForNote(entry.notePath));
 		});
 
 		const metaParts: string[] = [];
@@ -605,7 +612,10 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			metaParts.push(`${entry.deferredCount} deferred`);
 		}
 		if (entry.processedCount > 0) {
-			metaParts.push(`${entry.processedCount} processed`);
+			metaParts.push(`${entry.processedCount} reviewed`);
+		}
+		if (entry.cleaned) {
+			metaParts.push("cleaned");
 		}
 		if (metaParts.length > 0) {
 			row.createSpan({
@@ -642,7 +652,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			});
 		}
 
-		if (showCleanAction) {
+		if (showCleanAction && !entry.cleaned) {
 			const cleanButton = row.createEl("button", {
 				cls: "editorialist-panel__review-state-row-clean",
 				attr: { type: "button", "aria-label": "Clean review block from this scene" },
