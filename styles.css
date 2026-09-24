@@ -5363,6 +5363,11 @@
 	color: var(--text-muted);
 }
 
+.editorialist-panel__workflows-header .editorialist-panel__section-title {
+	letter-spacing: 0;
+	text-transform: none;
+}
+
 .editorialist-panel__section-meta {
 	font-size: var(--font-ui-smaller);
 	color: var(--text-faint);

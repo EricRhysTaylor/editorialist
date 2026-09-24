@@ -377,9 +377,14 @@ export function renderWorkflowsDisclosure(
 			body: "Pull in contributor notes from a human reader or AI editor, then accept, reject, or rewrite each suggestion in turn.",
 		},
 		{
+			icon: "compass",
+			title: "Editorialisms",
+			body: "Turn an editorial letter into a checklist of directives pinned to the passages they concern. Each scene shows the ones that apply there, one at a time, as you review.",
+		},
+		{
 			icon: "clipboard-list",
-			title: "Pending edits sweep",
-			body: "Walk through free-form revision notes you've left across the active book, scene by scene.",
+			title: "Pending edits",
+			body: "Work through the notes in each scene's Pending Edits property — the revision notes you keep with Radial Timeline — scene by scene across the active book.",
 		},
 		{
 			icon: "users",
