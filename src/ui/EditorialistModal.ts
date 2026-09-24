@@ -144,11 +144,8 @@ export class EditorialistModal extends Modal {
 
 		const batchToPreview = this.getPreviewBatch();
 		if (this.showAssignments && batchToPreview) {
-			this.renderAssignments(shell, batchToPreview);
 			// The manual section already carries its own import button above.
-			if (!this.showManualPaste) {
-				this.renderAssignmentsFooter(shell, batchToPreview);
-			}
+			this.renderAssignments(shell, batchToPreview, !this.showManualPaste);
 		}
 
 		this.renderExample(shell);
@@ -563,7 +560,7 @@ export class EditorialistModal extends Modal {
 		});
 	}
 
-	private renderAssignments(parent: HTMLElement, batch: ReviewImportBatch): void {
+	private renderAssignments(parent: HTMLElement, batch: ReviewImportBatch, withActions: boolean): void {
 		const destinationPlural = this.getDestinationNounPlural(batch);
 		const summary = parent.createDiv({ cls: "editorialist-control-modal__summary" });
 		summary.createDiv({
@@ -577,6 +574,12 @@ export class EditorialistModal extends Modal {
 				cls: "editorialist-control-modal__summary-warning",
 				text: this.describeUnroutedMemos(batch),
 			});
+		}
+
+		// Actions sit above the list: a large import can run to hundreds of
+		// scene cards, and the button must not wait at the bottom of them.
+		if (withActions) {
+			this.renderAssignmentsActions(parent, batch);
 		}
 
 		const list = parent.createDiv({ cls: "editorialist-control-modal__list" });
@@ -632,7 +635,7 @@ export class EditorialistModal extends Modal {
 	// The preview is where a partial import is confirmed, so it must be able to
 	// finish the job. Without this the clipboard card sent an author here and
 	// then left them with nothing to click but the card that sent them.
-	private renderAssignmentsFooter(parent: HTMLElement, batch: ReviewImportBatch): void {
+	private renderAssignmentsActions(parent: HTMLElement, batch: ReviewImportBatch): void {
 		const action = describeAssignmentsImport(batch);
 		const buttons = [];
 		if (this.collectProposedCorrections(batch).length > 0) {
@@ -1319,7 +1322,7 @@ export class EditorialistModal extends Modal {
 					return;
 				case "preview":
 					// The preview lists what was left out and carries its own import
-					// action for what did resolve — see renderAssignmentsFooter.
+					// action for what did resolve — see renderAssignmentsActions.
 					this.showAssignments = true;
 					this.render();
 					return;
