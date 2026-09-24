@@ -1,4 +1,4 @@
-import { isDate, isPlanEntryComplete, localDate, resolvePlanSource, sourceKey, type PlanEntry, type RevisionPlan, type WorkCandidate } from "./RevisionPlan";
+import { isDate, isPlanEntryComplete, localDate, progressDoneKeys, resolvePlanSource, sourceKey, type PlanEntry, type RevisionPlan, type WorkCandidate } from "./RevisionPlan";
 import type { ScheduleDefaults, SchedulePreset, WorkPhase } from "./ScheduleDefaults";
 export interface TriageChoice { phase?: WorkPhase | null; low?: number; high?: number; skip?: boolean }
 export interface ScheduleOptions extends ScheduleDefaults {
@@ -33,13 +33,14 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 	const days: string[] = [];
 	for (let day = options.start; day <= effectiveEnd && days.length <= 366; day = addDays(day, 1)) days.push(day);
 	if (days.length > 366) throw new Error("Plan at most one year at a time.");
+	const doneKeys = progressDoneKeys(plan);
 	const next = structuredClone(plan);
 	next.scheduling = { preset: options.preset, sessionMinutes: options.sessionMinutes, useEstimates: options.useEstimates };
 	const issues: ScheduleIssue[] = [];
 	const byId = new Map(next.entries.map((entry) => [entry.id, entry]));
 	const movable = new Set(next.entries.filter((entry) => {
 		const resolved = resolvePlanSource(entry.source, candidates);
-		return options.replan && entry.autoDeliveryId === options.deliveryId && !entry.locked && !isPlanEntryComplete(entry, candidates) && resolved.state === "ready" && !resolved.candidate.inactive;
+		return options.replan && entry.autoDeliveryId === options.deliveryId && !entry.locked && !isPlanEntryComplete(entry, candidates, doneKeys) && resolved.state === "ready" && !resolved.candidate.inactive;
 	}).map((entry) => entry.id));
 	// Keep the prerequisite chain of any preserved commitment in place too.
 	const protect = (id: string, seen = new Set<string>()): void => {
@@ -92,7 +93,7 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 	}
 	const remaining = new Map(days.map((day) => [day, plan.capacity[new Date(`${day}T12:00:00`).getDay()] ?? 0]));
 	for (const entry of fixed) {
-		if (isPlanEntryComplete(entry, candidates) || !entry.day || !remaining.has(entry.day)) continue;
+		if (isPlanEntryComplete(entry, candidates, doneKeys) || !entry.day || !remaining.has(entry.day)) continue;
 		if (entry.highMinutes === null) { remaining.set(entry.day, 0); issues.push({ title: entry.title, reason: "Existing scheduled work has no estimate; its day is reserved in full." }); }
 		else {
 			if (remaining.get(entry.day)! < entry.highMinutes) issues.push({ title: entry.title, reason: `Existing commitments exceed capacity on ${entry.day}.` });
@@ -110,7 +111,7 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 		for (const entry of queue) {
 			if (entry.afterId && !scheduled.has(entry.afterId) && queue.some((item) => item.id === entry.afterId)) { waiting.push(entry); continue; }
 			const parent = entry.afterId ? scheduled.get(entry.afterId) : null;
-			const parentDone = parent ? isPlanEntryComplete(parent, candidates) : false;
+			const parentDone = parent ? isPlanEntryComplete(parent, candidates, doneKeys) : false;
 			const resolved = resolvePlanSource(entry.source, candidates);
 			const due = resolved.state === "ready" ? resolved.candidate.due : null;
 			const deadlines = [options.end, due, entry.required ? plan.deadline : null].filter((day): day is string => Boolean(day));

@@ -1,4 +1,5 @@
 import { DEFAULT_SCHEDULE, type ScheduleDefaults, type WorkPhase } from "./ScheduleDefaults";
+import { normalizePlanProgress, type PlanProgress } from "./PlanProgress";
 /** Planning identity is independent of line numbers and pending-edit indexes. */
 export type WorkKind = "pending" | "batch" | "directive";
 export interface WorkSource {
@@ -45,6 +46,8 @@ export interface RevisionPlan {
 	capacity: number[];
 	reserveMinutes: number;
 	entries: PlanEntry[];
+	/** Book-wide finished work, recorded as sources change; see PlanProgress. */
+	progress?: PlanProgress;
 }
 export interface RevisionPlanStore {
 	version: 1;
@@ -86,6 +89,8 @@ export function normalizeRevisionPlans(raw: unknown): RevisionPlanStore {
 		const scheduling = object(input.scheduling);
 		if (scheduling) plan.scheduling = { preset: ["developmental", "copy", "mixed"].includes(String(scheduling.preset)) ? scheduling.preset as ScheduleDefaults["preset"] : DEFAULT_SCHEDULE.preset, sessionMinutes: Math.max(15, Math.min(240, minutes(scheduling.sessionMinutes) ?? 60)), useEstimates: scheduling.useEstimates !== false };
 		plan.deadline = isDate(input.deadline) ? input.deadline : null;
+		const progress = normalizePlanProgress(input.progress);
+		if (progress) plan.progress = progress;
 		plan.reserveMinutes = minutes(input.reserveMinutes) ?? plan.reserveMinutes;
 		if (Array.isArray(input.capacity) && input.capacity.length === 7) {
 			plan.capacity = input.capacity.map((value, index) => Math.min(1440, minutes(value) ?? plan.capacity[index]!));
@@ -127,9 +132,18 @@ export function movePlanEntry(entries: readonly PlanEntry[], id: string, beforeI
 	rest.splice(index, 0, moving);
 	return rest;
 }
-export function isPlanEntryComplete(entry: PlanEntry, candidates: readonly WorkCandidate[]): boolean {
+/** Sources that progress saw finished; see PlanProgress. */
+export function progressDoneKeys(plan: Pick<RevisionPlan, "progress">): ReadonlySet<string> {
+	return new Set(plan.progress?.done.map((item) => item.key) ?? []);
+}
+/**
+ * A source that vanished after progress recorded it as finished (a cleaned
+ * batch, a removed Pending Edits line) is complete, not "changed or missing".
+ */
+export function isPlanEntryComplete(entry: PlanEntry, candidates: readonly WorkCandidate[], doneKeys: ReadonlySet<string> = new Set()): boolean {
 	const resolved = resolvePlanSource(entry.source, candidates);
-	return entry.done || (resolved.state === "ready" && resolved.candidate.complete);
+	return entry.done || (resolved.state === "ready" && resolved.candidate.complete) ||
+		(resolved.state === "missing" && doneKeys.has(sourceKey(entry.source)));
 }
 export interface PlanForecast {
 	lowMinutes: number;
@@ -145,7 +159,8 @@ export interface PlanForecast {
 }
 export function forecastPlan(plan: RevisionPlan, candidates: readonly WorkCandidate[], today = localDate(new Date())): PlanForecast {
 	const result: PlanForecast = { lowMinutes: 0, highMinutes: 0, unknownCount: 0, unlinkedCount: 0, unscheduledCount: 0, availableMinutes: null, dailyLoads: {}, overloadedDays: [], afterDeadlineCount: 0, dependencyWarnings: [] };
-	const open = plan.entries.filter((entry) => !isPlanEntryComplete(entry, candidates));
+	const doneKeys = progressDoneKeys(plan);
+	const open = plan.entries.filter((entry) => !isPlanEntryComplete(entry, candidates, doneKeys));
 	for (const entry of open) {
 		if (resolvePlanSource(entry.source, candidates).state !== "ready") result.unlinkedCount++;
 		if (!entry.day) result.unscheduledCount++;
@@ -157,7 +172,7 @@ export function forecastPlan(plan: RevisionPlan, candidates: readonly WorkCandid
 		if (entry.day && entry.highMinutes !== null) result.dailyLoads[entry.day] = (result.dailyLoads[entry.day] ?? 0) + entry.highMinutes;
 		if (entry.afterId) {
 			const prerequisite = plan.entries.find((candidate) => candidate.id === entry.afterId);
-			if (!prerequisite || (!isPlanEntryComplete(prerequisite, candidates) &&
+			if (!prerequisite || (!isPlanEntryComplete(prerequisite, candidates, doneKeys) &&
 				(plan.entries.indexOf(prerequisite) >= plan.entries.indexOf(entry) || (entry.day && (!prerequisite.day || prerequisite.day > entry.day))))) result.dependencyWarnings.push(entry.id);
 		}
 	}

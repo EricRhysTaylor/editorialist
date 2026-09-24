@@ -3,7 +3,8 @@ import { pendingWorkTitle, planDayLabel } from "../core/planning/WorkPresentatio
 import { ItemView, Notice, setIcon, type WorkspaceLeaf } from "obsidian";
 import type EditorialistPlugin from "../main";
 import { renderPanelHeader } from "./primitives/PanelHeader";
-import { emptyRevisionPlan, forecastPlan, isDate, isPlanEntryComplete, localDate, movePlanEntry, resolvePlanSource, sourceKey, type PlanEntry, type RevisionPlan, type WorkCandidate } from "../core/planning/RevisionPlan";
+import { emptyRevisionPlan, forecastPlan, isDate, isPlanEntryComplete, localDate, movePlanEntry, progressDoneKeys, resolvePlanSource, sourceKey, type PlanEntry, type RevisionPlan, type WorkCandidate } from "../core/planning/RevisionPlan";
+import { advancePlanProgress, summarizePlanProgress, type ProgressInput } from "../core/planning/PlanProgress";
 
 export const REVISION_PLAN_VIEW_TYPE = "editorialist-revision-plan";
 const kindLabels = { pending: "Pending edit", batch: "Scene batch", directive: "Editorialism" };
@@ -25,6 +26,7 @@ export class RevisionPlanPanel extends ItemView {
 	private sourceFilter = "all";
 	private deliveryFilter = "all";
 	private backlogLimit = 12;
+	private refreshTimer: number | null = null;
 	constructor(leaf: WorkspaceLeaf, private readonly plugin: EditorialistPlugin) { super(leaf); }
 	getViewType(): string { return REVISION_PLAN_VIEW_TYPE; }
 	getDisplayText(): string { return "Revision plan"; }
@@ -36,8 +38,10 @@ export class RevisionPlanPanel extends ItemView {
 			this.sourceRevision++;
 			for (const button of Array.from(this.contentEl.querySelectorAll<HTMLButtonElement>("[data-plan-source-action]"))) button.disabled = true;
 			this.contentEl.querySelector<HTMLElement>(".editorialist-plan__forecast-status")?.setText("Refresh sources before relying on the forecast.");
-			this.contentEl.querySelector<HTMLElement>(".editorialist-plan__freshness")?.setText("Sources changed. Refresh before opening work or relying on estimates.");
+			this.contentEl.querySelector<HTMLElement>(".editorialist-plan__freshness")?.setText("Sources changed. Updating…");
+			this.scheduleRefresh();
 		};
+		this.register(() => { if (this.refreshTimer !== null) window.clearTimeout(this.refreshTimer); });
 		this.registerEvent(this.app.vault.on("modify", markStale));
 		this.registerEvent(this.app.vault.on("create", markStale));
 		this.registerEvent(this.app.vault.on("delete", markStale));
@@ -46,6 +50,23 @@ export class RevisionPlanPanel extends ItemView {
 		this.registerEvent(this.app.workspace.on("editor-change", markStale));
 		await this.refresh();
 	}
+	// Sources change constantly while the author works; the plan follows on
+	// its own after a pause instead of waiting for a manual refresh, so
+	// finished work shows up as it happens. It waits while the author is
+	// typing in one of the panel's own fields, and while a save is in flight.
+	private scheduleRefresh(): void {
+		if (this.refreshTimer !== null) window.clearTimeout(this.refreshTimer);
+		this.refreshTimer = window.setTimeout(() => {
+			this.refreshTimer = null;
+			const focused = document.activeElement;
+			if (this.busy || (focused instanceof HTMLElement && this.contentEl.contains(focused) && focused.matches("input, select, textarea"))) {
+				this.scheduleRefresh();
+				return;
+			}
+			void this.refresh();
+		}, 2500);
+	}
+	private doneKeys(): ReadonlySet<string> { return progressDoneKeys(this.plan); }
 	private scopeKey(): string | null {
 		const folder = this.plugin.getActiveBookScopeInfo().sourceFolder?.replace(/\/$/, "");
 		return folder ? JSON.stringify(["folder", folder]) : null;
@@ -60,13 +81,27 @@ export class RevisionPlanPanel extends ItemView {
 			const work = await this.plugin.collectRevisionWork();
 			if (book !== this.scopeKey()) { this.stale = true; return; }
 			this.book = book;
-			this.plan = book ? this.plugin.getRevisionPlan(book) : emptyRevisionPlan();
 			this.candidates = work.candidates;
 			this.warnings = work.warnings;
 			this.loaded = true;
 			this.stale = revision !== this.sourceRevision;
+			// Only a complete, current read may advance progress: a source that
+			// failed to load would otherwise look like finished work.
+			if (book && !this.stale && !work.warnings.length) await this.recordProgress(book, work.candidates);
+			this.plan = book ? this.plugin.getRevisionPlan(book) : emptyRevisionPlan();
 		} catch { this.stale = true; this.warnings = ["Could not load the revision plan. Refresh to try again."]; }
 		finally { this.busy = false; this.render(); }
+	}
+	private async recordProgress(book: string, candidates: readonly WorkCandidate[]): Promise<void> {
+		const plan = this.plugin.getRevisionPlan(book);
+		const work: ProgressInput[] = candidates.map((candidate) => ({
+			key: sourceKey(candidate), kind: candidate.kind,
+			state: candidate.inactive ? "inactive" : candidate.complete ? "complete" : "open",
+		}));
+		const progress = advancePlanProgress(plan.progress, work, localDate(new Date()));
+		if (JSON.stringify(progress) === JSON.stringify(plan.progress)) return;
+		plan.progress = progress;
+		await this.plugin.saveRevisionPlan(book, plan);
 	}
 	private async change(update: (plan: RevisionPlan) => void): Promise<void> {
 		if (this.busy || !this.book || this.book !== this.scopeKey()) {
@@ -107,6 +142,8 @@ export class RevisionPlanPanel extends ItemView {
 	private render(): void {
 		const container = this.contentEl;
 		const expanded = new Set(Array.from(container.querySelectorAll<HTMLDetailsElement>("details[data-plan-section]")).filter((item) => item.open).map((item) => item.dataset.planSection));
+		// Background refreshes re-render; keep the author's place.
+		const scrollTop = container.scrollTop;
 		container.empty();
 		renderPanelHeader(container, this.plugin, REVISION_PLAN_VIEW_TYPE, "Revision plan");
 		const root = container.createDiv({ cls: "editorialist-plan__body" });
@@ -122,12 +159,13 @@ export class RevisionPlanPanel extends ItemView {
 		refresh.setAttribute("aria-label", this.busy ? "Refreshing sources" : "Refresh sources");
 		refresh.setAttribute("title", "Refresh sources");
 		setIcon(refresh.createSpan(), "refresh-cw");
-		root.createEl("p", { cls: "editorialist-plan__freshness", text: this.stale ? "Sources changed. Refresh to update your plan." : "", attr: { role: "status" } });
+		root.createEl("p", { cls: "editorialist-plan__freshness", text: this.stale ? "Sources changed. Updating…" : "", attr: { role: "status" } });
 		for (const warning of this.warnings) root.createEl("p", { cls: "editorialist-plan__warning", text: warning });
 		if (!this.book || !this.loaded) return;
+		this.renderProgress(root);
 		this.renderSummary(root);
 		this.renderCapacity(root);
-		const open = this.plan.entries.filter((entry) => !isPlanEntryComplete(entry, this.candidates));
+		const open = this.plan.entries.filter((entry) => !isPlanEntryComplete(entry, this.candidates, this.doneKeys()));
 		if (open.length) {
 			const heading = root.createDiv({ cls: "editorialist-plan__section-heading" });
 			heading.createEl("h3", { text: this.view === "queue" ? "Your work queue" : "Your schedule" });
@@ -152,7 +190,7 @@ export class RevisionPlanPanel extends ItemView {
 				for (const entry of open.filter((item) => item.day === day)) this.renderEntry(group, entry);
 			}
 		}
-		const completed = this.plan.entries.filter((entry) => isPlanEntryComplete(entry, this.candidates));
+		const completed = this.plan.entries.filter((entry) => isPlanEntryComplete(entry, this.candidates, this.doneKeys()));
 		if (completed.length) {
 			const details = root.createEl("details", { attr: { "data-plan-section": "completed" } });
 			details.createEl("summary", { text: `${completed.length} finished sessions or resolved sources` });
@@ -160,13 +198,57 @@ export class RevisionPlanPanel extends ItemView {
 		}
 		this.renderBacklog(root);
 		for (const item of Array.from(root.querySelectorAll<HTMLDetailsElement>("details[data-plan-section]"))) if (expanded.has(item.dataset.planSection)) item.open = true;
+		container.scrollTop = scrollTop;
 	}
 	private weekDays(): string[] {
 		return Array.from({ length: 7 }, (_, index) => { const day = new Date(); day.setDate(day.getDate() + index); return localDate(day); });
 	}
+	// What has actually moved, across the whole book — planned or not, in
+	// order or not. The queue below only knows what was added to it; this is
+	// the cue that work is getting done.
+	private renderProgress(root: HTMLElement): void {
+		const progress = this.plan.progress;
+		if (!progress) return;
+		const today = localDate(new Date());
+		const summary = summarizePlanProgress(progress, today, this.plan.deadline);
+		const total = summary.done + summary.remaining;
+		if (!total) return;
+		const card = root.createDiv({ cls: "editorialist-plan__momentum" });
+		const label = card.createDiv({ cls: "editorialist-plan__summary-label" });
+		setIcon(label.createSpan(), "trending-up");
+		label.createSpan({ text: "Progress across the book" });
+		label.createSpan({ cls: "editorialist-plan__momentum-since", text: progress.since === today ? "since today" : `since ${planDayLabel(progress.since)}` });
+		const headline = card.createDiv({ cls: "editorialist-plan__momentum-headline" });
+		headline.createEl("strong", { text: `${summary.done} done` });
+		headline.createSpan({ text: ` · ${summary.remaining} to go` });
+		card.createEl("progress", { cls: "editorialist-plan__progress", attr: { max: String(total), value: String(summary.done), "aria-label": `${summary.done} of ${total} pieces of work done` } });
+		const recent = card.createDiv({ cls: "editorialist-plan__momentum-recent" });
+		for (const [value, text] of [[summary.doneToday, "today"], [summary.doneLast7Days, "last 7 days"]] as const) {
+			const item = recent.createSpan({ cls: value ? "is-active" : "" });
+			item.createEl("strong", { text: String(value) });
+			item.createSpan({ text: ` ${text}` });
+		}
+		const kinds = card.createDiv({ cls: "editorialist-plan__momentum-kinds" });
+		for (const [kind, text] of [["batch", "Batches"], ["directive", "Editorialisms"], ["pending", "Notes"]] as const) {
+			const counts = summary.byKind[kind];
+			if (!counts.done && !counts.remaining) continue;
+			kinds.createSpan({ text: `${text} ${counts.done}/${counts.done + counts.remaining}` });
+		}
+		if (summary.neededPerDay !== null && summary.remaining > 0 && summary.daysLeft) {
+			const elapsed = Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${progress.since}T00:00:00Z`)) / 86400000) + 1;
+			const needed = Math.ceil(summary.neededPerDay);
+			const pace = card.createEl("p", { cls: "editorialist-plan__momentum-pace", text: `${summary.remaining} left over ${summary.daysLeft} ${summary.daysLeft === 1 ? "day" : "days"} · about ${needed} a day to finish by ${planDayLabel(this.plan.deadline!)}` });
+			// An average needs a few days behind it before it says anything.
+			if (elapsed >= 3) {
+				pace.appendText(` · averaging ${Math.round(summary.averagePerDay * 10) / 10} a day`);
+				if (summary.averagePerDay < summary.neededPerDay) pace.addClass("is-warning");
+			}
+		}
+		if (!summary.done) card.createEl("p", { cls: "editorialist-plan__hint", text: "Finished batches, directives, and notes count here as you work — in the plan or not." });
+	}
 	private renderSummary(root: HTMLElement): void {
 		const forecast = forecastPlan(this.plan, this.candidates);
-		const open = this.plan.entries.filter((entry) => !isPlanEntryComplete(entry, this.candidates));
+		const open = this.plan.entries.filter((entry) => !isPlanEntryComplete(entry, this.candidates, this.doneKeys()));
 		const summary = root.createDiv({ cls: "editorialist-plan__summary" });
 		const label = summary.createDiv({ cls: "editorialist-plan__summary-label" });
 		setIcon(label.createSpan(), "calendar-check");
@@ -292,12 +374,12 @@ export class RevisionPlanPanel extends ItemView {
 		select.value = entry.afterId ?? "";
 		select.addEventListener("change", () => { void this.edit(entry.id, (item) => { item.afterId = select.value || null; }); });
 		const controls = details.createDiv({ cls: "editorialist-plan__actions" });
-		const ordered = this.plan.entries.filter((item) => isPlanEntryComplete(item, this.candidates) === isPlanEntryComplete(entry, this.candidates));
+		const ordered = this.plan.entries.filter((item) => isPlanEntryComplete(item, this.candidates, this.doneKeys()) === isPlanEntryComplete(entry, this.candidates, this.doneKeys()));
 		const index = ordered.findIndex((item) => item.id === entry.id);
 		this.button(controls, "Move up", () => { void this.change((plan) => { plan.entries = movePlanEntry(plan.entries, entry.id, ordered[index - 1]?.id ?? null); }); }, index === 0);
 		this.button(controls, "Move down", () => { void this.change((plan) => { plan.entries = movePlanEntry(plan.entries, entry.id, ordered[index + 2]?.id ?? null); }); }, index === ordered.length - 1);
 		this.button(controls, "Remove from plan", () => { void this.change((plan) => { plan.entries = plan.entries.filter((item) => item.id !== entry.id); }); });
-		if (resolved.state !== "ready") {
+		if (resolved.state !== "ready" && !isPlanEntryComplete(entry, this.candidates, this.doneKeys())) {
 			row.createEl("p", { cls: "editorialist-plan__warning", text: resolved.state === "ambiguous" ? "Multiple source instructions match. Make them distinct in the source, refresh, then relink." : "Source changed or is unavailable. Refresh, then relink; its estimate and date are preserved." });
 			const controls = row.createDiv({ cls: "editorialist-plan__actions editorialist-plan__relink" });
 			const relink = controls.createEl("select", { attr: { "aria-label": `Relink ${entry.title}` } });
