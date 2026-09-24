@@ -131,3 +131,15 @@ export function locateAnchors(
 export function isLocated(location: AnchorLocation): location is LocatedAnchor {
 	return location.status === "located";
 }
+
+// The blank-line-delimited block containing `range`, widened to cover a range
+// that itself spans paragraphs. Used to relate a suggestion to the directives
+// anchored near it, and to give an AI the prose around an anchor.
+export function paragraphAround(text: string, range: AnchorRange): AnchorRange {
+	const before = text.lastIndexOf("\n\n", Math.max(0, range.start - 1));
+	const after = text.indexOf("\n\n", range.end);
+	return {
+		start: before === -1 ? 0 : before + 2,
+		end: after === -1 ? text.length : after,
+	};
+}

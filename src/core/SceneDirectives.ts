@@ -17,7 +17,7 @@
 // here applies anything to the manuscript: a directive carries no payload.
 
 import { needsDecision } from "./DirectiveText";
-import { isLocated, locateAnchor, type AnchorRange } from "./EditorialismAnchorLocator";
+import { isLocated, locateAnchor, paragraphAround, type AnchorRange } from "./EditorialismAnchorLocator";
 import { scopeRelatesToScene, type SceneRelevanceContext } from "./SceneRelevance";
 import {
 	isAnchorRetired,
@@ -218,15 +218,4 @@ export function findDirectivesAtPassage(
 		}
 	}
 	return out;
-}
-
-// The blank-line-delimited block containing `range`, widened to cover a range
-// that itself spans paragraphs.
-function paragraphAround(text: string, range: AnchorRange): AnchorRange {
-	const before = text.lastIndexOf("\n\n", Math.max(0, range.start - 1));
-	const after = text.indexOf("\n\n", range.end);
-	return {
-		start: before === -1 ? 0 : before + 2,
-		end: after === -1 ? text.length : after,
-	};
 }

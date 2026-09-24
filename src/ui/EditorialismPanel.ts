@@ -430,6 +430,8 @@ export class EditorialismPanel extends ItemView {
 			for (const status of Object.keys(STATUS_LABEL) as Array<EditorialismItem["status"]>) {
 				menu.addItem((entry) => entry.setTitle(STATUS_LABEL[status]).setChecked(item.status === status).onClick(async () => { await this.plugin.setEditorialismItemStatus(editorialism.filePath, item.lineIndex, status); await this.refresh(); }));
 			}
+			menu.addSeparator();
+			menu.addItem((entry) => entry.setTitle("Draft fixes with AI…").setIcon("wand-2").onClick(() => { void this.plugin.copyDirectiveFixPrompt([item]); }));
 			menu.showAtMouseEvent(event);
 		});
 

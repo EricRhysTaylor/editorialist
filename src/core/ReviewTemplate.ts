@@ -309,6 +309,10 @@ const EDITORIALISM_TEMPLATE_GUIDANCE = [
 	"    revision-effort estimate uses these directly instead of guessing from the text.",
 	"- `[effort:: light|medium|heavy]` (optional) — relative weight for a non-drafting",
 	"    directive (restructure / doctrine) where scene/word counts don't apply.",
+	"- `[decision:: <answer>]` — written by the AUTHOR, never by you. It records the",
+	"    author's answer to a directive that asks for a choice. When you revise or",
+	"    re-export an agenda that already carries one, keep it verbatim and treat the",
+	"    answer as settled: carry it through, never reopen it.",
 	"",
 	"Anchors (strongly recommended whenever a directive is about particular passages):",
 	"Indent one level under a directive and write the passages it touches, one per line:",
@@ -363,7 +367,7 @@ export interface ReviewTemplateContext {
 	sceneIds?: ReadonlyArray<{ id: string; title: string }>;
 }
 
-function buildSceneIdContextSection(context: ReviewTemplateContext): string | null {
+export function buildSceneIdContextSection(context: ReviewTemplateContext): string | null {
 	const hasAnyContext = Boolean(
 		context.bookLabel || context.activeSceneId || (context.sceneIds && context.sceneIds.length > 0),
 	);

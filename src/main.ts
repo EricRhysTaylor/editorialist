@@ -88,8 +88,10 @@ import {
 	estimateEditorialismEffort,
 	type EffortEstimate,
 } from "./core/EffortEstimate";
-import { isEditorialismActive, type Editorialism, type EditorialismItem } from "./models/Editorialism";
-import { displayDirectiveText } from "./core/DirectiveText";
+import { isAnchorRetired, isEditorialismActive, type Editorialism, type EditorialismItem } from "./models/Editorialism";
+import { displayDirectiveText, needsDecision } from "./core/DirectiveText";
+import { buildDirectiveFixPrompt, type DirectiveFixPassage } from "./core/DirectiveFixPrompt";
+import { isLocated, locateAnchor, paragraphAround } from "./core/EditorialismAnchorLocator";
 import { DirectiveDecisionModal } from "./ui/modals/DirectiveDecisionModal";
 import { selectCompletedSweepDurationLabel } from "./core/review/CompletedSweepDuration";
 import { collectSceneDirectives, type SceneDirective } from "./core/SceneDirectives";
@@ -3043,6 +3045,42 @@ export default class EditorialistPlugin extends Plugin {
 
 		await this.app.vault.create(targetPath, JSON.stringify(payload, null, 2));
 		return targetPath;
+	}
+
+	// Copies a prompt asking an AI to turn directives into a review batch of
+	// concrete edits; the reply comes back through the normal import. Every
+	// open passage is quoted with the paragraph around it from the current
+	// text, so the AI can write verbatim Originals.
+	async copyDirectiveFixPrompt(items: readonly EditorialismItem[]): Promise<void> {
+		const directives = [];
+		for (const item of items) {
+			const passages: DirectiveFixPassage[] = [];
+			for (const anchor of item.anchors.filter((candidate) => !isAnchorRetired(candidate.status))) {
+				const file = this.anchors.resolveAnchorSceneFile(anchor, item);
+				const text = file ? this.resolveOpenNoteText(file.path) ?? await this.app.vault.cachedRead(file) : null;
+				const location = text === null ? null : locateAnchor(text, anchor);
+				const paragraph = text !== null && location && isLocated(location) ? paragraphAround(text, location) : null;
+				passages.push({
+					sceneLabel: file?.basename ?? (anchor.scene ? `Scene ${anchor.scene}` : "Unknown scene"),
+					sceneId: file ? getSceneIdForFile(this.app, file) ?? null : null,
+					fragment: anchor.closing ? `${anchor.opening}" → "${anchor.closing}` : anchor.opening,
+					paragraph: text !== null && paragraph ? text.slice(paragraph.start, paragraph.end).trim() : null,
+				});
+			}
+			directives.push({
+				text: displayDirectiveText(item.text),
+				scope: item.scope?.raw ?? null,
+				decision: item.decision ?? null,
+				needsDecision: needsDecision(item),
+				passages,
+			});
+		}
+		const prompt = buildDirectiveFixPrompt(directives, this.gatherReviewTemplateContext());
+		await this.copyTextToClipboard(
+			prompt,
+			"Prompt copied. Paste it to your AI, then import its reply as a review batch.",
+			"Could not copy the prompt.",
+		);
 	}
 
 	private async copyReviewTemplateToClipboard(selectedText?: string): Promise<void> {

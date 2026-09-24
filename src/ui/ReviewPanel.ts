@@ -929,23 +929,38 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		if (directive.item.status === "done") {
 			entry.addClass("is-done");
 		}
-		const status = head.createEl("button", {
-			cls: "editorialist-panel__directive-status",
-			attr: {
-				type: "button",
-				"aria-label": `Status: ${STATUS_LABEL[directive.item.status]} — choose a status`,
-				"aria-haspopup": "menu",
-			},
-		});
-		setIcon(
-			status.createSpan({ cls: "editorialist-panel__directive-status-icon" }),
-			STATUS_ICON[directive.item.status],
-		);
-		this.bindImmediateAction(status, () => {
-			this.showDirectiveStatusMenu(status, directive.item.status, (next) =>
-				this.plugin.setEditorialismItemStatus(directive.editorialismPath, directive.item.lineIndex, next),
-			);
-		});
+		// One circle per piece of work in this scene. A directive with a
+		// single passage here gets one circle, and it tracks that passage;
+		// with several, each passage keeps its own and the sentence has none;
+		// with none, the circle is the directive's own status. The whole
+		// directive's status stays reachable from every one of these menus.
+		const passagesHere = directive.anchorsInScene;
+		const soleAnchor = passagesHere.length === 1 ? passagesHere[0] : undefined;
+		if (passagesHere.length !== 1 && passagesHere.length > 0) {
+			// Several passages: their own circles carry the work.
+		} else {
+			const current = soleAnchor ? soleAnchor.status : directive.item.status;
+			const status = head.createEl("button", {
+				cls: "editorialist-panel__directive-status",
+				attr: {
+					type: "button",
+					"aria-label": `${soleAnchor ? "Passage" : "Directive"} status: ${STATUS_LABEL[current]} — choose a status`,
+					"aria-haspopup": "menu",
+				},
+			});
+			setIcon(status.createSpan({ cls: "editorialist-panel__directive-status-icon" }), STATUS_ICON[current]);
+			this.bindImmediateAction(status, () => {
+				this.showDirectiveStatusMenu(
+					status,
+					current,
+					(next) => soleAnchor
+						? this.plugin.anchors.setEditorialismAnchorStatus(directive.editorialismPath, soleAnchor, next)
+						: this.plugin.setEditorialismItemStatus(directive.editorialismPath, directive.item.lineIndex, next),
+					directive,
+					Boolean(soleAnchor),
+				);
+			});
+		}
 		// The sentence itself is the way to the passage: it jumps to the first
 		// open passage this directive names in the scene, and flashes it.
 		const target = directive.anchorsInScene.find((anchor) => !isAnchorRetired(anchor.status)) ?? directive.anchorsInScene[0];
@@ -999,7 +1014,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 
 		const anchors = entry.createDiv({ cls: "editorialist-panel__directive-anchors" });
 		for (const anchor of directive.anchorsInScene) {
-			this.renderSceneDirectiveAnchor(anchors, directive, anchor);
+			this.renderSceneDirectiveAnchor(anchors, directive, anchor, passagesHere.length > 1);
 		}
 		return source;
 	}
@@ -1008,9 +1023,11 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		parent: HTMLElement,
 		directive: SceneDirective,
 		anchor: EditorialismAnchor,
+		withStatus: boolean,
 	): void {
 		const row = parent.createDiv({ cls: "editorialist-panel__directive-anchor" });
 
+		if (withStatus) {
 		const status = row.createEl("button", {
 			cls: "editorialist-panel__directive-anchor-status",
 			attr: {
@@ -1024,10 +1041,15 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			STATUS_ICON[anchor.status],
 		);
 		this.bindImmediateAction(status, () => {
-			this.showDirectiveStatusMenu(status, anchor.status, (next) =>
-				this.plugin.anchors.setEditorialismAnchorStatus(directive.editorialismPath, anchor, next),
+			this.showDirectiveStatusMenu(
+				status,
+				anchor.status,
+				(next) => this.plugin.anchors.setEditorialismAnchorStatus(directive.editorialismPath, anchor, next),
+				directive,
+				true,
 			);
 		});
+		}
 
 		const jump = row.createEl("button", {
 			cls: "editorialist-panel__directive-anchor-jump",
@@ -1071,8 +1093,13 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		anchorEl: HTMLElement,
 		current: EditorialismItemStatus,
 		apply: (next: EditorialismItemStatus) => Promise<unknown>,
+		directive: SceneDirective,
+		forPassage: boolean,
 	): void {
 		const menu = new Menu();
+		if (forPassage) {
+			menu.addItem((item) => item.setTitle("This passage").setIsLabel(true));
+		}
 		for (const status of STATUS_CYCLE) {
 			menu.addItem((item) =>
 				item
@@ -1089,6 +1116,28 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 					}),
 			);
 		}
+		menu.addSeparator();
+		if (forPassage) {
+			const directiveDone = directive.item.status === "done";
+			menu.addItem((item) =>
+				item
+					.setTitle(directiveDone ? "Reopen the whole directive" : "Mark the whole directive done")
+					.setIcon(directiveDone ? "rotate-ccw" : "check-check")
+					.onClick(async () => {
+						await this.plugin.setEditorialismItemStatus(directive.editorialismPath, directive.item.lineIndex, directiveDone ? "open" : "done");
+						this.sceneDirectivesKey = null;
+						this.render();
+					}),
+			);
+		}
+		menu.addItem((item) =>
+			item
+				.setTitle("Draft fixes with AI…")
+				.setIcon("wand-2")
+				.onClick(() => {
+					void this.plugin.copyDirectiveFixPrompt([directive.item]);
+				}),
+		);
 		const rect = anchorEl.getBoundingClientRect();
 		menu.showAtPosition({ x: rect.left, y: rect.bottom });
 	}

@@ -132,7 +132,8 @@ export class EditorialismAnchorNavigator {
 	// unresolvable — we do not search the whole book for a loose fragment,
 	// because a fragment that matches in an unexpected scene is exactly the
 	// silent mis-navigation this feature must not produce.
-	private resolveAnchorSceneFile(anchor: EditorialismAnchor, item: EditorialismItem): TFile | null {
+	// The scene note an anchor points at, by the same rule navigation uses.
+	resolveAnchorSceneFile(anchor: EditorialismAnchor, item: EditorialismItem): TFile | null {
 		const sceneToken = anchor.scene ?? (item.scope?.kind === "scene" ? item.scope.scene ?? null : null);
 		if (!sceneToken) {
 			return null;
