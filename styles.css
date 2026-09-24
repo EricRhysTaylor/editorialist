@@ -1839,13 +1839,13 @@
 .editorialist-panel__directive-anchor-jump-icon {
 	display: inline-flex;
 	flex: 0 0 auto;
-	margin-top: 0.15rem;
-	opacity: 0.55;
+	margin-top: 0.05rem;
+	opacity: 0.7;
 }
 
 .editorialist-panel__directive-anchor-jump-icon svg {
-	width: 0.8rem;
-	height: 0.8rem;
+	width: 1.05rem;
+	height: 1.05rem;
 }
 
 .editorialist-panel__directives button.editorialist-panel__directive-anchor-jump:hover .editorialist-panel__directive-anchor-jump-icon {
