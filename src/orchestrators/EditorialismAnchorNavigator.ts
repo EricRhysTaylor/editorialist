@@ -29,7 +29,7 @@ import type { AnchorTargetChoice } from "../ui/modals/AnchorTargetModal";
 import type { ActiveNoteContext } from "./SessionOrchestrator";
 
 export interface AnchorDecorationSnapshot {
-	highlights: Array<{ start: number; end: number; tone: "active" | "anchor" }>;
+	highlights: Array<{ start: number; end: number; tone: "active" | "anchor" | "flash" }>;
 }
 
 export interface EditorialismAnchorNavigatorHost {
@@ -65,7 +65,24 @@ export class EditorialismAnchorNavigator {
 		entries: Array<{ start: number; end: number; active: boolean }>;
 	} | null = null;
 
+	// A jump lands the author on the passage; a brief flash says "here" so the
+	// eye finds it in a page of prose. Only the active anchor flashes, and the
+	// decoration settles back to the steady active tone afterwards.
+	private flashUntil = 0;
+	private flashTimer: number | null = null;
+
 	constructor(private readonly host: EditorialismAnchorNavigatorHost) {}
+
+	private flashActiveAnchor(): void {
+		const durationMs = 1600;
+		this.flashUntil = Date.now() + durationMs;
+		if (this.flashTimer !== null) window.clearTimeout(this.flashTimer);
+		this.host.syncActiveEditorDecorations();
+		this.flashTimer = window.setTimeout(() => {
+			this.flashTimer = null;
+			this.host.syncActiveEditorDecorations();
+		}, durationMs + 50);
+	}
 
 	setActiveEditorialismPath(filePath: string | null): void {
 		this.activeEditorialismPath = filePath;
@@ -100,11 +117,12 @@ export class EditorialismAnchorNavigator {
 			return null;
 		}
 
+		const flashing = Date.now() < this.flashUntil;
 		return {
 			highlights: anchors.entries.map((entry) => ({
 				start: entry.start,
 				end: entry.end,
-				tone: entry.active ? ("active" as const) : ("anchor" as const),
+				tone: entry.active ? (flashing ? ("flash" as const) : ("active" as const)) : ("anchor" as const),
 			})),
 		};
 	}
@@ -210,6 +228,7 @@ export class EditorialismAnchorNavigator {
 		this.anchorHighlights = { notePath: file.path, entries };
 		this.lastAnchorNavigation = { filePath: editorialismPath, anchorLineIndex: anchor.lineIndex };
 		await this.focusNoteRange(context, location.start, location.end);
+		this.flashActiveAnchor();
 
 		if (location.ambiguous) {
 			new Notice("This fragment appears more than once in the scene — showing the first match.");

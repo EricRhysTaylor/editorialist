@@ -1758,6 +1758,28 @@
 	height: 0.85rem;
 }
 
+.editorialist-panel__directive-entry.is-done .editorialist-panel__directive-text {
+	color: var(--text-faint);
+	text-decoration: line-through;
+	text-decoration-color: color-mix(in srgb, var(--text-faint) 60%, transparent);
+}
+
+.editorialist-panel__directive-entry.is-done .editorialist-panel__directive-status {
+	color: var(--color-green);
+}
+
+.editorialist-panel__directive-text.is-jump {
+	cursor: pointer;
+}
+
+.editorialist-panel__directive-text.is-jump:hover,
+.editorialist-panel__directive-text.is-jump:focus-visible {
+	color: var(--text-accent);
+	text-decoration: underline;
+	text-decoration-color: color-mix(in srgb, var(--text-accent) 45%, transparent);
+	text-underline-offset: 2px;
+}
+
 .editorialist-panel__directive-source {
 	margin-bottom: -0.35rem;
 	color: var(--text-faint);
@@ -5287,6 +5309,31 @@
 .editorialist-match-highlight--applied-active {
 	background-color: color-mix(in srgb, var(--color-green) 22%, transparent);
 	border-bottom: 2px solid color-mix(in srgb, var(--color-green) 60%, transparent);
+}
+
+.editorialist-match-highlight--flash {
+	border-bottom: 2px solid var(--interactive-accent);
+	border-radius: 2px;
+	animation: editorialist-anchor-flash 0.53s ease-in-out 3;
+	background-color: color-mix(in srgb, var(--interactive-accent) 22%, transparent);
+}
+
+@keyframes editorialist-anchor-flash {
+	0%,
+	100% {
+		background-color: color-mix(in srgb, var(--interactive-accent) 14%, transparent);
+	}
+
+	50% {
+		background-color: color-mix(in srgb, var(--interactive-accent) 45%, transparent);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.editorialist-match-highlight--flash {
+		animation: none;
+		background-color: color-mix(in srgb, var(--interactive-accent) 32%, transparent);
+	}
 }
 
 .editorialist-match-highlight--anchor {

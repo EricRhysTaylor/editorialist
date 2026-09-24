@@ -89,13 +89,11 @@ export function collectSceneDirectives(
 	for (const editorialism of editorialisms) {
 		for (const section of editorialism.sections) {
 			for (const item of section.items) {
-				// A finished directive is not work in this scene. Deferred and
-				// question items stay: the author parked them, they did not
-				// resolve them, and the scene they touch is exactly where the
-				// reminder is useful.
-				if (item.status === "done") {
-					continue;
-				}
+				// A finished directive stays in the list, sorted last and shown
+				// as finished. Dropping it made one click on the status control
+				// irreversible from the card — the author could not see what they
+				// had just changed, let alone undo it. Counts and the in-sweep
+				// passage match leave finished directives out.
 				// `manuscript` and `unknown` scopes never match by design — a
 				// directive that applies everywhere does not help locate
 				// anything, and surfacing it at every scene would make this card
@@ -135,6 +133,7 @@ export function collectSceneDirectives(
 	// mode walks this order, so its first entry is the thing to do next.
 	return out.sort(
 		(left, right) =>
+			Number(left.item.status === "done") - Number(right.item.status === "done") ||
 			PLACEMENT_RANK[left.placement] - PLACEMENT_RANK[right.placement] ||
 			Number(right.openAnchorsInScene > 0) - Number(left.openAnchorsInScene > 0) ||
 			Number(awaitsDecision(right.item)) - Number(awaitsDecision(left.item)),
@@ -205,6 +204,9 @@ export function findDirectivesAtPassage(
 	const paragraph = paragraphAround(noteText, range);
 	const out: PassageDirective[] = [];
 	for (const directive of directives) {
+		if (directive.item.status === "done") {
+			continue;
+		}
 		for (const anchor of directive.anchorsInScene) {
 			if (isAnchorRetired(anchor.status)) {
 				continue;

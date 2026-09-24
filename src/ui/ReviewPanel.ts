@@ -1,6 +1,6 @@
 import { formatRelativeTime } from "../core/RelativeTime";
 import { renderPanelHeader } from "./primitives/PanelHeader";
-import { ButtonComponent, DropdownComponent, ItemView, Notice, setIcon, type WorkspaceLeaf } from "obsidian";
+import { ButtonComponent, DropdownComponent, ItemView, Menu, Notice, setIcon, type WorkspaceLeaf } from "obsidian";
 import { formatContributorIdentityLabel } from "../core/ContributorIdentity";
 import { getEffectiveSuggestionStatus, getSuggestionCopyBlocks, getSuggestionReason as getOperationSuggestionReason, isImplicitlyAcceptedSuggestion, isMoveSuggestion } from "../core/OperationSupport";
 import { isOpenStatus, reviewStatusLabel } from "../core/status/ReviewStatusModel";
@@ -16,11 +16,11 @@ import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
 import { displayDirectiveText } from "../core/DirectiveText";
 import { renderDirectiveDecision } from "./editorialism/DirectiveDecision";
 import { findDirectivesAtPassage, type SceneDirective } from "../core/SceneDirectives";
-import type { EditorialismAnchor, EditorialismItemStatus } from "../models/Editorialism";
+import { isAnchorRetired, type EditorialismAnchor, type EditorialismItemStatus } from "../models/Editorialism";
 import {
 	STATUS_ICON,
 	STATUS_LABEL,
-	nextStatusInCycle,
+	STATUS_CYCLE,
 } from "./editorialism/EditorialismStatusPresentation";
 // Pure projection helpers extracted to characterize ReviewPanel before the
 // eventual file split. See src/ui/viewmodels/ReviewPanelViewModel.ts for the
@@ -888,8 +888,9 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	// the collapsed header already says whether there is work here at all. It
 	// shares a narrow header row with the title, so it stays two short terms.
 	private formatDirectivesSummary(): string {
-		const elsewhere = this.sceneDirectives.filter((directive) => directive.placement === "elsewhere").length;
-		const local = this.sceneDirectives.length - elsewhere;
+		const open = this.sceneDirectives.filter((directive) => directive.item.status !== "done");
+		const elsewhere = open.filter((directive) => directive.placement === "elsewhere").length;
+		const local = open.length - elsewhere;
 		return elsewhere > 0 ? `${local} here · ${elsewhere} elsewhere` : `${local} here`;
 	}
 
@@ -925,11 +926,15 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		// directive's text wraps under it rather than leaving a gutter column
 		// down the whole card.
 		const head = entry.createDiv({ cls: "editorialist-panel__directive-head" });
+		if (directive.item.status === "done") {
+			entry.addClass("is-done");
+		}
 		const status = head.createEl("button", {
 			cls: "editorialist-panel__directive-status",
 			attr: {
 				type: "button",
-				"aria-label": `Status: ${STATUS_LABEL[directive.item.status]} (click to advance)`,
+				"aria-label": `Status: ${STATUS_LABEL[directive.item.status]} — choose a status`,
+				"aria-haspopup": "menu",
 			},
 		});
 		setIcon(
@@ -937,12 +942,38 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			STATUS_ICON[directive.item.status],
 		);
 		this.bindImmediateAction(status, () => {
-			void this.advanceSceneDirectiveStatus(directive);
+			this.showDirectiveStatusMenu(status, directive.item.status, (next) =>
+				this.plugin.setEditorialismItemStatus(directive.editorialismPath, directive.item.lineIndex, next),
+			);
 		});
-		head.createSpan({
-			cls: "editorialist-panel__directive-text",
-			text: displayDirectiveText(directive.item.text),
-		});
+		// The sentence itself is the way to the passage: it jumps to the first
+		// open passage this directive names in the scene, and flashes it.
+		const target = directive.anchorsInScene.find((anchor) => !isAnchorRetired(anchor.status)) ?? directive.anchorsInScene[0];
+		if (target) {
+			// An inline span, not a <button>: a button is an atomic box that
+			// cannot wrap around the status control, so the sentence would drop
+			// onto its own line.
+			const text = head.createSpan({
+				cls: "editorialist-panel__directive-text is-jump",
+				text: displayDirectiveText(directive.item.text),
+				attr: { role: "button", tabindex: "0", title: "Jump to this passage in the scene" },
+			});
+			const jump = (): void => {
+				void this.plugin.anchors.openEditorialismAnchor(directive.editorialismPath, directive.item, target);
+			};
+			this.bindImmediateAction(text, jump);
+			text.addEventListener("keydown", (event) => {
+				if (event.key === "Enter" || event.key === " ") {
+					event.preventDefault();
+					jump();
+				}
+			});
+		} else {
+			head.createSpan({
+				cls: "editorialist-panel__directive-text",
+				text: displayDirectiveText(directive.item.text),
+			});
+		}
 		renderDirectiveDecision(entry, directive.item, () => {
 			void this.decideSceneDirective(directive);
 		});
@@ -984,7 +1015,8 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			cls: "editorialist-panel__directive-anchor-status",
 			attr: {
 				type: "button",
-				"aria-label": `Anchor status: ${STATUS_LABEL[anchor.status]} (click to advance)`,
+				"aria-label": `Passage status: ${STATUS_LABEL[anchor.status]} — choose a status`,
+				"aria-haspopup": "menu",
 			},
 		});
 		setIcon(
@@ -992,7 +1024,9 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			STATUS_ICON[anchor.status],
 		);
 		this.bindImmediateAction(status, () => {
-			void this.advanceSceneDirectiveAnchorStatus(directive, anchor);
+			this.showDirectiveStatusMenu(status, anchor.status, (next) =>
+				this.plugin.anchors.setEditorialismAnchorStatus(directive.editorialismPath, anchor, next),
+			);
 		});
 
 		const jump = row.createEl("button", {
@@ -1029,24 +1063,34 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		}
 	}
 
-	private async advanceSceneDirectiveStatus(directive: SceneDirective): Promise<void> {
-		await this.plugin.setEditorialismItemStatus(
-			directive.editorialismPath,
-			directive.item.lineIndex,
-			nextStatusInCycle(directive.item.status),
-		);
-		this.sceneDirectivesKey = null;
-		this.render();
-	}
-
-	private async advanceSceneDirectiveAnchorStatus(
-		directive: SceneDirective,
-		anchor: EditorialismAnchor,
-	): Promise<void> {
-		// Advancing an anchor never touches the parent directive's status, even
-		// when this is the last open passage. Whether the underlying concern is
-		// addressed is the author's call, not an inference from the anchors.
-		await this.setSceneDirectiveAnchorStatus(directive, anchor, nextStatusInCycle(anchor.status));
+	// A named menu rather than a blind cycle: the author sees every status
+	// and which one each click sets before choosing. Changing an anchor never
+	// touches its directive, and vice versa — whether a concern is addressed
+	// stays the author's call.
+	private showDirectiveStatusMenu(
+		anchorEl: HTMLElement,
+		current: EditorialismItemStatus,
+		apply: (next: EditorialismItemStatus) => Promise<unknown>,
+	): void {
+		const menu = new Menu();
+		for (const status of STATUS_CYCLE) {
+			menu.addItem((item) =>
+				item
+					.setTitle(STATUS_LABEL[status])
+					.setIcon(STATUS_ICON[status])
+					.setChecked(status === current)
+					.onClick(async () => {
+						if (status === current) {
+							return;
+						}
+						await apply(status);
+						this.sceneDirectivesKey = null;
+						this.render();
+					}),
+			);
+		}
+		const rect = anchorEl.getBoundingClientRect();
+		menu.showAtPosition({ x: rect.left, y: rect.bottom });
 	}
 
 	private async setSceneDirectiveAnchorStatus(

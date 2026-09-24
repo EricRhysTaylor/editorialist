@@ -88,17 +88,19 @@ describe("collectSceneDirectives", () => {
 		expect(collectSceneDirectives([editorialism([outOfRange])], sceneContext)).toHaveLength(0);
 	});
 
-	it("excludes done directives but keeps deferred and question ones", () => {
-		const statuses: EditorialismItemStatus[] = ["open", "in-progress", "done", "deferred", "question"];
+	it("keeps finished directives, after the open ones, so a status change can be undone", () => {
+		const statuses: EditorialismItemStatus[] = ["done", "open", "in-progress", "deferred", "question"];
 		const items = statuses.map((status, index) => item({ status, lineIndex: index }));
 		const directives = collectSceneDirectives([editorialism(items)], sceneContext);
-		// Order is covered by the ordering tests; this one is about membership.
-		expect(directives.map((entry) => entry.item.status).sort()).toEqual([
-			"deferred",
-			"in-progress",
-			"open",
-			"question",
-		]);
+		expect(directives).toHaveLength(5);
+		expect(directives[4]?.item.status).toBe("done");
+	});
+
+	it("does not surface a finished directive on the passage it names", () => {
+		const text = "She poured the coffee and didn't look up.";
+		const finished = item({ status: "done", anchors: [anchor()] });
+		const directives = collectSceneDirectives([editorialism([finished])], sceneContext);
+		expect(findDirectivesAtPassage(text, { start: 0, end: 5 }, directives)).toEqual([]);
 	});
 
 	it("excludes manuscript-scoped directives, which cannot locate anything", () => {

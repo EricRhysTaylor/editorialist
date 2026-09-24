@@ -5,7 +5,7 @@ export interface ReviewDecorationSnapshot {
 	highlights: Array<{
 		end: number;
 		start: number;
-		tone: "active" | "muted" | "applied" | "applied-active" | "anchor";
+		tone: "active" | "muted" | "applied" | "applied-active" | "anchor" | "flash";
 	}>;
 }
 
@@ -13,7 +13,7 @@ interface ReviewDecorationState {
 	highlights: Array<{
 		end: number;
 		start: number;
-		tone: "active" | "muted" | "applied" | "applied-active" | "anchor";
+		tone: "active" | "muted" | "applied" | "applied-active" | "anchor" | "flash";
 	}>;
 }
 
