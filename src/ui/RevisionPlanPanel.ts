@@ -234,6 +234,14 @@ export class RevisionPlanPanel extends ItemView {
 			if (!counts.done && !counts.remaining) continue;
 			kinds.createSpan({ text: `${text} ${counts.done}/${counts.done + counts.remaining}` });
 		}
+		// Recording a decision is real progress on a directive even though the
+		// directive stays open until its passages are carried through, so it
+		// is counted live from the agendas rather than as finished work.
+		const decisions = this.candidates.filter((candidate) => candidate.kind === "directive" && !candidate.inactive && candidate.decision);
+		if (decisions.length) {
+			const made = decisions.filter((candidate) => candidate.decision === "made").length;
+			kinds.createSpan({ cls: made ? "is-active" : "", text: `Decisions ${made}/${decisions.length}` });
+		}
 		if (summary.neededPerDay !== null && summary.remaining > 0 && summary.daysLeft) {
 			const elapsed = Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${progress.since}T00:00:00Z`)) / 86400000) + 1;
 			const needed = Math.ceil(summary.neededPerDay);

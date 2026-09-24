@@ -20,6 +20,8 @@ export interface WorkCandidate extends WorkSource {
 	suggestedMinutes?: number;
 	line?: number;
 	sceneOrder?: string;
+	/** Directives that ask for a choice: whether the author has recorded it. */
+	decision?: "needed" | "made";
 }
 export interface PlanEntry {
 	locked?: boolean;

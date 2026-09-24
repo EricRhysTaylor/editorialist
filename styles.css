@@ -6893,6 +6893,10 @@
 	color: var(--color-green);
 }
 
+.editorialist-plan__momentum-kinds .is-active {
+	color: var(--color-green);
+}
+
 .editorialist-plan__momentum-pace {
 	margin: 0;
 	font-size: var(--font-ui-smaller);

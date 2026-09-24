@@ -54,4 +54,13 @@ describe("Mixed revision work", () => {
 		expect(batchWork(session).find((item) => item.locator === "one")?.complete).toBe(true);
 		expect(batchWork(session).find((item) => item.locator === "two")?.complete).toBe(false);
 	});
+
+	it("finishes a batch once its suggestions are decided, even when it carries a memo", () => {
+		const block = "\n\x60\x60\x60editorialist-review\nImportedBy: Editorialist\nBatchId: one\nReviewer: Marla\n=== EDIT ===\nOriginal: Old prose.\nRevised: New prose.\n=== MEMO ===\nIssues: Rethink the opening.\n\x60\x60\x60\n";
+		const engine = new ReviewEngine(new SuggestionParser(new ContributorDirectory()), new MatchEngine());
+		const session = engine.buildSession("Book/A.md", "Old prose." + block);
+		expect(batchWork(session)[0]?.complete).toBe(false);
+		session.suggestions[0]!.status = "rejected";
+		expect(batchWork(session)[0]?.complete).toBe(true);
+	});
 });

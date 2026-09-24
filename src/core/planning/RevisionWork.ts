@@ -1,4 +1,5 @@
 import { pendingWorkTitle } from "./WorkPresentation";
+import { needsDecision } from "../DirectiveText";
 import { isEditorialismActive, type Editorialism } from "../../models/Editorialism";
 import type { PendingEditsSession } from "../../models/PendingEditSegment";
 import type { ReviewSession } from "../../models/ReviewSuggestion";
@@ -19,6 +20,7 @@ export function directiveWork(document: Editorialism, params: EffortParams): Wor
 		sceneOrder: item.scope?.raw ?? document.title,
 		title: item.text, detail: [document.title, document.reviewer, item.scope?.raw].filter(Boolean).join(" · "),
 		complete: item.status === "done", deferred: item.status === "deferred", line: item.lineIndex,
+		...(needsDecision(item) ? { decision: item.decision !== undefined ? "made" as const : "needed" as const } : {}),
 		suggestedMinutes: estimateEditorialismEffort({ ...document, sections: [{ ...section, items: [{ ...item, status: "open" }] }] }, params).totalMinutes,
 	})));
 }
@@ -34,8 +36,13 @@ export function batchWork(session: ReviewSession): WorkCandidate[] {
 			suggestedMinutes: remaining.length * 5 + memos.length * 15,
 			title: `Review ${session.notePath.split("/").pop()?.replace(/\.md$/i, "") ?? session.notePath}`,
 			detail: `${[...new Set([...suggestions, ...memos].map((item) => item.contributor.displayName))].join(", ")} · ${remaining.length} ${remaining.length === 1 ? "suggestion" : "suggestions"} remaining${memos.length ? ` · ${memos.length} ${memos.length === 1 ? "note" : "notes"}` : ""}`,
-			// Memos have no general completion decision; finish their planned session explicitly.
-			complete: remaining.length === 0 && memos.length === 0,
+			// A batch is finished when every suggestion is decided, the same rule
+			// the sweep uses — its memos are advisory and ride along with it.
+			// Requiring memos to be "done" (they have no such state) meant a
+			// batch with a single memo could never finish. A memo-only batch has
+			// nothing to decide, so it stays open until its planned session is
+			// finished explicitly.
+			complete: suggestions.length > 0 && remaining.length === 0,
 			deferred: remaining.some((item) => item.status === "deferred"),
 		};
 	});
