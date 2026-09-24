@@ -78,6 +78,11 @@ function compareReviewStateEntriesByNarrativeOrder(
 
 type ReviewerMenuAction = "assign" | "create" | "unresolved" | "save_alias";
 
+// A directive's identity across reloads of the agenda: its file and line.
+function sceneDirectiveId(directive: SceneDirective): string {
+	return `${directive.editorialismPath}:${directive.item.lineIndex}`;
+}
+
 // Where an elsewhere-only directive's passages live. Only rendered for the
 // "elsewhere" placement, which guarantees at least one resolvable scene.
 function formatAnchorsElsewhereLabel(directive: SceneDirective): string {
@@ -144,6 +149,10 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	private sceneDirectivesLoading = false;
 	private sceneDirectivesCollapsed = true;
 	private sceneDirectivesElsewhereOpen = false;
+	private sceneDirectivesShowAll = false;
+	// Which directive the one-at-a-time view is on, per scene. `index` is the
+	// fallback when the focused directive leaves the list (finished).
+	private sceneDirectiveFocus: { scene: string; id: string | null; index: number } | null = null;
 	// null = follow the cold-start default; an explicit boolean once the user
 	// toggles the onboarding disclosure within this view session.
 	private onboardingExpanded: boolean | null = null;
@@ -744,8 +753,15 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		// The source line repeats for every entry of one agenda; say it once
 		// per run instead of under every directive.
 		let previousSource: string | null = null;
-		for (const directive of local) {
-			previousSource = this.renderSceneDirectiveEntry(body, directive, previousSource);
+		if (this.sceneDirectivesShowAll || local.length <= 1) {
+			for (const directive of local) {
+				previousSource = this.renderSceneDirectiveEntry(body, directive, previousSource);
+			}
+			if (local.length > 1) {
+				this.renderSceneDirectivesModeLink(body, "One at a time", false);
+			}
+		} else {
+			this.renderFocusedSceneDirective(body, local);
 		}
 
 		if (elsewhere.length === 0) {
@@ -777,6 +793,63 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		for (const directive of elsewhere) {
 			previousSource = this.renderSceneDirectiveEntry(group, directive, previousSource);
 		}
+	}
+
+	// One directive at a time: the full agenda for a scene reads as a wall to
+	// be faced, and the author needs only the next thing to do. The order is
+	// collectSceneDirectives' — passages here, then undecided decisions — so
+	// the first entry is the one to start with. Focus follows the directive,
+	// not the position, across reloads; when the focused one is finished and
+	// drops out, the next one slides into its place.
+	private renderFocusedSceneDirective(parent: HTMLElement, local: SceneDirective[]): void {
+		const scene = this.currentSceneDirectivesKey();
+		if (this.sceneDirectiveFocus?.scene !== scene) {
+			this.sceneDirectiveFocus = { scene, id: null, index: 0 };
+		}
+		const focus = this.sceneDirectiveFocus;
+		const found = focus.id === null ? -1 : local.findIndex((directive) => sceneDirectiveId(directive) === focus.id);
+		const index = found >= 0 ? found : Math.min(focus.index, local.length - 1);
+		const current = local[index];
+		if (!current) {
+			return;
+		}
+		focus.id = sceneDirectiveId(current);
+		focus.index = index;
+
+		this.renderSceneDirectiveEntry(parent, current, null);
+
+		const nav = parent.createDiv({ cls: "editorialist-panel__directives-nav" });
+		nav.createSpan({
+			cls: "editorialist-panel__directives-nav-position",
+			text: `${index + 1} of ${local.length}`,
+		});
+		const next = nav.createEl("button", {
+			cls: "editorialist-panel__directives-nav-next",
+			attr: { type: "button" },
+		});
+		next.createSpan({ text: index + 1 < local.length ? "Next" : "Back to first" });
+		setIcon(next.createSpan({ cls: "editorialist-panel__directives-nav-icon" }), index + 1 < local.length ? "arrow-right" : "rotate-ccw");
+		this.bindImmediateAction(next, () => {
+			const target = local[(index + 1) % local.length];
+			if (target) {
+				focus.id = sceneDirectiveId(target);
+				focus.index = (index + 1) % local.length;
+			}
+			this.render();
+		});
+		this.renderSceneDirectivesModeLink(nav, "Show all", true);
+	}
+
+	private renderSceneDirectivesModeLink(parent: HTMLElement, label: string, showAll: boolean): void {
+		const link = parent.createEl("button", {
+			cls: "editorialist-panel__directives-mode",
+			text: label,
+			attr: { type: "button" },
+		});
+		this.bindImmediateAction(link, () => {
+			this.sceneDirectivesShowAll = showAll;
+			this.render();
+		});
 	}
 
 	// Counts what belongs to this scene against what only points elsewhere, so

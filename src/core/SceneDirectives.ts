@@ -16,6 +16,7 @@
 // operation (Erase batches, cleanup) to reach an editorialism file. Nothing
 // here applies anything to the manuscript: a directive carries no payload.
 
+import { needsDecision } from "./DirectiveText";
 import { isLocated, locateAnchor, type AnchorRange } from "./EditorialismAnchorLocator";
 import { scopeRelatesToScene, type SceneRelevanceContext } from "./SceneRelevance";
 import {
@@ -128,12 +129,20 @@ export function collectSceneDirectives(
 	}
 
 	// Work here first; within a placement, directives with open passages here
-	// lead, and otherwise the agenda's own order holds (the sort is stable).
+	// lead, then a directive still waiting on a decision ahead of one that is
+	// only doing — deciding unblocks every passage it names. Otherwise the
+	// agenda's own order holds (the sort is stable). The card's one-at-a-time
+	// mode walks this order, so its first entry is the thing to do next.
 	return out.sort(
 		(left, right) =>
 			PLACEMENT_RANK[left.placement] - PLACEMENT_RANK[right.placement] ||
-			Number(right.openAnchorsInScene > 0) - Number(left.openAnchorsInScene > 0),
+			Number(right.openAnchorsInScene > 0) - Number(left.openAnchorsInScene > 0) ||
+			Number(awaitsDecision(right.item)) - Number(awaitsDecision(left.item)),
 	);
+}
+
+function awaitsDecision(item: EditorialismItem): boolean {
+	return item.decision === undefined && needsDecision(item);
 }
 
 function placeDirective(

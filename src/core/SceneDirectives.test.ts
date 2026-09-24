@@ -92,10 +92,11 @@ describe("collectSceneDirectives", () => {
 		const statuses: EditorialismItemStatus[] = ["open", "in-progress", "done", "deferred", "question"];
 		const items = statuses.map((status, index) => item({ status, lineIndex: index }));
 		const directives = collectSceneDirectives([editorialism(items)], sceneContext);
-		expect(directives.map((entry) => entry.item.status)).toEqual([
-			"open",
-			"in-progress",
+		// Order is covered by the ordering tests; this one is about membership.
+		expect(directives.map((entry) => entry.item.status).sort()).toEqual([
 			"deferred",
+			"in-progress",
+			"open",
 			"question",
 		]);
 	});
@@ -232,6 +233,16 @@ describe("placement and order", () => {
 		const open = item({ lineIndex: 1, text: "open", anchors: [anchor()] });
 		const directives = collectSceneDirectives([editorialism([finished, open])], sceneContext);
 		expect(directives.map((directive) => directive.item.text)).toEqual(["open", "finished"]);
+	});
+});
+
+describe("decision ordering", () => {
+	it("puts an undecided decision ahead of plain work at the same placement", () => {
+		const plain = item({ lineIndex: 0, text: "Tighten the argument", anchors: [anchor()] });
+		const choose = item({ lineIndex: 1, text: "Choose a fruit", anchors: [anchor({ lineIndex: 2 })] });
+		const decided = item({ lineIndex: 3, text: "Choose an age", decision: "34", anchors: [anchor({ lineIndex: 4 })] });
+		const directives = collectSceneDirectives([editorialism([decided, plain, choose])], sceneContext);
+		expect(directives.map((directive) => directive.item.text)).toEqual(["Choose a fruit", "Choose an age", "Tighten the argument"]);
 	});
 });
 
