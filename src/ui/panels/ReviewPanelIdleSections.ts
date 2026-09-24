@@ -373,13 +373,13 @@ export function renderWorkflowsDisclosure(
 	const workflows: Array<{ icon: string; title: string; body: string }> = [
 		{
 			icon: "download-cloud",
-			title: "Imported review pass",
-			body: "Pull in contributor notes from a human reader or AI editor, then accept, reject, or rewrite each suggestion in turn.",
+			title: "Imported review batch",
+			body: "Pull in contributor notes from a human reader or AI editor. Each scene gets a review block appended to the end of the note; accept, reject, or rewrite each suggestion in turn, then clean the block away when you're done.",
 		},
 		{
 			icon: "compass",
 			title: "Editorialisms",
-			body: "Turn an editorial letter into a checklist of directives pinned to the passages they concern. Each scene shows the ones that apply there, one at a time, as you review.",
+			body: "A long-form checklist of directives and recommendations, pinned to the passages they concern. It is its own document, kept permanently in the vault's Editorialist folder. Each scene shows the directives that apply there, one at a time, as you review.",
 		},
 		{
 			icon: "clipboard-list",
@@ -389,7 +389,7 @@ export function renderWorkflowsDisclosure(
 		{
 			icon: "users",
 			title: "Contributor directory",
-			body: "Star trusted reviewers, resolve aliases on imported batches, and track who shaped each draft.",
+			body: "Track which feedback helps most — from alpha readers, editors, and AI models. Star trusted reviewers, resolve aliases on imported batches, and see who shaped each draft.",
 		},
 	];
 	for (const wf of workflows) {
