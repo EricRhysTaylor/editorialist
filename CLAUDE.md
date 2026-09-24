@@ -61,7 +61,7 @@ npm run check            # typecheck + lint + css + qa-audit + compliance
 npm run build            # full check + production bundle + copy-to-vault
 npm run release:check    # check + tests + css-drift + build
 npm run release -- patch # bump, rebuild, commit, tag, PUSH, open a draft GitHub Release
-npm run release          # finish: CI build + asset upload, asks before publishing
+npm run release          # finish: CI build + asset upload + publish + download check (one y)
 npm run backup           # commits everything and PUSHES main — Eric's tool, never an agent's
 ```
 

@@ -253,22 +253,56 @@ function queueDirectoryScan() {
 }
 
 // --- Phase 2: finish an existing draft/published release --------------------
+// Answering "Finish release" is the decision; there is no second publish
+// prompt. A draft left behind is the costly failure: main's manifest already
+// names this version, so every Obsidian install/update 404s until the release
+// is public (Radial Timeline 7.3.0 sat that way on 2026-09-23). Any failure
+// below exits non-zero, loudly.
 async function finishRelease(version, isDraft) {
 	runReleaseWorkflowAndWait(version);
 
 	if (isDraft) {
-		if (await confirm(`\nDraft release ${version} has assets. Publish it now? [y/N] `)) {
-			run(`gh release edit ${version} --draft=false --latest`, "Publishing release");
-			console.log(`\n🎉 Release ${version} published.`);
-			console.log(`📦 ${REPO_URL}/releases/tag/${version}`);
-			queueDirectoryScan();
-		} else {
-			console.log(`\nAssets uploaded. Release ${version} remains a draft.`);
-		}
+		run(`gh release edit ${version} --draft=false --latest`, "Publishing release");
+		await verifyPublishedAssets(version);
+		console.log(`\n🎉 Release ${version} published.`);
+		console.log(`📦 ${REPO_URL}/releases/tag/${version}`);
+		queueDirectoryScan();
 	} else {
+		await verifyPublishedAssets(version);
 		console.log(`\nAssets updated for existing release ${version}.`);
 		queueDirectoryScan();
 	}
+}
+
+// What Obsidian actually fetches: the three assets from the public download
+// URL. A draft, a missing asset, or a failed publish all show up here as a
+// non-200. Retries briefly because the download CDN can lag a publish.
+const RELEASE_ASSETS = ["manifest.json", "main.js", "styles.css"];
+
+async function verifyPublishedAssets(version) {
+	console.log(`\n→ Verifying the public download links for ${version}...`);
+	const base = `${REPO_URL}/releases/download/${version}`;
+	let failures = [];
+	for (let attempt = 1; attempt <= 6; attempt++) {
+		failures = [];
+		for (const asset of RELEASE_ASSETS) {
+			try {
+				const res = await fetch(`${base}/${asset}`, { method: "HEAD", redirect: "follow" });
+				if (res.status !== 200) failures.push(`${asset} → ${res.status}`);
+			} catch (e) {
+				failures.push(`${asset} → ${e.message}`);
+			}
+		}
+		if (!failures.length) {
+			console.log(`✅ All three assets download (200): ${RELEASE_ASSETS.join(", ")}`);
+			return;
+		}
+		if (attempt < 6) await new Promise((r) => setTimeout(r, 10000));
+	}
+	console.error(`\n❌ Release ${version} is NOT downloadable: ${failures.join("; ")}`);
+	console.error("   Obsidian users cannot install or update until this is fixed.");
+	console.error(`   Check: gh release view ${version} (is it still a draft? are all three assets attached?)`);
+	process.exit(1);
 }
 
 // --- Phase 1: start a new release -------------------------------------------
