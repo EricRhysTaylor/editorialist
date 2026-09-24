@@ -262,6 +262,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 				throw new Error("ReviewPanel: completed_sweep branch selected without a completed sweep state.");
 			}
 			renderCompletedSweepCard(this, this.plugin, this.contentEl, completedSweep);
+			this.renderNextBatchesAfterCompletion(completedSweep.otherPendingNotePaths);
 
 			// Finishing a pass is exactly when the reviewer's framing is worth
 			// re-reading — and it used to be the one state that could not show it.
@@ -446,6 +447,27 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		}
 	}
 
+
+	// A finished batch is one scene's pass, not the book's. When other scenes
+	// still hold pending batches, lead straight on to the next one — the same
+	// Continue card and Up next list the idle workspace shows — instead of
+	// leaving the author on a completion card with nowhere to go.
+	private renderNextBatchesAfterCompletion(otherPendingNotePaths: string[]): void {
+		if (otherPendingNotePaths.length === 0) {
+			return;
+		}
+		const overview = this.plugin.getReviewStateOverview();
+		const pending = (overview?.pending ?? []).filter((entry) => otherPendingNotePaths.includes(entry.notePath));
+		if (pending.length === 0) {
+			return;
+		}
+		const suggested = this.plugin.getNextLogicalReviewLaunchTarget();
+		const launchTarget = suggested && otherPendingNotePaths.includes(suggested.notePath) ? suggested : null;
+		if (launchTarget) {
+			renderContinueReviewCard(this, this.plugin, this.contentEl, launchTarget, overview);
+		}
+		this.renderUpNextPendingScenes(pending, launchTarget?.notePath ?? null, Boolean(launchTarget));
+	}
 
 	// Pending scenes that belong to the "Up next" cluster beneath the Continue
 	// Review hero. When the hero is shown, its scene is filtered out (by path,
@@ -971,6 +993,8 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			cls: "editorialist-panel__directive-anchor-fragment",
 			text: formatAnchorFragment(anchor),
 		});
+		// The quote is the way to the passage; the icon says so.
+		setIcon(jump.createSpan({ cls: "editorialist-panel__directive-anchor-jump-icon" }), "locate-fixed");
 		this.bindImmediateAction(jump, () => {
 			void this.plugin.anchors.openEditorialismAnchor(directive.editorialismPath, directive.item, anchor);
 		});

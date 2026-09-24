@@ -1715,8 +1715,8 @@
 	line-height: 1.4;
 }
 
-.editorialist-panel__directive-status,
-.editorialist-panel__directive-anchor-status {
+.editorialist-panel__directives button.editorialist-panel__directive-status,
+.editorialist-panel__directives button.editorialist-panel__directive-anchor-status {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -1732,13 +1732,13 @@
 	cursor: pointer;
 }
 
-.editorialist-panel__directive-status {
+.editorialist-panel__directives button.editorialist-panel__directive-status {
 	margin-right: 0.3rem;
 	vertical-align: -0.2rem;
 }
 
-.editorialist-panel__directive-status:hover,
-.editorialist-panel__directive-anchor-status:hover {
+.editorialist-panel__directives button.editorialist-panel__directive-status:hover,
+.editorialist-panel__directives button.editorialist-panel__directive-anchor-status:hover {
 	color: var(--text-normal);
 	background: color-mix(in srgb, var(--background-modifier-border) 35%, transparent);
 }
@@ -1781,11 +1781,14 @@
 	flex-wrap: wrap;
 }
 
-.editorialist-panel__directive-anchor-status {
+.editorialist-panel__directives button.editorialist-panel__directive-anchor-status {
 	margin-top: 0.1rem;
 }
 
-.editorialist-panel__directive-anchor-jump {
+.editorialist-panel__directives button.editorialist-panel__directive-anchor-jump {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.4rem;
 	flex: 1 1 0;
 	min-width: 0;
 	height: auto;
@@ -1802,7 +1805,29 @@
 	cursor: pointer;
 }
 
-.editorialist-panel__directive-anchor-jump:hover {
+.editorialist-panel__directive-anchor-fragment {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.editorialist-panel__directive-anchor-jump-icon {
+	display: inline-flex;
+	flex: 0 0 auto;
+	margin-top: 0.15rem;
+	opacity: 0.55;
+}
+
+.editorialist-panel__directive-anchor-jump-icon svg {
+	width: 0.8rem;
+	height: 0.8rem;
+}
+
+.editorialist-panel__directives button.editorialist-panel__directive-anchor-jump:hover .editorialist-panel__directive-anchor-jump-icon {
+	opacity: 1;
+	color: var(--text-accent);
+}
+
+.editorialist-panel__directives button.editorialist-panel__directive-anchor-jump:hover {
 	color: var(--text-normal);
 	background: color-mix(in srgb, var(--background-modifier-border) 30%, transparent);
 }
@@ -1827,7 +1852,7 @@
 	color: var(--text-faint);
 }
 
-.editorialist-panel__directives-nav-next {
+.editorialist-panel__directives button.editorialist-panel__directives-nav-next {
 	display: inline-flex;
 	align-items: center;
 	gap: 0.3rem;
@@ -1842,7 +1867,7 @@
 	cursor: pointer;
 }
 
-.editorialist-panel__directives-nav-next:hover {
+.editorialist-panel__directives button.editorialist-panel__directives-nav-next:hover {
 	background: color-mix(in srgb, var(--background-modifier-border) 35%, transparent);
 }
 
@@ -1855,7 +1880,7 @@
 	height: 0.8rem;
 }
 
-.editorialist-panel__directives-mode {
+.editorialist-panel__directives button.editorialist-panel__directives-mode {
 	height: auto;
 	margin-left: auto;
 	padding: 0.15rem 0;
@@ -1871,7 +1896,7 @@
 	align-self: flex-end;
 }
 
-.editorialist-panel__directives-mode:hover {
+.editorialist-panel__directives button.editorialist-panel__directives-mode:hover {
 	color: var(--text-normal);
 	text-decoration: underline;
 }
@@ -1884,7 +1909,7 @@
 	border-top: 1px solid color-mix(in srgb, var(--background-modifier-border) 38%, transparent);
 }
 
-.editorialist-panel__directives-elsewhere-toggle {
+.editorialist-panel__directives button.editorialist-panel__directives-elsewhere-toggle {
 	display: inline-flex;
 	align-items: center;
 	gap: 0.3rem;
@@ -1899,7 +1924,7 @@
 	cursor: pointer;
 }
 
-.editorialist-panel__directives-elsewhere-toggle:hover {
+.editorialist-panel__directives button.editorialist-panel__directives-elsewhere-toggle:hover {
 	color: var(--text-normal);
 }
 
@@ -1946,7 +1971,7 @@
 	font-weight: 600;
 }
 
-.editorialist-directive-decision__button {
+.editorialist-directive-decision button.editorialist-directive-decision__button {
 	flex: 0 0 auto;
 	height: auto;
 	padding: 0.1rem 0.5rem;
@@ -1964,7 +1989,7 @@
 	color: var(--text-faint);
 }
 
-.editorialist-directive-decision__button:hover {
+.editorialist-directive-decision button.editorialist-directive-decision__button:hover {
 	color: var(--text-normal);
 	background: color-mix(in srgb, var(--background-modifier-border) 35%, transparent);
 }
@@ -2811,7 +2836,7 @@
 	line-height: 1.4;
 }
 
-.editorialist-suggestion__directive-done {
+.editorialist-suggestion__directives button.editorialist-suggestion__directive-done {
 	display: inline-flex;
 	align-items: center;
 	gap: 0.25rem;
@@ -2827,7 +2852,7 @@
 	cursor: pointer;
 }
 
-.editorialist-suggestion__directive-done:hover {
+.editorialist-suggestion__directives button.editorialist-suggestion__directive-done:hover {
 	color: var(--text-normal);
 	border-color: color-mix(in srgb, var(--color-green) 55%, transparent);
 }

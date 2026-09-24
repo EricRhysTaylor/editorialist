@@ -183,6 +183,9 @@ interface CompletedSweepPanelState {
 		label: string;
 	}>;
 	title: string;
+	// Scenes outside this batch that still hold pending review work, so the
+	// panel can send the author on to them instead of dead-ending here.
+	otherPendingNotePaths: string[];
 }
 
 interface PostCompletionIdleState {
@@ -1676,10 +1679,17 @@ export default class EditorialistPlugin extends Plugin {
 			hasImportedNotes: (entry?.importedNotePaths.length ?? 0) > 0,
 		});
 
+		// Finishing one batch is not finishing the book. When other scenes still
+		// hold pending batches, the card must not claim everything is done.
+		const otherPendingNotePaths = (this.getReviewStateOverview()?.pending ?? [])
+			.map((pending) => pending.notePath)
+			.filter((notePath) => !completedSweep.notePaths.includes(notePath));
+
 		return {
 			batchId: completedSweep.batchId,
 			closeLabel: "Close review",
-			title: "All revisions complete",
+			title: otherPendingNotePaths.length > 0 ? "Batch complete" : "All revisions complete",
+			otherPendingNotePaths,
 			editsReviewedLabel: `${completedSweep.totalSuggestions} edit${completedSweep.totalSuggestions === 1 ? "" : "s"} reviewed across ${completedSweep.notePaths.length} ${unitLabel}`,
 			description: isCleaned
 				? "Review blocks have been removed from your notes. Import a new revision pass when you're ready."
