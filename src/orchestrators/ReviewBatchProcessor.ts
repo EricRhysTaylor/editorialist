@@ -1,3 +1,4 @@
+import { isBatchReadyToClean } from "../core/review/SweepCompletion";
 // Owns review-batch orchestration: clipboard load + inspect, duplicate-sweep
 // detection, importing a batch (into routed notes or the active note),
 // recording the imported batch, and the cleanup / reset paths. Extracted
@@ -400,6 +401,15 @@ export class ReviewBatchProcessor {
 		const completedSweep = this.host.getResolvedCompletedSweepState();
 		if (!completedSweep) {
 			new Notice("No completed revision pass is available to clean.");
+			return;
+		}
+
+		// Cleaning is batch-wide. A batch with undecided suggestions in other
+		// scenes must never be cleaned from here: that would delete review
+		// blocks the author has not worked through. Refuse clearly.
+		const entry = this.host.getSweepRegistryEntry(completedSweep.batchId);
+		if (entry && entry.status !== "cleaned" && !isBatchReadyToClean(entry, this.host.getBatchDecisionStats(entry.batchId))) {
+			new Notice("This batch still has scenes with suggestions to review. Finish them before cleaning its review blocks.");
 			return;
 		}
 

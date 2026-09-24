@@ -47,13 +47,17 @@ export function renderCompletedSweepCard(
 		return;
 	}
 
-	const card = parent.createDiv({ cls: "editorialist-panel__completion" });
+	// A scene checkpoint inside an unfinished batch uses the quiet neutral
+	// card; the green completion treatment is saved for a finished batch.
+	const card = parent.createDiv({
+		cls: `editorialist-panel__completion${completedSweep.batchFinished ? "" : " editorialist-panel__completion--neutral"}`,
+	});
 	const bgIcon = card.createSpan({ cls: "editorialist-panel__completion-bg-icon" });
 	setIcon(bgIcon, "pen-tool");
 
 	const titleRow = card.createDiv({ cls: "editorialist-panel__completion-title-row" });
 	const titleIcon = titleRow.createSpan({ cls: "editorialist-panel__completion-title-icon" });
-	setIcon(titleIcon, "pen-tool");
+	setIcon(titleIcon, completedSweep.batchFinished ? "pen-tool" : "check");
 	titleRow.createSpan({
 		cls: "editorialist-panel__completion-title",
 		text: completedSweep.title,

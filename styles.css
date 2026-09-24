@@ -1473,6 +1473,10 @@
 	color: color-mix(in srgb, var(--text-muted) 78%, var(--text-normal));
 }
 
+.editorialist-panel__completion--neutral .editorialist-panel__completion-step.is-primary .editorialist-panel__completion-step-link {
+	color: var(--text-normal);
+}
+
 .editorialist-panel__completion-step--neutral-primary .editorialist-panel__completion-step-link {
 	color: var(--text-normal);
 }

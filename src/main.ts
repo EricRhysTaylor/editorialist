@@ -183,6 +183,9 @@ interface CompletedSweepPanelState {
 		label: string;
 	}>;
 	title: string;
+	// False while other scenes in the same import batch still hold undecided
+	// suggestions: the card is then a scene checkpoint, not a completion.
+	batchFinished: boolean;
 	// Scenes outside this batch that still hold pending review work, so the
 	// panel can send the author on to them instead of dead-ending here.
 	otherPendingNotePaths: string[];
@@ -1679,10 +1682,23 @@ export default class EditorialistPlugin extends Plugin {
 		// is decided in SweepCompletion alongside the rest of the sweep-state
 		// rules, so it stays testable and cannot drift from isBatchReadyToClean.
 		const isCleaned = entry?.status === "cleaned";
-		const nextSteps: CompletedSweepPanelState["nextSteps"] = buildCompletedSweepNextSteps({
-			isCleaned,
-			hasImportedNotes: (entry?.importedNotePaths.length ?? 0) > 0,
-		});
+		// Finishing the last suggestion in one scene is not finishing its batch:
+		// an import round routinely spans dozens of scenes. Until every scene in
+		// the batch is decided, this is a scene-level checkpoint — no celebration
+		// and, above all, no batch-wide Clean, which would strip the review
+		// blocks from scenes the author has not reviewed yet.
+		const batchFinished = !entry || isCleaned || isBatchReadyToClean(entry, this.getBatchDecisionStats(entry.batchId));
+		const unfinishedScenes = batchFinished
+			? 0
+			: (this.getReviewStateOverview()?.pending ?? []).filter(
+				(pending) => entry.importedNotePaths.includes(pending.notePath) && !completedSweep.notePaths.includes(pending.notePath),
+			).length;
+		const nextSteps: CompletedSweepPanelState["nextSteps"] = batchFinished
+			? buildCompletedSweepNextSteps({
+				isCleaned,
+				hasImportedNotes: (entry?.importedNotePaths.length ?? 0) > 0,
+			})
+			: [{ action: "start", label: "Review changes" }];
 
 		// Finishing one batch is not finishing the book. When other scenes still
 		// hold pending batches, the card must not claim everything is done.
@@ -1690,8 +1706,24 @@ export default class EditorialistPlugin extends Plugin {
 			.map((pending) => pending.notePath)
 			.filter((notePath) => !completedSweep.notePaths.includes(notePath));
 
+		if (!batchFinished) {
+			return {
+				batchId: completedSweep.batchId,
+				batchFinished,
+				closeLabel: "Close review",
+				title: `${this.toTitleCase(unitLabel)} complete`,
+				otherPendingNotePaths,
+				editsReviewedLabel: `${completedSweep.totalSuggestions} edit${completedSweep.totalSuggestions === 1 ? "" : "s"} reviewed`,
+				description: unfinishedScenes > 0
+					? `${unfinishedScenes} more ${unfinishedScenes === 1 ? "scene" : "scenes"} in this batch still ${unfinishedScenes === 1 ? "has" : "have"} suggestions to review.`
+					: "Other scenes in this batch still have suggestions to review.",
+				nextSteps,
+			};
+		}
+
 		return {
 			batchId: completedSweep.batchId,
+			batchFinished,
 			closeLabel: "Close review",
 			title: otherPendingNotePaths.length > 0 ? "Batch complete" : "All revisions complete",
 			otherPendingNotePaths,
