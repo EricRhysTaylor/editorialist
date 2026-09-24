@@ -47,7 +47,7 @@ describe("buildDuplicateImportPrompt", () => {
 		expect(buildDuplicateImportPrompt({ ...BASE, status: "cleaned" }).title).toMatch(/already reviewed/i);
 	});
 
-	it("names the batch so it can be matched against Recent reviews", () => {
+	it("names the batch so it can be matched against Recent review rounds", () => {
 		for (const status of ["in_progress", "completed", "cleaned"] as const) {
 			const details = buildDuplicateImportPrompt({ ...BASE, status }).details;
 			expect(details.some((line) => line.includes("batch-mqtb6n8v-27419503"))).toBe(true);

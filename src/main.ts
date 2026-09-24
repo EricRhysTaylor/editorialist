@@ -1705,7 +1705,11 @@ export default class EditorialistPlugin extends Plugin {
 	}
 
 	getReviewStateOverview(): ReviewStateOverview | null {
-		const records = this.getSceneReviewRecords({ activeBookOnly: true }).filter((record) => record.batchCount > 0);
+		// Cleaning a scene zeroes its record's batch counts, so a cleaned scene
+		// is kept by status: it was reviewed, even though no block remains.
+		const records = this.getSceneReviewRecords({ activeBookOnly: true }).filter(
+			(record) => record.batchCount > 0 || record.status === "cleaned",
+		);
 		if (records.length === 0) {
 			return null;
 		}

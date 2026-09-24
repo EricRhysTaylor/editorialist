@@ -514,7 +514,7 @@ export function renderRecentActivityBlock(
 	const allEntries = plugin.getSweepRegistryEntries();
 	const scopeFolder = plugin.getActiveBookScopeInfo().sourceFolder;
 	const allGroups = groupRecentReviews(allEntries, scopeFolder);
-	renderLibraryHeading(parent, "Recent reviews", "history", allGroups.length);
+	renderLibraryHeading(parent, "Recent review rounds", "history", allGroups.length);
 	if (!allGroups.length) {
 		parent.createEl("p", { cls: "editorialist-panel__section-meta", text: "No reviews for this book yet." });
 		return;

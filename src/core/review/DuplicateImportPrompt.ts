@@ -10,7 +10,7 @@
 //
 // Resuming is offered only while the sweep is genuinely open. Everything else
 // gets a warning whose emphasis is on NOT importing, with the batch named so it
-// can be matched against the Recent reviews list.
+// can be matched against the Recent review rounds list.
 
 import type { ReviewSweepStatus } from "../../models/ReviewImport";
 

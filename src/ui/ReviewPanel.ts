@@ -1,3 +1,4 @@
+import { formatRelativeTime } from "../core/RelativeTime";
 import { renderPanelHeader } from "./primitives/PanelHeader";
 import { ButtonComponent, DropdownComponent, ItemView, Notice, setIcon, type WorkspaceLeaf } from "obsidian";
 import { formatContributorIdentityLabel } from "../core/ContributorIdentity";
@@ -328,18 +329,17 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 				this.renderUpNextPendingScenes(overview.pending, launchTarget?.notePath ?? null, Boolean(launchTarget));
 			}
 
-			// 2. Recent review sessions. (Pending edits are deliberately absent
-			// from the review view — the workflow lives entirely in the panel's
-			// Pending edits mode, reachable from the mode toggle.)
-			const history = this.contentEl.createEl("details", { cls: "editorialist-panel__disclosure" });
-			renderRecentActivityBlock(this.plugin, history);
-
-			// 3. Ready to clean — processed sweeps awaiting cleanup. Distinct from
-			// the pending work above: it's post-resolution housekeeping, so it sits
-			// after recent reviews rather than in the Up next cluster.
+			// 2. Reviewed — the finished scenes, directly under the pending ones
+			// so the two lists read as one walk through the book, back and forth.
 			if (overview && overview.reviewed.length > 0) {
 				this.renderReviewedScenesCard(overview.reviewed);
 			}
+
+			// 3. Recent review rounds — import history by batch. (Pending edits
+			// are deliberately absent from the review view — the workflow lives
+			// entirely in the panel's Pending edits mode.)
+			const history = this.contentEl.createEl("details", { cls: "editorialist-panel__disclosure" });
+			renderRecentActivityBlock(this.plugin, history);
 
 			// 4. Contributors.
 			const contributors = this.contentEl.createEl("details", { cls: "editorialist-panel__disclosure" });
@@ -615,7 +615,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			metaParts.push(`${entry.processedCount} reviewed`);
 		}
 		if (entry.cleaned) {
-			metaParts.push("cleaned");
+			metaParts.push(`cleaned ${formatRelativeTime(entry.lastUpdated)}`);
 		}
 		if (metaParts.length > 0) {
 			row.createSpan({
