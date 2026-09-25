@@ -1750,7 +1750,7 @@
 .editorialist-panel__directive-watermark {
 	position: absolute;
 	top: 50%;
-	right: -0.5rem;
+	right: 0.15rem;
 	z-index: -1;
 	display: flex;
 	height: 100%;
