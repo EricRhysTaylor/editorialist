@@ -936,6 +936,13 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		// directive's status stays reachable from every one of these menus.
 		const passagesHere = directive.anchorsInScene;
 		const soleAnchor = passagesHere.length === 1 ? passagesHere[0] : undefined;
+		// A large, faint copy of the entry's status icon behind the row, so the
+		// state of each directive reads at a glance while scanning the card.
+		entry.addClass("has-watermark");
+		setIcon(
+			entry.createSpan({ cls: "editorialist-panel__directive-watermark", attr: { "aria-hidden": "true" } }),
+			STATUS_ICON[soleAnchor ? soleAnchor.status : directive.item.status],
+		);
 		if (passagesHere.length !== 1 && passagesHere.length > 0) {
 			// Several passages: their own circles carry the work.
 		} else {
