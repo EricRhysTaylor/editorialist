@@ -93,6 +93,10 @@ export interface EditorialismItem {
 	// item line. Recording it once turns every anchor into a "make this match"
 	// check instead of a fresh deliberation in each scene.
 	decision?: string;
+	// The author's own question about the directive, written back as
+	// `[question:: …]` when they mark it a Question. It travels to the AI in
+	// the hand-off so the question is answered rather than re-asked.
+	question?: string;
 	anchors: EditorialismAnchor[];
 }
 

@@ -6,6 +6,7 @@ import {
 	insertAnchorLine,
 	parseEditorialism,
 	rewriteItemDecision,
+	rewriteItemQuestion,
 	rewriteTaskMarker,
 } from "../core/EditorialismParser";
 import {
@@ -97,6 +98,14 @@ export class EditorialismService {
 			throw new Error("Editorialism file is unavailable.");
 		}
 		await this.app.vault.process(file, (currentText) => rewriteItemDecision(currentText, lineIndex, decision));
+	}
+
+	async setItemQuestion(filePath: string, lineIndex: number, question: string | null): Promise<void> {
+		const file = this.app.vault.getAbstractFileByPath(filePath);
+		if (!(file instanceof TFile)) {
+			throw new Error("Editorialism file is unavailable.");
+		}
+		await this.app.vault.process(file, (currentText) => rewriteItemQuestion(currentText, lineIndex, question));
 	}
 
 	// Append an anchor beneath an item. The markdown stays the source of truth:

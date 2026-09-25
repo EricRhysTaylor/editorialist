@@ -1,6 +1,6 @@
 import { deliveryDate } from "../core/EditorialDeliveries";
-import { displayDirectiveText } from "../core/DirectiveText";
-import { renderDirectiveDecision } from "./editorialism/DirectiveDecision";
+import { displayDirectiveText, handoffItems } from "../core/DirectiveText";
+import { renderDirectiveDecision, renderDirectiveQuestion } from "./editorialism/DirectiveDecision";
 import { isDate } from "../core/planning/RevisionPlan";
 import { renderPanelHeader } from "./primitives/PanelHeader";
 import { DropdownComponent, Menu, Notice, ItemView, TFile, setIcon, type WorkspaceLeaf } from "obsidian";
@@ -340,6 +340,7 @@ export class EditorialismPanel extends ItemView {
 		}
 
 		this.renderEstimateCard(detail, editorialism);
+		this.renderHandoffCard(detail, editorialism);
 
 		const sceneContext = this.plugin.getSceneRelevanceContext();
 		this.lastRelevanceSceneNumber = sceneContext?.sceneNumber ?? null;
@@ -358,6 +359,45 @@ export class EditorialismPanel extends ItemView {
 				this.renderItem(sectionEl, editorialism, item, sceneContext);
 			}
 		}
+	}
+
+	private async askQuestion(editorialism: Editorialism, item: EditorialismItem): Promise<void> {
+		try {
+			if (await this.plugin.promptEditorialismItemQuestion(editorialism.filePath, item)) {
+				await this.refresh();
+			}
+		} catch (error) {
+			new Notice(error instanceof Error ? error.message : "Could not save the question.");
+		}
+	}
+
+	// Sends every directive the author has said something about — a decision
+	// or a question — to the AI in one prompt, alongside the one-at-a-time
+	// "Draft fixes" on each directive. The reply returns through Import as a
+	// review batch of edits and answer memos.
+	private renderHandoffCard(parent: HTMLElement, editorialism: Editorialism): void {
+		const items = handoffItems(editorialism);
+		const decisions = items.filter((item) => item.decision !== undefined).length;
+		const questions = items.filter((item) => item.question !== undefined).length;
+		const card = parent.createDiv({ cls: "editorialist-editorialism-panel__handoff" });
+		const text = card.createDiv({ cls: "editorialist-editorialism-panel__handoff-text" });
+		text.createDiv({ cls: "editorialist-editorialism-panel__handoff-title", text: "Hand off to AI" });
+		text.createDiv({
+			cls: "editorialist-editorialism-panel__handoff-meta",
+			text: items.length
+				? [decisions ? `${decisions} ${decisions === 1 ? "decision" : "decisions"}` : "", questions ? `${questions} ${questions === 1 ? "question" : "questions"}` : ""].filter(Boolean).join(" · ") + " ready — edits and answers come back as a review batch."
+				: "Record decisions or ask questions on directives; the hand-off sends those together.",
+		});
+		const button = card.createEl("button", {
+			cls: "editorialist-editorialism-panel__handoff-button",
+			attr: { type: "button" },
+		});
+		setIcon(button.createSpan({ cls: "editorialist-editorialism-panel__handoff-icon" }), "wand-2");
+		button.createSpan({ text: "Copy prompt" });
+		button.disabled = items.length === 0;
+		button.addEventListener("click", () => {
+			void this.plugin.copyEditorialismHandoff(editorialism);
+		});
 	}
 
 	// Compact revision-effort estimate for the open directives in this
@@ -428,9 +468,14 @@ export class EditorialismPanel extends ItemView {
 			event.preventDefault();
 			const menu = new Menu();
 			for (const status of Object.keys(STATUS_LABEL) as Array<EditorialismItem["status"]>) {
-				menu.addItem((entry) => entry.setTitle(STATUS_LABEL[status]).setChecked(item.status === status).onClick(async () => { await this.plugin.setEditorialismItemStatus(editorialism.filePath, item.lineIndex, status); await this.refresh(); }));
+				menu.addItem((entry) => entry.setTitle(STATUS_LABEL[status]).setChecked(item.status === status).onClick(async () => {
+					// Choosing Question asks for the question itself; saving it sets the status.
+					if (status === "question" && item.status !== "question") { await this.askQuestion(editorialism, item); return; }
+					await this.plugin.setEditorialismItemStatus(editorialism.filePath, item.lineIndex, status); await this.refresh();
+				}));
 			}
 			menu.addSeparator();
+			menu.addItem((entry) => entry.setTitle(item.question ? "Edit your question…" : "Ask a question…").setIcon("message-circle-question").onClick(() => { void this.askQuestion(editorialism, item); }));
 			menu.addItem((entry) => entry.setTitle("Draft fixes with AI…").setIcon("wand-2").onClick(() => { void this.plugin.copyDirectiveFixPrompt([item]); }));
 			menu.showAtMouseEvent(event);
 		});
@@ -451,6 +496,10 @@ export class EditorialismPanel extends ItemView {
 				.catch((error: unknown) => {
 					new Notice(error instanceof Error ? error.message : "Could not save the decision.");
 				});
+		});
+
+		renderDirectiveQuestion(main, item, () => {
+			void this.askQuestion(editorialism, item);
 		});
 
 		const chips = main.createDiv({ cls: "editorialist-editorialism-panel__item-chips" });

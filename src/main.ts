@@ -89,10 +89,10 @@ import {
 	type EffortEstimate,
 } from "./core/EffortEstimate";
 import { isAnchorRetired, isEditorialismActive, type Editorialism, type EditorialismItem } from "./models/Editorialism";
-import { displayDirectiveText, needsDecision } from "./core/DirectiveText";
+import { displayDirectiveText, handoffItems, needsDecision } from "./core/DirectiveText";
 import { buildDirectiveFixPrompt, type DirectiveFixPassage } from "./core/DirectiveFixPrompt";
 import { isLocated, locateAnchor, paragraphAround } from "./core/EditorialismAnchorLocator";
-import { DirectiveDecisionModal } from "./ui/modals/DirectiveDecisionModal";
+import { DECISION_COPY, DirectiveTextModal, QUESTION_COPY } from "./ui/modals/DirectiveTextModal";
 import { selectCompletedSweepDurationLabel } from "./core/review/CompletedSweepDuration";
 import { collectSceneDirectives, type SceneDirective } from "./core/SceneDirectives";
 import { openAnchorTargetModal } from "./ui/modals/AnchorTargetModal";
@@ -1032,11 +1032,23 @@ export default class EditorialistPlugin extends Plugin {
 	// it to the editorialism file. Cancel leaves the file untouched; an empty
 	// answer clears a recorded decision.
 	async promptEditorialismItemDecision(filePath: string, item: EditorialismItem): Promise<boolean> {
-		const answer = await new DirectiveDecisionModal(this.app, displayDirectiveText(item.text), item.decision ?? "").present();
+		const answer = await new DirectiveTextModal(this.app, displayDirectiveText(item.text), item.decision ?? "", DECISION_COPY).present();
 		if (answer === null) {
 			return false;
 		}
 		await this.editorialismService.setItemDecision(filePath, item.lineIndex, answer.trim() || null);
+		this.refreshEditorialismPanel();
+		return true;
+	}
+
+	// Asks for (or edits) the author's question about a directive. Saving marks
+	// the directive a Question; cancel leaves the file untouched.
+	async promptEditorialismItemQuestion(filePath: string, item: EditorialismItem): Promise<boolean> {
+		const question = await new DirectiveTextModal(this.app, displayDirectiveText(item.text), item.question ?? "", QUESTION_COPY).present();
+		if (question === null) {
+			return false;
+		}
+		await this.editorialismService.setItemQuestion(filePath, item.lineIndex, question.trim() || null);
 		this.refreshEditorialismPanel();
 		return true;
 	}
@@ -3051,6 +3063,18 @@ export default class EditorialistPlugin extends Plugin {
 	// concrete edits; the reply comes back through the normal import. Every
 	// open passage is quoted with the paragraph around it from the current
 	// text, so the AI can write verbatim Originals.
+	// Hands a whole editorialism to the AI in one prompt: every unfinished
+	// directive carrying a decision or a question from the author. The
+	// one-directive "Draft fixes" is the same prompt with one item.
+	async copyEditorialismHandoff(editorialism: Editorialism): Promise<void> {
+		const items = handoffItems(editorialism);
+		if (items.length === 0) {
+			new Notice("Record a decision or ask a question on a directive first — the hand-off sends those.");
+			return;
+		}
+		await this.copyDirectiveFixPrompt(items);
+	}
+
 	async copyDirectiveFixPrompt(items: readonly EditorialismItem[]): Promise<void> {
 		const directives = [];
 		for (const item of items) {
@@ -3071,6 +3095,7 @@ export default class EditorialistPlugin extends Plugin {
 				text: displayDirectiveText(item.text),
 				scope: item.scope?.raw ?? null,
 				decision: item.decision ?? null,
+				question: item.question ?? null,
 				needsDecision: needsDecision(item),
 				passages,
 			});

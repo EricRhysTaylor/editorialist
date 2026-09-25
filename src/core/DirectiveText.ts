@@ -6,7 +6,7 @@
 // asterisks. The file is never rewritten; only the display drops the code and
 // the emphasis markers.
 
-import type { EditorialismItem } from "../models/Editorialism";
+import type { Editorialism, EditorialismItem } from "../models/Editorialism";
 
 const LEADING_CODE = /^\s*(?:\*\*|__)?\s*\[?[A-Z]{1,3}-?\d{1,3}[a-z]?\]?\s*(?:\*\*|__)?\s*(?:[—–:.)]|-\s)\s*/;
 const EMPHASIS = /(\*\*|__)(.+?)\1/g;
@@ -28,7 +28,18 @@ const DECISION_VERB = /^(?:choose|decide|pick|settle on|settle whether|determine
 export function needsDecision(item: EditorialismItem): boolean {
 	return (
 		item.decision !== undefined ||
-		item.status === "question" ||
+		// A [?] item without a written question is an open choice; once the
+		// author writes their question, it is a question, not a decision.
+		(item.status === "question" && item.question === undefined) ||
 		DECISION_VERB.test(displayDirectiveText(item.text))
+	);
+}
+
+// The directives an editorialism hand-off sends to the AI: unfinished ones
+// the author has said something about — a decision to carry out or a
+// question to answer. Untouched directives stay with the author.
+export function handoffItems(editorialism: Editorialism): EditorialismItem[] {
+	return editorialism.sections.flatMap((section) => section.items).filter(
+		(item) => item.status !== "done" && (item.decision !== undefined || item.question !== undefined),
 	);
 }

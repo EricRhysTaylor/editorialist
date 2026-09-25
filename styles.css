@@ -2052,6 +2052,67 @@
 	background: color-mix(in srgb, var(--background-modifier-border) 35%, transparent);
 }
 
+.editorialist-directive-decision.is-question .editorialist-directive-decision__icon {
+	color: var(--color-yellow);
+}
+
+.editorialist-directive-decision.is-question .editorialist-directive-decision__value {
+	font-weight: 500;
+}
+
+.editorialist-directive-decision.is-question .editorialist-directive-decision__button {
+	border-color: transparent;
+	color: var(--text-faint);
+}
+
+.editorialist-editorialism-panel__handoff {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.75rem;
+	margin: 0.75rem 0;
+	padding: 0.7rem 0.85rem;
+	border: 1px solid color-mix(in srgb, var(--interactive-accent) 30%, var(--background-modifier-border));
+	border-radius: var(--editorialist-radius-card);
+	background: color-mix(in srgb, var(--interactive-accent) 6%, var(--background-primary));
+}
+
+.editorialist-editorialism-panel__handoff-text {
+	display: flex;
+	flex: 1 1 12rem;
+	flex-direction: column;
+	gap: 0.15rem;
+	min-width: 0;
+}
+
+.editorialist-editorialism-panel__handoff-title {
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+	font-weight: 600;
+}
+
+.editorialist-editorialism-panel__handoff-meta {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	line-height: 1.4;
+}
+
+.editorialist-editorialism-panel__handoff button.editorialist-editorialism-panel__handoff-button {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	flex: 0 0 auto;
+}
+
+.editorialist-editorialism-panel__handoff-icon {
+	display: inline-flex;
+}
+
+.editorialist-editorialism-panel__handoff-icon svg {
+	width: 0.9rem;
+	height: 0.9rem;
+}
+
 .editorialist-directive-decision__directive {
 	margin-top: 0;
 	color: var(--text-normal);

@@ -24,6 +24,8 @@ export interface DirectiveFixInput {
 	text: string;
 	scope: string | null;
 	decision: string | null;
+	/** The author's own question about the directive, to be answered. */
+	question: string | null;
 	needsDecision: boolean;
 	passages: DirectiveFixPassage[];
 }
@@ -33,9 +35,10 @@ export function buildDirectiveFixPrompt(
 	context: ReviewTemplateContext,
 ): string {
 	const lines: string[] = [
-		"The author is revising a manuscript with Editorialist and wants concrete line edits",
-		"that carry out the editorial directives below. Reply with ONE Editorialist review",
-		"block (the format reference follows). Do not produce an editorialism file.",
+		"The author is revising a manuscript with Editorialist and is handing you editorial",
+		"directives to act on: carry out their recorded decisions as concrete line edits,",
+		"and answer their questions. Reply with ONE Editorialist review block (the format",
+		"reference follows). Do not produce an editorialism file.",
 		"",
 		"Rules:",
 		"- Draft EDIT entries (or CUT / CONDENSE / EXPAND where a directive calls for it) at",
@@ -52,9 +55,14 @@ export function buildDirectiveFixPrompt(
 		"- Original must be copied byte-for-byte from the quoted prose. Keep each Original",
 		"  to the smallest span that makes the change unambiguous.",
 		"- Give every entry the SceneId shown for its passage.",
+		"- Where the author asks a QUESTION, answer it in a MEMO scoped to the SceneId of",
+		"  the directive's first passage (unscoped if it has none): `Notes: Question: …`",
+		"  then your answer and recommendation. If the answer calls for changes, draft",
+		"  those edits too, consistent with your answer.",
 		"- If a passage cannot be fixed with a line edit, or you find a conflicting",
 		"  occurrence outside the quoted prose, explain it in a scene-scoped MEMO rather",
 		"  than guessing.",
+		"- Do not rewrite or re-export the editorialism file; the author keeps it.",
 		"- Reviewer: your model name. ReviewerType: AI editor. Provider and Model if known.",
 		"",
 	];
@@ -68,6 +76,9 @@ export function buildDirectiveFixPrompt(
 			lines.push(`DECISION (settled by the author): ${directive.decision}`);
 		} else if (directive.needsDecision) {
 			lines.push("Decision: none recorded — choose one, state it, apply it consistently.");
+		}
+		if (directive.question) {
+			lines.push(`QUESTION from the author: ${directive.question}`);
 		}
 		if (directive.passages.length === 0) {
 			lines.push(

@@ -39,3 +39,26 @@ export function renderDirectiveDecision(
 	});
 	bindImmediateAction(button, onDecide, { guardInteractiveDescendants: true });
 }
+
+// The author's own question on a directive, shown where they will see it
+// again and editable in place. Renders nothing when there is no question.
+export function renderDirectiveQuestion(
+	parent: HTMLElement,
+	item: EditorialismItem,
+	onEdit: () => void,
+): void {
+	if (!item.question) {
+		return;
+	}
+	const row = parent.createDiv({ cls: "editorialist-directive-decision is-question" });
+	setIcon(row.createSpan({ cls: "editorialist-directive-decision__icon" }), "message-circle-question");
+	const label = row.createDiv({ cls: "editorialist-directive-decision__label" });
+	label.createSpan({ cls: "editorialist-directive-decision__prefix", text: "Your question: " });
+	label.createSpan({ cls: "editorialist-directive-decision__value", text: item.question });
+	const button = row.createEl("button", {
+		cls: "editorialist-directive-decision__button",
+		text: "Edit",
+		attr: { type: "button" },
+	});
+	bindImmediateAction(button, onEdit, { guardInteractiveDescendants: true });
+}

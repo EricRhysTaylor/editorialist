@@ -95,10 +95,12 @@ function parseTaskLine(body: string): {
 	tags: string[];
 	effort?: EditorialismItemEffort;
 	decision?: string;
+	question?: string;
 } {
 	const tags: string[] = [];
 	let scope: EditorialismItemScope | null = null;
 	let decision: string | undefined;
+	let question: string | undefined;
 	const effort: EditorialismItemEffort = {};
 	const stripped = body.replace(INLINE_METADATA_PATTERN, (_match, key: string, value: string) => {
 		const lowerKey = key.toLowerCase();
@@ -124,6 +126,8 @@ function parseTaskLine(body: string): {
 			}
 		} else if (lowerKey === "decision") {
 			decision = trimmedValue;
+		} else if (lowerKey === "question") {
+			question = trimmedValue;
 		} else if (lowerKey === "effort") {
 			const tier = trimmedValue.toLowerCase();
 			if (tier === "light" || tier === "medium" || tier === "heavy") {
@@ -133,7 +137,7 @@ function parseTaskLine(body: string): {
 		return "";
 	}).trim();
 	const hasEffort = effort.words !== undefined || effort.scenes !== undefined || effort.tier !== undefined;
-	return { text: stripped, scope, tags, effort: hasEffort ? effort : undefined, decision };
+	return { text: stripped, scope, tags, effort: hasEffort ? effort : undefined, decision, question };
 }
 
 function measureIndent(line: string): number {
@@ -461,6 +465,7 @@ export function parseEditorialism(filePath: string, contents: string): Editorial
 			tags: parsed.tags,
 			effort: parsed.effort,
 			...(parsed.decision !== undefined ? { decision: parsed.decision } : {}),
+			...(parsed.question !== undefined ? { question: parsed.question } : {}),
 			anchors: [],
 		};
 		currentSection.items.push(item);
@@ -488,12 +493,32 @@ export function parseEditorialism(filePath: string, contents: string): Editorial
 	};
 }
 
-const DECISION_METADATA_PATTERN = /\s*\[decision::[^\]]*\]/gi;
-
 // Inline metadata ends at the first `]`, and a task line ends at the newline,
-// so neither can survive inside a stored decision.
-export function sanitizeDecision(decision: string): string {
-	return decision.replace(/[\]\r\n]+/g, " ").replace(/\s+/g, " ").trim();
+// so neither can survive inside a stored value.
+export function sanitizeDecision(value: string): string {
+	return value.replace(/[\]\r\n]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+// Replace (or with an empty value, remove) one `[key:: …]` on a task line.
+function rewriteLineMetadata(line: string, key: "decision" | "question", value: string): string {
+	const pattern = new RegExp(`\\s*\\[${key}::[^\\]]*\\]`, "gi");
+	const next = line.replace(pattern, "").replace(/\s+$/, "");
+	return value ? `${next} [${key}:: ${value}]` : next;
+}
+
+function rewriteItemLine(contents: string, lineIndex: number, rewrite: (line: string, marker: string) => string): string {
+	const lines = contents.split(/\r?\n/);
+	const line = lines[lineIndex];
+	const match = line?.match(TASK_LINE_PATTERN);
+	if (line === undefined || !match || match[1] === undefined) {
+		return contents;
+	}
+	lines[lineIndex] = rewrite(line, match[1]);
+	return lines.join("\n");
+}
+
+function setLineMarker(line: string, marker: string): string {
+	return line.replace(/^(\s*-\s\[)[^\]](\])/, `$1${marker}$2`);
 }
 
 // Write (or with null, remove) an item's `[decision:: …]`. Recording a
@@ -505,22 +530,25 @@ export function rewriteItemDecision(
 	lineIndex: number,
 	decision: string | null,
 ): string {
-	const lines = contents.split(/\r?\n/);
-	const line = lines[lineIndex];
-	const match = line?.match(TASK_LINE_PATTERN);
-	if (line === undefined || !match) {
-		return contents;
-	}
 	const cleaned = decision === null ? "" : sanitizeDecision(decision);
-	let next = line.replace(DECISION_METADATA_PATTERN, "").replace(/\s+$/, "");
-	if (cleaned) {
-		next = `${next} [decision:: ${cleaned}]`;
-		if (match[1] === "?") {
-			next = next.replace(/^(\s*-\s\[)\?(\])/, "$1 $2");
-		}
-	}
-	lines[lineIndex] = next;
-	return lines.join("\n");
+	return rewriteItemLine(contents, lineIndex, (line, marker) => {
+		const next = rewriteLineMetadata(line, "decision", cleaned);
+		return cleaned && marker === "?" ? setLineMarker(next, " ") : next;
+	});
+}
+
+// Write (or with null, remove) the author's `[question:: …]`. Asking marks the
+// item a Question (`[?]`); clearing the text leaves the status to the author.
+export function rewriteItemQuestion(
+	contents: string,
+	lineIndex: number,
+	question: string | null,
+): string {
+	const cleaned = question === null ? "" : sanitizeDecision(question);
+	return rewriteItemLine(contents, lineIndex, (line) => {
+		const next = rewriteLineMetadata(line, "question", cleaned);
+		return cleaned ? setLineMarker(next, "?") : next;
+	});
 }
 
 export function rewriteTaskMarker(

@@ -8,6 +8,7 @@ import {
 	parseEditorialism,
 	parseScope,
 	rewriteItemDecision,
+	rewriteItemQuestion,
 	rewriteTaskMarker,
 	statusFromMarker,
 } from "./EditorialismParser";
@@ -455,5 +456,27 @@ describe("item decisions", () => {
 	it("strips characters that would break the metadata", () => {
 		const written = rewriteItemDecision(doc("- [ ] Choose"), 2, "age 34]\nnot 36");
 		expect(parseEditorialism("a.md", written).sections[0]?.items[0]?.decision).toBe("age 34 not 36");
+	});
+});
+
+describe("item questions", () => {
+	const doc = (line: string) => `# Agenda\n## Queries\n${line}\n`;
+
+	it("parses the author's question out of the item text", () => {
+		const item = parseEditorialism("a.md", doc("- [?] Match scene 47 [question:: Is the footage delayed?]")).sections[0]?.items[0];
+		expect(item?.text).toBe("Match scene 47");
+		expect(item?.question).toBe("Is the footage delayed?");
+	});
+
+	it("asking marks the item a question; clearing leaves the status alone", () => {
+		expect(rewriteItemQuestion(doc("- [ ] Match scene 47"), 2, "Is it delayed?")).toBe(doc("- [?] Match scene 47 [question:: Is it delayed?]"));
+		expect(rewriteItemQuestion(doc("- [?] Match [question:: Old]"), 2, null)).toBe(doc("- [?] Match"));
+	});
+
+	it("keeps a decision and a question side by side", () => {
+		const written = rewriteItemQuestion(doc("- [ ] Choose [decision:: figs]"), 2, "Why figs?");
+		const item = parseEditorialism("a.md", written).sections[0]?.items[0];
+		expect(item?.decision).toBe("figs");
+		expect(item?.question).toBe("Why figs?");
 	});
 });

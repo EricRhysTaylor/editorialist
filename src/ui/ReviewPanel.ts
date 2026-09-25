@@ -14,7 +14,7 @@ import {
 import { bindImmediateAction } from "./util/bindImmediateAction";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
 import { displayDirectiveText } from "../core/DirectiveText";
-import { renderDirectiveDecision } from "./editorialism/DirectiveDecision";
+import { renderDirectiveDecision, renderDirectiveQuestion } from "./editorialism/DirectiveDecision";
 import { findDirectivesAtPassage, type SceneDirective } from "../core/SceneDirectives";
 import { isAnchorRetired, type EditorialismAnchor, type EditorialismItemStatus } from "../models/Editorialism";
 import {
@@ -999,6 +999,9 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		renderDirectiveDecision(entry, directive.item, () => {
 			void this.decideSceneDirective(directive);
 		});
+		renderDirectiveQuestion(entry, directive.item, () => {
+			void this.askSceneDirectiveQuestion(directive);
+		});
 
 		if (directive.placement === "elsewhere") {
 			// Deliberately not a jump: leaving the scene mid-sweep would abandon
@@ -1081,6 +1084,20 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		}
 	}
 
+	private async askSceneDirectiveQuestion(directive: SceneDirective): Promise<boolean> {
+		try {
+			const asked = await this.plugin.promptEditorialismItemQuestion(directive.editorialismPath, directive.item);
+			if (asked) {
+				this.sceneDirectivesKey = null;
+				this.render();
+			}
+			return asked;
+		} catch (error) {
+			new Notice(error instanceof Error ? error.message : "Could not save the question.");
+			return false;
+		}
+	}
+
 	private async decideSceneDirective(directive: SceneDirective): Promise<void> {
 		try {
 			if (await this.plugin.promptEditorialismItemDecision(directive.editorialismPath, directive.item)) {
@@ -1117,7 +1134,19 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 						if (status === current) {
 							return;
 						}
-						await apply(status);
+						// A Question is only useful with the question written down,
+						// so choosing it asks for the text; cancelling changes nothing.
+						if (status === "question") {
+							const asked = await this.askSceneDirectiveQuestion(directive);
+							if (!asked) {
+								return;
+							}
+							if (forPassage) {
+								await apply(status);
+							}
+						} else {
+							await apply(status);
+						}
 						this.sceneDirectivesKey = null;
 						this.render();
 					}),
@@ -1137,6 +1166,14 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 					}),
 			);
 		}
+		menu.addItem((item) =>
+			item
+				.setTitle(directive.item.question ? "Edit your question…" : "Ask a question…")
+				.setIcon("message-circle-question")
+				.onClick(() => {
+					void this.askSceneDirectiveQuestion(directive);
+				}),
+		);
 		menu.addItem((item) =>
 			item
 				.setTitle("Draft fixes with AI…")
