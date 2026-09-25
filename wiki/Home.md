@@ -8,7 +8,7 @@ The plugin does not rewrite your prose on import. Line edits, memos, author ques
 > **Radial Timeline + Editorialist**  
 > Editorialist is designed to tightly integrate with [Radial Timeline](https://community.obsidian.md/plugins/radial-timeline), creating a synergistic relationship: use RT for manuscript design, planning, project management, and analysis; use Ed for systematic editorial sweeps.
 >
-> <p align="center"><img src="images/settings-radial-timeline-rounded.png" alt="Radial Timeline based tracking placard in Editorialist settings" width="720"></p>
+> <p align="center"><img src="images/settings-radial-timeline-rounded.png" alt="Radial Timeline based tracking placard in Editorialist settings" width="620"></p>
 >
 > Editorialist can use [Radial Timeline](https://community.obsidian.md/plugins/radial-timeline) for active-book scope and scene IDs, but it also works on its own.
 

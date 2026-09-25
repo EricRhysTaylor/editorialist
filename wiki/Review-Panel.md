@@ -1,5 +1,7 @@
 The Review mode is traditional Editorialist: scene-level review batches with line edits, cut / move / condense / expand suggestions, `%%ai: question%%` responses, and memos for a scene. Open it with the **Open review panel** command or choose **Review** from the mode menu.
 
+<p align="center"><img src="images/panel-review-active.png" alt="Active review comparing the original passage with a proposed revision and reviewer attribution" width="460"></p>
+
 ## Idle state
 
 <p align="center"><img src="images/panel-review.png" alt="Review panel with the next scene in a sweep and disclosures for recent reviews, contributors, and help" width="460"></p>
@@ -58,7 +60,7 @@ Starting a workflow card (or importing a review batch) begins a **guided review 
 
 ### The suggestion toolbar
 
-<p align="center"><img src="images/ui-toolbar-closeup-rounded.png" alt="Closeup of the inline suggestion toolbar with operation status and action buttons" width="720"></p>
+<p align="center"><img src="images/ui-toolbar-closeup-rounded.png" alt="Closeup of the inline suggestion toolbar with operation status and action buttons" width="620"></p>
 
 Each highlighted suggestion gets an inline toolbar in the editor:
 
@@ -157,4 +159,4 @@ The **All revisions complete** card keeps the scene's memos and any [Editorialis
 
 ## Pending-edits review
 
-See [Pending Edits](Pending-Edits) — its own panel mode, available from the shared mode picker for active-book author notes and Radial Timeline Inquiry follow-ups.
+See [Pending Edits](Pending-Edits) — its own panel mode, available from the shared mode selector for active-book author notes and Radial Timeline Inquiry follow-ups.

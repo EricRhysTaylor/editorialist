@@ -42,6 +42,8 @@ Files without `type: editorialism` are ignored. The full file format — section
 - **Document list** — files for the active book, filtered by activity, delivery, and reviewer; each shows remaining work, attribution, dates, and completion.
 - **Detail view** — select a document to see its items grouped by section.
 
+<p align="center"><img src="images/panel-editorialism-detail.png" alt="Editorialism detail with delivery deadline, effort estimate, AI hand-off, and directive status controls" width="460"></p>
+
 ### Working items
 
 Each item is a task line with a five-state status. Clicking an item's status cycles it:

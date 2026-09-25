@@ -1,4 +1,4 @@
-Revision plan brings pending edits, scene batches, and Editorialism checklist items into one ordered work queue. Open it from the panel mode picker or run **Open revision plan**.
+Revision plan brings pending edits, scene batches, and Editorialism checklist items into one ordered work queue. Open it from the panel mode selector or run **Open revision plan**.
 
 <p align="center"><img src="images/panel-revision-plan.png" alt="Revision plan with deadline forecast, weekly workload, and an ordered queue of revision tasks" width="460"></p>
 
@@ -45,7 +45,7 @@ Suggested effort is a starting assumption: existing Editorialism heuristics, or 
 
 For later adjustments, choose **Adjust remaining schedule** on the delivery card. This is separate from planning new work. It retains manual tasks, completed sessions, other deliveries, locked sessions, and prerequisites of preserved tasks. Use **Keep this date** under a task's **Schedule & options** to preserve a commitment. Regeneration moves eligible existing sessions; it does not recalculate their effort or split them again.
 
-<p align="center"><img src="images/delivery-schedule-preview.png" alt="Generated delivery schedule preview with preserved commitments, estimated tasks, and proposed sessions" width="560"></p>
+<p align="center"><img src="images/delivery-schedule-preview.png" alt="Schedule preview with estimated hours, six sessions across five working days, and a finish-date forecast" width="526"></p>
 
 ## Storage
 
