@@ -6,6 +6,12 @@ const options = (extra: Partial<ScheduleOptions> = {}): ScheduleOptions => ({ de
 const entry = (id: string, extra: Partial<PlanEntry> = {}): PlanEntry => ({ id, source: candidate(id), title: id, lowMinutes: 45, highMinutes: 60, day: "2026-09-21", required: true, done: false, afterId: null, ...extra });
 function run(plan = { ...emptyRevisionPlan(), reserveMinutes: 0 }, candidates = [candidate("one")], opts = options()) { let id = 0; return draftSchedule(plan, candidates, opts, () => `new-${++id}`); }
 describe("Automatic delivery scheduling", () => {
+	it("plans every open item in the book when no delivery is chosen", () => {
+		const work = [candidate("one"), candidate("two", { deliveryId: undefined }), candidate("done", { complete: true }), candidate("off", { inactive: true })];
+		const result = run(undefined, work, options({ deliveryId: null }));
+		expect(result.generated.map((item) => item.source.locator).sort()).toEqual(["one", "two"]);
+		expect(result.generated.every((item) => item.autoDeliveryId === undefined)).toBe(true);
+	});
 	it("splits long work into bounded sessions without changing the source", () => {
 		const work = candidate("one", { suggestedMinutes: 288 });
 		const result = run(undefined, [work]);

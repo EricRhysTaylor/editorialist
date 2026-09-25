@@ -17,25 +17,28 @@ export class AutoScheduleModal extends Modal {
 	private book = "";
 	private fingerprint = "";
 	private deliverySnapshot = "";
-	constructor(private readonly plugin: EditorialistPlugin, private readonly delivery: EditorialDelivery, private readonly adjusting = false) { super(plugin.app); }
+	// With no delivery, the planner schedules every open batch, directive, and
+	// pending edit in the active book — the plan most authors actually want.
+	constructor(private readonly plugin: EditorialistPlugin, private readonly delivery: EditorialDelivery | null, private readonly adjusting = false) { super(plugin.app); }
+	private inScope(item: WorkCandidate): boolean { return this.delivery === null || item.deliveryId === this.delivery.id; }
 	onOpen(): void { this.contentEl.addClass("editorialist-autoschedule"); void this.load().catch(() => { this.contentEl.empty(); this.contentEl.createEl("p", { text: "Could not load scheduling sources. Close this window and try again." }); }); }
 	onClose(): void { this.contentEl.empty(); }
 	private async load(): Promise<void> {
-		this.book = JSON.stringify(["folder", this.delivery.bookFolder]);
+		this.book = JSON.stringify(["folder", this.delivery?.bookFolder ?? this.plugin.getActiveBookScopeInfo().sourceFolder?.replace(/\/$/, "")]);
 		this.original = this.plugin.getRevisionPlan(this.book);
 		this.plan = structuredClone(this.original);
 		const work = await this.plugin.collectRevisionWork(); this.candidates = work.candidates; this.warnings = work.warnings;
 		this.fingerprint = JSON.stringify(work);
 		this.deliverySnapshot = JSON.stringify(this.delivery);
-		this.options = { ...(this.plan.scheduling ?? DEFAULT_SCHEDULE), deliveryId: this.delivery.id, start: localDate(new Date()), end: this.delivery.due ?? this.plan.deadline ?? addDays(localDate(new Date()), 30), replan: this.adjusting, useEstimates: true, choices: {} };
+		this.options = { ...(this.plan.scheduling ?? DEFAULT_SCHEDULE), deliveryId: this.delivery?.id ?? null, start: localDate(new Date()), end: this.delivery?.due ?? this.plan.deadline ?? addDays(localDate(new Date()), 30), replan: this.adjusting, useEstimates: true, choices: {} };
 		this.render();
 	}
 	private button(parent: HTMLElement, label: string, action: () => void): HTMLButtonElement { const button = parent.createEl("button", { text: label, attr: { type: "button" } }); button.addEventListener("click", action); return button; }
 	private invalidate(): void { this.draft = null; this.contentEl.querySelector(".editorialist-autoschedule__preview")?.remove(); }
 	private render(): void {
 		const root = this.contentEl; root.empty();
-		root.createEl("h2", { text: this.adjusting ? "Adjust remaining schedule" : "Plan this delivery" });
-		root.createEl("p", { cls: "editorialist-deliveries__intro", text: this.delivery.title });
+		root.createEl("h2", { text: this.adjusting ? "Adjust remaining schedule" : this.delivery ? "Plan this delivery" : "Plan all open work" });
+		root.createEl("p", { cls: "editorialist-deliveries__intro", text: this.delivery?.title ?? "Every open review batch, editorialism directive, and pending edit in this book, spread across your working days up to the finish date. Work already in your plan keeps its place." });
 		const grid = root.createDiv({ cls: "editorialist-deliveries__fields" });
 		const input = (parent: HTMLElement, label: string, type: string, value: string, change: (value: string) => void): HTMLInputElement => {
 			const wrap = parent.createEl("label", { text: label }); const field = wrap.createEl("input", { type, value, attr: { "aria-label": label } });
@@ -58,7 +61,7 @@ export class AutoScheduleModal extends Modal {
 		const explanation = advanced.createEl("details"); explanation.createEl("summary", { text: "How estimates work" });
 		explanation.createEl("p", { cls: "editorialist-deliveries__intro", text: "Estimates are editable starting points, not measured writing times. Editorialism effort hints guide checklist estimates; batches start at five minutes per suggestion and fifteen per memo, with a ±25% range. Scheduling uses the upper estimate and leaves your reserve free. Existing commitments stay in place; only eligible sessions from this delivery move when adjusting the schedule." });
 		const existing = new Set(this.plan.entries.map((entry) => sourceKey(entry.source)));
-		const fresh = this.candidates.filter((item) => item.deliveryId === this.delivery.id && !item.complete && !item.inactive && !existing.has(sourceKey(item)));
+		const fresh = this.candidates.filter((item) => this.inScope(item) && !item.complete && !item.inactive && !existing.has(sourceKey(item)));
 		const overrides = advanced.createEl("details"); overrides.createEl("summary", { text: `Review ordering & estimates · ${fresh.length} new items` });
 		for (const candidate of fresh) {
 			const key = sourceKey(candidate); const choice = this.options.choices[key] ??= {};
@@ -137,7 +140,7 @@ export class AutoScheduleModal extends Modal {
 	}
 	private async apply(draft: ScheduleDraft): Promise<void> {
 		const work = await this.plugin.collectRevisionWork();
-		const delivery = this.plugin.getEditorialDeliveries().find((item) => item.id === this.delivery.id);
+		const delivery = this.delivery ? this.plugin.getEditorialDeliveries().find((item) => item.id === this.delivery?.id) : null;
 		if (JSON.stringify(work) !== this.fingerprint || JSON.stringify(delivery) !== this.deliverySnapshot) throw new Error("Feedback or delivery changed. Reopen this planner to generate a fresh draft.");
 		await this.plugin.applyScheduledPlan(this.book, this.original, draft.plan);
 		this.close(); await this.plugin.openRevisionPlanPanel();

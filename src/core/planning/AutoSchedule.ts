@@ -2,7 +2,8 @@ import { isDate, isPlanEntryComplete, localDate, progressDoneKeys, resolvePlanSo
 import type { ScheduleDefaults, SchedulePreset, WorkPhase } from "./ScheduleDefaults";
 export interface TriageChoice { phase?: WorkPhase | null; low?: number; high?: number; skip?: boolean }
 export interface ScheduleOptions extends ScheduleDefaults {
-	deliveryId: string;
+	/** The delivery to plan, or null for every open piece of work in the book. */
+	deliveryId: string | null;
 	start: string;
 	end: string;
 	replan: boolean;
@@ -28,7 +29,7 @@ export function estimateRange(candidate: WorkCandidate): { low: number; high: nu
 export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandidate[], options: ScheduleOptions, makeId: () => string): ScheduleDraft {
 	if (!isDate(options.start) || !isDate(options.end) || options.end < options.start) throw new Error("Choose a valid planning window.");
 	if (options.sessionMinutes < 15 || options.sessionMinutes > 240 || !Number.isInteger(options.sessionMinutes)) throw new Error("Session length must be 15–240 minutes.");
-	const deadlines = [options.end, plan.deadline, ...candidates.filter((item) => item.deliveryId === options.deliveryId).map((item) => item.due)].filter((day): day is string => Boolean(day));
+	const deadlines = [options.end, plan.deadline, ...candidates.filter((item) => options.deliveryId !== null && item.deliveryId === options.deliveryId).map((item) => item.due)].filter((day): day is string => Boolean(day));
 	const effectiveEnd = deadlines.sort()[0]!;
 	const days: string[] = [];
 	for (let day = options.start; day <= effectiveEnd && days.length <= 366; day = addDays(day, 1)) days.push(day);
@@ -40,7 +41,7 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 	const byId = new Map(next.entries.map((entry) => [entry.id, entry]));
 	const movable = new Set(next.entries.filter((entry) => {
 		const resolved = resolvePlanSource(entry.source, candidates);
-		return options.replan && entry.autoDeliveryId === options.deliveryId && !entry.locked && !isPlanEntryComplete(entry, candidates, doneKeys) && resolved.state === "ready" && !resolved.candidate.inactive;
+		return options.replan && options.deliveryId !== null && entry.autoDeliveryId === options.deliveryId && !entry.locked && !isPlanEntryComplete(entry, candidates, doneKeys) && resolved.state === "ready" && !resolved.candidate.inactive;
 	}).map((entry) => entry.id));
 	// Keep the prerequisite chain of any preserved commitment in place too.
 	const protect = (id: string, seen = new Set<string>()): void => {
@@ -54,7 +55,7 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 	const pending: PlanEntry[] = next.entries.filter((entry) => movable.has(entry.id)).map((entry) => ({ ...entry, day: null }));
 	const existingKeys = new Set(next.entries.map((entry) => sourceKey(entry.source)));
 	const rank = (phase: WorkPhase | null): number => options.preset === "copy" ? 0 : phase === "structure" ? 0 : phase === "rewrite" ? 1 : 2;
-	const chosen = candidates.filter((candidate) => candidate.deliveryId === options.deliveryId && !candidate.inactive && !candidate.complete && !existingKeys.has(sourceKey(candidate)));
+	const chosen = candidates.filter((candidate) => (options.deliveryId === null || candidate.deliveryId === options.deliveryId) && !candidate.inactive && !candidate.complete && !existingKeys.has(sourceKey(candidate)));
 	const phase = (candidate: WorkCandidate): WorkPhase | null => {
 		const selected = options.choices[sourceKey(candidate)]?.phase;
 		return selected === undefined ? suggestPhase(candidate, options.preset) : selected;
@@ -87,7 +88,7 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 		let highLeft = Math.ceil(range.high), lowLeft = Math.floor(range.low), after: string | null = previousNewId;
 		for (let index = 0; index < count; index++) {
 			const high = Math.min(size, highLeft), low = index === count - 1 ? lowLeft : Math.floor(range.low * high / range.high);
-			const entry: PlanEntry = { id: makeId(), source: { kind: candidate.kind, path: candidate.path, locator: candidate.locator }, title: candidate.title, lowMinutes: low, highMinutes: high, day: null, required: true, done: false, afterId: after, autoDeliveryId: options.deliveryId, sessionIndex: index + 1, sessionCount: count, estimated: heuristic, phase: selectedPhase };
+			const entry: PlanEntry = { id: makeId(), source: { kind: candidate.kind, path: candidate.path, locator: candidate.locator }, title: candidate.title, lowMinutes: low, highMinutes: high, day: null, required: true, done: false, afterId: after, ...(options.deliveryId !== null ? { autoDeliveryId: options.deliveryId } : {}), sessionIndex: index + 1, sessionCount: count, estimated: heuristic, phase: selectedPhase };
 			pending.push(entry); after = entry.id; previousNewId = entry.id; lowLeft -= low; highLeft -= high;
 		}
 	}

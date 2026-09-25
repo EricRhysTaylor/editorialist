@@ -7042,6 +7042,24 @@
 	height: 32px;
 }
 
+.editorialist-plan__summary button.editorialist-plan__autoplan {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	height: 32px;
+	margin-top: 12px;
+	font-weight: 600;
+}
+
+.editorialist-plan__summary .editorialist-plan__choose + button.editorialist-plan__autoplan {
+	margin-left: 8px;
+}
+
+.editorialist-plan__backlog-list button.editorialist-plan__add-all {
+	align-self: flex-start;
+	margin-top: 8px;
+}
+
 .editorialist-plan__hero-metric {
 	font-size: 28px;
 	font-weight: 600;

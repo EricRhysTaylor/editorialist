@@ -5,6 +5,7 @@ import type EditorialistPlugin from "../main";
 import { renderPanelHeader } from "./primitives/PanelHeader";
 import { emptyRevisionPlan, forecastPlan, isDate, isPlanEntryComplete, localDate, movePlanEntry, progressDoneKeys, resolvePlanSource, sourceKey, type PlanEntry, type RevisionPlan, type WorkCandidate } from "../core/planning/RevisionPlan";
 import { advancePlanProgress, summarizePlanProgress, type ProgressInput } from "../core/planning/PlanProgress";
+import { estimateRange } from "../core/planning/AutoSchedule";
 
 export const REVISION_PLAN_VIEW_TYPE = "editorialist-revision-plan";
 const kindLabels = { pending: "Pending edit", batch: "Scene batch", directive: "Editorialism" };
@@ -252,7 +253,12 @@ export class RevisionPlanPanel extends ItemView {
 				if (summary.averagePerDay < summary.neededPerDay) pace.addClass("is-warning");
 			}
 		}
-		if (!summary.done) card.createEl("p", { cls: "editorialist-plan__hint", text: "Finished batches, directives, and notes count here as you work — in the plan or not." });
+		// Book progress and the plan below are different measures; say how far
+		// apart they are, so a plan holding one task does not read as the
+		// whole picture.
+		const planned = this.plan.entries.filter((entry) => !isPlanEntryComplete(entry, this.candidates, this.doneKeys())).length;
+		if (summary.remaining > planned) card.createEl("p", { cls: "editorialist-plan__hint", text: `Your plan below holds ${planned} of these ${summary.remaining}. Auto-plan brings the rest in and spreads it over your working days.` });
+		else if (!summary.done) card.createEl("p", { cls: "editorialist-plan__hint", text: "Finished batches, directives, and notes count here as you work — in the plan or not." });
 	}
 	private renderSummary(root: HTMLElement): void {
 		const forecast = forecastPlan(this.plan, this.candidates);
@@ -268,13 +274,15 @@ export class RevisionPlanPanel extends ItemView {
 				const backlog = root.querySelector<HTMLDetailsElement>(".editorialist-plan__backlog");
 				if (backlog) { backlog.open = true; backlog.scrollIntoView({ block: "start", behavior: "smooth" }); backlog.querySelector<HTMLInputElement>("input")?.focus(); }
 			});
-			choose.addClass("mod-cta", "editorialist-plan__choose");
+			choose.addClass("editorialist-plan__choose");
 			setIcon(choose.createSpan(), "arrow-down");
+			this.renderAutoPlanButton(summary, true);
 			return;
 		}
 		const metric = summary.createDiv({ cls: "editorialist-plan__hero-metric" });
 		metric.createSpan({ text: !open.length ? "All planned work finished" : forecast.unknownCount === open.filter((item) => item.required).length && forecast.unknownCount > 0 ? "Time to be estimated" : `${duration(forecast.lowMinutes)}–${duration(forecast.highMinutes)}` });
 		summary.createDiv({ cls: "editorialist-plan__hint", text: forecast.unknownCount ? "Known estimate · Some required work is unestimated" : "Estimated time for required work" });
+		if (this.available().length) this.renderAutoPlanButton(summary, false);
 		const stats = summary.createDiv({ cls: "editorialist-plan__stats" });
 		for (const [value, text] of [[open.length, "To do"], [forecast.unknownCount, "Unestimated"], [forecast.unscheduledCount, "Unscheduled"]] as const) {
 			const stat = stats.createDiv(); stat.createEl("strong", { text: String(value) }); stat.createSpan({ text });
@@ -300,6 +308,18 @@ export class RevisionPlanPanel extends ItemView {
 		notes.createEl("summary", { text: "How this estimate works" });
 		notes.createEl("p", { text: `Selected required work only. Optional work still occupies daily capacity. ${duration(this.plan.reserveMinutes)} reserved for surprises. Unestimated work is not counted as zero.` });
 		if (open.length) this.renderWeek(root, forecast.dailyLoads);
+	}
+	// The plan only counts work that is in it. Auto-plan brings every open
+	// batch, directive, and pending edit in at once, estimated and spread over
+	// the working days to the deadline, so the plan reflects the whole book
+	// instead of the one or two items added by hand.
+	private renderAutoPlanButton(parent: HTMLElement, primary: boolean): void {
+		const count = this.available().length;
+		const button = this.button(parent, "", () => { this.plugin.openDeliveryScheduler(null); }, !count || this.stale);
+		button.addClass("editorialist-plan__autoplan");
+		if (primary) button.addClass("mod-cta");
+		setIcon(button.createSpan(), "calendar-range");
+		button.createSpan({ text: primary ? `Auto-plan all ${count} open items` : `Auto-plan ${count} more open items${this.plan.deadline ? ` by ${planDayLabel(this.plan.deadline)}` : ""}` });
 	}
 	private renderWeek(root: HTMLElement, loads: Record<string, number>): void {
 		const week = root.createDiv({ cls: "editorialist-plan__week", attr: { "aria-label": "Next seven days" } });
@@ -375,7 +395,7 @@ export class RevisionPlanPanel extends ItemView {
 		const locked = this.input(details, "Keep this date", "checkbox", "", () => { void this.edit(entry.id, (item) => { item.locked = locked.checked; }); });
 		locked.checked = entry.locked === true;
 		const label = details.createEl("label", { text: "After", cls: "editorialist-plan__field" });
-		const select = label.createEl("select", { attr: { "aria-label": "Prerequisite task" } });
+		const select = label.createEl("select", { cls: "dropdown", attr: { "aria-label": "Prerequisite task" } });
 		select.createEl("option", { value: "", text: "No prerequisite" });
 		for (const other of this.plan.entries.filter((item) => item.id !== entry.id)) select.createEl("option", { value: other.id, text: other.title });
 		if (entry.afterId && !this.plan.entries.some((item) => item.id === entry.afterId)) select.createEl("option", { value: entry.afterId, text: "Missing prerequisite — choose another" });
@@ -390,7 +410,7 @@ export class RevisionPlanPanel extends ItemView {
 		if (resolved.state !== "ready" && !isPlanEntryComplete(entry, this.candidates, this.doneKeys())) {
 			row.createEl("p", { cls: "editorialist-plan__warning", text: resolved.state === "ambiguous" ? "Multiple source instructions match. Make them distinct in the source, refresh, then relink." : "Source changed or is unavailable. Refresh, then relink; its estimate and date are preserved." });
 			const controls = row.createDiv({ cls: "editorialist-plan__actions editorialist-plan__relink" });
-			const relink = controls.createEl("select", { attr: { "aria-label": `Relink ${entry.title}` } });
+			const relink = controls.createEl("select", { cls: "dropdown", attr: { "aria-label": `Relink ${entry.title}` } });
 			relink.createEl("option", { value: "", text: "Choose replacement source…" });
 			this.available().forEach((candidate) => relink.createEl("option", { value: sourceKey(candidate), text: `${kindLabels[candidate.kind]} · ${candidate.detail} · ${candidate.title}` }));
 			this.sourceButton(controls, "Relink", () => { const candidate = this.available().find((item) => sourceKey(item) === relink.value); if (candidate) void this.edit(entry.id, (item) => { item.source = { kind: candidate.kind, path: candidate.path, locator: candidate.locator }; item.title = candidate.title; }); }, this.stale);
@@ -417,7 +437,7 @@ export class RevisionPlanPanel extends ItemView {
 		setIcon(searchWrap.createSpan(), "search");
 		const search = searchWrap.createEl("input", { type: "search", value: this.search, attr: { placeholder: "Find a scene or instruction…", "aria-label": "Find available work" } });
 		const filters = details.createDiv({ cls: "editorialist-plan__filters", attr: { "aria-label": "Work type" } });
-		const deliveryFilter = details.createEl("select", { attr: { "aria-label": "Filter available work by delivery" } });
+		const deliveryFilter = details.createEl("select", { cls: "dropdown", attr: { "aria-label": "Filter available work by delivery" } });
 		deliveryFilter.createEl("option", { value: "all", text: "All deliveries" });
 		for (const delivery of this.plugin.getEditorialDeliveries()) deliveryFilter.createEl("option", { value: delivery.id, text: delivery.title });
 		deliveryFilter.value = this.deliveryFilter;
@@ -439,6 +459,19 @@ export class RevisionPlanPanel extends ItemView {
 				add.setAttribute("aria-label", `Add to plan: ${candidate.title}`); add.setAttribute("title", "Add to plan"); setIcon(add.createSpan(), "plus");
 			}
 			if (shown.length > this.backlogLimit) this.button(list, `Show ${Math.min(12, shown.length - this.backlogLimit)} more`, () => { this.backlogLimit += 12; render(); });
+			if (shown.length > 1) {
+				const addAll = this.button(list, `Add all ${shown.length} to the plan`, () => {
+					// Unscheduled, with the same suggested estimates Auto-plan uses, so
+					// the plan's totals are meaningful the moment the work lands.
+					void this.change((plan) => {
+						for (const candidate of shown) {
+							const range = estimateRange(candidate);
+							plan.entries.push({ id: crypto.randomUUID(), source: { kind: candidate.kind, path: candidate.path, locator: candidate.locator }, title: candidate.title, lowMinutes: range?.low ?? null, highMinutes: range?.high ?? null, ...(range ? { estimated: true } : {}), day: null, required: true, done: false, afterId: null });
+						}
+					});
+				}, this.stale);
+				addAll.addClass("editorialist-plan__add-all");
+			}
 			if (!shown.length) list.createEl("p", { cls: "editorialist-plan__empty-copy", text: "No available work matches this filter." });
 		};
 		for (const [value, label] of Object.entries({ all: "All", pending: "Notes", batch: "Batches", directive: "Editorialisms" })) {

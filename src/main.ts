@@ -833,7 +833,7 @@ export default class EditorialistPlugin extends Plugin {
 		return this.registry.getEditorialDeliveries().filter((delivery) => delivery.bookFolder === folder);
 	}
 	openEditorialDeliveries(): void { new EditorialDeliveriesModal(this).open(); }
-	openDeliveryScheduler(delivery: EditorialDelivery, adjusting = false): void { new AutoScheduleModal(this, delivery, adjusting).open(); }
+	openDeliveryScheduler(delivery: EditorialDelivery | null, adjusting = false): void { new AutoScheduleModal(this, delivery, adjusting).open(); }
 	async applyScheduledPlan(book: string, expected: RevisionPlan, next: RevisionPlan): Promise<void> {
 		const active = JSON.stringify(["folder", this.getActiveBookScopeInfo().sourceFolder?.replace(/\/$/, "")]);
 		if (book !== active || JSON.stringify(this.getRevisionPlan(book)) !== JSON.stringify(expected)) throw new Error("The book or plan changed. Reopen the planner before applying.");
