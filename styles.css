@@ -1290,8 +1290,11 @@
 			color-mix(in srgb, var(--background-secondary) 90%, var(--color-green) 10%) 0%,
 			color-mix(in srgb, var(--background-secondary) 97%, var(--background-primary) 3%) 100%
 		);
-	animation: editorialist-panel-completion-fade 160ms ease-out;
 	contain: paint;
+}
+
+.editorialist-panel__completion.is-entering {
+	animation: editorialist-panel-completion-fade 160ms ease-out;
 }
 
 .editorialist-panel__completion--neutral {

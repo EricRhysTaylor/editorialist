@@ -151,6 +151,8 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	private sceneDirectivesCollapsed = true;
 	private sceneDirectivesElsewhereOpen = false;
 	private sceneDirectivesShowAll = false;
+	// The last completion card that played its entrance; see claimCardEntrance.
+	private lastCardEntrance: string | null = null;
 	// Which directive the one-at-a-time view is on, per scene. `index` is the
 	// fallback when the focused directive leaves the list (finished).
 	private sceneDirectiveFocus: { scene: string; id: string | null; index: number } | null = null;
@@ -2331,6 +2333,14 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 
 	setOnboardingExpanded(value: boolean): void {
 		this.onboardingExpanded = value;
+	}
+
+	claimCardEntrance(key: string): boolean {
+		if (this.lastCardEntrance === key) {
+			return false;
+		}
+		this.lastCardEntrance = key;
+		return true;
 	}
 
 	private getFilteredSuggestions(suggestions: ReviewSuggestion[]): ReviewSuggestion[] {

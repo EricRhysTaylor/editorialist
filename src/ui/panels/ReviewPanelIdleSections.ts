@@ -33,6 +33,10 @@ export interface IdleSectionsHost {
 	requestRender(): void;
 	getOnboardingExpanded(): boolean | null;
 	setOnboardingExpanded(value: boolean): void;
+	// True only the first time a given card is shown. The panel re-renders
+	// on every pause in typing, and replaying the entrance fade each time
+	// made the card flash while the author wrote.
+	claimCardEntrance(key: string): boolean;
 }
 
 // ── completed sweep ──────────────────────────────────────────────────────
@@ -52,6 +56,9 @@ export function renderCompletedSweepCard(
 	const card = parent.createDiv({
 		cls: `editorialist-panel__completion${completedSweep.batchFinished ? "" : " editorialist-panel__completion--neutral"}`,
 	});
+	if (host.claimCardEntrance(`completion:${completedSweep.batchId}:${completedSweep.title}`)) {
+		card.addClass("is-entering");
+	}
 	const bgIcon = card.createSpan({ cls: "editorialist-panel__completion-bg-icon" });
 	setIcon(bgIcon, "pen-tool");
 
@@ -180,6 +187,9 @@ export function renderIdleStateCard(
 	const card = parent.createDiv({
 		cls: "editorialist-panel__completion editorialist-panel__completion--neutral",
 	});
+	if (host.claimCardEntrance("idle")) {
+		card.addClass("is-entering");
+	}
 	const bgIcon = card.createSpan({ cls: "editorialist-panel__completion-bg-icon" });
 	setIcon(bgIcon, "pen-tool");
 
