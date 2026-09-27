@@ -9,3 +9,6 @@ main.js
 
 .wiki_temp_publish/
 .DS_Store
+
+# Claude Code per-machine permissions (shared config lives in .claude/settings.json)
+.claude/settings.local.json
