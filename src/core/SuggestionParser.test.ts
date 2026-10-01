@@ -342,3 +342,27 @@ describe("SuggestionParser — QUERY section", () => {
 		expect(memos[0]!.answer).toContain("it lands");
 	});
 });
+
+describe("SuggestionParser — Context field", () => {
+	it("attaches verbatim references to other scenes, one per line", () => {
+		const parsed = makeParser().parse(fenced([
+			"Reviewer: Marla",
+			"=== EDIT ===",
+			"Original: They meet at the Terminus.",
+			"Revised: Wala3 arranges the meeting at the Terminus.",
+			"Why: C19 — scene 65 already states the reunion as fact.",
+			"Context: 65 \"the reunion at Terminus\"",
+			"- 64 \"Wala3 arranges the handover\" → \"through an XO.\"",
+			"not a reference",
+		].join("\n")));
+		expect(parsed.suggestions[0]?.context).toEqual([
+			{ scene: "65", opening: "the reunion at Terminus", closing: null, note: null },
+			{ scene: "64", opening: "Wala3 arranges the handover", closing: "through an XO.", note: null },
+		]);
+	});
+
+	it("leaves suggestions without a Context field unchanged", () => {
+		const parsed = makeParser().parse(fenced(["Reviewer: Marla", "=== EDIT ===", "Original: a", "Revised: b"].join("\n")));
+		expect(parsed.suggestions[0]).not.toHaveProperty("context");
+	});
+});

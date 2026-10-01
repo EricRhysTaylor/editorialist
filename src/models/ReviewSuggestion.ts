@@ -1,3 +1,4 @@
+import type { SceneContextRef } from "../core/SceneContext";
 import type {
 	ContributorKind,
 	ParsedContributorReference,
@@ -108,6 +109,10 @@ export interface ReviewSuggestionBase<T extends SupportedReviewOperationType, P>
 	location: ReviewSuggestionLocation;
 	routing?: ReviewSuggestionRouting;
 	why?: string;
+	// Passages in other scenes the reviewer says bear on this one, from the
+	// entry's optional `Context:` field — verbatim fragments in the anchor
+	// grammar. Shown beside the suggestion; never applied.
+	context?: SceneContextRef[];
 	executionMode: ReviewExecutionMode;
 	payload: P;
 }

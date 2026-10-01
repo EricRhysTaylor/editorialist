@@ -1,3 +1,5 @@
+import { parseAnchorBody } from "./EditorialismParser";
+import type { SceneContextRef } from "./SceneContext";
 import type {
 	CondenseSuggestion,
 	CondenseTargetAnchorPair,
@@ -266,7 +268,9 @@ export class SuggestionParser {
 		const fields = this.collectFields(section.lines);
 		const source: ReviewSourceRef = this.sourceRefFor(section, blockIndex, metadata);
 		const suggestionId = `review-${blockIndex + 1}-${section.entryIndex}`;
-		return this.sectionParsers[section.kind](fields, suggestionId, source, metadata);
+		const suggestion = this.sectionParsers[section.kind](fields, suggestionId, source, metadata);
+		const context = parseContextRefs(fields.get("context"));
+		return suggestion && context.length > 0 ? { ...suggestion, context } : suggestion;
 	}
 
 	private parseMemoSection(section: SectionBuffer, blockIndex: number, metadata: BlockMetadata): SceneMemo | null {
@@ -580,4 +584,16 @@ export class SuggestionParser {
 
 		return routing.sceneId || routing.note || routing.path || routing.scene ? routing : undefined;
 	}
+}
+
+// `Context:` lines, one reference per line in the anchor grammar:
+//   Context: 65 "the reunion at Terminus"
+//   - 64 "Wala3 arranges the handover" → "through an XO."
+// A line that does not parse as a reference is dropped rather than guessed at.
+function parseContextRefs(lines: string[] | undefined): SceneContextRef[] {
+	return (lines ?? [])
+		.map((line) => line.trim().replace(/^[-*]\s+/, ""))
+		.filter((line) => line.length > 0)
+		.map((line) => parseAnchorBody(line))
+		.filter((ref): ref is SceneContextRef => ref !== null);
 }

@@ -142,7 +142,29 @@ export class EditorialismAnchorNavigator {
 		if (!Number.isFinite(sceneNumber)) {
 			return null;
 		}
+		return this.resolveSceneFileByNumber(sceneNumber);
+	}
 
+	// Every scene in the active book, one file per scene number, in story
+	// order — by the same admissibility rule as resolveSceneFileByNumber.
+	listSceneFiles(): TFile[] {
+		const scope = this.host.getActiveBookScopeInfo();
+		const cutFolderOverride = this.host.getCutFolderOverride();
+		const numbers = new Set<number>();
+		for (const file of this.host.app.vault.getMarkdownFiles()) {
+			const sceneNumber = sceneNumberFromName(file.basename);
+			if (sceneNumber !== null && isSceneNoteForScope(this.host.app, file, scope, cutFolderOverride)) {
+				numbers.add(sceneNumber);
+			}
+		}
+		return [...numbers]
+			.sort((left, right) => left - right)
+			.map((sceneNumber) => this.resolveSceneFileByNumber(sceneNumber))
+			.filter((file): file is TFile => file !== null);
+	}
+
+	// The scene note for a scene number in the active book, or null.
+	resolveSceneFileByNumber(sceneNumber: number): TFile | null {
 		const scope = this.host.getActiveBookScopeInfo();
 		const cutFolderOverride = this.host.getCutFolderOverride();
 		// A cut archive carries the SAME basename as its scene and lives inside

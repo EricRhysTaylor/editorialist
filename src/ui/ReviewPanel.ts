@@ -15,7 +15,9 @@ import { bindImmediateAction } from "./util/bindImmediateAction";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
 import { displayDirectiveText } from "../core/DirectiveText";
 import { renderDirectiveDecision, renderDirectiveQuestion } from "./editorialism/DirectiveDecision";
-import { findDirectivesAtPassage, type SceneDirective } from "../core/SceneDirectives";
+import { findDirectivesAtPassage, type PassageDirective, type SceneDirective } from "../core/SceneDirectives";
+import type { SceneContextGroup } from "../orchestrators/SceneContextResolver";
+import { renderSceneContextGroups } from "./SceneContextView";
 import { isAnchorRetired, type EditorialismAnchor, type EditorialismItemStatus } from "../models/Editorialism";
 import {
 	STATUS_ICON,
@@ -151,6 +153,13 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	private sceneDirectivesCollapsed = true;
 	private sceneDirectivesElsewhereOpen = false;
 	private sceneDirectivesShowAll = false;
+	// Context across scenes for the selected suggestion: results per
+	// suggestion, the request in flight, a revision bumped whenever a scene
+	// note changes, and whether the section is expanded.
+	private sceneContextCache = new Map<string, { key: string; groups: SceneContextGroup[] }>();
+	private sceneContextPending: string | null = null;
+	private sceneContextRevision = 0;
+	private acrossScenesOpen = false;
 	// The last completion card that played its entrance; see claimCardEntrance.
 	private lastCardEntrance: string | null = null;
 	// Which directive the one-at-a-time view is on, per scene. `index` is the
@@ -185,6 +194,11 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		// cache when one changes so the in-sweep card cannot show a stale
 		// directive or a status the author already advanced elsewhere.
 		this.registerEvent(this.app.vault.on("modify", (file) => this.invalidateSceneDirectivesFor(file.path)));
+		// Any scene edit may change what context exists elsewhere; the next
+		// render re-asks, and only repaints if the answer differs.
+		this.registerEvent(this.app.vault.on("modify", (file) => {
+			if (file.path.endsWith(".md")) this.sceneContextRevision++;
+		}));
 		this.registerEvent(this.app.vault.on("create", (file) => this.invalidateSceneDirectivesFor(file.path)));
 		this.registerEvent(this.app.vault.on("delete", (file) => this.invalidateSceneDirectivesFor(file.path)));
 		this.registerEvent(this.app.vault.on("rename", (file) => this.invalidateSceneDirectivesFor(file.path)));
@@ -1558,7 +1572,9 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		});
 
 		if (selected) {
-			this.renderPassageDirectives(card, suggestion);
+			const passageDirectives = this.passageDirectivesFor(suggestion);
+			this.renderPassageDirectives(card, passageDirectives);
+			this.renderAcrossScenes(card, suggestion, passageDirectives);
 		}
 
 		this.renderSuggestionFooter(card, suggestion);
@@ -1580,25 +1596,79 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	// waiting in a card they have to decide to open. "Done" retires only this
 	// anchor; whether the directive as a whole is addressed stays the author's
 	// call in the Editorialisms card.
-	private renderPassageDirectives(parent: HTMLElement, suggestion: ReviewSuggestion): void {
-		if (this.sceneDirectives.length === 0) {
+	// Other scenes that bear on this suggestion: its Context references, the
+	// scenes its Why names, and the other passages of any editorialism on this
+	// paragraph. Loaded asynchronously and kept per suggestion, so typing in
+	// the scene does not blank the section while it refreshes; it re-renders
+	// only when what it would show has changed.
+	private renderAcrossScenes(parent: HTMLElement, suggestion: ReviewSuggestion, passageDirectives: PassageDirective[]): void {
+		const note = this.plugin.getReviewNoteText();
+		if (!note) {
 			return;
 		}
-		const note = this.plugin.getReviewNoteText();
-		// Directives are loaded for the active scene; only trust them against
-		// the note they were loaded for.
-		if (!note || this.sceneDirectivesKey?.startsWith(`${note.filePath}::`) !== true) {
+		const extraRefs = passageDirectives.flatMap(({ directive }) =>
+			directive.item.anchors.filter((anchor) => !directive.anchorsInScene.includes(anchor) && !isAnchorRetired(anchor.status)),
+		);
+		const requestKey = JSON.stringify([note.filePath, suggestion.id, suggestion.why ?? "", suggestion.context ?? [], extraRefs.map((anchor) => anchor.raw), this.sceneContextRevision]);
+		const cached = this.sceneContextCache.get(suggestion.id);
+		if (cached?.key !== requestKey && this.sceneContextPending !== requestKey) {
+			this.sceneContextPending = requestKey;
+			void this.plugin.sceneContext.forSuggestion(note.filePath, suggestion, extraRefs).then((groups) => {
+				const previous = this.sceneContextCache.get(suggestion.id);
+				this.sceneContextCache.set(suggestion.id, { key: requestKey, groups });
+				if (this.sceneContextPending === requestKey) this.sceneContextPending = null;
+				if (JSON.stringify(previous?.groups) !== JSON.stringify(groups)) this.render();
+			}).catch(() => {
+				if (this.sceneContextPending === requestKey) this.sceneContextPending = null;
+			});
+		}
+		const groups = cached?.groups ?? [];
+		if (groups.length === 0) {
 			return;
+		}
+
+		const section = parent.createDiv({ cls: `editorialist-scene-context editorialist-suggestion__across${this.acrossScenesOpen ? " is-open" : ""}` });
+		const toggle = section.createEl("button", {
+			cls: "editorialist-scene-context__toggle",
+			attr: { type: "button", "aria-expanded": String(this.acrossScenesOpen) },
+		});
+		setIcon(toggle.createSpan({ cls: "editorialist-scene-context__toggle-icon" }), this.acrossScenesOpen ? "chevron-down" : "chevron-right");
+		toggle.createSpan({ cls: "editorialist-scene-context__toggle-label", text: "Across scenes" });
+		toggle.createSpan({
+			cls: "editorialist-scene-context__toggle-scenes",
+			text: groups.map((group) => group.sceneNumber ?? group.title).join(" · "),
+		});
+		this.bindImmediateAction(toggle, () => {
+			this.acrossScenesOpen = !this.acrossScenesOpen;
+			this.render();
+		});
+		if (!this.acrossScenesOpen) {
+			return;
+		}
+		renderSceneContextGroups(section, groups, (path, range) => {
+			void this.plugin.sceneContext.openBeside(path, range);
+		});
+	}
+
+	// Directives with an open passage in the paragraph this suggestion sits
+	// on. Directives are loaded for the active scene; they are only trusted
+	// against the note they were loaded for.
+	private passageDirectivesFor(suggestion: ReviewSuggestion): PassageDirective[] {
+		if (this.sceneDirectives.length === 0) {
+			return [];
+		}
+		const note = this.plugin.getReviewNoteText();
+		if (!note || this.sceneDirectivesKey?.startsWith(`${note.filePath}::`) !== true) {
+			return [];
 		}
 		const target = suggestion.location.primary ?? suggestion.location.target;
 		if (target?.startOffset === undefined || target.endOffset === undefined) {
-			return;
+			return [];
 		}
-		const matches = findDirectivesAtPassage(
-			note.text,
-			{ start: target.startOffset, end: target.endOffset },
-			this.sceneDirectives,
-		);
+		return findDirectivesAtPassage(note.text, { start: target.startOffset, end: target.endOffset }, this.sceneDirectives);
+	}
+
+	private renderPassageDirectives(parent: HTMLElement, matches: PassageDirective[]): void {
 		if (matches.length === 0) {
 			return;
 		}

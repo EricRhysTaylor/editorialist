@@ -19,6 +19,14 @@ export function registerCommands(plugin: EditorialistPlugin): void {
 	});
 
 	plugin.addCommand({
+		id: "find-selection-across-scenes",
+		name: "Find selection across scenes",
+		editorCallback: () => {
+			void plugin.findSelectionAcrossScenes();
+		},
+	});
+
+	plugin.addCommand({
 		id: "open-editorialism-panel",
 		name: "Open editorialism panel",
 		callback: () => {
