@@ -1,3 +1,4 @@
+import { saveOpenEditors } from "./services/SaveOpenEditors";
 import { AutoScheduleModal } from "./ui/AutoScheduleModal";
 import { EditorialDeliveriesModal } from "./ui/EditorialDeliveriesModal";
 import { deliveryCaption, type EditorialDelivery } from "./core/EditorialDeliveries";
@@ -1276,6 +1277,7 @@ export default class EditorialistPlugin extends Plugin {
 		question: string,
 	): Promise<AuthorQueryStripOutcome> {
 		let outcome: AuthorQueryStripOutcome = "no_marker_present";
+		await saveOpenEditors(this.app, file.path);
 		await this.app.vault.process(file, (text) => {
 			const result = stripAuthorQueryMarkerFromText(text, question);
 			outcome = result.outcome;

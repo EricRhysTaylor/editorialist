@@ -70,6 +70,7 @@ function makeService(
 	};
 	const app = {
 		vault,
+		workspace: { getLeavesOfType: () => [] },
 		// No frontmatter cache in tests → isSceneClassFile() reads no class, so the
 		// scene-note guard only fires on the explicit path-equality check below.
 		metadataCache: { getFileCache: () => null },

@@ -1,3 +1,4 @@
+import { saveOpenEditors } from "../services/SaveOpenEditors";
 import { TFile, type App } from "obsidian";
 import { findImportedReviewBlocks, removeImportedReviewBlocks } from "../core/ReviewBlockFormat";
 import { ReviewMutationScope } from "../core/review/ReviewMutationScope";
@@ -82,6 +83,7 @@ export async function endReviewRound(
 		}
 		const file = host.app.vault.getAbstractFileByPath(path);
 		if (!(file instanceof TFile)) throw new Error(`Scene unavailable: ${path}`);
+		await saveOpenEditors(host.app, file.path);
 		await host.app.vault.process(file, (text) => {
 			if (text !== expected) throw new Error(`Scene changed during cleanup: ${path}`);
 			return replacement;

@@ -1,3 +1,4 @@
+import { saveOpenEditors } from "./SaveOpenEditors";
 import { prepareEditorialismUpdate } from "../core/EditorialismUpdate";
 import { estimateEditorialismEffort, type EffortParams } from "../core/EffortEstimate";
 import { normalizePath, TFile, TFolder, type App } from "obsidian";
@@ -73,6 +74,7 @@ export class EditorialismService {
 	async setActive(filePath: string, active: boolean): Promise<void> {
 		const file = this.app.vault.getAbstractFileByPath(filePath);
 		if (!(file instanceof TFile) || !await this.tryLoad(file)) throw new Error("Editorialism file is unavailable.");
+		await saveOpenEditors(this.app, file.path);
 		await this.app.fileManager.processFrontMatter(file, (frontmatter: Record<string, unknown>) => {
 			frontmatter.status = active ? "active" : "inactive";
 		});
@@ -87,6 +89,7 @@ export class EditorialismService {
 		if (!(file instanceof TFile)) {
 			return;
 		}
+		await saveOpenEditors(this.app, file.path);
 		await this.app.vault.process(file, (currentText) =>
 			rewriteTaskMarker(currentText, lineIndex, nextStatus),
 		);
@@ -97,6 +100,7 @@ export class EditorialismService {
 		if (!(file instanceof TFile)) {
 			throw new Error("Editorialism file is unavailable.");
 		}
+		await saveOpenEditors(this.app, file.path);
 		await this.app.vault.process(file, (currentText) => rewriteItemDecision(currentText, lineIndex, decision));
 	}
 
@@ -105,6 +109,7 @@ export class EditorialismService {
 		if (!(file instanceof TFile)) {
 			throw new Error("Editorialism file is unavailable.");
 		}
+		await saveOpenEditors(this.app, file.path);
 		await this.app.vault.process(file, (currentText) => rewriteItemQuestion(currentText, lineIndex, question));
 	}
 
@@ -116,6 +121,7 @@ export class EditorialismService {
 			return false;
 		}
 		let changed = false;
+		await saveOpenEditors(this.app, file.path);
 		await this.app.vault.process(file, (currentText) => {
 			const next = insertAnchorLine(currentText, itemLineIndex, anchorBody);
 			changed = next !== currentText;
@@ -192,6 +198,7 @@ export class EditorialismService {
 				...update.removed.map((text) => `Remove: ${text}`),
 				...(!update.added.length && !update.removed.length ? ["Update document details or wording around the checklist."] : []),
 			])) return { filePath, created: false, keptApart, cancelled: true };
+			await saveOpenEditors(this.app, existing.path);
 			await this.app.vault.process(existing, (latest) => {
 				if (latest !== before) throw new Error("This agenda changed while you were reviewing it. Paste it again to compare the latest version.");
 				return update.content;

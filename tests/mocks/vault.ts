@@ -37,8 +37,10 @@ export interface MockApp {
 		getFirstLinkpathDest(linkpath: string, sourcePath: string): TFile | null;
 	};
 	plugins?: { getPlugin(id: string): unknown };
-	workspace?: {
+	workspace: {
 		getActiveFile(): TFile | null;
+		// No editors are open in tests; writes have no buffer to save first.
+		getLeavesOfType(type: string): unknown[];
 	};
 	/** Test helper: synchronously read the current in-memory body for a file. */
 	peek(path: string): string;
@@ -96,6 +98,10 @@ export function createMockApp(scenes: MockSceneSpec[]): MockApp {
 	};
 
 	return {
+		workspace: {
+			getActiveFile: () => null,
+			getLeavesOfType: () => [],
+		},
 		vault: {
 			configDir: ".obsidian",
 			adapter: {

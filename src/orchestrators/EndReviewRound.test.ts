@@ -20,7 +20,7 @@ function fixture(open = false) {
 	const files = new Map([...notes.keys()].map(path => { const file = new TFile(); file.path = path; return [path, file]; }));
 	const process = vi.fn(async (file: TFile, transform: (text: string) => string) => { notes.set(file.path, transform(notes.get(file.path)!)); });
 	const host: EndReviewRoundHost = {
-		app: { vault: { getAbstractFileByPath: (path: string) => files.get(path), read: async (file: TFile) => notes.get(file.path)!, process } } as never,
+		app: { workspace: { getLeavesOfType: () => [] }, vault: { getAbstractFileByPath: (path: string) => files.get(path), read: async (file: TFile) => notes.get(file.path)!, process } } as never,
 		getNoteContextByPath: path => open ? { filePath: path, text: notes.get(path)!, view: { editor: { getValue: () => notes.get(path)!, setValue: (text: string) => notes.set(path, text) } } } as never : null,
 		getScopeFolder: () => "Book",
 		getEntry: id => entries[id] ?? null,

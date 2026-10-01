@@ -1,3 +1,4 @@
+import { saveOpenEditors } from "../services/SaveOpenEditors";
 import { normalizePath, TFile, type App } from "obsidian";
 import {
 	getSuggestionPrimaryTarget,
@@ -145,6 +146,7 @@ export class ImportEngine {
 			}
 
 			const block = this.serializeGroup(batch.batchId, batch.createdAt, group);
+			await saveOpenEditors(this.app, file.path);
 			await this.app.vault.process(file, (currentText) => appendBlockToNote(currentText, block));
 			importedGroups.push(group);
 		}

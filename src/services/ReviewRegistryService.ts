@@ -1,3 +1,4 @@
+import { saveOpenEditors } from "./SaveOpenEditors";
 import { normalizeEditorialDeliveries, updateDelivery, type EditorialDelivery } from "../core/EditorialDeliveries";
 import { normalizeRevisionPlans, emptyRevisionPlan, type RevisionPlan, type RevisionPlanStore } from "../core/planning/RevisionPlan";
 import { TFile, type App } from "obsidian";
@@ -881,6 +882,7 @@ export class ReviewRegistryService {
 
 		let from = 0;
 		let to = 0;
+		await saveOpenEditors(this.app, file.path);
 		await fileManager.processFrontMatter(file, (frontmatter: Record<string, unknown>) => {
 			const readBlock = (key: string): Record<string, unknown> | null => {
 				const value = frontmatter[key];
@@ -936,6 +938,7 @@ export class ReviewRegistryService {
 				continue;
 			}
 
+			await saveOpenEditors(this.app, file.path);
 			await fileManager.processFrontMatter(file, (frontmatter: Record<string, unknown>) => {
 				const existingId = getFrontmatterStringValues(frontmatter, [
 					"id",

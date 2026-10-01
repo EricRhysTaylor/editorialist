@@ -1,3 +1,4 @@
+import { saveOpenEditors } from "../services/SaveOpenEditors";
 import type { App, TFile } from "obsidian";
 import type {
 	PendingEditSegment,
@@ -192,6 +193,7 @@ export async function drainSegmentFromFrontmatter(
 ): Promise<DrainResult> {
 	let result: DrainResult = { outcome: "skipped", nextValue: "" };
 
+	await saveOpenEditors(app, file.path);
 	await app.fileManager.processFrontMatter(file, (frontmatter: Record<string, unknown>) => {
 		const currentRaw = typeof frontmatter[PENDING_EDITS_FRONTMATTER_KEY] === "string"
 			? frontmatter[PENDING_EDITS_FRONTMATTER_KEY]

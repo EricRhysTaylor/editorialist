@@ -1,3 +1,4 @@
+import { saveOpenEditors } from "../services/SaveOpenEditors";
 import { isBatchReadyToClean } from "../core/review/SweepCompletion";
 // Owns review-batch orchestration: clipboard load + inspect, duplicate-sweep
 // detection, importing a batch (into routed notes or the active note),
@@ -533,6 +534,7 @@ export class ReviewBatchProcessor {
 			}
 
 			let currentRemovedCount = 0;
+			await saveOpenEditors(this.host.app, file.path);
 			await this.host.app.vault.process(file, (currentText) => {
 				const removed = removeImportedReviewBlocks(currentText, batchId);
 				currentRemovedCount = removed.removedCount;

@@ -65,7 +65,7 @@ function makeService(): {
 			return frontmatter ? { frontmatter } : null;
 		},
 	};
-	const service = new EditorialismService({ vault, metadataCache } as unknown as App);
+	const service = new EditorialismService({ vault, metadataCache, workspace: { getLeavesOfType: () => [] } } as unknown as App);
 	const markAsScene = (path: string): void => {
 		void vault.create(path, "existing manuscript prose");
 		sceneFrontmatter.set(path, { Class: "Scene" });

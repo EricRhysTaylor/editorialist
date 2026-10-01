@@ -1,3 +1,4 @@
+import { saveOpenEditors } from "../services/SaveOpenEditors";
 import { normalizePath, TFile, TFolder, type App } from "obsidian";
 import type { SupportedReviewOperationType } from "../models/ReviewSuggestion";
 import {
@@ -142,6 +143,7 @@ export class CutArchiveService {
 		const block = formatCutBlock(request, request.text);
 
 		if (existing instanceof TFile) {
+			await saveOpenEditors(this.app, existing.path);
 			await this.app.vault.process(existing, (current) => {
 				const base = current.replace(/\s+$/, "");
 				return `${base}\n\n${block}`;
