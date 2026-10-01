@@ -1,4 +1,5 @@
 import { setIcon } from "obsidian";
+import type { SceneContextSnippet } from "../core/SceneContext";
 import type { SceneContextGroup } from "../orchestrators/SceneContextResolver";
 import { bindImmediateAction } from "./util/bindImmediateAction";
 
@@ -9,7 +10,7 @@ import { bindImmediateAction } from "./util/bindImmediateAction";
 export function renderSceneContextGroups(
 	parent: HTMLElement,
 	groups: readonly SceneContextGroup[],
-	openBeside: (path: string, range: { start: number; end: number }) => void,
+	openBeside: (path: string, found: SceneContextSnippet) => void,
 ): void {
 	for (const group of groups) {
 		const groupEl = parent.createDiv({ cls: "editorialist-scene-context__group" });

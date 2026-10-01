@@ -19,7 +19,7 @@
 // scene with no paragraph sharing a name yields no snippet rather than an
 // arbitrary one.
 
-import { isLocated, locateAnchor, paragraphAround, type AnchorRange } from "./EditorialismAnchorLocator";
+import { isLocated, locateAnchor, type AnchorRange } from "./EditorialismAnchorLocator";
 import type { EditorialismAnchor } from "../models/Editorialism";
 
 export type SceneContextVia = "quoted" | "names" | "search";
@@ -35,57 +35,108 @@ export interface SceneContextSnippet extends AnchorRange {
 export type SceneContextRef = Pick<EditorialismAnchor, "scene" | "opening" | "closing" | "note">;
 
 // ── Prose regions ──────────────────────────────────────────────────────────
-// Scene notes carry frontmatter and appended review blocks. Neither is prose,
-// and a review block quotes the very passages being searched for, so both
-// are excluded before any paragraph is considered.
+// Scene notes carry frontmatter, appended review blocks, and hidden %% %%
+// comments. None of it is prose, and a review block quotes the very passages
+// being looked for, so every lookup — quoted references, names, and search —
+// runs against a masked copy of the note in which those regions are blanked.
+// Masking replaces characters with spaces and keeps every newline, so an
+// offset into the mask is an offset into the note.
 
 export interface Paragraph extends AnchorRange {
 	text: string;
 }
 
-export function proseParagraphs(noteText: string): Paragraph[] {
-	const paragraphs: Paragraph[] = [];
+export function maskNonProse(noteText: string): string {
+	const chars = noteText.split("");
+	const blank = (from: number, to: number): void => {
+		for (let index = from; index < to; index++) {
+			if (chars[index] !== "\n") chars[index] = " ";
+		}
+	};
 	const lines = noteText.split("\n");
 	let offset = 0;
 	let inFrontmatter = lines[0]?.trim() === "---";
 	let fence: string | null = null;
-	let current: { start: number; end: number } | null = null;
-	const flush = (): void => {
-		if (current) {
-			const text = noteText.slice(current.start, current.end).trim();
-			if (text) paragraphs.push({ start: current.start, end: current.end, text });
-			current = null;
-		}
-	};
+	let inComment = false;
 
 	lines.forEach((line, index) => {
 		const lineStart = offset;
-		offset += line.length + 1;
+		const lineEnd = lineStart + line.length;
+		offset = lineEnd + 1;
 		const trimmed = line.trim();
 		if (inFrontmatter) {
+			blank(lineStart, lineEnd);
 			if (index > 0 && trimmed === "---") inFrontmatter = false;
 			return;
 		}
-		const fenceMatch = trimmed.match(/^(```+|~~~+)/);
 		if (fence) {
-			if (fenceMatch && trimmed.startsWith(fence)) fence = null;
+			blank(lineStart, lineEnd);
+			if (trimmed.startsWith(fence)) fence = null;
 			return;
 		}
+		const fenceMatch = inComment ? null : trimmed.match(/^(```+|~~~+)/);
 		if (fenceMatch) {
-			flush();
+			blank(lineStart, lineEnd);
 			fence = fenceMatch[1] ?? "```";
 			return;
 		}
-		// Obsidian comments and headings are structure, not prose.
-		if (!trimmed || trimmed.startsWith("%%") || /^#{1,6}\s/.test(trimmed)) {
+		// Comments open and close anywhere: inline, or across lines.
+		for (let position = lineStart; position < lineEnd; position++) {
+			if (noteText.startsWith("%%", position)) {
+				blank(position, position + 2);
+				inComment = !inComment;
+				position++;
+			} else if (inComment) {
+				blank(position, position + 1);
+			}
+		}
+		// Headings are structure, not prose.
+		if (/^\s*#{1,6}\s/.test(chars.slice(lineStart, lineEnd).join(""))) blank(lineStart, lineEnd);
+	});
+	return chars.join("");
+}
+
+// Display text for a masked range: what remains once hidden text is gone,
+// with the gaps a removed inline comment leaves closed up.
+function proseText(masked: string, range: AnchorRange): string {
+	return masked.slice(range.start, range.end).replace(/[ \t]{2,}/g, " ").replace(/ *\n */g, "\n").trim();
+}
+
+export function proseParagraphs(noteText: string): Paragraph[] {
+	const masked = maskNonProse(noteText);
+	const paragraphs: Paragraph[] = [];
+	let offset = 0;
+	let current: AnchorRange | null = null;
+	const flush = (): void => {
+		if (current) {
+			const text = proseText(masked, current);
+			if (text) paragraphs.push({ ...current, text });
+			current = null;
+		}
+	};
+	for (const line of masked.split("\n")) {
+		const lineStart = offset;
+		offset += line.length + 1;
+		if (!line.trim()) {
 			flush();
-			return;
+			continue;
 		}
 		if (!current) current = { start: lineStart, end: lineStart + line.length };
 		else current.end = lineStart + line.length;
-	});
+	}
 	flush();
 	return paragraphs;
+}
+
+/**
+ * Where a previously found paragraph is now. Offsets go stale the moment the
+ * scene is edited, so a jump re-finds the paragraph by its text, preferring
+ * the occurrence nearest where it was. Null when it is no longer there.
+ */
+export function relocateParagraph(noteText: string, found: Pick<Paragraph, "start" | "text">): Paragraph | null {
+	const matches = proseParagraphs(noteText).filter((paragraph) => paragraph.text === found.text);
+	matches.sort((left, right) => Math.abs(left.start - found.start) - Math.abs(right.start - found.start));
+	return matches[0] ?? null;
 }
 
 // ── Mentions and names ─────────────────────────────────────────────────────
@@ -160,10 +211,15 @@ export function paragraphsContaining(noteText: string, phrase: string): SceneCon
 		.map((paragraph) => ({ ...paragraph, via: "search", matched: [phrase.trim()] }));
 }
 
-/** The paragraph around a quoted reference, or null when the fragment is no longer in the prose. */
+/**
+ * The prose paragraph containing a quoted reference, or null when the
+ * fragment is no longer in the prose — including when it survives only in a
+ * review block, frontmatter, or a comment, which must never pass for the
+ * manuscript.
+ */
 export function paragraphForRef(noteText: string, ref: SceneContextRef): SceneContextSnippet | null {
-	const location = locateAnchor(noteText, { ...ref, lineIndex: 0, status: "open", raw: "" });
+	const location = locateAnchor(maskNonProse(noteText), { ...ref, lineIndex: 0, status: "open", raw: "" });
 	if (!isLocated(location)) return null;
-	const range = paragraphAround(noteText, location);
-	return { ...range, text: noteText.slice(range.start, range.end).trim(), via: "quoted", matched: [] };
+	const paragraph = proseParagraphs(noteText).find((candidate) => candidate.start <= location.start && location.start < candidate.end);
+	return paragraph ? { ...paragraph, via: "quoted", matched: [] } : null;
 }

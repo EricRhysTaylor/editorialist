@@ -6,6 +6,7 @@ import {
 	paragraphsByNames,
 	paragraphsContaining,
 	proseParagraphs,
+	relocateParagraph,
 } from "./SceneContext";
 
 const scene = [
@@ -90,5 +91,64 @@ describe("paragraphForRef", () => {
 	it("returns the paragraph around a quoted fragment, or null when it is gone", () => {
 		expect(paragraphForRef(scene, { scene: "65", opening: "grey hat", closing: null, note: null })?.text).toContain("Wala3 waits");
 		expect(paragraphForRef(scene, { scene: "65", opening: "a red scarf", closing: null, note: null })).toBeNull();
+	});
+});
+
+describe("audit regressions — non-prose never passes for manuscript", () => {
+	const ref = (opening: string) => ({ scene: "65", opening, closing: null, note: null });
+
+	it("does not quote a fragment that survives only in a review block", () => {
+		const note = "Current prose here.\n\n```editorialist-review\n=== EDIT ===\nOriginal: the old reunion line.\n```";
+		expect(paragraphForRef(note, ref("the old reunion line"))).toBeNull();
+	});
+
+	it("does not quote a fragment that exists only in frontmatter", () => {
+		const note = "---\nSynopsis: Terminus arrival\n---\nShail walks on.";
+		expect(paragraphForRef(note, ref("Terminus arrival"))).toBeNull();
+	});
+
+	it("quotes the prose occurrence when the fragment is in both frontmatter and prose", () => {
+		const note = "---\nSynopsis: Terminus arrival\n---\nThe Terminus arrival was quiet.";
+		expect(paragraphForRef(note, ref("Terminus arrival"))?.text).toBe("The Terminus arrival was quiet.");
+	});
+
+	it("excludes multiline comments from search", () => {
+		const note = "Visible prose.\n\n%%\nthe reunion at Terminus\n%%\n\nMore prose.";
+		expect(paragraphsContaining(note, "Terminus")).toEqual([]);
+		expect(proseParagraphs(note).map((paragraph) => paragraph.text)).toEqual(["Visible prose.", "More prose."]);
+	});
+
+	it("excludes inline comments but keeps the visible text around them", () => {
+		const note = "She waits %% hidden Terminus note %% by the gate.";
+		expect(paragraphsContaining(note, "Terminus")).toEqual([]);
+		expect(proseParagraphs(note)[0]?.text).toBe("She waits by the gate.");
+	});
+
+	it("keeps offsets aligned with the note after masking", () => {
+		const note = "---\na: b\n---\n%% x %%\nReal %% y %% words.";
+		const paragraph = proseParagraphs(note)[0];
+		expect(paragraph && note.slice(paragraph.start, paragraph.end)).toBe("Real %% y %% words.");
+	});
+});
+
+describe("relocateParagraph", () => {
+	const original = "First paragraph.\n\nThe grey hat is here.\n\nLast paragraph.";
+	const found = proseParagraphs(original)[1]!;
+
+	it("follows the paragraph when text is inserted before it", () => {
+		const edited = "A new opening.\n\n" + original;
+		const moved = relocateParagraph(edited, found);
+		expect(moved && edited.slice(moved.start, moved.end)).toBe("The grey hat is here.");
+	});
+
+	it("returns null when the paragraph was removed or rewritten", () => {
+		expect(relocateParagraph("First paragraph.\n\nLast paragraph.", found)).toBeNull();
+		expect(relocateParagraph(original.replace("grey hat", "red scarf"), found)).toBeNull();
+	});
+
+	it("prefers the occurrence nearest the original position", () => {
+		const repeated = "The grey hat is here.\n\nFirst paragraph.\n\nThe grey hat is here.\n\nLast paragraph.";
+		const nearest = relocateParagraph(repeated, { start: 30, text: "The grey hat is here." });
+		expect(nearest?.start).toBe(repeated.lastIndexOf("The grey hat"));
 	});
 });

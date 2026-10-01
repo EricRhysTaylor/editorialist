@@ -27,8 +27,8 @@ export class SceneContextModal extends Modal {
 			cls: "editorialist-scene-context__summary",
 			text: `${count} ${count === 1 ? "passage" : "passages"} in ${this.groups.length} ${this.groups.length === 1 ? "scene" : "scenes"}${this.truncated ? " — showing the first ones; narrow the phrase to see the rest" : ""}.`,
 		});
-		renderSceneContextGroups(this.contentEl, this.groups, (path, range) => {
-			void this.plugin.sceneContext.openBeside(path, range);
+		renderSceneContextGroups(this.contentEl, this.groups, (path, found) => {
+			void this.plugin.sceneContext.openBeside(path, found);
 		});
 	}
 

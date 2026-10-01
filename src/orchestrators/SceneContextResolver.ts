@@ -3,13 +3,14 @@
 // text from the vault (live editor text when the scene is open) and manages
 // the side pane, so the rules stay pure and tested.
 
-import { MarkdownView, type App, type TFile, type WorkspaceLeaf } from "obsidian";
+import { MarkdownView, Notice, type App, type TFile, type WorkspaceLeaf } from "obsidian";
 import {
 	distinctiveNames,
 	extractSceneMentions,
 	paragraphForRef,
 	paragraphsByNames,
 	paragraphsContaining,
+	relocateParagraph,
 	type SceneContextRef,
 	type SceneContextSnippet,
 } from "../core/SceneContext";
@@ -103,9 +104,18 @@ export class SceneContextResolver {
 	// Opens a scene in a pane beside the current one without taking focus,
 	// so the author keeps their place in the scene and the review. The same
 	// side pane is reused for every jump instead of piling up tabs.
-	async openBeside(path: string, range: { start: number; end: number }): Promise<void> {
+	//
+	// The paragraph is re-found in the scene's current text at click time:
+	// offsets computed when the snippet was found go stale with any edit, and
+	// selecting stale offsets would highlight unrelated prose. When the
+	// paragraph is no longer there the scene still opens, and the author is
+	// told rather than shown a wrong selection.
+	async openBeside(path: string, found: Pick<SceneContextSnippet, "start" | "text">): Promise<void> {
 		const file = this.host.app.vault.getFileByPath(path);
-		if (!file) return;
+		if (!file) {
+			new Notice("That scene is no longer in the vault.");
+			return;
+		}
 		const workspace = this.host.app.workspace;
 		if (!this.besideLeaf || !workspace.getLeavesOfType("markdown").includes(this.besideLeaf)) {
 			this.besideLeaf = workspace.getLeaf("split", "vertical");
@@ -114,8 +124,13 @@ export class SceneContextResolver {
 		await leaf.openFile(file, { active: false }); // SAFE: openLinkText cannot target this reused side leaf without focusing it
 		const view = leaf.view;
 		if (!(view instanceof MarkdownView)) return;
-		const from = view.editor.offsetToPos(range.start);
-		const to = view.editor.offsetToPos(range.end);
+		const paragraph = relocateParagraph(view.editor.getValue(), found);
+		if (!paragraph) {
+			new Notice("That passage has changed since it was found. The scene is open beside; refresh the context to find it again.");
+			return;
+		}
+		const from = view.editor.offsetToPos(paragraph.start);
+		const to = view.editor.offsetToPos(paragraph.end);
 		view.editor.setSelection(from, to);
 		view.editor.scrollIntoView({ from, to }, true);
 	}

@@ -17,6 +17,7 @@ import { displayDirectiveText } from "../core/DirectiveText";
 import { renderDirectiveDecision, renderDirectiveQuestion } from "./editorialism/DirectiveDecision";
 import { findDirectivesAtPassage, type PassageDirective, type SceneDirective } from "../core/SceneDirectives";
 import type { SceneContextGroup } from "../orchestrators/SceneContextResolver";
+import { IdentityRequestCache } from "../core/IdentityRequestCache";
 import { renderSceneContextGroups } from "./SceneContextView";
 import { isAnchorRetired, type EditorialismAnchor, type EditorialismItemStatus } from "../models/Editorialism";
 import {
@@ -153,11 +154,10 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	private sceneDirectivesCollapsed = true;
 	private sceneDirectivesElsewhereOpen = false;
 	private sceneDirectivesShowAll = false;
-	// Context across scenes for the selected suggestion: results per
-	// suggestion, the request in flight, a revision bumped whenever a scene
-	// note changes, and whether the section is expanded.
-	private sceneContextCache = new Map<string, { key: string; groups: SceneContextGroup[] }>();
-	private sceneContextPending: string | null = null;
+	// Context across scenes for the selected suggestion: results per scene
+	// and suggestion, a revision bumped whenever a scene note changes, and
+	// whether the section is expanded.
+	private readonly sceneContextResults = new IdentityRequestCache<SceneContextGroup[]>();
 	private sceneContextRevision = 0;
 	private acrossScenesOpen = false;
 	// The last completion card that played its entrance; see claimCardEntrance.
@@ -1598,9 +1598,10 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	// call in the Editorialisms card.
 	// Other scenes that bear on this suggestion: its Context references, the
 	// scenes its Why names, and the other passages of any editorialism on this
-	// paragraph. Loaded asynchronously and kept per suggestion, so typing in
-	// the scene does not blank the section while it refreshes; it re-renders
-	// only when what it would show has changed.
+	// paragraph. Loaded asynchronously and kept per scene-and-suggestion, so
+	// typing in the scene does not blank the section while it refreshes, a
+	// different scene never shows this one's context, and it re-renders only
+	// when what it would show has changed.
 	private renderAcrossScenes(parent: HTMLElement, suggestion: ReviewSuggestion, passageDirectives: PassageDirective[]): void {
 		const note = this.plugin.getReviewNoteText();
 		if (!note) {
@@ -1609,20 +1610,21 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		const extraRefs = passageDirectives.flatMap(({ directive }) =>
 			directive.item.anchors.filter((anchor) => !directive.anchorsInScene.includes(anchor) && !isAnchorRetired(anchor.status)),
 		);
-		const requestKey = JSON.stringify([note.filePath, suggestion.id, suggestion.why ?? "", suggestion.context ?? [], extraRefs.map((anchor) => anchor.raw), this.sceneContextRevision]);
-		const cached = this.sceneContextCache.get(suggestion.id);
-		if (cached?.key !== requestKey && this.sceneContextPending !== requestKey) {
-			this.sceneContextPending = requestKey;
-			void this.plugin.sceneContext.forSuggestion(note.filePath, suggestion, extraRefs).then((groups) => {
-				const previous = this.sceneContextCache.get(suggestion.id);
-				this.sceneContextCache.set(suggestion.id, { key: requestKey, groups });
-				if (this.sceneContextPending === requestKey) this.sceneContextPending = null;
-				if (JSON.stringify(previous?.groups) !== JSON.stringify(groups)) this.render();
-			}).catch(() => {
-				if (this.sceneContextPending === requestKey) this.sceneContextPending = null;
-			});
+		// Suggestion ids repeat across scenes (they come from block position),
+		// so the identity is the note plus the id.
+		const identity = `${note.filePath}::${suggestion.id}`;
+		const requestKey = JSON.stringify([suggestion.why ?? "", suggestion.context ?? [], extraRefs.map((anchor) => anchor.raw), this.sceneContextRevision]);
+		if (this.sceneContextResults.begin(identity, requestKey)) {
+			void this.plugin.sceneContext.forSuggestion(note.filePath, suggestion, extraRefs).then(
+				(groups) => {
+					if (this.sceneContextResults.complete(identity, requestKey, groups, (left, right) => JSON.stringify(left) === JSON.stringify(right))) this.render();
+				},
+				() => {
+					if (this.sceneContextResults.fail(identity, requestKey)) this.render();
+				},
+			);
 		}
-		const groups = cached?.groups ?? [];
+		const groups = this.sceneContextResults.get(identity) ?? [];
 		if (groups.length === 0) {
 			return;
 		}
@@ -1645,8 +1647,8 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		if (!this.acrossScenesOpen) {
 			return;
 		}
-		renderSceneContextGroups(section, groups, (path, range) => {
-			void this.plugin.sceneContext.openBeside(path, range);
+		renderSceneContextGroups(section, groups, (path, found) => {
+			void this.plugin.sceneContext.openBeside(path, found);
 		});
 	}
 
