@@ -1721,26 +1721,16 @@ export default class EditorialistPlugin extends Plugin {
 			return null;
 		}
 
-		const entry = this.getSweepRegistryEntry(completedSweep.batchId);
-		const unitLabel = this.getSweepUnitLabel(
-			completedSweep.notePaths.length,
-			completedSweep.notePaths[0],
-		);
+		const { entry, unitLabel, isCleaned, batchFinished, pending, otherPendingNotePaths, title } =
+			this.resolveCompletedSweepOutcome(completedSweep);
+		const unfinishedScenes = batchFinished || !entry
+			? 0
+			: pending.filter(
+				(item) => entry.importedNotePaths.includes(item.notePath) && !completedSweep.notePaths.includes(item.notePath),
+			).length;
 		// Order (and therefore emphasis — the card marks its first step primary)
 		// is decided in SweepCompletion alongside the rest of the sweep-state
 		// rules, so it stays testable and cannot drift from isBatchReadyToClean.
-		const isCleaned = entry?.status === "cleaned";
-		// Finishing the last suggestion in one scene is not finishing its batch:
-		// an import round routinely spans dozens of scenes. Until every scene in
-		// the batch is decided, this is a scene-level checkpoint — no celebration
-		// and, above all, no batch-wide Clean, which would strip the review
-		// blocks from scenes the author has not reviewed yet.
-		const batchFinished = !entry || isCleaned || isBatchReadyToClean(entry, this.getBatchDecisionStats(entry.batchId));
-		const unfinishedScenes = batchFinished
-			? 0
-			: (this.getReviewStateOverview()?.pending ?? []).filter(
-				(pending) => entry.importedNotePaths.includes(pending.notePath) && !completedSweep.notePaths.includes(pending.notePath),
-			).length;
 		const nextSteps: CompletedSweepPanelState["nextSteps"] = batchFinished
 			? buildCompletedSweepNextSteps({
 				isCleaned,
@@ -1748,18 +1738,12 @@ export default class EditorialistPlugin extends Plugin {
 			})
 			: [{ action: "start", label: "Review changes" }];
 
-		// Finishing one batch is not finishing the book. When other scenes still
-		// hold pending batches, the card must not claim everything is done.
-		const otherPendingNotePaths = (this.getReviewStateOverview()?.pending ?? [])
-			.map((pending) => pending.notePath)
-			.filter((notePath) => !completedSweep.notePaths.includes(notePath));
-
 		if (!batchFinished) {
 			return {
 				batchId: completedSweep.batchId,
 				batchFinished,
 				closeLabel: "Close review",
-				title: `${this.toTitleCase(unitLabel)} complete`,
+				title,
 				otherPendingNotePaths,
 				editsReviewedLabel: `${completedSweep.totalSuggestions} edit${completedSweep.totalSuggestions === 1 ? "" : "s"} reviewed`,
 				description: unfinishedScenes > 0
@@ -1773,7 +1757,7 @@ export default class EditorialistPlugin extends Plugin {
 			batchId: completedSweep.batchId,
 			batchFinished,
 			closeLabel: "Close review",
-			title: otherPendingNotePaths.length > 0 ? "Batch complete" : "All revisions complete",
+			title,
 			otherPendingNotePaths,
 			editsReviewedLabel: `${completedSweep.totalSuggestions} edit${completedSweep.totalSuggestions === 1 ? "" : "s"} reviewed across ${completedSweep.notePaths.length} ${unitLabel}`,
 			description: isCleaned
@@ -1782,6 +1766,33 @@ export default class EditorialistPlugin extends Plugin {
 			durationLabel: this.getCompletedSweepDurationLabel(completedSweep),
 			nextSteps,
 		};
+	}
+
+	// What finishing this sweep amounts to, shared by the panel's completion card
+	// and the editor toolbar so the two never disagree about it.
+	//
+	// Finishing the last suggestion in one scene is not finishing its batch: an
+	// import round routinely spans dozens of scenes. Until every scene in the
+	// batch is decided it is a scene-level checkpoint — no celebration and,
+	// above all, no batch-wide Clean, which would strip the review blocks from
+	// scenes the author has not reviewed yet. And finishing one batch is not
+	// finishing the book: when other scenes still hold pending batches, nothing
+	// may claim every revision is done.
+	private resolveCompletedSweepOutcome(completedSweep: CompletedSweepState) {
+		const entry = this.getSweepRegistryEntry(completedSweep.batchId);
+		const unitLabel = this.getSweepUnitLabel(completedSweep.notePaths.length, completedSweep.notePaths[0]);
+		const isCleaned = entry?.status === "cleaned";
+		const batchFinished = !entry || isCleaned || isBatchReadyToClean(entry, this.getBatchDecisionStats(entry.batchId));
+		const pending = this.getReviewStateOverview()?.pending ?? [];
+		const otherPendingNotePaths = pending
+			.map((item) => item.notePath)
+			.filter((notePath) => !completedSweep.notePaths.includes(notePath));
+		const title = !batchFinished
+			? `${this.toTitleCase(unitLabel)} complete`
+			: otherPendingNotePaths.length > 0
+				? "Batch complete"
+				: "All revisions complete";
+		return { entry, unitLabel, isCleaned, batchFinished, pending, otherPendingNotePaths, title };
 	}
 
 	getReviewStateOverview(): ReviewStateOverview | null {
@@ -2455,13 +2466,12 @@ export default class EditorialistPlugin extends Plugin {
 			return null;
 		}
 
+		const { title } = this.resolveCompletedSweepOutcome(completedSweep);
 		const reviewableSuggestions = targetSession.suggestions.filter((suggestion) =>
 			this.isCompletedReviewSuggestion(suggestion),
 		);
 		if (reviewableSuggestions.length === 0) {
-			return {
-				title: "All revisions complete",
-			};
+			return { title };
 		}
 
 		const selectedSuggestion = this.store.getSelectedSuggestion();
@@ -2472,7 +2482,7 @@ export default class EditorialistPlugin extends Plugin {
 		return {
 			currentIndexLabel:
 				currentIndex === -1 ? undefined : `${currentIndex + 1} of ${reviewableSuggestions.length}`,
-			title: "All revisions complete",
+			title,
 		};
 	}
 
