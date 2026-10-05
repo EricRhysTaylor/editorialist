@@ -3016,6 +3016,7 @@
 
 .editorialist-suggestion__footer {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
 	gap: var(--editorialist-space-sm);
 	margin-top: 0.65rem;
