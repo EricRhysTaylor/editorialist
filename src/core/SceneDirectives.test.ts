@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { anchorTargetsScene, collectSceneDirectives, findDirectivesAtPassage } from "./SceneDirectives";
+import {
+	anchorTargetsScene,
+	collectSceneDirectives,
+	findDirectivesAtPassage,
+	resolveFocusedDirectiveIndex,
+} from "./SceneDirectives";
 import type {
 	Editorialism,
 	EditorialismAnchor,
@@ -283,5 +288,32 @@ describe("findDirectivesAtPassage", () => {
 	it("drops an anchor whose fragment is no longer in the prose", () => {
 		const directives = directivesFor([anchor({ opening: "She poured the tea" })]);
 		expect(findDirectivesAtPassage(text, { start: 0, end: 5 }, directives)).toEqual([]);
+	});
+});
+
+describe("resolveFocusedDirectiveIndex", () => {
+	const open = (id: string) => ({ id, done: false });
+	const done = (id: string) => ({ id, done: true });
+
+	it("follows the focused directive by id when the list reorders", () => {
+		expect(resolveFocusedDirectiveIndex([open("b"), open("a")], { id: "a", index: 0, wasDone: false })).toBe(1);
+	});
+
+	it("moves on to the directive that took its place once the focused one is finished", () => {
+		// "a" was open at 0; finishing it sorted it last.
+		expect(resolveFocusedDirectiveIndex([open("b"), open("c"), done("a")], { id: "a", index: 0, wasDone: false })).toBe(0);
+	});
+
+	it("stays on a directive the author stepped to while it was already finished", () => {
+		expect(resolveFocusedDirectiveIndex([open("b"), done("a")], { id: "a", index: 1, wasDone: true })).toBe(1);
+	});
+
+	it("stays on the last directive when finishing it leaves nothing after it", () => {
+		expect(resolveFocusedDirectiveIndex([open("a"), done("b")], { id: "b", index: 1, wasDone: false })).toBe(1);
+	});
+
+	it("falls back to the old position, clamped, when the focused directive leaves the list", () => {
+		expect(resolveFocusedDirectiveIndex([open("a"), open("b")], { id: "gone", index: 5, wasDone: false })).toBe(1);
+		expect(resolveFocusedDirectiveIndex([], { id: "a", index: 0, wasDone: false })).toBe(-1);
 	});
 });

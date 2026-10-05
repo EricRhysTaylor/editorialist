@@ -15,7 +15,13 @@ import { bindImmediateAction } from "./util/bindImmediateAction";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
 import { displayDirectiveText } from "../core/DirectiveText";
 import { renderDirectiveDecision, renderDirectiveQuestion } from "./editorialism/DirectiveDecision";
-import { findDirectivesAtPassage, type PassageDirective, type SceneDirective } from "../core/SceneDirectives";
+import {
+	findDirectivesAtPassage,
+	resolveFocusedDirectiveIndex,
+	type PassageDirective,
+	type SceneDirective,
+	type SceneDirectiveFocus,
+} from "../core/SceneDirectives";
 import type { SceneContextGroup } from "../orchestrators/SceneContextResolver";
 import { IdentityRequestCache } from "../core/IdentityRequestCache";
 import { renderSceneContextGroups } from "./SceneContextView";
@@ -162,9 +168,9 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	private acrossScenesOpen = false;
 	// The last completion card that played its entrance; see claimCardEntrance.
 	private lastCardEntrance: string | null = null;
-	// Which directive the one-at-a-time view is on, per scene. `index` is the
-	// fallback when the focused directive leaves the list (finished).
-	private sceneDirectiveFocus: { scene: string; id: string | null; index: number } | null = null;
+	// Which directive the one-at-a-time view is on, per scene; see
+	// resolveFocusedDirectiveIndex.
+	private sceneDirectiveFocus: (SceneDirectiveFocus & { scene: string }) | null = null;
 	// null = follow the cold-start default; an explicit boolean once the user
 	// toggles the onboarding disclosure within this view session.
 	private onboardingExpanded: boolean | null = null;
@@ -846,23 +852,25 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	// One directive at a time: the full agenda for a scene reads as a wall to
 	// be faced, and the author needs only the next thing to do. The order is
 	// collectSceneDirectives' — passages here, then undecided decisions — so
-	// the first entry is the one to start with. Focus follows the directive,
-	// not the position, across reloads; when the focused one is finished and
-	// drops out, the next one slides into its place.
+	// the first entry is the one to start with. Finishing the focused one moves
+	// the walk to the next; see resolveFocusedDirectiveIndex.
 	private renderFocusedSceneDirective(parent: HTMLElement, local: SceneDirective[]): void {
 		const scene = this.currentSceneDirectivesKey();
 		if (this.sceneDirectiveFocus?.scene !== scene) {
-			this.sceneDirectiveFocus = { scene, id: null, index: 0 };
+			this.sceneDirectiveFocus = { scene, id: null, index: 0, wasDone: false };
 		}
 		const focus = this.sceneDirectiveFocus;
-		const found = focus.id === null ? -1 : local.findIndex((directive) => sceneDirectiveId(directive) === focus.id);
-		const index = found >= 0 ? found : Math.min(focus.index, local.length - 1);
+		const index = resolveFocusedDirectiveIndex(
+			local.map((directive) => ({ id: sceneDirectiveId(directive), done: directive.item.status === "done" })),
+			focus,
+		);
 		const current = local[index];
 		if (!current) {
 			return;
 		}
 		focus.id = sceneDirectiveId(current);
 		focus.index = index;
+		focus.wasDone = current.item.status === "done";
 
 		this.renderSceneDirectiveEntry(parent, current, null);
 
@@ -882,6 +890,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			if (target) {
 				focus.id = sceneDirectiveId(target);
 				focus.index = (index + 1) % local.length;
+				focus.wasDone = target.item.status === "done";
 			}
 			this.render();
 		});

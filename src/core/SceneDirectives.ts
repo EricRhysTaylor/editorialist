@@ -140,6 +140,33 @@ export function collectSceneDirectives(
 	);
 }
 
+// Where the card's one-at-a-time view stands. Focus follows a directive by id,
+// not by position, so a reload or a reorder keeps the author on the same one.
+// `wasDone` is that directive's state at the last render.
+export interface SceneDirectiveFocus {
+	id: string | null;
+	index: number;
+	wasDone: boolean;
+}
+
+// Finishing the focused directive sorts it last — it stays on the card so the
+// click is visible and reversible — and the walk moves on to the directive that
+// took its place rather than following the finished one to the end. A
+// directive the author stepped to while it was already finished stays put, so
+// it can be reopened. A focused directive that left the list falls back to its
+// old position. -1 only for an empty list.
+export function resolveFocusedDirectiveIndex(
+	entries: ReadonlyArray<{ id: string; done: boolean }>,
+	focus: SceneDirectiveFocus,
+): number {
+	if (entries.length === 0) {
+		return -1;
+	}
+	const found = focus.id === null ? -1 : entries.findIndex((entry) => entry.id === focus.id);
+	const justFinished = found >= 0 && entries[found]?.done === true && !focus.wasDone;
+	return found >= 0 && !justFinished ? found : Math.min(focus.index, entries.length - 1);
+}
+
 function awaitsDecision(item: EditorialismItem): boolean {
 	return item.decision === undefined && needsDecision(item);
 }
