@@ -1345,10 +1345,8 @@ export default class EditorialistPlugin extends Plugin {
 			focusResolvedTarget: async (target) => {
 				await this.focusResolvedTarget(target as ReviewTargetRef | undefined);
 			},
-			get lastAppliedChange() {
-				return this.lastAppliedChange;
-			},
-			set lastAppliedChange(value) {
+			getLastAppliedChange: () => this.lastAppliedChange,
+			setLastAppliedChange: (value) => {
 				this.lastAppliedChange = value;
 			},
 			setActiveHighlight: (range, tone) => {

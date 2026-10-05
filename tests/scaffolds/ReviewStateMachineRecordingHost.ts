@@ -239,10 +239,10 @@ export class RecordingReviewStateMachineHost implements ReviewStateMachineHost {
 		this.rec("focusResolvedTarget");
 	}
 
-	get lastAppliedChange(): AppliedReviewChangeLike | null {
+	getLastAppliedChange(): AppliedReviewChangeLike | null {
 		return this._lastAppliedChange;
 	}
-	set lastAppliedChange(value: AppliedReviewChangeLike | null) {
+	setLastAppliedChange(value: AppliedReviewChangeLike | null): void {
 		this._lastAppliedChange = value;
 		this.rec("set.lastAppliedChange");
 	}

@@ -56,7 +56,7 @@ function drainEmittableOps(): Set<HostOp> {
 	ctx.view.editor.scrollIntoView!(null, true);
 	ctx.view.editor.focus!();
 	ctx.view.editor.getValue!();
-	host.lastAppliedChange = null;
+	host.setLastAppliedChange(null);
 	host.setActiveHighlight();
 	return new Set(host.ops);
 }
@@ -80,11 +80,11 @@ describe("RecordingReviewStateMachineHost — harness self-tests", () => {
 		expect(host.ops).toEqual(["getReviewNoteContext", "editor.replaceRange", "editor.getValue"]);
 	});
 
-	it("the lastAppliedChange setter records and round-trips the value", () => {
+	it("setLastAppliedChange records and round-trips the value", () => {
 		const host = new RecordingReviewStateMachineHost();
 		const change = { start: 1, end: 2, notePath: "n.md", suggestionId: "s", textFingerprint: "fp" };
-		host.lastAppliedChange = change;
-		expect(host.lastAppliedChange).toEqual(change);
+		host.setLastAppliedChange(change);
+		expect(host.getLastAppliedChange()).toEqual(change);
 		expect(host.ops).toEqual(["set.lastAppliedChange"]);
 	});
 

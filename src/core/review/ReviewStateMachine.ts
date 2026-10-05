@@ -381,13 +381,13 @@ export class ReviewStateMachine {
 				sessionId,
 				sessionStartedAt,
 			});
-			this.host.lastAppliedChange = {
+			this.host.setLastAppliedChange({
 				start: appliedStartOffset,
 				end: appliedEndOffset,
 				notePath: context.filePath,
 				suggestionId: suggestion.id,
 				textFingerprint: computeNoteTextFingerprint(editor.getValue()),
-			};
+			});
 			if (options?.syncSceneInventory !== false) {
 				await this.host.registry.syncSceneInventoryForSession(this.host.store.getSession());
 			}
@@ -413,7 +413,7 @@ export class ReviewStateMachine {
 	}
 
 	async undoLastAppliedSuggestion(): Promise<void> {
-		const change = this.host.lastAppliedChange;
+		const change = this.host.getLastAppliedChange();
 		const context = this.host.getReviewNoteContext();
 		const appliedSuggestion = change ? this.host.getSuggestionById(change.suggestionId) : null;
 		const completedSweep = this.host.store.getCompletedSweep();
@@ -438,7 +438,7 @@ export class ReviewStateMachine {
 				persist: false,
 			});
 		}
-		this.host.lastAppliedChange = null;
+		this.host.setLastAppliedChange(null);
 		if (completedSweep) {
 			this.host.store.setCompletedSweep(null);
 			this.host.store.setGuidedSweep({
@@ -512,19 +512,19 @@ export class ReviewStateMachine {
 		suggestion: ReviewSuggestion,
 		appliedRange: { start: number; end: number },
 	): Promise<void> {
-		const change = this.host.lastAppliedChange;
+		const change = this.host.getLastAppliedChange();
 		if (!change || change.suggestionId !== suggestion.id || change.notePath !== notePath) {
 			const context = this.host.getReviewNoteContext();
 			const editorValue = context
 				? (context.view as { editor: EditorLike }).editor.getValue()
 				: "";
-			this.host.lastAppliedChange = {
+			this.host.setLastAppliedChange({
 				start: appliedRange.start,
 				end: appliedRange.end,
 				notePath,
 				suggestionId: suggestion.id,
 				textFingerprint: computeNoteTextFingerprint(editorValue),
-			};
+			});
 		}
 		try {
 			await this.host.registry.clearPersistedReviewDecision(notePath, suggestion, {

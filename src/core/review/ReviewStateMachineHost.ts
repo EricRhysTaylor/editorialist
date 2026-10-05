@@ -85,7 +85,12 @@ export interface ReviewStateMachineHost {
 	focusResolvedTarget(target: unknown): Promise<void>;
 
 	// — mutable plugin fields (read AND write) —
-	lastAppliedChange: AppliedReviewChangeLike | null;
+	// Accessor functions, not a get/set property pair: a getter written on the
+	// host object literal reads `this` as the literal itself, so
+	// `return this.lastAppliedChange` recursed until the stack overflowed and
+	// every Apply threw after its edit landed (shipped 1.0.3–1.3.5).
+	getLastAppliedChange(): AppliedReviewChangeLike | null;
+	setLastAppliedChange(value: AppliedReviewChangeLike | null): void;
 	setActiveHighlight(range: { start: number; end: number } | null, tone: "muted" | null): void;
 }
 

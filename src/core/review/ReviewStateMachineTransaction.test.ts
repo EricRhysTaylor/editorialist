@@ -205,10 +205,10 @@ class StatefulHost implements ReviewStateMachineHost {
 	syncActiveEditorDecorations(): void {}
 	resyncSessionForActiveNote(): void {}
 	async focusResolvedTarget(): Promise<void> {}
-	get lastAppliedChange(): AppliedReviewChangeLike | null {
+	getLastAppliedChange(): AppliedReviewChangeLike | null {
 		return this._lastAppliedChange;
 	}
-	set lastAppliedChange(value: AppliedReviewChangeLike | null) {
+	setLastAppliedChange(value: AppliedReviewChangeLike | null): void {
 		this._lastAppliedChange = value;
 	}
 	setActiveHighlight(): void {}
@@ -289,8 +289,8 @@ describe("ReviewStateMachine — transaction safety on partial failure", () => {
 		const result = await sm.applySuggestionById("s1", { highlightMode: "muted" });
 		// The committed editor edit is reported and remains undoable.
 		expect(result).toEqual({ start: 0, end: 5, suggestionId: "s1" });
-		expect(host.lastAppliedChange?.suggestionId).toBe("s1");
-		expect(host.lastAppliedChange?.notePath).toBe("n.md");
+		expect(host.getLastAppliedChange()?.suggestionId).toBe("s1");
+		expect(host.getLastAppliedChange()?.notePath).toBe("n.md");
 		// An accepted edit must not carry a stale pending decision.
 		expect(host.persistedDecisions.has("s1")).toBe(false);
 		expect(host.notices.length).toBeGreaterThan(0);
