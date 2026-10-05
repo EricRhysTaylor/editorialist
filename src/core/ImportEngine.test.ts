@@ -571,3 +571,39 @@ describe("isLocalNoteBatch — memos take part in the current-note decision", ()
 		expect(isLocalNoteBatch(batch)).toBe(true);
 	});
 });
+
+describe("ImportEngine — Context references survive the written block", () => {
+	// The panel only ever re-reads the block the launcher wrote, so a Context
+	// reference parsed from the paste but not serialized never reaches Across
+	// scenes. Pin the round trip: paste → written block → parse → same refs.
+	it("writes every Context reference back so re-reading the note recovers them", async () => {
+		const path = "Book/Scenes/Terminus.md";
+		const app = createMockApp([
+			{ path, body: "They meet at the Terminus.\n\nThe XO waits.", frontmatter: { Class: "Scene" } },
+		]);
+		const engine = createImportEngine(app);
+		const paste = [
+			"Reviewer: Marla",
+			"ReviewerType: human-editor",
+			"",
+			"=== EDIT ===",
+			"Original: They meet at the Terminus.",
+			"Revised: Wala3 arranges the meeting at the Terminus.",
+			"Why: Scene 65 already states the reunion as fact.",
+			"Context: 65 \"the reunion at Terminus\" — stated as fact",
+			"- 64 \"Wala3 arranges the handover\" → \"through an XO.\"",
+			"",
+		].join("\n");
+
+		const batch = await engine.inspectBatch(paste, { activeNotePath: path });
+		await engine.importBatch(batch);
+
+		const reparsed = new SuggestionParser(new ContributorDirectory()).parse(app.peek(path));
+		expect(reparsed.suggestions).toHaveLength(1);
+		expect(reparsed.suggestions[0]?.why).toBe("Scene 65 already states the reunion as fact.");
+		expect(reparsed.suggestions[0]?.context).toEqual([
+			{ scene: "65", opening: "the reunion at Terminus", closing: null, note: "stated as fact" },
+			{ scene: "64", opening: "Wala3 arranges the handover", closing: "through an XO.", note: null },
+		]);
+	});
+});

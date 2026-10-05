@@ -19,6 +19,7 @@ import {
 	readRadialTimelineActiveBookScope,
 } from "./VaultScope";
 import { countNormalizedMatches, findExactMatches } from "./TextMatching";
+import { formatAnchorBody } from "./EditorialismParser";
 import type { MatchEngine } from "./MatchEngine";
 import type { SuggestionParser } from "./SuggestionParser";
 import type {
@@ -1090,6 +1091,16 @@ export class ImportEngine {
 			if (result.suggestion.why) {
 				lines.push(`Why: ${result.suggestion.why}`);
 			}
+
+			// The written block is all the panel ever re-reads, so a reference
+			// left out here never reaches Across scenes. First reference on the
+			// field line, the rest as `- ` continuation lines — the form
+			// parseContextRefs reads back.
+			const contextRefs = result.suggestion.context ?? [];
+			contextRefs.forEach((ref, index) => {
+				const body = formatAnchorBody(ref.scene, { opening: ref.opening, closing: ref.closing }, ref.note);
+				lines.push(index === 0 ? `Context: ${body}` : `- ${body}`);
+			});
 		}
 
 		return createReviewBlock(lines.join("\n"));
