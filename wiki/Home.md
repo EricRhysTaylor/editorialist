@@ -21,8 +21,9 @@ Editorialist ships a review format, not an AI. It makes no network calls and hol
 - Turning AI, editor, or beta-reader feedback into reviewable suggestions.
 - Walking a revision pass scene by scene instead of managing loose notes.
 - Keeping every manuscript change explicit and reversible during the session.
-- Tracking reviewer contributions, accepted suggestions, and revision progress.
+- Tracking accepted suggestions and revision progress, and seeing which readers, editors, and AI models give the most useful feedback.
 - Keeping structural guidance separate from line-level edits through Editorialisms.
+- Scheduling all of it against a deadline and seeing progress across the whole book.
 
 ## Standard Review Operations
 
@@ -45,21 +46,23 @@ Use the view name beside the Ed logo to switch modes. Every mode shares the acti
 
 | Mode | Use it for |
 |---|---|
-| **Revision plan** | Prioritize and schedule tasks from all three feedback sources, or generate a draft schedule for an editor’s delivery. |
-| **Review** | Traditional Editorialist review batches: scene-level edits such as expand, condense, cut, move, and line edits, plus `%%ai: question%%` responses and scene memos. Each scene can carry multiple batches from different manuscript shares or review passes. |
-| **Pending edits** | Author pending-edit notes and Radial Timeline Inquiry follow-ups gathered across the active book, then walked scene by scene. |
-| **Editorialisms** | Manuscript-wide commentary: structural guidance, theme/subplot notes, and general feedback with no line edits. |
+| **Revision plan** | See progress across the whole book, then prioritize and schedule work from the three sources below: by hand, with **Auto-plan** across the book, or for one editor’s delivery. |
+| **Review** | Imported review batches: scene-level edits such as expand, condense, cut, move, and line edits, plus `%%ai: question%%` responses and scene memos. Each batch is a review block appended to the scene, worked through, then cleaned away. Each scene can carry multiple batches from different manuscript shares or review passes. |
+| **Pending edits** | The notes in each scene’s **Pending Edits** property (the revision notes you keep with Radial Timeline, including Inquiry follow-ups), walked scene by scene across the active book. |
+| **Editorialisms** | A long-form checklist of directives pinned to the passages they concern, kept permanently as its own document: structural guidance, theme/subplot notes, and general feedback with no line edits. Record decisions or questions on directives and hand them to AI. |
+
+Alongside these, the **Contributor directory** (**Settings → Contributors**) shows which readers, editors, and AI models give the most useful feedback. The Review panel’s **How Editorialist works** section sums up the same four workflows: imported review batches, Editorialisms, pending edits, and the contributor directory.
 
 ## What You Work With
 
 | Object | What you get | When you get it | Where it lives |
 |---|---|---|---|
 | **Review batch** | The AI's formatted response: line edits, cuts, moves, condenses, expands, and memos | After you send the formatting instructions and manuscript text to an AI, or ask an AI to convert human notes | On your clipboard until you import it |
-| **Review block** | The imported part of a review batch for one scene | When you import a review batch through the launcher | Appended to the bottom of each targeted scene note |
-| **Editorialism** | A structural checklist or manuscript-level directive set | When a reviewer gives broad guidance that should be worked over time | A separate markdown file under `Editorialist/<Book>/` |
+| **Review block** | The imported part of a review batch for one scene | When you import a review batch through the launcher | Appended to the bottom of each targeted scene note until you clean it away |
+| **Editorialism** | A structural checklist or manuscript-level directive set | When a reviewer gives broad guidance that should be worked over time | A separate markdown file under `Editorialist/<Book>/`, kept permanently |
 | **Editorial delivery** | One editor’s handoff, with attribution, received date, return deadline, and links to feedback | After importing and linking its sources | Plugin data for the book |
 | **Planning session** | A dated or unscheduled task with an effort range | When you add work or apply a draft schedule | Revision plan, linked to the original feedback |
-| **Pending edit** | A note-to-self or Inquiry follow-up to review later | When it is written into Radial Timeline / scene revision metadata | Read from the active book and shown in Pending edits mode |
+| **Pending edit** | A note-to-self or Inquiry follow-up to review later | When a line is added to a scene’s **Pending Edits** property, by you or by Radial Timeline | The scene’s **Pending Edits** property, read across the active book and shown in Pending edits mode |
 
 ## Core Workflow
 
@@ -69,14 +72,14 @@ Use the view name beside the Ed logo to switch modes. Every mode shares the acti
 4. **Walk the [guided review sweep](Review-Panel)** — accept, reject, rewrite, or defer each suggestion.
 5. **Finish.** Per-scene progress, contributor stats, and revision history update as each sweep completes.
 
-For a large handoff, group imported batches and Editorialisms into an **Editorial delivery**, then choose **Plan this delivery**. Review the draft before applying it; priorities and estimates are editable. See [Revision Plan](Revision-Plan).
+To schedule everything at once, open the **Revision plan** and choose **Auto-plan**; it spreads every open batch, directive, and pending edit across your working days. For one editor's handoff, group its imported batches and Editorialisms into an **Editorial delivery**, then choose **Plan this delivery**. Review the draft before applying it; priorities and estimates are editable. See [Revision Plan](Revision-Plan).
 
 ## Pages
 
 | Page | What's there |
 |---|---|
 | [Getting Started](Getting-Started) | Commands and your first review sweep |
-| [Revision Plan](Revision-Plan) | Priorities, delivery tracking, deadlines, and automatic scheduling |
+| [Revision Plan](Revision-Plan) | Progress across the book, priorities, deadlines, auto-planning, and delivery tracking |
 | [Review Panel](Review-Panel) | The main working surface — sessions, the suggestion toolbar, statuses |
 | [Pending Edits](Pending-Edits) | The active-book queue for author notes and Inquiry follow-ups |
 | [Editorialisms Panel](Editorialisms-Panel) | Structural guidance documents and the checklist workflow |

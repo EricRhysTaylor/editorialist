@@ -40,17 +40,19 @@ Files without `type: editorialism` are ignored. The full file format — section
 
 - **Header** — the active book label (or "No active book selected").
 - **Document list** — files for the active book, filtered by activity, delivery, and reviewer; each shows remaining work, attribution, dates, and completion.
-- **Detail view** — select a document to see its items grouped by section.
+- **Detail view** — select a document to see its items grouped by section. A dropdown above the items shows **Open items** (the default), **This scene** (open items scoped to the scene you are in), or **All items**, including finished ones.
 
 <p align="center"><img src="images/panel-editorialism-detail.png" alt="Editorialism detail with delivery deadline, effort estimate, AI hand-off, and directive status controls" width="460"></p>
 
 ### Working items
 
-Each item is a task line with a five-state status. Clicking an item's status cycles it:
+Each item is a task line with one of five statuses. In the file, the status is the character inside the task brackets:
 
 ```
-[ ] open → [/] in progress → [x] done → [-] deferred → [?] question
+[ ] open   [/] in progress   [x] done   [-] deferred   [?] question
 ```
+
+Clicking an item's status circle opens a menu naming every status — **Open**, **In progress**, **Done**, **Deferred**, **Question** — with the current one checked, so you always see what a click will set. The same menu offers **Ask a question…** and **Draft fixes with AI…**, both described below.
 
 Because Editorialisms are plain markdown task lists, they stay fully readable and editable outside the panel — edit the file directly and the panel reflects it. The `[scope:: …]` metadata records which scene, range (`13–22`), subplot (`subplot:<name>`), or `manuscript` each directive applies to.
 
@@ -84,7 +86,7 @@ The two-fragment form (`"opening" → "closing"`) anchors a whole passage betwee
 
 **An anchor is not an edit.** It carries no replacement text and Editorialist never applies it. Clicking one opens that scene, selects the passage, and highlights the directive's *other* anchors in the same scene — so a comment that touches three places shows all three at once. You read, revise however you see fit, and mark the anchor processed. The editing stays yours.
 
-Anchors have the same five-state status as directives; **done** and **deferred** both retire an anchor from the walk. Marking the last one does not mark the directive done — that call is yours.
+Anchors have the same five-state status as directives; **done** and **deferred** both retire an anchor from the walk. In this panel, clicking an anchor's circle steps it to the next status in the order shown above. Marking the last one does not mark the directive done — that call is yours.
 
 **Getting anchors:**
 
@@ -93,9 +95,42 @@ Anchors have the same five-state status as directives; **done** and **deferred**
 
 **Walking the agenda.** `Go to next unprocessed anchor` moves to the next one in document order, opening scenes as it goes; `Mark anchor processed and go to next` records the current one and advances. Assign hotkeys to those two and you can work an entire directive without touching the panel. The walk stops at the end rather than looping, so finishing is visible.
 
+### Decisions
+
+Many directives are really a choice — *choose her age*, *raspberries or blueberries* — whose answer then has to be carried through every scene they name. Editorialist treats a directive as a decision when it is marked `[?]` without a written question, already has a recorded decision, or opens with *choose*, *decide*, *pick*, or a similar choosing phrase. Such a directive shows **Decision needed** with a **Decide** button wherever it appears: here, in the Review panel's **Editorialisms** card, and under **Editorialism on this passage** on a suggestion card.
+
+**Decide** asks for your answer and writes it onto the directive's line in the file:
+
+```markdown
+- [ ] Choose the breakfast berry [scope:: 4–19] [decision:: raspberries]
+```
+
+From then on the directive leads with **Decided: raspberries**, and each passage it names becomes a check that it matches. **Change** edits the answer; **Clear decision** removes it. Recording a decision on a `[?]` item reopens it to `[ ]` — the choice is made, and what remains is applying it. Any other status is left as you set it.
+
+### Questions
+
+When a directive leaves you with a question rather than a choice, pick **Question** in the status menu, or **Ask a question…**. Editorialist asks you to write the question down, saves it on the line, and marks the item `[?]`. Cancelling changes nothing.
+
+```markdown
+- [?] Keep the footage delay consistent [scope:: 44–47] [question:: Is the footage delayed, or is scene 47 wrong?]
+```
+
+The question shows under the directive as **Your question**, with **Edit** to change it. A directive with a written question is not also flagged **Decision needed**.
+
+Decisions and questions are plain inline fields, so you can edit them by hand like the rest of the file. When a reviewer sends an updated version of an agenda you have already imported, a decision or question you recorded stays on any unchanged directive whose incoming line does not carry its own.
+
+### Handing directives to AI
+
+Much of what directives ask for is bookkeeping — an age, a date, a count that must agree everywhere — which is exactly what line edits are for. Two actions copy a prompt asking an AI to draft those edits:
+
+- **Draft fixes with AI…** — in a directive's status menu, here or in the Review panel's **Editorialisms** card. The prompt covers that one directive: its text, your recorded decision marked as settled, and the verbatim paragraph around each open passage with its SceneId, so the AI can quote the manuscript exactly. It asks for one review block that implements the directive. If the directive needs a decision you have not recorded, the AI is asked to choose, say which, and apply that choice consistently.
+- **Hand off to AI** — a card near the top of each agenda. **Copy prompt** sends every unfinished directive you have said something about in one go: decisions to carry out as line edits, and questions to answer in memos on the relevant scene, with edits where the answer calls for them. Directives you have not touched stay with you, and the button is disabled until at least one directive has a decision or a question.
+
+Paste the prompt into your AI, then bring the reply back through the [review launcher](Importing-Reviews#importing-a-review-batch). It arrives as an ordinary review batch, and you sweep its suggestions like any other. The agenda file itself is not rewritten.
+
 ### Directives during a review sweep
 
-Directives do not only wait here. When you run a review sweep on a scene these directives cover, they appear in an **Editorialisms** card in the [Review panel](Review-Panel#editorialisms), with their anchored passages for that scene. Statuses set there write straight back to the Editorialism file, so the two surfaces stay in step.
+Directives do not only wait here. When you run a review sweep on a scene these directives cover, they appear in an **Editorialisms** card in the Review panel — one at a time, with **Show all** for the full list. When the suggestion you are on sits in a paragraph a directive names, the suggestion card also shows it under **Editorialism on this passage**, with **Done** to retire just that passage. Statuses, decisions, and questions set there write straight back to the Editorialism file, so the two surfaces stay in step. See [Review panel § Editorialisms](Review-Panel#editorialisms) for the details.
 
 > **When a passage has moved.** Anchors are resolved against the live note every time — offsets are never stored. If you have rewritten the prose so the fragment no longer matches, the anchor is marked unlocated on its row with the fragment shown, rather than silently jumping to a nearby paragraph. Re-anchor it from a new selection.
 
@@ -107,6 +142,8 @@ Directives do not only wait here. When you run a review sweep on a scene these d
 | Commentary on a scene or the batch | `=== MEMO ===` in a review block |
 | Directive spanning scenes, subplots, or the whole book | Editorialism file → this panel |
 | Broad note that keeps sending you hunting for the passages | Add anchors to the directive |
+| Directive that asks you to choose | **Decide** once; each passage becomes a check against the answer |
+| Tedious bookkeeping directive — an age, a date, a count to harmonize | **Draft fixes with AI…** → review batch → Review Panel |
 | Author note or Radial Timeline Inquiry follow-up | [Pending Edits](Pending-Edits) |
 | A reviewer sends both line edits and structural notes | Both formats in one reply — each goes to its own surface |
 
@@ -134,4 +171,4 @@ Deliveries are saved in plugin data alongside revision plans. Existing feedback 
 
 ## Plan the work
 
-See [Revision Plan](Revision-Plan#automatically-plan-a-delivery) for presets, effort ranges, working capacity, locks, and draft schedules. One delivery can contain both batches and Editorialism files.
+See [Revision Plan](Revision-Plan#automatically-plan-a-delivery) to plan one delivery, and [Auto-plan](Revision-Plan#auto-plan-the-whole-book) for presets, effort ranges, working capacity, and draft schedules. One delivery can contain both batches and Editorialism files.

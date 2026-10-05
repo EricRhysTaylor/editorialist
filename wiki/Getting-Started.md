@@ -29,9 +29,21 @@ Editorialist registers these commands in the command palette:
 | **Mark anchor processed and go to next** | Records the current anchor and advances |
 | **Rescan review blocks for cleanup** | Re-scans scene notes for review blocks that are ready to be cleaned up |
 | **Backup selection to cut file** | Copies selected text to the scene's cut file without changing the manuscript |
+| **Find selection across scenes** | Lists every paragraph in the active book containing the selected phrase, grouped by scene, each openable beside the current one |
 | **Insert author query** | Inserts a hidden `%%ai: …%%` marker at the cursor so the next AI review answers it  |
 
 Editorialist ships **no default hotkeys** — assign your own under **Settings → Hotkeys** if you want them.
+
+## Four workflows
+
+Editorialist handles four kinds of work, the same four the Review panel's **How Editorialist works** section describes:
+
+- **Imported review batch:** notes from a human reader or AI editor, appended as a review block to the end of each targeted scene. Accept, reject, or rewrite each suggestion, then clean the block away.
+- **Editorialisms:** a long-form checklist of directives pinned to the passages they concern, kept permanently as its own document in the Editorialist folder. Each scene shows the directives that apply there as you review.
+- **Pending edits:** the notes in each scene's **Pending Edits** property, the revision notes you keep with Radial Timeline, worked scene by scene across the active book.
+- **Contributor directory:** see which readers, editors, and AI models give the most useful feedback, under **Settings → Contributors**.
+
+The [Revision Plan](Revision-Plan) schedules the first three together against your deadline and shows progress across the whole book.
 
 ## Your first review sweep
 
@@ -63,18 +75,21 @@ The [Review Panel](Review-Panel) opens a guided sweep: each suggestion is highli
 
 ### 5. Finish
 
-When every suggestion is resolved, the sweep completes and the batch is recorded: per-scene polish state, contributor stats, and revision history all update. The **Core** settings tab shows your progress across the whole book — see the [Settings Reference](Settings-Reference).
+When every suggestion is resolved, the sweep completes and the batch is recorded: per-scene polish state, contributor stats, and revision history all update. The review blocks stay in your scene notes until you clean them away with **Clean N resolved batches…** in the panel's **…** menu. The **Core** settings tab shows your progress across the whole book — see the [Settings Reference](Settings-Reference).
 
-## Plan a larger editorial handoff
+## Plan your revision
 
-Import line-level work as batches and structural tasks as Editorialisms. Open **… → Editorial deliveries**, link those sources to the editor’s handoff, and enter its received date and return deadline. Choose **Plan this delivery** to preview a schedule using your working capacity and preferred preset. The [Revision Plan](Revision-Plan) page explains triage, estimates, locks, and sessions.
+Open the **Revision plan** to see progress across the whole book and schedule what remains. On an empty plan, **Auto-plan all N open items** spreads every open batch, directive, and pending edit across your working days up to your finish date. You can also add items by hand from **Available work**.
+
+For one editor's larger handoff, import line-level work as batches and structural tasks as Editorialisms. Open **… → Editorial deliveries**, link those sources to the editor’s handoff, and enter its received date and return deadline. Choose **Plan this delivery** to preview a schedule for just that handoff, using your working capacity and preferred preset. The [Revision Plan](Revision-Plan) page explains triage, estimates, locks, and sessions.
 
 ## Where things live in your vault
 
 | Path | What it is |
 |---|---|
 | Your scene notes | Review blocks are appended here on import, removed on cleanup |
-| `Editorialist/<Book>/` | [Editorialism](Editorialisms-Panel) structural guidance documents |
+| Each scene's **Pending Edits** property | [Pending edits](Pending-Edits), shared with Radial Timeline |
+| `Editorialist/<Book>/` | [Editorialism](Editorialisms-Panel) structural guidance documents, kept permanently |
 | `<book-source-folder>/Cut/` | Per-scene cut files (default location; [configurable](Settings-Reference#configuration-tab)) |
 
-Delivery records and revision plans live in Editorialist’s plugin data; they reference these source files without replacing them.
+Delivery records, revision plans, and plan progress live in Editorialist’s plugin data; they reference these source files without replacing them.

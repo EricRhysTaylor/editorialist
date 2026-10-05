@@ -16,7 +16,7 @@
 
 ## What it does
 
-Editorialist turns outside feedback into a controlled revision workflow inside Obsidian. It imports review batches from human editors, beta readers, or AI into the scene notes you are already editing, matches suggestions conservatively against note content, and lets you accept, reject, rewrite, defer, or archive each change.
+Editorialist turns outside feedback into a controlled revision workflow inside Obsidian. It imports review batches from human editors, beta readers, or AI into the scene notes you are already editing, matches suggestions conservatively against note content, and lets you accept, reject, rewrite, defer, or archive each change. Long-form editorial agendas become Editorialisms, checklists pinned to the passages they concern, and a revision plan schedules all of it, along with your own pending edits, against your deadline while tracking progress across the whole book.
 
 <!-- Screenshot placeholder — drop screenshots into /docs/images and reference them here. -->
 
@@ -26,7 +26,11 @@ Editorialist turns outside feedback into a controlled revision workflow inside O
 - A **review batch** is the AI-formatted response: line edits, cuts, moves, condenses, expands, and memos.
 - Importing a batch appends **review blocks** to the bottom of the targeted scene notes. Nothing is applied to the prose until you act on a suggestion.
 - The Review Panel walks those suggestions scene by scene and records contributor stats, revision history, and per-scene progress as you finish.
+- When a suggestion bears on other scenes, the selected suggestion card shows them under **Across scenes**; **Open beside** opens that scene in a side pane without losing your place.
 - **Editorialisms** are separate structural checklist files under `Editorialist/<Book>/`; use them for broader guidance that spans scenes or the whole manuscript. A directive can carry **anchors** — verbatim fragments pinning it to the passages it is actually about, so a manuscript-wide note becomes a short route through the prose instead of a hunt. Anchors are jump targets only; nothing is ever applied for you.
+- A directive that asks for a choice shows **Decision needed**: record the answer once with **Decide**, or write your own question with **Ask a question…**. Each Editorialism's **Hand off to AI** card copies one prompt covering every unfinished directive you have decided or questioned; the edits and answers come back through Import as a review batch.
+- An **editorial delivery** groups one editor's handoff (its batches and Editorialism files, received date, and return deadline) so you can track and plan it as a unit.
+- The **revision plan** puts batches, directives, and pending edits in one queue against your deadline and daily capacity. **Auto-plan** spreads every open item in the book across your working days, and the progress card counts finished work across the whole book, planned or not.
 - Maintenance actions can clean review blocks or reset history, and bulk actions ask for confirmation.
 
 ## AI-agnostic by design
@@ -37,6 +41,7 @@ Editorialist ships a format, not an AI. It never makes a network call and holds 
 
 - `Open review launcher` — opens the launcher modal to import a review batch or start pending-edits review.
 - `Open review panel` — opens the review side panel for the active note.
+- `Find selection across scenes` — lists every paragraph in the active book containing the selected phrase, grouped by scene, each openable beside the current one. Also available from the editor right-click menu when text is selected.
 - `Open editorialism panel` — opens the Editorialisms panel for structural guidance documents.
 - `Open revision plan` — orders mixed revision work and plans author estimates against daily capacity and a deadline.
 - `Open pending edits panel` — opens the Pending edits panel for author notes and Inquiry follow-ups.

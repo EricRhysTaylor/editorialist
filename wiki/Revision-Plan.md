@@ -1,23 +1,53 @@
-Revision plan brings pending edits, scene batches, and Editorialism checklist items into one ordered work queue. Open it from the panel mode selector or run **Open revision plan**.
+Revision plan brings pending edits, scene batches, and Editorialism checklist items into one ordered work queue, and shows how the whole book is moving as you work. Open it from the panel mode selector or run **Open revision plan**.
 
 <p align="center"><img src="images/panel-revision-plan.png" alt="Revision plan with deadline forecast, weekly workload, and an ordered queue of revision tasks" width="460"></p>
+
+## Progress across the book
+
+The **Progress across the book** card leads the plan. It shows how much work is done and how much is still to go, with a bar, and how many items you finished today and in the last 7 days. Below that are separate totals for **Batches**, **Editorialisms**, and **Notes** (pending edits). When your Editorialisms contain directives that ask you to choose something, **Decisions** shows how many you have made out of those needed. A recorded decision counts there rather than as done: the directive stays open until its passages are carried through.
+
+Progress covers the whole book, not only the work in your plan. Finishing work anywhere counts as done on the day it happens: a batch whose suggestions are all decided or whose review blocks are cleaned away, a line removed from a scene's Pending Edits property, a directive marked done. Totals run from the day tracking began, shown beside the card's title, and work already finished before then is never claimed. An Editorialism you switch to inactive is set aside rather than counted as done, and work you reopen goes back to the to-go count. If a source fails to load, progress waits instead of reading the missing work as finished.
+
+With a deadline set, the card also gives the days left and about how many items a day you need to finish on time. After a few days it adds your average so far and flags the line when you are falling behind. When your plan holds fewer items than the book has open, the card says so and points you to Auto-plan.
+
+The plan refreshes itself a few seconds after your sources change, waits while you are typing, and keeps your place in the panel. The refresh button at the top updates it immediately.
 
 ## Build a plan
 
 1. Set your book deadline, working minutes for each weekday, and reserve time in **Deadline & capacity**. Zero minutes means a day off.
-2. Find work in **Available work**. Search by scene or instruction, and filter by Notes, Batches, Editorialisms, or delivery.
-3. Add items with **+**. Drag to prioritize, or use **Move up** and **Move down** in **Schedule & options**.
+2. Bring in work. To take in every open item at once, use [Auto-plan](#auto-plan-the-whole-book). To choose by hand, find work in **Available work**: search by scene or instruction, and filter by Notes, Batches, Editorialisms, or delivery. Add items one at a time with **+**, or choose **Add all N to the plan** to add everything the current filter shows, with suggested estimates.
+3. Drag to prioritize, or use **Move up** and **Move down** in **Schedule & options**.
 4. Set a day and a low/high effort range. Switch between **Queue** and **Days** to review the order or daily workload; tasks can also be dragged onto a day.
 
-The forecast uses the high end of estimates and includes scheduled optional work in capacity. Unknown effort is never counted as zero. Missing sources, past dates, prerequisites, overloaded days, and delivery deadlines can all require attention. A forecast describes the selected work in your plan, not every unresolved note in the book.
+The forecast uses the high end of estimates and includes scheduled optional work in capacity. Unknown effort is never counted as zero. Missing sources, past dates, prerequisites, overloaded days, and delivery deadlines can all require attention. A forecast describes the selected work in your plan, not every unresolved note in the book; the progress card covers the whole book.
 
 ## Work a session
 
-**Open source** takes you to the underlying feedback. **Finish session** completes only the planning session: it does not accept a batch suggestion, check off an Editorialism, or remove a Pending edit. Resolve those in their source workflow. Source completion can also make its planned work complete.
+**Open source** takes you to the underlying feedback. **Finish session** completes only the planning session: it does not accept a batch suggestion, check off an Editorialism, or remove a Pending edit. Resolve those in their source workflow. Source completion can also make its planned work complete. A batch is complete once every suggestion in it is decided; its memos ride along. A batch holding only memos has nothing to decide, so it stays open until you finish its session.
 
 **Schedule & options** holds the date, effort range, required-for-deadline flag, lock, prerequisite, and removal controls. **Remove from plan** preserves the source feedback. **Keep this date** protects the session during regeneration; manual editing remains available.
 
-If an instruction changes or goes missing, refresh sources, choose its replacement, and click **Relink**. Its date and estimate are preserved. Keep unchanged agenda wording, scope, and section headings stable to avoid unnecessary relinking.
+If an instruction changes or goes missing, its task asks to be relinked. Once the plan has refreshed, choose the replacement and click **Relink**. Its date and estimate are preserved. Keep unchanged agenda wording, scope, and section headings stable to avoid unnecessary relinking. A planned batch whose review blocks are cleaned away while progress is being tracked counts as complete rather than asking to be relinked.
+
+## Auto-plan the whole book
+
+Auto-plan schedules every open review batch, Editorialism directive, and pending edit in the active book across your working days. An empty plan offers **Auto-plan all N open items**. Once the plan has work, the summary offers **Auto-plan N more open items**, followed by your deadline when one is set, whenever the book has open work not yet in the plan. Either opens **Plan all open work**. Work already in your plan keeps its place; only the new items are scheduled.
+
+The planner's first screen asks for your start date, finish date, and availability. The finish date starts at your book deadline, or 30 days out without one. Estimates are suggested automatically. Open **Ordering & estimates** only when you want to change the preset, session length, or individual estimates. Available presets:
+
+- **Developmental revision:** structural decisions, then scene rewrites, then prose refinement; manuscript order within each phase.
+- **Copy-edit pass:** manuscript order, grouped by scene.
+- **Mixed editorial delivery:** structural decisions first, then rewrites and prose refinement together scene by scene.
+
+Phase suggestions use words in the instruction, not an AI assessment of your manuscript. **Ordering & estimates → Review ordering & estimates** lets you change phases, enter effort ranges, or leave individual items out. Unknown phases or effort appear under **Needs attention** with a shortcut to adjust the item.
+
+Set your planning window, session length, working minutes for each weekday, and reserve time. **Preview plan** previews the proposed sessions without saving. Scheduling uses the upper estimate, subtracts existing commitments, leaves reserve time at the end, and never schedules past the earliest of the finish date, the book deadline, and (when planning a delivery) its return deadline. Existing dated work without an estimate reserves its entire day. Work that cannot fit stays unscheduled; work lacking a phase or valid estimate stays in Available work.
+
+Suggested effort is a starting assumption: existing Editorialism heuristics, or five minutes per remaining batch suggestion and fifteen per memo, with a ±25% range. Replace these with your own ranges when known. Large tasks split into numbered sessions that keep their original source link. **Finish session** completes only that planning session; it does not check off an Editorialism or accept suggestions.
+
+<p align="center"><img src="images/delivery-schedule-preview.png" alt="Schedule preview with estimated hours, six sessions across five working days, and a finish-date forecast" width="526"></p>
+
+**Use this plan** saves the plan and its defaults for this book. If feedback, the delivery, or the plan changes while the preview is open, reopen the planner and generate a fresh draft.
 
 ## Group an editor's delivery
 
@@ -27,26 +57,10 @@ Receipt, file creation, and scheduled work dates are separate facts. Leave an un
 
 ## Automatically plan a delivery
 
-Open **Editorial deliveries**, then choose **Plan this delivery** on a delivery card. Link its batches and Editorialism files first. The planner uses unfinished, active work from that delivery; items already in your plan are not duplicated.
-
-The first screen asks for your start date, finish date, and availability. Estimates are suggested automatically. Open **Ordering & estimates** only when you want to change the preset, session length, or individual estimates. Available presets:
-
-- **Developmental revision:** structural decisions, then scene rewrites, then prose refinement; manuscript order within each phase.
-- **Copy-edit pass:** manuscript order, grouped by scene.
-- **Mixed editorial delivery:** structural decisions first, then rewrites and prose refinement together scene by scene.
-
-Phase suggestions use words in the instruction, not an AI assessment of your manuscript. **Ordering & estimates → Review ordering & estimates** lets you change phases, enter effort ranges, or leave individual items out. Unknown phases or effort appear under **Needs attention** with a shortcut to adjust the item.
-
-Set your planning window, session length, working minutes for each weekday, and reserve time. **Preview plan** previews the proposed sessions without saving. Scheduling uses the upper estimate, subtracts existing commitments, leaves reserve time at the end, and respects the earlier book or delivery deadline. Existing dated work without an estimate reserves its entire day. Work that cannot fit stays unscheduled; work lacking a phase or valid estimate stays in Available work.
-
-Suggested effort is a starting assumption: existing Editorialism heuristics, or five minutes per remaining batch suggestion and fifteen per memo, with a ±25% range. Replace these with your own ranges when known. Large tasks split into numbered sessions that keep their original source link. **Finish session** completes only that planning session; it does not check off an Editorialism or accept suggestions.
-
-**Use this plan** saves the plan and its defaults for this book. If feedback, the delivery, or the plan changes while the preview is open, reopen the planner and generate a fresh draft.
+To schedule one editor's handoff on its own, open **Editorial deliveries**, then choose **Plan this delivery** on a delivery card. Link its batches and Editorialism files first. This is the same planner as [Auto-plan](#auto-plan-the-whole-book), limited to unfinished, active work from that delivery. The finish date starts at the delivery's return deadline, and items already in your plan are not duplicated.
 
 For later adjustments, choose **Adjust remaining schedule** on the delivery card. This is separate from planning new work. It retains manual tasks, completed sessions, other deliveries, locked sessions, and prerequisites of preserved tasks. Use **Keep this date** under a task's **Schedule & options** to preserve a commitment. Regeneration moves eligible existing sessions; it does not recalculate their effort or split them again.
 
-<p align="center"><img src="images/delivery-schedule-preview.png" alt="Schedule preview with estimated hours, six sessions across five working days, and a finish-date forecast" width="526"></p>
-
 ## Storage
 
-Plans, delivery links, and scheduling defaults are saved in plugin data per book. Feedback remains in the scene notes and Editorialism files. No calendar account or external scheduling service is required.
+Plans, progress, delivery links, and scheduling defaults are saved in plugin data per book. Feedback remains in the scene notes and Editorialism files. No calendar account or external scheduling service is required.

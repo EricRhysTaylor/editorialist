@@ -81,9 +81,27 @@ The lines before the first `=== SECTION ===` marker identify the batch and the c
 | `=== CONDENSE ===` | `SceneId:`, `Target:`, optional `Suggestion:`, `Why:` | Tighten the passage between two anchors, with a suggested replacement or advisory guidance. |
 | `=== EXPAND ===` | `SceneId:`, `Target:`, optional `Suggestion:`, `Why:` | Develop, slow down, or decompress a beat with finished prose or advisory guidance. |
 
+Any of the five actionable entries may also carry an optional `Context:` field — see [Context across scenes](#context-across-scenes).
+
+### Context across scenes
+
+A fix often depends on another scene: the same object, date, or event recurs there, or an earlier scene already established what this one changes. `Context:` names those passages, one reference per line — the scene number, then a fragment copied verbatim from that scene. A span uses the same `"opening" → "closing"` form as a CONDENSE target:
+
+```
+=== EDIT ===
+SceneId: scn_xxxxxxxx
+Original: ...
+Revised: ...
+Why: Scene 65 already treats the reunion as settled.
+Context: 65 "the reunion at Terminus"
+- 64 "Wala3 arranges the handover" → "through an XO."
+```
+
+When you review that suggestion, the referenced paragraphs appear in the **Across scenes** section of the suggestion card, labelled **Quoted reference**, each with **Open beside** to read it in a side pane without losing your place. Context is never applied to the manuscript. A line that does not read as a scene number and a quoted fragment is ignored rather than guessed at. Self-contained line edits need no `Context:`.
+
 ### Memo-only batches
 
-A batch does not need any line edits. An editorial letter, a developmental read, or an agent's notes often arrive as commentary alone, and the natural conversion is one `MEMO` per scene discussed plus unscoped `MEMO`s for the manuscript as a whole. Each scoped memo is appended to its own scene as a review block; unscoped memos go to every scene in the batch. When a batch has no edits and no `SceneId`s at all, the memos attach to the scene you have open. A memo whose `SceneId` matches nothing is not imported. The launcher says so before you import — a warning under the paste box, and a line in the destination preview naming the memo — rather than dropping it quietly.
+A batch does not need any line edits. An editorial letter, a developmental read, or an agent's notes often arrive as commentary alone, and the natural conversion is one `MEMO` per scene discussed plus unscoped `MEMO`s for the manuscript as a whole. Each scoped memo is appended to its own scene as a review block; unscoped memos go to every scene in the batch. When a batch has no edits and no `SceneId`s at all, the memos attach to the scene you have open. A memo whose `SceneId` matches nothing is not imported. The launcher says so before you import — a warning under the paste box, and a line in the destination preview naming the memo — rather than dropping it quietly. A clipboard import that would leave a memo behind opens the destination preview instead of importing straight away; **Import placed entries** there brings in everything that has a home.
 
 ### Author queries
 
@@ -173,6 +191,8 @@ Paste the reply into the review launcher: when it contains an editorialism file,
 - `[scope:: <value>]` (recommended): `manuscript` (whole book), a scene number (`22`), a range (`13–22`, en-dash or hyphen), or `subplot:<name>`.
 - `[tags:: tag1, tag2]` (optional).
 - `[words:: <n>]` or `[scenes:: <n>]` for new prose, or `[effort:: light|medium|heavy]` for relative non-drafting effort (optional). These inform suggested effort, not fixed calendar commitments.
+- `[decision:: <answer>]` — the author's settled answer to a directive that asks for a choice, written by **Decide** in the [Editorialisms Panel](Editorialisms-Panel#decisions). A reviewer never writes one; when revising or re-exporting an agenda that already carries one, keep it verbatim and treat the answer as settled.
+- `[question:: <text>]` — the author's own question about a directive, written by **Ask a question…**; the item is marked `[?]`. See [Questions](Editorialisms-Panel#questions).
 
 **Status markers** (the character inside the task brackets):
 
@@ -199,6 +219,8 @@ Run **Open review launcher** (command palette). The launcher modal:
 
 Import appends review blocks to the targeted scene notes. Nothing else in the note is touched, and no suggestion is applied until you act on it in the [Review Panel](Review-Panel).
 
+Replies to the Editorialisms panel's **Draft fixes with AI…** and **Hand off to AI** prompts are ordinary review batches and come in the same way — see [Handing directives to AI](Editorialisms-Panel#handing-directives-to-ai).
+
 ## After import: deliveries and planning
 
 The canonical formatting instructions include both formats, actual-reviewer attribution, supported effort metadata, and guidance for stable checklist updates. Copy them afresh from the launcher when starting a new review.
@@ -209,4 +231,4 @@ After importing, open **… → Editorial deliveries**, link the batches and fil
 
 When replacing an existing agenda, preserve unchanged item text, section headings, scope, and completion markers. These identify planned work. Use a distinct title for a new editorial round; deactivate older files instead of deleting them when they no longer apply.
 
-A checklist-only paste is a valid import; no batch is required. Choose **Import editorialism**. Identical agendas open the existing library without rewriting the file, including when your completion markers have changed since the original import. Changed agendas show an update confirmation with added and removed instructions. Progress on uniquely matched, unchanged instructions and anchors is retained; changed wording or scope is treated as different work. With both formats in one paste, completing one import leaves the other available.
+A checklist-only paste is a valid import; no batch is required. Choose **Import editorialism**. Identical agendas open the existing library without rewriting the file, including when your completion markers have changed since the original import. Changed agendas show an update confirmation with added and removed instructions. Progress on uniquely matched, unchanged instructions and anchors is retained, and so is a decision or question you recorded on such an instruction when the incoming line does not state its own; changed wording or scope is treated as different work. With both formats in one paste, completing one import leaves the other available.
