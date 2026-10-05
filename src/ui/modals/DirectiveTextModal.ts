@@ -78,7 +78,7 @@ export class DirectiveTextModal extends PromiseModal<string> {
 
 		const actions = new Setting(this.contentEl);
 		if (editing) {
-			actions.addButton((button) => button.setButtonText(this.copy.clearLabel).setWarning().onClick(() => this.finish("")));
+			actions.addButton((button) => button.setButtonText(this.copy.clearLabel).onClick(() => this.finish("")));
 		}
 		actions
 			.addButton((button) => button.setButtonText("Cancel").onClick(() => this.finish(null)))

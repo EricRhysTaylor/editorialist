@@ -1795,7 +1795,6 @@
 .editorialist-panel__directive-entry.is-done .editorialist-panel__directive-text {
 	color: var(--text-faint);
 	text-decoration: line-through;
-	text-decoration-color: color-mix(in srgb, var(--text-faint) 60%, transparent);
 }
 
 .editorialist-panel__directive-entry.is-done .editorialist-panel__directive-status {
@@ -1810,7 +1809,6 @@
 .editorialist-panel__directive-text.is-jump:focus-visible {
 	color: var(--text-accent);
 	text-decoration: underline;
-	text-decoration-color: color-mix(in srgb, var(--text-accent) 45%, transparent);
 	text-underline-offset: 2px;
 }
 
