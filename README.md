@@ -16,7 +16,7 @@
 
 ## What it does
 
-Editorialist turns outside feedback into a controlled revision workflow inside Obsidian. It imports review batches from human editors, beta readers, or AI into the scene notes you are already editing, matches suggestions conservatively against note content, and lets you accept, reject, rewrite, defer, or archive each change. Long-form editorial agendas become Editorialisms, checklists pinned to the passages they concern, and a revision plan schedules all of it, along with your own pending edits, against your deadline while tracking progress across the whole book.
+Editorialist turns outside feedback into a controlled revision workflow inside Obsidian. Feedback arrives as review batches in Editorialist's format, packaged by an AI: either the AI's own review, or a human editor's or beta reader's notes that an AI has converted. Editorialist imports each batch into the scene notes you are already editing, matches suggestions conservatively against note content, and lets you accept, reject, rewrite, defer, or archive each change. Long-form editorial agendas become Editorialisms, checklists pinned to the passages they concern, and a revision plan schedules all of it, along with your own pending edits, against your deadline while tracking progress across the whole book.
 
 <!-- Screenshot placeholder — drop screenshots into /docs/images and reference them here. -->
 
@@ -33,9 +33,17 @@ Editorialist turns outside feedback into a controlled revision workflow inside O
 - The **revision plan** puts batches, directives, and pending edits in one queue against your deadline and daily capacity. **Auto-plan** spreads every open item in the book across your working days, and the progress card counts finished work across the whole book, planned or not.
 - Maintenance actions can clean review blocks or reset history, and bulk actions ask for confirmation.
 
-## AI-agnostic by design
+## How feedback gets in
 
-Editorialist ships a format, not an AI. It never makes a network call and holds no API keys — every review batch is text you paste in from whatever produced it: an AI conversation, a human editor's notes, or beta-reader feedback. Any model or reviewer that can follow the format works.
+Editorialist does not write feedback and never calls an AI itself. Every review batch reaches it in Editorialist's review format, and packaging feedback into that format is an AI's job:
+
+1. Copy the formatting instructions from the review launcher.
+2. Give them to the AI you choose, along with the scenes to review, or along with a human editor's or beta reader's notes for the AI to convert.
+3. Paste the AI's formatted reply back into Editorialist's import.
+
+It's a format, and any AI you choose can follow it. Editorialist makes no network calls and holds no API keys.
+
+From there, Editorialist runs the workflow: it matches each suggestion to its passage, walks you through accepting, rejecting, or rewriting them scene by scene, tracks editorialism directives and your decisions, and schedules the work against your deadline.
 
 ## Commands
 
