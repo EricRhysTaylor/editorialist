@@ -4,7 +4,7 @@
     <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/EricRhysTaylor/Editorialist/main/logo-light.png">
     <!-- Fallback img is the WHITE logo: renderers that ignore <picture> (e.g. the
          community.obsidian.md listing page, which is dark-themed) show this one. -->
-    <img src="https://raw.githubusercontent.com/EricRhysTaylor/Editorialist/main/logo.png" alt="Editorialist Logo" width="360" style="border-radius: 0;">
+    <img src="https://raw.githubusercontent.com/EricRhysTaylor/Editorialist/main/logo.png" alt="Editorialist Logo" width="300" style="border-radius: 0;">
   </picture>
 </p>
 <p align="center" style="font-family: sans-serif; font-size: 26px; margin-top: 12px; margin-bottom: 4px;">
