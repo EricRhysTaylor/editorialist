@@ -83,6 +83,7 @@ import { EDITORIALISM_PANEL_VIEW_TYPE, EditorialismPanel } from "./ui/Editoriali
 import { PENDING_EDITS_PANEL_VIEW_TYPE, PendingEditsPanel } from "./ui/PendingEditsPanel";
 import { AuthorQueryModal } from "./ui/modals/AuthorQueryModal";
 import {
+	formatAuthorQueryMarker,
 	stripAuthorQueryMarkerFromText,
 	type AuthorQueryStripOutcome,
 } from "./core/AuthorQueryMarker";
@@ -1191,7 +1192,7 @@ export default class EditorialistPlugin extends Plugin {
 
 	// Shared author-query insertion flow behind all three entry points (command,
 	// editor right-click, panel button). Prompts for the question, then writes a
-	// hidden `%%ai: …%%` marker into the scene editor at the cursor — or after the
+	// `%%query: …%%` marker into the scene editor at the cursor — or after the
 	// selection, never replacing it — so the next review picks it up. Falls back
 	// to the clipboard when no scene editor is in view (e.g. the panel is focused
 	// with no manuscript open).
@@ -1206,7 +1207,7 @@ export default class EditorialistPlugin extends Plugin {
 			return;
 		}
 
-		const marker = `%%ai: ${question}%%`;
+		const marker = formatAuthorQueryMarker(question);
 		const editor = view?.editor;
 		if (editor) {
 			// Insert at the cursor, or immediately after the selection — never
@@ -1225,8 +1226,8 @@ export default class EditorialistPlugin extends Plugin {
 	}
 
 	// Mark an answered query resolved: persist the decision and strip the
-	// matching %%ai:…%% marker from the scene note so it is not re-asked on the
-	// next export/review.
+	// matching %%query:…%% (or legacy %%ai:…%%) marker from the scene note so it
+	// is not re-asked on the next export/review.
 	async resolveAuthorQuery(id: string): Promise<void> {
 		await this.applyAuthorQueryDecision(id, "resolved");
 	}
@@ -1264,7 +1265,7 @@ export default class EditorialistPlugin extends Plugin {
 		// having failed when it had not.
 		if ((await this.applyAuthorQueryMarkerStrip(file, question)) === "unmatched") {
 			new Notice(
-				"Query resolved, but its `%%ai:…%%` marker was not found in the scene (the review may have reworded the question). Remove the marker manually so it is not re-asked.",
+				"Query resolved, but its `%%query:…%%` marker was not found in the scene (the review may have reworded the question). Remove the marker manually so it is not re-asked.",
 			);
 		}
 	}

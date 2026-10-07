@@ -71,9 +71,9 @@ of these is a build failure.
   a suppression trades one problem for two. Fix the string instead.
 - To keep a literal token out of the rule's reach, wrap it in backticks: the
   rule treats a backtick span as code and leaves its casing alone. This is how
-  `%%ai:…%%` stays lowercase in UI copy — matching what `main.ts` actually
-  writes into a note. Without backticks the rule "corrects" it to `%%AI:…%%`,
-  which names a marker the plugin never emits.
+  `%%query:…%%` stays lowercase in UI copy — matching what `main.ts` actually
+  writes into a note. Without backticks the rule "corrects" it to
+  `%%Query:…%%`, which names a marker the plugin never emits.
 - Prefer naming a marker over spelling it in an `aria-label`; the `%%…%%`
   delimiters are noise when spoken.
 

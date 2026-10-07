@@ -1,4 +1,4 @@
-The Review mode is traditional Editorialist: scene-level review batches with line edits, cut / move / condense / expand suggestions, `%%ai: question%%` responses, and memos for a scene. Open it with the **Open review panel** command or choose **Review** from the mode menu.
+The Review mode is traditional Editorialist: scene-level review batches with line edits, cut / move / condense / expand suggestions, `%%query: question%%` responses, and memos for a scene. Open it with the **Open review panel** command or choose **Review** from the mode menu.
 
 <p align="center"><img src="images/panel-review-active.png" alt="Active review comparing the original passage with a proposed revision and reviewer attribution" width="460"></p>
 
@@ -23,7 +23,7 @@ Between sessions the panel shows:
 | **View name / chevron** | Choose Revision plan, Review, Pending edits, or Editorialisms. The Ed logo stays the same. |
 | **Import** | Open the launcher. At narrow widths this becomes a **+** button. |
 | **… → Editorial deliveries** | Group batches and Editorialism files by handoff, record dates, and start planning. |
-| **… → Insert author query** | Add a hidden `%%ai: …%%` question to the manuscript. |
+| **… → Insert author query** | Add a `%%query: …%%` question to the manuscript. |
 | **… → Open cut file** | Open the active scene’s existing cut file. |
 | **… → Clean resolved batches** | Remove resolved imported review blocks. |
 | **… → End current round** | End selected batches and remove unfinished feedback without counting it as rejected. Manuscript changes and recorded decisions remain. |

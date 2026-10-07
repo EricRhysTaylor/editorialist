@@ -74,7 +74,7 @@ The lines before the first `=== SECTION ===` marker identify the batch and the c
 | Section | Fields | What it does |
 |---|---|---|
 | `=== MEMO ===` | freeform, optional `Strengths:` / `Issues:`, optional `SceneId:` | Commentary that doesn't belong inline as a line edit. A MEMO **with** a `SceneId` attaches to that scene, whether or not the scene received edits; a MEMO **without** one is duplicated to every scene in the batch. Use as many as needed. |
-| `=== QUERY ===` | `Id:`, optional `SceneId:`, `Question:`, `Answer:`, optional `Recommendation:` | Answers an author query — a hidden `%%ai: …%%` marker the author left inline. See [Author queries](#author-queries) below. |
+| `=== QUERY ===` | `Id:`, optional `SceneId:`, `Question:`, `Answer:`, optional `Recommendation:` | Answers an author query — a `%%query: …%%` marker the author left inline. See [Author queries](#author-queries) below. |
 | `=== EDIT ===` | `SceneId:`, `Original:`, `Revised:`, `Why:` | Replace `Original` text with a specific suggested change. |
 | `=== MOVE ===` | `SceneId:`, `Target:`, `Before:` (or `After:`), `Why:` | Relocate the target passage relative to a destination anchor. |
 | `=== CUT ===` | `SceneId:`, `Target:`, `Why:` | Remove the target passage. Accepted cuts can be [backed up to a cut file](Settings-Reference#configuration-tab) first. |
@@ -105,14 +105,18 @@ A batch does not need any line edits. An editorial letter, a developmental read,
 
 ### Author queries
 
-An author query is a hidden `%%ai: <question>%%` marker you leave inline in a scene — run **Insert author query** (command palette, editor right-click menu, or the panel’s **… → Insert author query** action) to drop one at the cursor. It never renders in reading view; it just waits for the next review pass.
+An author query is a `%%query: <question>%%` marker you leave inline in a scene — run **Insert author query** (command palette, editor right-click menu, or the panel’s **… → Insert author query** action) to drop one at the cursor. Obsidian hides it in reading view, and it travels with the manuscript until the next review pass answers it — your editor's next round, or an AI pass in between.
+
+A query is hidden only inside Obsidian. A manuscript export keeps it unless you strip author queries, so anyone reading that file sees it: keep them in what you send a reviewer, and strip them from anything meant for readers. Radial Timeline's export has a **Strip author queries** toggle for this.
+
+Markers written before 2.0.1 use the original name, `%%ai: <question>%%`. Editorialist still reads, answers and resolves them; new markers are written as `%%query:`.
 
 The round trip:
 
-1. **Marker.** You (or Editorialist's **Insert author query** action) write `%%ai: <question>%%` into the scene.
+1. **Marker.** You (or Editorialist's **Insert author query** action) write `%%query: <question>%%` into the scene.
 2. **Template.** When you copy the formatting instructions, Editorialist finds every marker in the passage, strips it from the copy sent to the reviewer, and lists the questions with instructions to answer each one in its own `=== QUERY ===` block.
 3. **QUERY answer.** The reviewer's reply includes a `=== QUERY ===` section per question: the repeated `Question:`, a direct `Answer:`, and an optional one-line `Recommendation:`.
-4. **Resolve or dismiss.** On import, the answer routes back to the scene the marker sits in. Resolving a query strips the matching `%%ai:…%%` marker from the note; dismissing it records your decision but leaves the marker in place for a later pass.
+4. **Resolve or dismiss.** On import, the answer routes back to the scene the marker sits in. Resolving a query strips the matching `%%query:…%%` marker from the note; dismissing it records your decision but leaves the marker in place for a later pass.
 
 ### CONDENSE anchor pairs
 

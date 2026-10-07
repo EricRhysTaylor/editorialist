@@ -3,7 +3,7 @@ import { PromiseModal } from "./PromiseModal";
 
 // Collects an author query — the question an author wants Editorialist to
 // address on the next review. Resolves the trimmed question text, or null on
-// cancel. The caller turns it into a `%%ai: …%%` marker and places it; this
+// cancel. The caller turns it into a `%%query: …%%` marker and places it; this
 // modal only gathers the text.
 export class AuthorQueryModal extends PromiseModal<string> {
 	private value = "";
@@ -17,7 +17,7 @@ export class AuthorQueryModal extends PromiseModal<string> {
 
 		this.contentEl.createEl("p", {
 			cls: "editorialist-author-query__hint",
-			text: "Adds a hidden `%%ai:…%%` note in the scene. Editorialist answers it on the next review; readers never see it.",
+			text: "Adds a `%%query:…%%` note to the scene, hidden in reading view. Your next reviewer answers it. It stays in exports unless you strip author queries.",
 		});
 
 		new Setting(this.contentEl).setName("Question").addTextArea((textArea) => {

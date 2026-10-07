@@ -1,8 +1,20 @@
-// Single source for the author-query marker syntax — a hidden `%%ai: …%%`
-// comment the author leaves inline. Case-insensitive, whitespace-tolerant,
-// non-greedy to the closing `%%`. The required `ai:` prefix spares ordinary
-// `%% notes %%` and Editorialist's own `%% editorialist-cut … %%` blocks.
-export const AUTHOR_QUERY_PATTERN = /%%\s*ai\s*:\s*([\s\S]*?)%%/gi;
+// Single source for the author-query marker syntax — a `%%query: …%%` comment
+// the author leaves inline for whoever reviews next (an editor, a beta reader,
+// or an AI). Obsidian hides it in reading view; it travels with the manuscript.
+// `%%ai: …%%` is the original name and is still read everywhere, so manuscripts
+// and exports written before the rename keep working; new markers are always
+// written as `query:`. Case-insensitive, whitespace-tolerant, non-greedy to the
+// closing `%%`. The required prefix spares ordinary `%% notes %%` and
+// Editorialist's own `%% editorialist-cut … %%` blocks.
+export const AUTHOR_QUERY_MARKER_PREFIX = "query";
+const AUTHOR_QUERY_PREFIX_SOURCE = "(?:query|ai)";
+
+export const AUTHOR_QUERY_PATTERN = new RegExp(`%%\\s*${AUTHOR_QUERY_PREFIX_SOURCE}\\s*:\\s*([\\s\\S]*?)%%`, "gi");
+
+// The marker Editorialist writes for a new question.
+export function formatAuthorQueryMarker(question: string): string {
+	return `%%${AUTHOR_QUERY_MARKER_PREFIX}: ${question}%%`;
+}
 
 // Stable identity for a query within a note: note path + the question text
 // (whitespace-collapsed to match the parser's cleaned value). Used to key the
@@ -11,8 +23,9 @@ export function authorQueryKey(notePath: string, question: string): string {
 	return `${notePath}::${question.trim().replace(/\s+/g, " ")}`;
 }
 
-// A regex that locates the specific `%%ai: <question>%%` marker for one query
-// in a note body, so resolving can strip exactly that marker. Whitespace
+// A regex that locates the specific `%%query: <question>%%` (or legacy
+// `%%ai:`) marker for one query in a note body, so resolving can strip exactly
+// that marker. Whitespace
 // between words is matched loosely (`\s+`) because the stored question is
 // collapsed while the note marker may wrap across lines. Not global — callers
 // remove a single occurrence.
@@ -29,7 +42,7 @@ export function buildAuthorQueryMarkerPattern(question: string): RegExp {
 		.replace(/["“”]/g, "[\"“”]")
 		.replace(/[-–—−]/g, "[-–—−]")
 		.replace(/\s+/g, "\\s+");
-	return new RegExp(`%%\\s*ai\\s*:\\s*${escaped}\\s*%%`, "i");
+	return new RegExp(`%%\\s*${AUTHOR_QUERY_PREFIX_SOURCE}\\s*:\\s*${escaped}\\s*%%`, "i");
 }
 
 export type AuthorQueryStripOutcome = "stripped" | "unmatched" | "no_marker_present";
@@ -43,7 +56,7 @@ export interface AuthorQueryStripResult {
 // than reusing AUTHOR_QUERY_PATTERN, which is global and would carry lastIndex
 // state between calls.
 export function noteHasAuthorQueryMarker(text: string): boolean {
-	return /%%\s*ai\s*:\s*[\s\S]*?%%/i.test(text);
+	return new RegExp(`%%\\s*${AUTHOR_QUERY_PREFIX_SOURCE}\\s*:\\s*[\\s\\S]*?%%`, "i").test(text);
 }
 
 // Removing the marker for a resolved query has three distinct outcomes, and the

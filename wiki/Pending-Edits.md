@@ -15,7 +15,7 @@ Use it when the work is already in your manuscript workflow as a pending revisio
 | Mode | Best for |
 |---|---|
 | **Revision plan** | Scheduling these notes alongside batches and Editorialisms; finishing a session leaves the source note intact. |
-| **Review** | Imported review batches with concrete line edits, cuts, moves, condenses, expands, `%%ai: question%%` responses, and scene memos. |
+| **Review** | Imported review batches with concrete line edits, cuts, moves, condenses, expands, `%%query: question%%` responses, and scene memos. |
 | **Pending edits** | Your own queued revision notes and Radial Timeline Inquiry follow-ups across the active book. |
 | **Editorialisms** | Manuscript-wide commentary and structural guidance with no line edits. |
 

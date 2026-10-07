@@ -47,7 +47,7 @@ Use the view name beside the Ed logo to switch modes. Every mode shares the acti
 | Mode | Use it for |
 |---|---|
 | **Revision plan** | See progress across the whole book, then prioritize and schedule work from the three sources below: by hand, with **Auto-plan** across the book, or for one editor’s delivery. |
-| **Review** | Imported review batches: scene-level edits such as expand, condense, cut, move, and line edits, plus `%%ai: question%%` responses and scene memos. Each batch is a review block appended to the scene, worked through, then cleaned away. Each scene can carry multiple batches from different manuscript shares or review passes. |
+| **Review** | Imported review batches: scene-level edits such as expand, condense, cut, move, and line edits, plus `%%query: question%%` responses and scene memos. Each batch is a review block appended to the scene, worked through, then cleaned away. Each scene can carry multiple batches from different manuscript shares or review passes. |
 | **Pending edits** | The notes in each scene’s **Pending Edits** property (the revision notes you keep with Radial Timeline, including Inquiry follow-ups), walked scene by scene across the active book. |
 | **Editorialisms** | A long-form checklist of directives pinned to the passages they concern, kept permanently as its own document: structural guidance, theme/subplot notes, and general feedback with no line edits. Record decisions or questions on directives and hand them to AI. |
 

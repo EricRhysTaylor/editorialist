@@ -6,7 +6,7 @@
 
 // MEMO and QUERY are not editable operations (they never apply to the prose),
 // but they are section-header keywords the grammar must recognize so the parser
-// and paste-normalizer route them. QUERY carries an author's `%%ai: …%%`
+// and paste-normalizer route them. QUERY carries an author's `%%query: …%%`
 // question and the model's answer; see SceneMemo.kind.
 export const REVIEW_OPERATION_KEYWORDS = ["EDIT", "MOVE", "CUT", "CONDENSE", "EXPAND", "MEMO", "QUERY"] as const;
 export type ReviewOperationKeyword = (typeof REVIEW_OPERATION_KEYWORDS)[number];

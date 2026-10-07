@@ -49,7 +49,7 @@ Editorialist ships a format, not an AI. It never makes a network call and holds 
 - `End current round` — removes the current batch or all remaining batches in the book, keeping manuscript edits and decision counts. Unfinished feedback is marked ended early; no archive is created.
 - `Rescan review blocks for cleanup` — re-scans scene notes for review blocks ready to be cleaned.
 - `Backup selection to cut file` — copies the selected text into the scene's cut file without changing the manuscript. Also available from the editor right-click menu when text is selected.
-- `Insert author query` — drops a hidden `%%ai: …%%` marker into the scene at the cursor, so the next AI review answers it in a `QUERY` block. Also available from the editor right-click menu.
+- `Insert author query` — drops a `%%query: …%%` marker into the scene at the cursor (hidden in reading view), so your next review — your editor's or an AI's — answers it in a `QUERY` block. Markers written as `%%ai: …%%` before 2.0.1 still work. Also available from the editor right-click menu.
 - `Anchor selection to editorialism directive` — pins the selected passage to an Editorialism directive so you can jump straight back to it later. Also available from the editor right-click menu.
 - `Go to next unprocessed anchor` — opens the next anchored passage in the active Editorialism, across scenes.
 - `Mark anchor processed and go to next` — records the current anchored passage as handled and advances.

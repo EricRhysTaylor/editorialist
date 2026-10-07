@@ -36,7 +36,7 @@ export const REVIEW_TEMPLATE_BLOCK = [
 	"=== QUERY ===",
 	"Id: Q1",
 	"SceneId: scn_xxxxxxxx",
-	"Question: <the author's %%ai: …%% question, repeated>",
+	"Question: <the author's %%query: …%% question, repeated>",
 	"Answer: <direct answer with a recommendation>",
 	"Recommendation: <optional one-line takeaway>",
 	"",
@@ -158,13 +158,14 @@ const REVIEW_TEMPLATE_GUIDANCE = [
 	"developmental tasks in Format B so the author can plan and complete each one.",
 	"Keep context in MEMOs without repeating those tasks as separate assignments.",
 	"",
-	"Author queries: the manuscript may contain hidden `%%ai: <question>%%` markers anywhere",
-	"in the prose — questions the author embedded inline for you (they survive a Radial",
-	"Timeline export with AI comments retained, so they can appear in the pasted manuscript,",
-	"not just a selected passage). Answer EVERY one in its own === QUERY === block: repeat the",
-	"Question, give a direct Answer with a recommendation (not an acknowledgement), and set",
-	"SceneId to the scene the marker sits in. Do not treat the marker as prose to edit, and do",
-	"not echo the `%%ai:%%` delimiters back in your output.",
+	"Author queries: the manuscript may contain hidden `%%query: <question>%%` markers anywhere",
+	"in the prose (older manuscripts write them `%%ai: <question>%%`) — questions the author",
+	"embedded inline for you (they survive a Radial Timeline export with author queries",
+	"retained, so they can appear in the pasted manuscript, not just a selected passage).",
+	"Answer EVERY one in its own === QUERY === block: repeat the Question, give a direct",
+	"Answer with a recommendation (not an acknowledgement), and set SceneId to the scene the",
+	"marker sits in. Do not treat the marker as prose to edit, and do not echo the",
+	"`%%query:%%` or `%%ai:%%` delimiters back in your output.",
 	"",
 	"Each operation entry (EDIT / CUT / CONDENSE / EXPAND / MOVE) targets a single scene via SceneId.",
 	"Items in the same block may target different scenes — repeat the operation header and",
@@ -423,8 +424,8 @@ interface ExtractedAuthorQueries {
 	questions: string[];
 }
 
-// Pull every `%%ai: …%%` out of the passage and return the prose with the
-// markers removed. The vault note is never touched — this operates only on the
+// Pull every `%%query: …%%` (or legacy `%%ai: …%%`) out of the passage and
+// return the prose with the markers removed. The vault note is never touched — this operates only on the
 // copy sent to the model, so the author's source keeps its comments.
 function extractAuthorQueries(passage: string): ExtractedAuthorQueries {
 	const questions: string[] = [];

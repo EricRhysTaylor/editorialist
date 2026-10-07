@@ -311,7 +311,7 @@ export class SuggestionParser {
 		};
 	}
 
-	// An === QUERY === block is the model's answer to an author's `%%ai: …%%`
+	// An === QUERY === block is the model's answer to an author's `%%query: …%%`
 	// question. It routes by SceneId like any memo (the contract embeds SceneId
 	// in the query so routing survives the copy-out/paste-back gap — there is no
 	// in-memory map to rely on). The Id field (Q1, Q2…) only disambiguates the

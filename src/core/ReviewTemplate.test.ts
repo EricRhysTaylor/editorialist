@@ -16,23 +16,30 @@ function passageSection(out: string): string {
 }
 
 describe("buildReviewTemplate — author queries", () => {
-	it("strips %%ai: …%% markers from the passage sent for review", () => {
-		const passage = "She crossed the bridge. %%ai: Is this beat too abrupt?%% The lights went out.";
+	it("strips %%query: …%% markers from the passage sent for review", () => {
+		const passage = "She crossed the bridge. %%query: Is this beat too abrupt?%% The lights went out.";
 		const out = buildReviewTemplate(passage, { activeSceneId: "scn_abc123" });
 
 		// The marker must not survive into the prose the model edits against.
-		// (The template documentation legitimately mentions %%ai: — scope the
+		// (The template documentation legitimately mentions %%query: — scope the
 		// check to the Passage section.)
 		const body = passageSection(out);
-		expect(body).not.toContain("%%ai:");
+		expect(body).not.toContain("%%query:");
 		expect(body).toContain("She crossed the bridge.");
 		expect(body).toContain("The lights went out.");
 		expect(body).not.toContain("Is this beat too abrupt?");
 		expect(body).not.toContain("%%");
 	});
 
+	it("still extracts legacy %%ai:%% markers from the passage", () => {
+		const passage = "She crossed the bridge. %%ai: Is this beat too abrupt?%% The lights went out.";
+		const out = buildReviewTemplate(passage, { activeSceneId: "scn_abc123" });
+		expect(passageSection(out)).not.toContain("%%");
+		expect(queriesSection(out)).toContain("[Q1] SceneId: scn_abc123 — Is this beat too abrupt?");
+	});
+
 	it("injects an AUTHOR QUERIES block with numbered ids and the active SceneId", () => {
-		const passage = "%%ai: First question?%% Prose. %%ai: Second question?%%";
+		const passage = "%%query: First question?%% Prose. %%query: Second question?%%";
 		const out = buildReviewTemplate(passage, { activeSceneId: "scn_abc123" });
 
 		const section = queriesSection(out);
@@ -42,7 +49,7 @@ describe("buildReviewTemplate — author queries", () => {
 	});
 
 	it("omits SceneId from the query contract when no active scene is known", () => {
-		const passage = "%%ai: Does this work?%% Prose here.";
+		const passage = "%%query: Does this work?%% Prose here.";
 		const out = buildReviewTemplate(passage);
 
 		const section = queriesSection(out);
@@ -51,7 +58,7 @@ describe("buildReviewTemplate — author queries", () => {
 	});
 
 	it("collapses internal whitespace and newlines inside a query", () => {
-		const passage = "Prose. %%ai:\n  Should the   motif\n  return here?\n%%";
+		const passage = "Prose. %%query:\n  Should the   motif\n  return here?\n%%";
 		const out = buildReviewTemplate(passage, { activeSceneId: "scn_x" });
 		expect(queriesSection(out)).toContain("[Q1] SceneId: scn_x — Should the motif return here?");
 	});
@@ -65,11 +72,13 @@ describe("buildReviewTemplate — author queries", () => {
 	it("always documents the === QUERY === contract so the export path is covered", () => {
 		// The Radial Timeline export is pasted straight into the AI and never
 		// passes through Editorialist, so the standing template instruction is the
-		// only thing that tells the AI to answer `%%ai:%%` markers it finds there.
+		// only thing that tells the AI to answer `%%query:%%` markers it finds there.
 		const out = buildReviewTemplate("Plain prose, no selection markers.");
 		expect(out).toContain("=== QUERY ===");
-		expect(out).toContain("%%ai:");
-		expect(out).toMatch(/hidden `%%ai: <question>%%` markers/);
+		expect(out).toContain("%%query:");
+		expect(out).toMatch(/hidden `%%query: <question>%%` markers/);
+		// Older manuscripts still carry the original name; the reviewer is told so.
+		expect(out).toContain("%%ai: <question>%%");
 	});
 
 	it("ignores plain comments and editorialist-cut archive blocks", () => {

@@ -21,7 +21,7 @@ export const SUPPORTED_REVIEW_OPERATION_LABELS: Record<SupportedReviewOperationT
 export type ReviewStatus = "pending" | "accepted" | "rejected" | "deferred" | "unresolved" | "rewritten";
 
 // Lifecycle for a query memo (kind:"query"). "open" is the implicit default
-// (no persisted decision). "resolved" also strips the %%ai:…%% marker from the
+// (no persisted decision). "resolved" also strips the %%query:…%% marker from the
 // scene note; "dismissed" leaves the note untouched. Persisted in data.json's
 // authorQueryDecisions index, reconciled onto the parsed memo at session build.
 export type AuthorQueryStatus = "open" | "resolved" | "dismissed";
@@ -169,7 +169,7 @@ export type ReviewSuggestion = EditSuggestion | MoveSuggestion | CutSuggestion |
 // A SceneMemo is advisory, non-mutating commentary rendered in the Comments
 // card — it has no accept/apply lifecycle, unlike a ReviewSuggestion. `kind`
 // discriminates passive editorial notes ("memo") from author queries
-// ("query"): a hidden `%%ai: …%%` marker the author left in the prose, stripped
+// ("query"): a hidden `%%query: …%%` marker the author left in the prose, stripped
 // before review and answered by the model. Query memos carry question/answer/
 // recommendation instead of strengths/issues/body, and pin to the top of the
 // card. Routing (scene attachment) is shared by both kinds.
