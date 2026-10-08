@@ -2,6 +2,7 @@ import type { ReviewSession, ReviewSuggestion } from "../models/ReviewSuggestion
 import { getLegacyContributorSignatureKind } from "./ContributorIdentity";
 import { getSuggestionSignatureParts } from "./OperationSupport";
 import type { MatchEngine } from "./MatchEngine";
+import { maskFrontmatter } from "./TextMatching";
 import type { SuggestionParser } from "./SuggestionParser";
 
 export class ReviewEngine {
@@ -170,7 +171,11 @@ export class ReviewEngine {
 		].join("\u0000");
 	}
 
-	private maskReviewBlocks(noteText: string, blocks: Array<{ startOffset: number; endOffset: number }>): string {
+	// Only the prose is a match target: review blocks hold the suggestions
+	// themselves, and the properties (frontmatter) often quote the prose. Both are
+	// blanked with spaces so every offset still points into the real note.
+	private maskReviewBlocks(rawNoteText: string, blocks: Array<{ startOffset: number; endOffset: number }>): string {
+		const noteText = maskFrontmatter(rawNoteText);
 		if (blocks.length === 0) {
 			return noteText;
 		}

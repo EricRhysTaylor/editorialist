@@ -1,3 +1,31 @@
+import { REVIEW_BLOCK_FENCE } from "./ReviewBlockFormat";
+
+// Blank a span with spaces (newlines kept), so every offset still points into
+// the real note while the span can no longer match.
+function blankRange(text: string, start: number, end: number): string {
+	return text.slice(0, start) + text.slice(start, end).replace(/[^\r\n]/g, " ") + text.slice(end);
+}
+
+// The note's YAML properties are not prose. They often quote it (Radial
+// Timeline's scene analysis quotes a scene's key line), which made a unique
+// sentence look like two matches, or sent an anchor into the properties.
+export function maskFrontmatter(noteText: string): string {
+	const frontmatter = /^---\r?\n[\s\S]*?\r?\n---(?=\r?\n|$)/.exec(noteText);
+	return frontmatter ? blankRange(noteText, 0, frontmatter[0].length) : noteText;
+}
+
+// Prose only: properties and Editorialist's own review blocks blanked. Review
+// blocks hold suggestions and memos that quote the prose they are about.
+export function maskNonProse(noteText: string): string {
+	let masked = maskFrontmatter(noteText);
+	const fence = new RegExp("^```" + REVIEW_BLOCK_FENCE + "[^\\n]*\\n[\\s\\S]*?^```[ \\t]*$", "gm");
+	let match: RegExpExecArray | null;
+	while ((match = fence.exec(noteText)) !== null) {
+		masked = blankRange(masked, match.index, match.index + match[0].length);
+	}
+	return masked;
+}
+
 export function findExactMatches(noteText: string, text: string): number[] {
 	if (!text) {
 		return [];
@@ -31,7 +59,10 @@ export function normalizeMatchText(value: string): string {
 	return value
 		.replace(/[“”]/g, "\"")
 		.replace(/[‘’]/g, "'")
-		.replace(/[–—−]/g, "-")
+		// A typed `--` / `---` is the same dash as – or —: plain-text manuscripts
+		// (Project Gutenberg, typewriter habit) use hyphen pairs, while Word and
+		// most AI output turn them into dash characters.
+		.replace(/-{2,3}|[–—−]/g, "-")
 		.replace(/\s+/g, " ")
 		.trim();
 }
@@ -91,7 +122,7 @@ function buildFuzzyMatchPattern(text: string): string | null {
 			continue;
 		}
 		if (char === "-" || char === "–" || char === "—" || char === "−") {
-			out += "[-–—−]";
+			out += "(?:-{1,3}|[–—−])";
 			continue;
 		}
 		out += char.replace(REGEX_META_CHARS, "\\$&");

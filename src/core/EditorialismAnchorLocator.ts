@@ -13,7 +13,7 @@
 // them the passage moved.
 
 import type { EditorialismAnchor } from "../models/Editorialism";
-import { findExactMatches, findFuzzyMatches } from "./TextMatching";
+import { findExactMatches, findFuzzyMatches, maskNonProse } from "./TextMatching";
 
 export interface AnchorRange {
 	start: number;
@@ -73,7 +73,9 @@ function truncateForMessage(fragment: string): string {
 	return collapsed.length <= 48 ? collapsed : `${collapsed.slice(0, 45)}…`;
 }
 
-export function locateAnchor(noteText: string, anchor: EditorialismAnchor): AnchorLocation {
+export function locateAnchor(rawNoteText: string, anchor: EditorialismAnchor): AnchorLocation {
+	// Prose only, so an anchor never lands in the properties or a review block.
+	const noteText = maskNonProse(rawNoteText);
 	if (!anchor.opening.trim()) {
 		return { status: "not-located", reason: "Anchor has no fragment text." };
 	}
