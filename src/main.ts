@@ -662,6 +662,9 @@ export default class EditorialistPlugin extends Plugin {
 			},
 			detectEditorialism: (rawText) => this.detectEditorialismInText(rawText),
 			onSaveEditorialism: async (rawText) => this.saveEditorialismFromText(rawText),
+			isBatchImported: (batch) => this.registry.findDuplicateSweep(batch) !== null,
+			isEditorialismSaved: async (rawText) => this.isEditorialismSavedFromText(rawText),
+			onReadClipboardText: async () => this.batchProcessor.readClipboardText(),
 			onImportBatch: async (batch, startReview) => {
 				await this.batchProcessor.importReviewBatch(batch, startReview);
 			},
@@ -978,6 +981,13 @@ export default class EditorialistPlugin extends Plugin {
 	// modal can offer the "Save editorialism file" action.
 	detectEditorialismInText(rawText: string): boolean {
 		return extractEditorialismFileFromText(rawText) !== null;
+	}
+
+	// True when the editorialism in pasted text is already saved and unchanged,
+	// so the launcher can show that part of a two-part paste as done.
+	async isEditorialismSavedFromText(rawText: string): Promise<boolean> {
+		const extracted = extractEditorialismFileFromText(rawText);
+		return extracted ? this.editorialismService.isEditorialismFileSaved(extracted) : false;
 	}
 
 	// Extract the Format B editorialism file from pasted text, write it to

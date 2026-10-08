@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractEditorialismFileFromText } from "./EditorialismImport";
+import { extractEditorialismFileFromText, removeEditorialismFromText } from "./EditorialismImport";
 
 const FILE_BODY = [
 	"---",
@@ -99,5 +99,29 @@ describe("extractEditorialismFileFromText — attribution", () => {
 		const extracted = extractEditorialismFileFromText(FILE_BODY);
 		expect(extracted?.reviewer).toBeNull();
 		expect(extracted?.reviewerType).toBeNull();
+	});
+});
+
+describe("removeEditorialismFromText", () => {
+	const REVIEW = ["```editorialist-review", "Reviewer: Morgan Lee", "", "=== EDIT ===", "Original: a", "Revised: b", "```"].join("\n");
+
+	it("leaves text without an editorialism as it is", () => {
+		expect(removeEditorialismFromText(REVIEW)).toBe(REVIEW);
+	});
+
+	it("takes out a fenced editorialism and keeps the review block", () => {
+		const paste = [REVIEW, "", "```editorialism", FILE_BODY, "```", "", "Let me know."].join("\n");
+		const rest = removeEditorialismFromText(paste);
+		expect(rest).toBe([REVIEW, "", "", "Let me know."].join("\n"));
+		expect(extractEditorialismFileFromText(rest)).toBeNull();
+	});
+
+	it("takes out an unfenced editorialism after the review block, closing fence intact", () => {
+		expect(removeEditorialismFromText([REVIEW, "", FILE_BODY].join("\n"))).toBe(REVIEW);
+	});
+
+	it("drops a chat fence left open above an unfenced editorialism", () => {
+		const paste = [REVIEW, "", "```", FILE_BODY].join("\n");
+		expect(removeEditorialismFromText(paste)).toBe(REVIEW);
 	});
 });

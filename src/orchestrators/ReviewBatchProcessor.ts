@@ -1,3 +1,4 @@
+import { removeEditorialismFromText } from "../core/EditorialismImport";
 import { saveOpenEditors } from "../services/SaveOpenEditors";
 import { isBatchReadyToClean } from "../core/review/SweepCompletion";
 // Owns review-batch orchestration: clipboard load + inspect, duplicate-sweep
@@ -109,13 +110,24 @@ function describeSkippedUnfencedBlocks(count: number): string {
 export class ReviewBatchProcessor {
 	constructor(private readonly host: ReviewBatchProcessorHost) {}
 
-	async loadClipboardReviewBatch(): Promise<ClipboardReviewBatch | null> {
+	async readClipboardText(): Promise<string | null> {
 		if (!navigator.clipboard?.readText) {
+			return null;
+		}
+		try {
+			return await navigator.clipboard.readText();
+		} catch {
+			return null;
+		}
+	}
+
+	async loadClipboardReviewBatch(): Promise<ClipboardReviewBatch | null> {
+		const rawText = await this.readClipboardText();
+		if (rawText === null) {
 			return null;
 		}
 
 		try {
-			const rawText = await navigator.clipboard.readText();
 			// The user just clicked "Copy formatting instructions": the clipboard
 			// holds the prompt, not a review. Treat it as empty so the launcher
 			// keeps offering the copy/paste cards instead of an import.
@@ -193,7 +205,9 @@ export class ReviewBatchProcessor {
 			return;
 		}
 
-		const batchText = this.addImportedBlockMetadata(normalizedText, batch.batchId);
+		// A reply can carry an editorialism after the review block; that part is
+		// saved to the library on its own, never written into the note.
+		const batchText = this.addImportedBlockMetadata(removeEditorialismFromText(normalizedText), batch.batchId);
 
 		const currentText = context.view.editor.getValue();
 		context.view.editor.setValue(appendBlockToNote(currentText, batchText.trim()));

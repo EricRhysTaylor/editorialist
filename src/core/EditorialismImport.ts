@@ -71,13 +71,16 @@ function deriveTitleFromBody(content: string): string | null {
 	return null;
 }
 
-function matchFencedEditorialism(rawText: string): string | null {
+function execFencedEditorialism(rawText: string): RegExpExecArray | null {
 	const pattern = new RegExp(
 		`(?:^|\\n)\`\`\`${EDITORIALISM_FENCE}[^\\S\\r\\n]*\\r?\\n([\\s\\S]*?)\\r?\\n\`\`\``,
 		"m",
 	);
-	const match = pattern.exec(rawText);
-	return match?.[1] ?? null;
+	return pattern.exec(rawText);
+}
+
+function matchFencedEditorialism(rawText: string): string | null {
+	return execFencedEditorialism(rawText)?.[1] ?? null;
 }
 
 // Finds the first `---` frontmatter block whose `type` is editorialism and
@@ -141,4 +144,33 @@ export function extractEditorialismFileFromText(rawText: string): ExtractedEdito
 		reviewer: frontmatter[EDITORIALISM_REVIEWER_KEY]?.trim() || null,
 		reviewerType: frontmatter[EDITORIALISM_REVIEWER_TYPE_KEY]?.trim() || null,
 	};
+}
+
+// The paste without its editorialism file: what is left for the review-batch
+// import when one reply carries both. Takes out the whole ```editorialism
+// fence, or, for an unfenced file, everything from its frontmatter on (the
+// same span extraction reads).
+export function removeEditorialismFromText(rawText: string): string {
+	const file = extractEditorialismFileFromText(rawText);
+	if (!file) {
+		return rawText;
+	}
+	const fenced = execFencedEditorialism(rawText);
+	if (fenced?.[1] !== undefined && hasEditorialismType(readFrontmatter(fenced[1].trim()))) {
+		return `${rawText.slice(0, fenced.index)}${rawText.slice(fenced.index + fenced[0].length)}`.trim();
+	}
+	const text = rawText.replace(/\r\n/g, "\n");
+	const start = text.indexOf(file.content);
+	if (start < 0) {
+		return rawText;
+	}
+	// A chat UI's own fence may be left open just above the file. Drop it only
+	// when it is unmatched, so a review block's closing fence stays.
+	const before = text.slice(0, start).trimEnd();
+	const lines = before.split("\n");
+	const fenceCount = lines.filter((line) => /^\s*```/.test(line)).length;
+	if (fenceCount % 2 === 1 && /^\s*```/.test(lines[lines.length - 1] ?? "")) {
+		lines.pop();
+	}
+	return lines.join("\n").trim();
 }

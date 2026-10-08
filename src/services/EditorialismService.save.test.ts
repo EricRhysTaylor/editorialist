@@ -241,3 +241,35 @@ describe("safe agenda updates", () => {
 		expect(vault.contents.get(first.filePath)).toContain("Author addition");
 	});
 });
+
+describe("EditorialismService.isEditorialismFileSaved", () => {
+	const file = { content: "---\ntype: editorialism\ntitle: Agenda\n---\n# Agenda\n- [ ] Clarify motivation\n", title: "Agenda", book: "Book" };
+
+	it("is false before the agenda is saved and true after, without writing", async () => {
+		const { service, vault } = makeService();
+		expect(await service.isEditorialismFileSaved(file)).toBe(false);
+		expect(vault.folders.size).toBe(0);
+		await service.saveEditorialismFile(file);
+		expect(await service.isEditorialismFileSaved(file)).toBe(true);
+	});
+
+	it("stays true once the author has ticked items off", async () => {
+		const { service, vault } = makeService();
+		const { filePath } = await service.saveEditorialismFile(file);
+		vault.contents.set(filePath, file.content.replace("[ ]", "[x]"));
+		expect(await service.isEditorialismFileSaved(file)).toBe(true);
+	});
+
+	it("is false when the pasted agenda adds something", async () => {
+		const { service } = makeService();
+		await service.saveEditorialismFile(file);
+		expect(await service.isEditorialismFileSaved({ ...file, content: `${file.content}- [ ] Rewrite ending\n` })).toBe(false);
+	});
+
+	it("is false when only another reviewer's agenda holds the title", async () => {
+		const { service } = makeService();
+		const marla = { ...file, content: file.content.replace("title: Agenda", "title: Agenda\nreviewer: Marla Quist"), reviewer: "Marla Quist" };
+		await service.saveEditorialismFile(marla);
+		expect(await service.isEditorialismFileSaved({ ...marla, content: marla.content.replace("Marla Quist", "Theo Brandt"), reviewer: "Theo Brandt" })).toBe(false);
+	});
+});

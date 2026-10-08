@@ -1,4 +1,8 @@
-import { extractEditorialismFileFromText } from "../core/EditorialismImport";
+import {
+	extractEditorialismFileFromText,
+	removeEditorialismFromText,
+	type ExtractedEditorialismFile,
+} from "../core/EditorialismImport";
 import { parseEditorialism } from "../core/EditorialismParser";
 import { ButtonComponent, Modal, Notice, TextAreaComponent, setIcon, type App } from "obsidian";
 import { buildModalFooter, type ModalFooterButtonSpec } from "./primitives/ModalFooter";
@@ -48,6 +52,13 @@ export interface EditorialistModalOptions {
 	detectEditorialism: (rawText: string) => boolean;
 	// Save the editorialism file embedded in the text; resolves true on success.
 	onSaveEditorialism: (rawText: string) => Promise<boolean>;
+	// One reply can carry a review batch and an editorialism. These say which
+	// part is already in, so the launcher offers only what is missing.
+	isBatchImported: (batch: ReviewImportBatch) => boolean;
+	isEditorialismSaved: (rawText: string) => Promise<boolean>;
+	// The clipboard as text, whatever it holds: an editorialism on its own is
+	// not a review batch, so onLoadClipboardBatch does not return it.
+	onReadClipboardText: () => Promise<string | null>;
 	onImportBatch: (batch: ReviewImportBatch, startReview: boolean) => Promise<void>;
 	onImportRawToActiveNote: (rawText: string, startReview: boolean) => Promise<void>;
 	// Formalize the raw review block already present in the active note (stamp +
@@ -76,9 +87,11 @@ interface DetectionItem {
 	actionHint?: string;
 	description: string;
 	disabled?: boolean;
+	// Already imported: shown with a check, still clickable to open it again.
+	done?: boolean;
 	emphasized?: boolean;
 	icon: string;
-	id: "active-book" | "clipboard" | "current-note" | "next-note" | "template";
+	id: "active-book" | "clipboard" | "current-note" | "editorialism" | "next-note" | "template";
 	label: string;
 	tone: DetectionTone;
 }
@@ -86,6 +99,12 @@ interface DetectionItem {
 export class EditorialistModal extends Modal {
 	private clipboardBatch: ClipboardReviewBatch | null = null;
 	private clipboardState: ClipboardState = "checking";
+	// The clipboard's editorialism, if any, and which parts of the paste are
+	// already imported. Each part imports on its own button.
+	private clipboardText = "";
+	private clipboardEditorialism: ExtractedEditorialismFile | null = null;
+	private batchImported = false;
+	private editorialismSaved = false;
 	private manualImportError: ManualImportError | null = null;
 	private manualValidationState: "idle" | "pending" | "ok" | "error" = "idle";
 	private manualValidationToken = 0;
@@ -128,7 +147,59 @@ export class EditorialistModal extends Modal {
 			this.clipboardState = "empty";
 		}
 
+		// Read the editorialism from the raw clipboard: the batch's rawText is
+		// normalized and may already have lost it. Copied formatting
+		// instructions carry an example agenda, which is not one to import.
+		const clipboardText = await this.options.onReadClipboardText().catch(() => null);
+		this.clipboardText = clipboardText ?? this.clipboardBatch?.rawText ?? "";
+		this.clipboardEditorialism = isReviewTemplateText(this.clipboardText)
+			? null
+			: extractEditorialismFileFromText(this.clipboardText);
+		await this.refreshPartStatus();
+
 		this.render();
+	}
+
+	private async refreshPartStatus(): Promise<void> {
+		this.batchImported = this.clipboardBatch ? this.options.isBatchImported(this.clipboardBatch.batch) : false;
+		this.editorialismSaved = this.clipboardEditorialism
+			? await this.isEditorialismSaved(this.clipboardText)
+			: false;
+	}
+
+	private async isEditorialismSaved(rawText: string): Promise<boolean> {
+		try {
+			return await this.options.isEditorialismSaved(rawText);
+		} catch {
+			return false;
+		}
+	}
+
+	private hasTwoParts(): boolean {
+		return Boolean(this.clipboardBatch && this.clipboardEditorialism);
+	}
+
+	// After a review-batch import: close, unless the paste still holds an
+	// editorialism that is not in the library yet. Then stay open on it.
+	private async finishBatchImport(): Promise<void> {
+		this.showAssignments = false;
+		const manualEditorialism = this.showManualPaste ? extractEditorialismFileFromText(this.manualText) : null;
+		if (manualEditorialism && !(await this.isEditorialismSaved(this.manualText))) {
+			this.manualText = manualEditorialism.content;
+			this.manualBatch = null;
+			this.scheduleManualValidation();
+			return;
+		}
+		await this.refreshPartStatus();
+		if (this.clipboardEditorialism && !this.editorialismSaved) {
+			this.showManualPaste = false;
+			this.manualText = "";
+			this.manualBatch = null;
+			this.manualImportError = null;
+			this.manualValidationState = "idle";
+			return;
+		}
+		this.close();
 	}
 
 	private render(): void {
@@ -364,11 +435,7 @@ export class EditorialistModal extends Modal {
 					}
 
 					await this.options.onImportBatch(batch, true);
-					if (editorialism) {
-						this.manualText = editorialism.content;
-						this.manualBatch = null;
-						this.scheduleManualValidation();
-					} else this.close();
+					await this.finishBatchImport();
 				},
 			}),
 			this.makeActionButtonSpec({
@@ -400,8 +467,8 @@ export class EditorialistModal extends Modal {
 					onClick: async () => {
 						try {
 							const saved = await this.options.onSaveEditorialism(this.manualText);
-							if (saved && hasBatchText && editorialism) {
-								this.manualText = this.manualText.replace(editorialism.content, "").replace(/```editorialism\s*```/g, "");
+							if (saved && hasBatchText) {
+								this.manualText = removeEditorialismFromText(this.manualText);
 								this.scheduleManualValidation();
 							} else if (saved) this.close();
 						} catch (error) {
@@ -545,7 +612,7 @@ export class EditorialistModal extends Modal {
 							return;
 						}
 						await this.options.onImportBatch(corrected, true);
-						this.close();
+						await this.finishBatchImport();
 					},
 				}),
 				this.makeActionButtonSpec({
@@ -658,7 +725,7 @@ export class EditorialistModal extends Modal {
 					icon: "download",
 					onClick: async () => {
 						await this.options.onImportBatch(batch, true);
-						this.close();
+						await this.finishBatchImport();
 					},
 				}),
 			);
@@ -755,7 +822,7 @@ export class EditorialistModal extends Modal {
 		}
 		for (const item of items) {
 			const card = grid.createDiv({
-				cls: `editorialist-control-modal__detection editorialist-control-modal__detection--${item.tone}${item.emphasized ? " is-emphasized" : ""}${item.disabled ? " is-disabled" : ""}`,
+				cls: `editorialist-control-modal__detection editorialist-control-modal__detection--${item.tone}${item.emphasized ? " is-emphasized" : ""}${item.disabled ? " is-disabled" : ""}${item.done ? " is-done" : ""}`,
 			});
 			card.setAttribute("role", "button");
 			card.tabIndex = item.disabled || this.isWorking ? -1 : 0;
@@ -799,8 +866,23 @@ export class EditorialistModal extends Modal {
 		});
 		parent.createDiv({
 			cls: "editorialist-control-modal__card-copy",
-			text: `${availableCount} option${availableCount === 1 ? "" : "s"} available${selectionSummary.copy ? ` • ${selectionSummary.copy}` : ""}`,
+			text: selectionSummary.omitCount
+				? selectionSummary.copy ?? ""
+				: `${availableCount} option${availableCount === 1 ? "" : "s"} available${selectionSummary.copy ? ` • ${selectionSummary.copy}` : ""}`,
 		});
+	}
+
+	private describeTwoPartProgress(): string {
+		if (this.batchImported && this.editorialismSaved) {
+			return "Both parts are imported.";
+		}
+		if (this.batchImported) {
+			return "Revision notes imported. Import the editorialism too.";
+		}
+		if (this.editorialismSaved) {
+			return "Editorialism imported. Import the revision notes too.";
+		}
+		return "Revision notes for your scenes and an editorialism for your library. Import each one.";
 	}
 
 	private renderSecondaryActions(
@@ -1073,14 +1155,18 @@ export class EditorialistModal extends Modal {
 		return hasImportReadyGroup(batch);
 	}
 
+	// Short labels in manuscript order (S33, S34, …), not the order notes
+	// appeared in the reply.
 	private getReadySceneShortLabels(batch: ReviewImportBatch): string[] {
-		const labels: string[] = [];
+		const labels: Array<{ label: string; order: number }> = [];
 		for (const group of batch.groups) {
 			if (!group.isReady) continue;
 			const match = group.fileName.match(/\d+/);
-			labels.push(match ? `S${parseInt(match[0], 10)}` : group.fileName);
+			labels.push(match
+				? { label: `S${parseInt(match[0], 10)}`, order: parseInt(match[0], 10) }
+				: { label: group.fileName, order: Number.POSITIVE_INFINITY });
 		}
-		return labels;
+		return labels.sort((a, b) => a.order - b.order).map(({ label }) => label);
 	}
 
 	private formatReadyScenesDescription(batch: ReviewImportBatch): string {
@@ -1128,7 +1214,10 @@ export class EditorialistModal extends Modal {
 		return this.getClipboardTone();
 	}
 
-	private getSelectionSummary(items: DetectionItem[]): { copy?: string; title: string } {
+	private getSelectionSummary(items: DetectionItem[]): { copy?: string; title: string; omitCount?: boolean } {
+		if (this.hasTwoParts()) {
+			return { title: "This paste has two parts", copy: this.describeTwoPartProgress(), omitCount: true };
+		}
 		const currentUnitLabel = this.options.noteUnitLabel ?? "note";
 		const nextLabel = this.options.nextNoteLabel;
 		const isCurrentComplete = this.options.currentNoteHasReviewBlock && this.options.currentNoteStatus === "completed";
@@ -1159,6 +1248,53 @@ export class EditorialistModal extends Modal {
 	}
 
 	private getDetectionItems(batch?: ReviewImportBatch): DetectionItem[] {
+		const items = this.getReviewDetectionItems(batch);
+		const editorialism = this.getEditorialismDetectionItem();
+		if (!editorialism) {
+			return items;
+		}
+		// Without a batch the clipboard card would read "No formatted revision
+		// notes", which is wrong when it holds an editorialism.
+		return [
+			...items.map((item) =>
+				item.id === "clipboard" && !this.clipboardBatch
+					? { ...item, description: "Editorialism found", tone: "success" as const }
+					: item,
+			),
+			editorialism,
+		];
+	}
+
+	private getEditorialismDetectionItem(): DetectionItem | null {
+		const file = this.clipboardEditorialism;
+		if (!file) {
+			return null;
+		}
+		const count = parseEditorialism("", file.content).sections.reduce((sum, section) => sum + section.items.length, 0);
+		const description = `${file.title} · ${count} ${count === 1 ? "item" : "items"}`;
+		if (this.editorialismSaved) {
+			return {
+				actionHint: "✓ In your library",
+				description,
+				done: true,
+				icon: "check-circle-2",
+				id: "editorialism",
+				label: "Editorialism",
+				tone: "success",
+			};
+		}
+		return {
+			actionHint: "→ Import editorialism",
+			description,
+			emphasized: !this.clipboardBatch || this.batchImported,
+			icon: "list-checks",
+			id: "editorialism",
+			label: "Editorialism",
+			tone: "success",
+		};
+	}
+
+	private getReviewDetectionItems(batch?: ReviewImportBatch): DetectionItem[] {
 		const activeBatch = this.clipboardBatch?.batch ?? batch;
 		const localNoteBatch = activeBatch ? isLocalNoteBatch(activeBatch) : false;
 		const currentUnitLabel = this.options.noteUnitLabel ?? "note";
@@ -1205,7 +1341,11 @@ export class EditorialistModal extends Modal {
 				icon: "clipboard",
 				id: "clipboard",
 				label: "Clipboard",
-				description: clipboardDescription,
+				description: this.batchImported
+					? "Revision notes already imported"
+					: this.hasTwoParts()
+						? "Revision notes and an editorialism"
+						: clipboardDescription,
 				tone: this.getClipboardTone(),
 			});
 
@@ -1215,17 +1355,40 @@ export class EditorialistModal extends Modal {
 		if (this.clipboardBatch || batch) {
 			const readyGroups = activeBatch ? this.hasImportReadyGroup(activeBatch) : false;
 			const hasSceneMatches = activeBatch ? this.hasAnySceneMatch(activeBatch) : false;
+			const clipboardItem: DetectionItem = {
+				actionHint: "→ Preview notes",
+				emphasized: !readyGroups && !this.batchImported,
+				icon: "clipboard",
+				id: "clipboard",
+				label: "Clipboard",
+				description: this.hasTwoParts() ? "Revision notes and an editorialism" : "Formatted revision notes found",
+				tone: "success",
+			};
+
+			// Imported before: say so. Clicking still runs the import, whose
+			// duplicate prompt offers to open the existing review.
+			if (this.batchImported && activeBatch) {
+				const scenes = this.getReadySceneShortLabels(activeBatch);
+				return [
+					clipboardItem,
+					{
+						actionHint: "✓ Imported",
+						done: true,
+						icon: "check-circle-2",
+						id: "active-book",
+						label: localNoteBatch
+							? (this.options.activeNoteLabel ? `Current note: ${this.options.activeNoteLabel}` : "Current note")
+							: "Matching scenes",
+						description: scenes.length > 0
+							? `${this.describeBatchEntries(activeBatch)} · ${scenes.slice(0, 6).join(", ")}${scenes.length > 6 ? ` +${scenes.length - 6}` : ""}`
+							: this.describeBatchEntries(activeBatch),
+						tone: "success",
+					},
+				];
+			}
 
 			return [
-				{
-					actionHint: "→ Preview notes",
-					emphasized: !readyGroups,
-					icon: "clipboard",
-					id: "clipboard",
-					label: "Clipboard",
-					description: "Formatted revision notes found",
-					tone: "success",
-				},
+				clipboardItem,
 				{
 					actionHint: readyGroups
 						? "→ Import review"
@@ -1305,7 +1468,30 @@ export class EditorialistModal extends Modal {
 			}
 
 			this.showManualPaste = true;
+			if (this.clipboardEditorialism && !this.manualText.trim()) {
+				this.manualText = this.clipboardText;
+				this.scheduleManualValidation();
+			}
 			this.render();
+			return;
+		}
+
+		if (id === "editorialism") {
+			let saved = false;
+			try {
+				saved = await this.options.onSaveEditorialism(this.clipboardText);
+			} catch (error) {
+				new Notice(error instanceof Error ? error.message : "Could not import editorialism.");
+			}
+			if (!saved) {
+				return;
+			}
+			await this.refreshPartStatus();
+			// The revision notes in the same paste are still to import: stay.
+			if (this.clipboardBatch && !this.batchImported) {
+				return;
+			}
+			this.close();
 			return;
 		}
 
@@ -1318,7 +1504,7 @@ export class EditorialistModal extends Modal {
 			switch (decideClipboardImport(batch)) {
 				case "import_to_active_note":
 					await this.options.onImportRawToActiveNote(rawText, true);
-					this.close();
+					await this.finishBatchImport();
 					return;
 				case "preview":
 					// The preview lists what was left out and carries its own import
@@ -1336,7 +1522,7 @@ export class EditorialistModal extends Modal {
 					return;
 				case "import":
 					await this.options.onImportBatch(batch, true);
-					this.close();
+					await this.finishBatchImport();
 					return;
 			}
 		}

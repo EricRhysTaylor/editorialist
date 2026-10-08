@@ -29,6 +29,23 @@ export interface SaveEditorialismResult {
 	keptApart: boolean;
 }
 
+export interface EditorialismFileToSave {
+	content: string;
+	title: string;
+	book: string | null;
+	reviewer?: string | null;
+}
+
+function toFileBody(content: string): string {
+	return content.endsWith("\n") ? content : `${content}\n`;
+}
+
+// prepareEditorialismUpdate carries the author's progress into the incoming
+// agenda; when the result is the file as it stands, nothing new arrived.
+function isUnchangedUpdate(before: string, updated: string): boolean {
+	return before.replace(/\r\n/g, "\n").trimEnd() === updated.trimEnd();
+}
+
 // Reduce a frontmatter value (book / title) to a single safe path segment:
 // strip characters Obsidian/most filesystems reject, collapse whitespace, and
 // trim leading/trailing dots and spaces so the result is a usable folder/file
@@ -145,41 +162,14 @@ export class EditorialismService {
 	// the title path names a different reviewer, the new one is saved beside it
 	// as `<Title> (<Reviewer>).md` instead. Same reviewer, or neither named,
 	// is treated as the deliberate update it always was.
-	async saveEditorialismFile(file: {
-		content: string;
-		title: string;
-		book: string | null;
-		reviewer?: string | null;
-	}, confirmUpdate?: (details: string[]) => Promise<boolean>): Promise<SaveEditorialismResult> {
-		const folderSegments = [EDITORIALISM_FOLDER_NAME];
-		const bookSegment = file.book ? sanitizePathSegment(file.book) : "";
-		if (bookSegment) {
-			folderSegments.push(bookSegment);
-		}
-		const folderPath = normalizePath(folderSegments.join("/"));
+	async saveEditorialismFile(file: EditorialismFileToSave, confirmUpdate?: (details: string[]) => Promise<boolean>): Promise<SaveEditorialismResult> {
+		const { folderPath, filePath, existing, keptApart, conflict } = await this.resolveSaveTarget(file);
 		await this.ensureFolderExists(folderPath);
-
-		const titleSegment = sanitizePathSegment(file.title) || "Editorialism";
-		const body = file.content.endsWith("\n") ? file.content : `${file.content}\n`;
-		const incomingReviewer = file.reviewer?.trim() || null;
-
-		const titlePath = normalizePath(`${folderPath}/${titleSegment}.md`);
-		const atTitle = this.app.vault.getAbstractFileByPath(titlePath);
-		let filePath = titlePath;
-		let existing: TFile | null = atTitle instanceof TFile ? atTitle : null;
-		let keptApart = false;
-
-		if (existing && (await this.isDifferentReviewersAgenda(existing, incomingReviewer))) {
-			const reviewerSegment = sanitizePathSegment(incomingReviewer ?? "") || "unattributed";
-			filePath = normalizePath(`${folderPath}/${titleSegment} (${reviewerSegment}).md`);
-			const atReviewerPath = this.app.vault.getAbstractFileByPath(filePath);
-			existing = atReviewerPath instanceof TFile ? atReviewerPath : null;
-			if (existing && (await this.isDifferentReviewersAgenda(existing, incomingReviewer))) {
-				throw new Error(`Another reviewer's agenda already lives at ${filePath}; rename the title and save again.`);
-			}
-			keptApart = true;
+		if (conflict) {
+			throw new Error(`Another reviewer's agenda already lives at ${filePath}; rename the title and save again.`);
 		}
 
+		const body = toFileBody(file.content);
 		if (existing) {
 			// Manuscript safety, mirroring CutArchiveService.backup: the path here is
 			// derived from a user-supplied title, so a collision could resolve onto a
@@ -190,7 +180,7 @@ export class EditorialismService {
 			}
 			const before = await this.app.vault.read(existing);
 			const update = prepareEditorialismUpdate(before, body);
-			if (before.replace(/\r\n/g, "\n").trimEnd() === update.content.trimEnd()) {
+			if (isUnchangedUpdate(before, update.content)) {
 				return { filePath, created: false, keptApart, unchanged: true };
 			}
 			if (confirmUpdate && !await confirmUpdate([
@@ -207,6 +197,53 @@ export class EditorialismService {
 		}
 		await this.app.vault.create(filePath, body);
 		return { filePath, created: true, keptApart };
+	}
+
+	// True when saving this agenda would change nothing: it is already in the
+	// library as given, the author's progress aside. Read-only, so the launcher
+	// can show an imported editorialism as done without touching the vault.
+	async isEditorialismFileSaved(file: EditorialismFileToSave): Promise<boolean> {
+		const { existing, conflict } = await this.resolveSaveTarget(file);
+		if (!existing || conflict || isSceneClassFile(this.app, existing)) {
+			return false;
+		}
+		const before = await this.app.vault.read(existing);
+		return isUnchangedUpdate(before, prepareEditorialismUpdate(before, toFileBody(file.content)).content);
+	}
+
+	// Where saveEditorialismFile puts this agenda: the title path, or the
+	// reviewer-suffixed path beside it when the title path holds another
+	// reviewer's agenda. `conflict` is set when that path is taken by yet
+	// another reviewer too. Reads only.
+	private async resolveSaveTarget(file: EditorialismFileToSave): Promise<{
+		folderPath: string;
+		filePath: string;
+		existing: TFile | null;
+		keptApart: boolean;
+		conflict: boolean;
+	}> {
+		const folderSegments = [EDITORIALISM_FOLDER_NAME];
+		const bookSegment = file.book ? sanitizePathSegment(file.book) : "";
+		if (bookSegment) {
+			folderSegments.push(bookSegment);
+		}
+		const folderPath = normalizePath(folderSegments.join("/"));
+		const titleSegment = sanitizePathSegment(file.title) || "Editorialism";
+		const incomingReviewer = file.reviewer?.trim() || null;
+
+		const titlePath = normalizePath(`${folderPath}/${titleSegment}.md`);
+		const atTitle = this.app.vault.getAbstractFileByPath(titlePath);
+		const existing = atTitle instanceof TFile ? atTitle : null;
+		if (!existing || !(await this.isDifferentReviewersAgenda(existing, incomingReviewer))) {
+			return { folderPath, filePath: titlePath, existing, keptApart: false, conflict: false };
+		}
+
+		const reviewerSegment = sanitizePathSegment(incomingReviewer ?? "") || "unattributed";
+		const filePath = normalizePath(`${folderPath}/${titleSegment} (${reviewerSegment}).md`);
+		const atReviewerPath = this.app.vault.getAbstractFileByPath(filePath);
+		const atReviewer = atReviewerPath instanceof TFile ? atReviewerPath : null;
+		const conflict = Boolean(atReviewer && (await this.isDifferentReviewersAgenda(atReviewer, incomingReviewer)));
+		return { folderPath, filePath, existing: atReviewer, keptApart: true, conflict };
 	}
 
 	// True when `existing` is an editorialism whose reviewer differs from the

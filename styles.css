@@ -5036,6 +5036,15 @@
 	transform: none;
 }
 
+/* Already imported: calm, not dimmed like an unavailable card. */
+.editorialist-control-modal__detection.is-done {
+	border-color: color-mix(in srgb, var(--color-green) 35%, var(--background-modifier-border));
+}
+
+.editorialist-control-modal__detection.is-done .editorialist-control-modal__detection-hint {
+	color: var(--color-green);
+}
+
 .editorialist-control-modal__detection-icon {
 	display: inline-flex;
 	align-items: center;
