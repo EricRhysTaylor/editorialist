@@ -1,9 +1,10 @@
 import { Modal, Notice, TFile, normalizePath, type App } from "obsidian";
-import { collaborationUrl, createEditorialProject, materialDue, materialState, MATERIAL_STATE_LABELS, recordProjectEvent, shiftDate, type EditorialProject, type MaterialObservation, type ProjectMaterial } from "../core/planning/EditorialProject";
+import { collaborationUrl, createEditorialProject, isProjectEditorProfile, materialDue, materialState, MATERIAL_STATE_LABELS, projectEditor, recordProjectEvent, shiftDate, type EditorialProject, type MaterialObservation, type ProjectMaterial } from "../core/planning/EditorialProject";
 import { isDate, localDate, type RevisionPlan } from "../core/planning/RevisionPlan";
 import { planDayLabel } from "../core/planning/WorkPresentation";
 import type { EditorialDelivery } from "../core/EditorialDeliveries";
 import type { EditorialProjectService } from "../services/EditorialProjectService";
+import type { ContributorProfile } from "../models/ContributorProfile";
 
 export interface ProjectPanelHost {
 	app: App;
@@ -13,6 +14,8 @@ export interface ProjectPanelHost {
 	busy: boolean;
 	save(expected: RevisionPlan, next: RevisionPlan): Promise<void>;
 	deliveries: EditorialDelivery[];
+	getReviewers(): ContributorProfile[];
+	manageEditor(id: string): Promise<void>;
 	openSchedule(): void;
 	openWorkspace(): Promise<void>;
 	openSource(path: string): Promise<void>;
@@ -57,7 +60,12 @@ export class EditorialProjectPanel {
 		const expected = structuredClone(this.host.plan);
 		new ProjectDialog(this.host.app, expected.project ? "Edit editorial project" : "Prepare for a developmental edit", (form) => {
 			const project = expected.project;
-			const editor = field(form, "Editor", project?.editor ?? ""); editor.required = true;
+			const humans = this.host.getReviewers().filter(isProjectEditorProfile);
+			const selected = project ? projectEditor(project, humans) : null;
+			const options: [string, string][] = [["", "Choose an existing human contributor"], ...humans.map((item): [string, string] => [item.id, item.displayName])];
+			if (project && !selected?.profile) options.push(["__unlinked__", selected?.state === "unavailable" ? "Saved editor profile unavailable" : `${project.editor} · Not linked`]);
+			const editor = humans.length || project?.reviewerId ? select(form, "Editor", options, selected?.profile?.id ?? (project ? "__unlinked__" : "")) : field(form, "Editor", project?.editor ?? ""); editor.required = true;
+			if (humans.length) editor.parentElement?.createEl("span", { cls: "editorialist-project__hint", text: "Uses your existing contributor profile." });
 			const title = field(form, "Project title", project?.title ?? "Developmental edit"); title.required = true;
 			const deadline = field(form, "Hard submission deadline", project?.submissionDate ?? this.host.plan.deadline ?? "", "date"); deadline.required = true;
 			const readiness = field(form, "Packet readiness date", project?.readinessDate ?? "", "date");
@@ -70,12 +78,16 @@ export class EditorialProjectPanel {
 			form.createEl("p", { cls: "editorialist-project__hint", text: "The preset adds three materials and four editable milestones. Confirm formatting requirements against your editor’s offer. Dates and task estimates remain editable." });
 			return async () => {
 				if (!editor.value.trim() || !title.value.trim() || !isDate(deadline.value)) throw new Error("Enter the editor, project title and submission date.");
+				const reviewer = this.host.getReviewers().find((item) => item.id === editor.value && isProjectEditorProfile(item));
+				if (humans.some((item) => item.id === editor.value) && !reviewer) throw new Error("The selected contributor changed or is no longer available. Reopen project details.");
+				if (project?.reviewerId && !reviewer) throw new Error("Choose an available human contributor before saving this project.");
+				const editorName = reviewer?.displayName ?? (editor.value === "__unlinked__" ? project?.editor ?? "" : editor.value);
 				const next = structuredClone(expected);
-				const draft = next.project ?? createEditorialProject(editor.value, deadline.value, () => crypto.randomUUID());
+				const draft = next.project ?? createEditorialProject(editorName, deadline.value, () => crypto.randomUUID());
 				const ready = readiness.value || shiftDate(deadline.value, -7);
 				if (!isDate(ready) || ready > deadline.value) throw new Error("Packet readiness must be on or before submission.");
 				if (actual.value && actual.value > localDate(new Date())) throw new Error("Record actual delivery only after it has happened; use expected return for a future date.");
-				draft.title = title.value.trim(); draft.editor = editor.value.trim(); draft.submissionDate = deadline.value; draft.readinessDate = ready;
+				draft.title = title.value.trim(); draft.editor = editorName.trim(); if (reviewer) draft.reviewerId = reviewer.id; draft.submissionDate = deadline.value; draft.readinessDate = ready;
 				draft.collaborationUrl = collaborationUrl(url.value); draft.expectedReturn = expectedReturn.value || null; draft.actualReturn = actual.value || null; draft.questionsDays = Number(questions.value); draft.deliveryId = delivery.value || null;
 				recordProjectEvent(draft, project ? "Project details updated" : "Preparation project created"); next.project = draft;
 				if (!draft.actualReturn) next.deadline = draft.submissionDate;
@@ -102,7 +114,9 @@ export class EditorialProjectPanel {
 			button(empty, "Prepare for editor", () => this.setup()).addClass("mod-cta"); return;
 		}
 		const hero = root.createDiv({ cls: "editorialist-project__hero" });
-		hero.createDiv({ cls: "editorialist-project__eyebrow", text: `${project.editor} · ${project.title}` });
+		const editor = projectEditor(project, this.host.getReviewers());
+		hero.createDiv({ cls: "editorialist-project__eyebrow", text: `${editor.name} · ${project.title}` });
+		if (editor.state === "unavailable") hero.createEl("p", { cls: "editorialist-project__warning", text: "The saved editor profile is unavailable. Choose an existing contributor in project details." });
 		hero.createEl("h2", { text: `Submit by ${planDayLabel(project.submissionDate)}` });
 		hero.createEl("p", { cls: "editorialist-project__hint", text: `Hard deadline · ${project.submissionDate} · Packet ready by ${planDayLabel(project.readinessDate)}` });
 		const required = project.materials.filter((item) => item.required);
@@ -110,6 +124,7 @@ export class EditorialProjectPanel {
 		const uploaded = required.filter((item) => this.state(item) === "uploaded").length;
 		hero.createEl("strong", { cls: "editorialist-project__readiness", text: required.length ? `${checked} of ${required.length} current exports checked · ${uploaded} current uploads` : "No required materials selected" });
 		const actions = hero.createDiv({ cls: "editorialist-project__actions" }); button(actions, "Project details", () => this.setup());
+		if (editor.profile) this.action(actions, "Editor profile", () => this.host.manageEditor(editor.profile!.id));
 		this.action(actions, "Open in workspace", () => this.host.openWorkspace());
 		if (project.collaborationUrl) button(actions, "Open collaboration", () => window.open(project.collaborationUrl, "_blank", "noopener,noreferrer"));
 		const next = [...project.milestones].filter((item) => !item.done).sort((a, b) => a.day.localeCompare(b.day))[0];

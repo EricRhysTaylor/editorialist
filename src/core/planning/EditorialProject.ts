@@ -1,4 +1,6 @@
 import { isDate, resolvePlanSource, type PlanEntry, type RevisionPlan, type WorkCandidate, type WorkKind } from "./RevisionPlan";
+import { normalizeContributorValue } from "../ContributorIdentity";
+import type { ContributorProfile } from "../../models/ContributorProfile";
 
 export interface ProjectMilestone { id: string; title: string; day: string; done: boolean }
 export interface PreparationTask { id: string; title: string; materialId: string | null; milestoneId: string | null; done: boolean }
@@ -32,6 +34,8 @@ export interface ProjectMaterial {
 }
 export interface ProjectEvent { at: string; text: string }
 export interface EditorialProject {
+	/** Stable identity in the existing contributor directory; editor retains the saved name. */
+	reviewerId?: string;
 	version: 1;
 	id: string;
 	title: string;
@@ -51,6 +55,23 @@ export interface EditorialProject {
 export interface MaterialObservation { sourceDigest: string | null; exportDigest: string | null; error: string | null; snapshotError?: string; packetWordCount?: number; sources: FrozenSource[] }
 export type MaterialState = "missing" | "drafting" | "approved" | "checked" | "uploaded" | "recheck";
 export const MATERIAL_STATE_LABELS: Record<MaterialState, string> = { missing: "Missing source", drafting: "Drafting", approved: "Author approved", checked: "Export checked", uploaded: "Uploaded", recheck: "Needs recheck" };
+
+export function isProjectEditorProfile(profile: ContributorProfile): boolean {
+	// Older imports can carry a human role on an AI identity. Do not offer those as people.
+	return profile.kind === "human" && !profile.reviewerType.startsWith("ai-") && !profile.id.startsWith("contributor-ai-") && !profile.provider?.trim() && !profile.model?.trim();
+}
+
+export function projectEditor(project: EditorialProject, profiles: readonly ContributorProfile[]): { name: string; profile?: ContributorProfile; state: "linked" | "matched" | "unavailable" | "unlinked" } {
+	if (project.reviewerId) {
+		const profile = profiles.find((item) => item.id === project.reviewerId && isProjectEditorProfile(item));
+		return profile ? { name: profile.displayName, profile, state: "linked" } : { name: project.editor, state: "unavailable" };
+	}
+	// Legacy names may suggest a unique existing human; saving makes that choice explicit.
+	const name = normalizeContributorValue(project.editor);
+	if (!name) return { name: project.editor, state: "unlinked" };
+	const matches = profiles.filter((item) => isProjectEditorProfile(item) && [item.displayName, ...item.aliases].some((value) => normalizeContributorValue(value) === name));
+	return matches.length === 1 ? { name: matches[0]!.displayName, profile: matches[0], state: "matched" } : { name: project.editor, state: "unlinked" };
+}
 
 export function shiftDate(day: string, offset: number): string {
 	if (!isDate(day)) throw new Error("Choose a valid submission date.");
@@ -140,5 +161,5 @@ export function normalizeEditorialProject(raw: unknown): EditorialProject | unde
 		return [{ id: str(item.id), title: str(item.title), kind: item.kind as ProjectMaterial["kind"], required: item.required !== false, source: str(item.source), exportPath: str(item.exportPath), milestoneId: str(item.milestoneId) || null, requirements: texts(item.requirements), approvedDigest: digest(item.approvedDigest), check: normalizeCheck(item.check), uploads, ...(item.frozenSources !== undefined ? { frozenSources } : {}), ...(typeof item.wordCount === "number" && Number.isInteger(item.wordCount) && item.wordCount > 0 ? { wordCount: item.wordCount } : {}) }];
 	}));
 	const tasks = unique(list(data.tasks).flatMap((value): PreparationTask[] => { const item = record(value); return item && str(item.id) && str(item.title) ? [{ id: str(item.id), title: str(item.title), materialId: str(item.materialId) || null, milestoneId: str(item.milestoneId) || null, done: item.done === true }] : []; }));
-	return { version: 1, id: str(data.id), title: str(data.title) || "Editorial project", editor: str(data.editor), collaborationUrl: collaborationUrl(str(data.collaborationUrl)), readinessDate: data.readinessDate, submissionDate: data.submissionDate, expectedReturn: isDate(data.expectedReturn) ? data.expectedReturn : null, actualReturn: isDate(data.actualReturn) ? data.actualReturn : null, questionsDays: typeof data.questionsDays === "number" && Number.isFinite(data.questionsDays) ? Math.max(0, Math.min(365, Math.round(data.questionsDays))) : 10, deliveryId: str(data.deliveryId) || null, milestones, materials, tasks, history: list(data.history).flatMap((value): ProjectEvent[] => { const item = record(value); return item && stamp(item.at) && str(item.text) ? [{ at: stamp(item.at), text: str(item.text) }] : []; }) };
+	return { version: 1, id: str(data.id), title: str(data.title) || "Editorial project", editor: str(data.editor), ...(str(data.reviewerId) ? { reviewerId: str(data.reviewerId) } : {}), collaborationUrl: collaborationUrl(str(data.collaborationUrl)), readinessDate: data.readinessDate, submissionDate: data.submissionDate, expectedReturn: isDate(data.expectedReturn) ? data.expectedReturn : null, actualReturn: isDate(data.actualReturn) ? data.actualReturn : null, questionsDays: typeof data.questionsDays === "number" && Number.isFinite(data.questionsDays) ? Math.max(0, Math.min(365, Math.round(data.questionsDays))) : 10, deliveryId: str(data.deliveryId) || null, milestones, materials, tasks, history: list(data.history).flatMap((value): ProjectEvent[] => { const item = record(value); return item && stamp(item.at) && str(item.text) ? [{ at: stamp(item.at), text: str(item.text) }] : []; }) };
 }

@@ -19,6 +19,13 @@ Schedule retains Queue, Days, capacity and the preview-based auto-planner.
 History retains recorded uploads and project events. Optional supporting
 materials and editable preparation tasks can be added without importing feedback.
 
+The editor selector uses the existing contributor directory and stores its
+stable reviewer ID. The saved name remains a historical snapshot; current names
+come from the linked profile. The Editor profile action opens the existing
+contributor management flow. Missing identities require explicit relinking;
+legacy AI identities carrying human roles are excluded from the person picker.
+Legacy name-only projects remain readable and can link a unique human on save.
+
 Material readiness is independent of task or session completion:
 
 1. Link an existing Markdown source and an exported DOCX inside the vault.
@@ -76,3 +83,10 @@ inspection and project-detail states. The visual pass corrected light-theme
 status contrast, empty-state duplication, URL input styling and modal density.
 Capture artifacts are retained outside the public repository. Custom themes,
 mobile layouts and live collaboration upload were not verified.
+
+The follow-up integration pass used the actual Author-vault project and its
+existing human contributor in a separate Obsidian profile. It verified the
+native selector and contributor controls, saved identity, existing queue, and
+300px/420px light/dark layouts. Source manuscript and overview hashes were
+compared before and after; no prose changes or material approvals were made.
+Private captures remain outside this repository.

@@ -456,7 +456,10 @@ export default class EditorialistPlugin extends Plugin {
 		getSuggestionById: (id) => this.getSuggestionById(id),
 		getCurrentSessionTrackingContext: () => this.getCurrentSessionTrackingContext(),
 		savePluginData: () => this.savePluginData(),
-		refreshReviewPanel: () => this.refreshReviewPanel(),
+		refreshReviewPanel: () => {
+			this.refreshReviewPanel();
+			for (const leaf of this.app.workspace.getLeavesOfType(REVISION_PLAN_VIEW_TYPE)) if (leaf.view instanceof RevisionPlanPanel) leaf.view.refreshContributorIdentity();
+		},
 		resyncSessionForActiveNote: () => this.resyncSessionForActiveNote(),
 		openChoiceModal: (options) => openEditorialistChoiceModal(this.app, options),
 		openStrengthsModal: (profile) => openContributorStrengthsModal(this.app, { profile }),

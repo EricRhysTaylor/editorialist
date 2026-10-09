@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { collaborationUrl, createEditorialProject, entryDeadline, materialState, normalizeEditorialProject, preparationWork, shiftDate, type MaterialCheck, type MaterialObservation } from "./EditorialProject";
+import { collaborationUrl, createEditorialProject, entryDeadline, isProjectEditorProfile, materialState, normalizeEditorialProject, preparationWork, projectEditor, shiftDate, type MaterialCheck, type MaterialObservation } from "./EditorialProject";
+import type { ContributorProfile } from "../../models/ContributorProfile";
 import { emptyRevisionPlan, forecastPlan, normalizeRevisionPlans, type PlanEntry } from "./RevisionPlan";
 import { draftSchedule } from "./AutoSchedule";
 function project() { let n = 0; return createEditorialProject("Test Editor", "2026-11-30", () => `id-${++n}`); }
@@ -7,6 +8,12 @@ const hash = "a".repeat(64), other = "b".repeat(64);
 const observed: MaterialObservation = { sourceDigest: hash, exportDigest: hash, error: null, sources: [] };
 const check: MaterialCheck = { at: "2026-11-23T12:00:00Z", sourceDigest: hash, exportDigest: hash, exportPath: "Exports/Manuscript.docx", copy: "Editorialist/Submissions/copy.docx", sources: [{ path: "Book/1.md", digest: hash, copy: "Editorialist/Submissions/1.md" }], requirements: [] };
 describe("Editorial preparation project", () => {
+	const reviewer: ContributorProfile = { id: "human-editor", displayName: "Test Editor", kind: "human", reviewerType: "developmental-editor", aliases: [], createdAt: 1, updatedAt: 1 };
+	it("links to the existing human profile and follows its identity after a rename", () => { const p = project(); p.reviewerId = reviewer.id; const renamed = { ...reviewer, displayName: "Renamed Editor" }; expect(projectEditor(p, [renamed])).toMatchObject({ state: "linked", name: renamed.displayName, profile: renamed }); expect(normalizeEditorialProject(p)?.reviewerId).toBe(reviewer.id); expect(p.editor).toBe("Test Editor"); });
+	it("does not silently replace a deleted profile with somebody sharing its name", () => { const p = project(); p.reviewerId = "deleted"; expect(projectEditor(p, [reviewer])).toEqual({ state: "unavailable", name: "Test Editor" }); });
+	it("suggests only unique existing human identities for legacy projects", () => { const p = project(); expect(projectEditor(p, [reviewer]).state).toBe("matched"); expect(p.reviewerId).toBeUndefined(); expect(projectEditor(p, [reviewer, { ...reviewer, id: "another" }]).state).toBe("unlinked"); expect(projectEditor(p, [{ ...reviewer, kind: "ai" }]).state).toBe("unlinked"); });
+	it("preserves legacy aliases without guessing an AI or unavailable explicit identity", () => { const p = project(); const renamed = { ...reviewer, displayName: "Renamed Editor", aliases: ["Test Editor"] }; expect(projectEditor(p, [renamed]).profile?.id).toBe(reviewer.id); p.reviewerId = reviewer.id; expect(projectEditor(p, [{ ...reviewer, kind: "ai" }]).state).toBe("unavailable"); });
+	it("excludes legacy AI identities that incorrectly carry a human role", () => { expect(isProjectEditorProfile({ ...reviewer, id: "contributor-ai-provider-model" })).toBe(false); expect(isProjectEditorProfile({ ...reviewer, provider: "Anthropic" })).toBe(false); expect(isProjectEditorProfile({ ...reviewer, model: "An AI model" })).toBe(false); expect(isProjectEditorProfile({ ...reviewer, displayName: "Claude Monet", id: "contributor-human-claude-monet" })).toBe(true); });
 	it("seeds milestones back from the hard date without inserting prose", () => {
 		const p = project(); expect(p.milestones.map((item) => item.day)).toEqual(["2026-10-31", "2026-11-09", "2026-11-16", "2026-11-23"]);
 		expect(p.materials).toHaveLength(3); expect(p.materials.every((item) => item.approvedDigest === null && !item.source)).toBe(true);

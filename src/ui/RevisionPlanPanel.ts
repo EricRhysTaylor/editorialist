@@ -38,7 +38,7 @@ export class RevisionPlanPanel extends ItemView {
 	private projectService(): EditorialProjectService { return new EditorialProjectService(this.app, () => this.plugin.getActiveBookScopeInfo(), () => this.plugin.getCutFolderOverride(), (path) => this.plugin.resolveOpenNoteText(path)); }
 	private projectPanel(): EditorialProjectPanel {
 		const book = this.book;
-		return new EditorialProjectPanel({ app: this.app, plan: this.plan, observations: this.observations, busy: this.busy || this.stale, service: this.projectService(), deliveries: this.plugin.getEditorialDeliveries(),
+		return new EditorialProjectPanel({ app: this.app, plan: this.plan, observations: this.observations, busy: this.busy || this.stale, service: this.projectService(), deliveries: this.plugin.getEditorialDeliveries(), getReviewers: () => this.plugin.getReviewerProfiles(), manageEditor: async (id) => { await this.plugin.contributors.openContributorManagementFlow(id); },
 			save: async (expected, next) => { if (!book || book !== this.scopeKey()) throw new Error("The active book changed. Reopen the project before saving."); await this.plugin.applyScheduledPlan(book, expected, next); },
 			openWorkspace: () => this.plugin.openEditorialProjectWorkspace(), openSchedule: () => { this.section = "schedule"; this.render(); }, openSource: async (path) => { const file = this.app.vault.getAbstractFileByPath(path); if (!(file instanceof TFile)) throw new Error("This file is unavailable. Check its path in material details."); await this.app.workspace.openLinkText(file.path, "", false); },
 		});
@@ -46,6 +46,8 @@ export class RevisionPlanPanel extends ItemView {
 	getViewType(): string { return REVISION_PLAN_VIEW_TYPE; }
 	getDisplayText(): string { return "Revision plan"; }
 	getIcon(): string { return EDITORIALIST_ICON_ID; }
+	/** Native contributor changes share the existing refresh path and preserve input focus. */
+	refreshContributorIdentity(): void { this.scheduleRefresh(); }
 	async onOpen(): Promise<void> {
 		this.contentEl.addClass("editorialist-plan");
 		const markStale = (): void => {
