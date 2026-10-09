@@ -459,6 +459,38 @@ describe("invariant: scene-inventory rebuild is deterministic and idempotent", (
 		"BookA/s2.md": [suggestion("r2", "rejected")],
 	};
 
+	it("refreshes book identity and inventory together after a Radial Timeline book switch", async () => {
+		const bookFiles: MockFile[] = [
+			{ path: "BookA/s1.md", text: reviewNote("batch-a"), frontmatter: { Class: "Scene" } },
+			{ path: "BookB/s1.md", text: reviewNote("batch-b"), frontmatter: { Class: "Scene" } },
+		];
+		const app = makeApp(bookFiles);
+		let activeBookId = "book-b";
+		vi.spyOn(app.vault.adapter, "exists").mockResolvedValue(true);
+		vi.spyOn(app.vault.adapter, "read").mockImplementation(async () => JSON.stringify({
+			activeBookId,
+			books: [
+				{ id: "book-a", title: "The Lantern Test", sourceFolder: "BookA" },
+				{ id: "book-b", title: "The Harbor Test", sourceFolder: "BookB" },
+			],
+		}));
+		const { service } = makeService({ app, engine: makeEngine({
+			"BookA/s1.md": [suggestion("r1", "pending")],
+			"BookB/s1.md": [suggestion("r2", "pending")],
+		}) });
+		await service.refreshActiveBookScope();
+		await service.syncSceneInventory();
+		expect(service.getActiveBookScopeInfo().label).toBe("The Harbor Test");
+		expect(service.getSceneReviewRecords({ activeBookOnly: true }).map((record) => record.notePath)).toEqual(["BookB/s1.md"]);
+
+		activeBookId = "book-a";
+		await service.syncSceneInventory();
+		expect(service.getActiveBookScopeInfo()).toEqual({ label: "The Lantern Test", sourceFolder: "BookA", structured: true });
+		expect(service.getSceneReviewRecords({ activeBookOnly: true }).map((record) => record.notePath)).toEqual(["BookA/s1.md"]);
+		// Records outside the active book remain available to the all-books view.
+		expect(service.getSceneReviewRecords().map((record) => record.notePath)).toEqual(["BookA/s1.md", "BookB/s1.md"]);
+	});
+
 	it("two independent services over identical inputs produce identical inventory", async () => {
 		const a = makeService({ app: makeApp(files), engine: makeEngine(engineSessions) });
 		const b = makeService({ app: makeApp(files), engine: makeEngine(engineSessions) });

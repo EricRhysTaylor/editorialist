@@ -746,11 +746,13 @@ export class ReviewRegistryService {
 	}
 
 	async syncOperationalMetadata(): Promise<void> {
-		await this.refreshActiveBookScope();
 		await this.syncSceneInventory();
 	}
 
 	async syncSceneInventory(options?: { persist?: boolean }): Promise<void> {
+		// RT can switch books while this plugin stays loaded. Resolve the scope
+		// before scanning so inventory and book-dependent UI share one identity.
+		await this.refreshActiveBookScope();
 		const { nextIndex, batchPresence, now } = await this.inventoryBuilder.buildFullInventory();
 
 		const nextRegistry = this.sweepManager.buildFromSceneInventory(this.sweepRegistry, batchPresence, nextIndex, now);
