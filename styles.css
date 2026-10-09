@@ -2893,7 +2893,7 @@
 }
 
 .editorialist-suggestion__reason {
-	display: inline-flex;
+	display: flex;
 	align-items: center;
 	gap: 0.45rem;
 	margin-top: 0.65rem;
@@ -3000,8 +3000,8 @@
 
 .editorialist-suggestion__reason-text {
 	line-height: 1.4;
-	display: inline-flex;
-	align-items: center;
+	min-width: 0;
+	overflow-wrap: anywhere;
 }
 
 .editorialist-suggestion__reason--muted {
@@ -3025,8 +3025,12 @@
 .editorialist-suggestion__footer-actions {
 	margin-left: auto;
 	display: inline-flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
 	align-items: center;
 	gap: 0.35rem;
+	min-width: 0;
+	max-width: 100%;
 }
 
 .editorialist-suggestion__actions {
