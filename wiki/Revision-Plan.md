@@ -51,13 +51,13 @@ Suggested effort is a starting assumption: existing Editorialism heuristics, or 
 
 ## Group an editor's delivery
 
-Open **Editorial deliveries** from the panel's **…** menu. Record the handoff title, reviewer, role, received date, return deadline, and optional existing source note. Link the imported batches and Editorialism files belonging to that handoff. This does not import a document or duplicate feedback.
+Imports group themselves: each batch and Editorialism file joins its reviewer's open delivery, or starts one received that day (see [Importing Reviews](Importing-Reviews#after-import-deliveries-and-planning)). Open **Editorial deliveries** from the panel's **…** menu to add the return deadline and optional existing source note, rename the handoff, or change which batches and Editorialism files belong to it. This does not import a document or duplicate feedback.
 
 Receipt, file creation, and scheduled work dates are separate facts. Leave an unknown received date unknown. A source belongs to one delivery at a time; unlink it before moving it to another. See [Editorialisms: delivery tracking](Editorialisms-Panel#editorial-deliveries-dates-and-deadlines).
 
 ## Automatically plan a delivery
 
-To schedule one editor's handoff on its own, open **Editorial deliveries**, then choose **Plan this delivery** on a delivery card. Link its batches and Editorialism files first. This is the same planner as [Auto-plan](#auto-plan-the-whole-book), limited to unfinished, active work from that delivery. The finish date starts at the delivery's return deadline, and items already in your plan are not duplicated.
+To schedule one editor's handoff on its own, open **Editorial deliveries**, then choose **Plan this delivery** on a delivery card. This is the same planner as [Auto-plan](#auto-plan-the-whole-book), limited to unfinished, active work from that delivery. The finish date starts at the delivery's return deadline, and items already in your plan are not duplicated.
 
 For later adjustments, choose **Adjust remaining schedule** on the delivery card. This is separate from planning new work. It retains manual tasks, completed sessions, other deliveries, locked sessions, and prerequisites of preserved tasks. Use **Keep this date** under a task's **Schedule & options** to preserve a commitment. Regeneration moves eligible existing sessions; it does not recalculate their effort or split them again.
 

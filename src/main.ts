@@ -1,9 +1,10 @@
 import { saveOpenEditors } from "./services/SaveOpenEditors";
 import { AutoScheduleModal } from "./ui/AutoScheduleModal";
 import { EditorialDeliveriesModal } from "./ui/EditorialDeliveriesModal";
-import { deliveryCaption, type EditorialDelivery } from "./core/EditorialDeliveries";
+import { deliveryCaption, planDeliveryLink, type DeliverySource, type EditorialDelivery } from "./core/EditorialDeliveries";
+import { formatReviewerTypeLabel, normalizeReviewerType } from "./core/ContributorIdentity";
 import { RevisionPlanPanel, REVISION_PLAN_VIEW_TYPE } from "./ui/RevisionPlanPanel";
-import type { RevisionPlan, WorkCandidate } from "./core/planning/RevisionPlan";
+import { localDate, type RevisionPlan, type WorkCandidate } from "./core/planning/RevisionPlan";
 import { batchWork, directiveWork, pendingWork } from "./core/planning/RevisionWork";
 import { collectPendingEdits, describeCollectFailure } from "./core/PendingEditsCollector";
 import { endReviewRound, getEndableRoundBatches } from "./orchestrators/EndReviewRound";
@@ -57,9 +58,10 @@ import { SuggestionParser } from "./core/SuggestionParser";
 import type {
 	CompletedSweepState,
 	EditorialistMetadataExport,
+	ReviewImportNoteGroup,
 	ReviewSweepRegistryEntry,
 } from "./models/ReviewImport";
-import type { ReviewSession, ReviewSuggestion, ReviewTargetRef } from "./models/ReviewSuggestion";
+import type { ReviewContributor, ReviewSession, ReviewSuggestion, ReviewTargetRef } from "./models/ReviewSuggestion";
 import type {
 	ContributorProfile,
 	EditorialistEffortSettings,
@@ -238,6 +240,17 @@ export type { PendingEditsSummary };
 // Resolved source for a "Backup to cut file" action: either a manual editor
 // selection or a cut/condense suggestion's target, plus the scene file both
 // belong to so text and destination never drift apart.
+// The reviewer named on a batch: the first named contributor among the imported
+// suggestions and memos. Null when the paste named no reviewer.
+function firstNamedContributor(groups: ReviewImportNoteGroup[]): ReviewContributor | null {
+	for (const group of groups) {
+		for (const contributor of [...group.suggestions.map((result) => result.suggestion.contributor), ...group.memos.map((memo) => memo.contributor)]) {
+			if (contributor.raw.rawName?.trim()) return contributor;
+		}
+	}
+	return null;
+}
+
 export default class EditorialistPlugin extends Plugin {
 	private readonly store = new ReviewStore();
 
@@ -302,8 +315,11 @@ export default class EditorialistPlugin extends Plugin {
 		resyncSessionForActiveNote: () => this.resyncSessionForActiveNote(),
 		refreshReviewPanel: () => this.refreshReviewPanel(),
 		findDuplicateSweep: (batch) => this.registry.findDuplicateSweep(batch),
-		recordImportedBatch: (batch, groups, status, currentNotePath) =>
-			this.registry.recordImportedBatch(batch, groups, status, currentNotePath),
+		recordImportedBatch: async (batch, groups, status, currentNotePath) => {
+			await this.registry.recordImportedBatch(batch, groups, status, currentNotePath);
+			const contributor = firstNamedContributor(groups);
+			await this.linkImportToDelivery({ kind: "batch", id: batch.batchId }, contributor?.displayName, contributor ? formatReviewerTypeLabel(contributor.reviewerType) : "", contributor?.kind === "ai");
+		},
 		getSweepRegistryEntry: (batchId) => this.getSweepRegistryEntry(batchId),
 		updateSweepRegistry: (batchId, updates, options) =>
 			this.registry.updateSweepRegistry(batchId, updates, options),
@@ -856,6 +872,40 @@ export default class EditorialistPlugin extends Plugin {
 		return this.registry.getEditorialDeliveries().filter((delivery) => delivery.bookFolder === folder);
 	}
 	openEditorialDeliveries(): void { new EditorialDeliveriesModal(this).open(); }
+	// An import joins its reviewer's open delivery in the active book, or starts
+	// one received today, so a round's batches and Editorialism files are already
+	// together when the author plans it. Only the return deadline is left to add.
+	// Nothing happens without a reviewer, for an AI's own review, or when the
+	// source is already in a delivery (planDeliveryLink).
+	private async linkImportToDelivery(source: DeliverySource, reviewer: string | null | undefined, role: string, isAi: boolean): Promise<void> {
+		const bookFolder = this.getActiveBookScopeInfo().sourceFolder?.replace(/\/$/, "");
+		if (!bookFolder || !reviewer) return;
+		const plan = planDeliveryLink({ version: 1, deliveries: this.registry.getEditorialDeliveries() }, {
+			bookFolder, reviewer, role, isAi, source, today: localDate(new Date()), newId: crypto.randomUUID(),
+		});
+		if (!plan) return;
+		try {
+			await this.registry.saveEditorialDelivery(plan.delivery);
+		} catch (error) {
+			console.error("[Editorialist] Could not link the import to a delivery", error);
+			return;
+		}
+		const { delivery } = plan;
+		const fragment = createFragment();
+		fragment.createSpan({
+			text: plan.created
+				? `Started delivery “${delivery.title}” for ${delivery.reviewer}. Add its return deadline in `
+				: `Added to ${delivery.reviewer}'s delivery “${delivery.title}”${delivery.due ? `, due ${delivery.due}` : ""}. `,
+		});
+		const open = fragment.createEl("a", { text: plan.created ? "Editorial deliveries" : "Open deliveries", href: "#" });
+		if (plan.created) fragment.createSpan({ text: "." });
+		const notice = new Notice(fragment, 8000);
+		open.onClickEvent((event) => {
+			event.preventDefault();
+			notice.hide();
+			this.openEditorialDeliveries();
+		});
+	}
 	openDeliveryScheduler(delivery: EditorialDelivery | null, adjusting = false): void { new AutoScheduleModal(this, delivery, adjusting).open(); }
 	async applyScheduledPlan(book: string, expected: RevisionPlan, next: RevisionPlan): Promise<void> {
 		const active = JSON.stringify(["folder", this.getActiveBookScopeInfo().sourceFolder?.replace(/\/$/, "")]);
@@ -1025,6 +1075,12 @@ export default class EditorialistPlugin extends Plugin {
 		}
 		new Notice(
 			`${result.unchanged ? "Already imported" : result.created ? "Saved" : "Updated"} editorialism “${extracted.title}” at ${result.filePath}.`,
+		);
+		await this.linkImportToDelivery(
+			{ kind: "file", path: result.filePath },
+			extracted.reviewer,
+			extracted.reviewerType ? formatReviewerTypeLabel(normalizeReviewerType(extracted.reviewerType)) : "",
+			extracted.reviewerType ? normalizeReviewerType(extracted.reviewerType).startsWith("ai-") : false,
 		);
 		await this.openEditorialismPanel();
 		const file = this.app.vault.getAbstractFileByPath(result.filePath);

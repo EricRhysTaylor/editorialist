@@ -81,7 +81,7 @@ When every suggestion is resolved, the sweep completes and the batch is recorded
 
 Open the **Revision plan** to see progress across the whole book and schedule what remains. On an empty plan, **Auto-plan all N open items** spreads every open batch, directive, and pending edit across your working days up to your finish date. You can also add items by hand from **Available work**.
 
-For one editor's larger handoff, import line-level work as batches and structural tasks as Editorialisms. Open **… → Editorial deliveries**, link those sources to the editor’s handoff, and enter its received date and return deadline. Choose **Plan this delivery** to preview a schedule for just that handoff, using your working capacity and preferred preset. The [Revision Plan](Revision-Plan) page explains triage, estimates, locks, and sessions.
+For one editor's larger handoff, import line-level work as batches and structural tasks as Editorialisms. Each import files itself under that editor's delivery, so open **… → Editorial deliveries** and add the return deadline. Choose **Plan this delivery** to preview a schedule for just that handoff, using your working capacity and preferred preset. The [Revision Plan](Revision-Plan) page explains triage, estimates, locks, and sessions.
 
 ## Where things live in your vault
 

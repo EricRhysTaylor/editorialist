@@ -222,7 +222,8 @@ describe("buildReviewTemplate — planning handoff", () => {
 		const out = buildReviewTemplate(undefined, { bookLabel: "Book", sceneIds: [{ id: "scn_real", title: "1 Arrival" }] });
 		expect(out).not.toContain("GPT-5.4");
 		expect(out).toContain("Plan this delivery");
-		expect(out).toContain("do not create a schedule or a delivery");
+		expect(out).toContain("do not create a schedule.");
+		expect(out).toContain("Importing files each one under its reviewer's open delivery");
 		expect(out).toContain("MEMOs have no individual completion checkbox");
 		expect(out).toContain("preserve unchanged item wording");
 		expect(out).toContain("[effort:: light|medium|heavy]");
