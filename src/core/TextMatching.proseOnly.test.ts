@@ -4,6 +4,7 @@ import { MatchEngine } from "./MatchEngine";
 import { ReviewEngine } from "./ReviewEngine";
 import { SuggestionParser } from "./SuggestionParser";
 import { ContributorDirectory } from "../state/ContributorDirectory";
+import { createReviewBlock } from "./ReviewBlockFormat";
 import { locateAnchor } from "./EditorialismAnchorLocator";
 
 // Found in the 2026-10-07 dry run of a human editor's round (Pride and
@@ -73,4 +74,63 @@ describe("only prose is a match target", () => {
 		}
 		expect(maskNonProse(text).length).toBe(text.length);
 	});
+});
+
+
+describe("stabilization regressions — one prose boundary for matching and anchors", () => {
+	const anchor = { opening: "The grey hat is here.", closing: null } as never;
+
+	it.each(["\n", "\r\n"])("excludes generated long review fences with %j line endings", (newline) => {
+		const block = createReviewBlock("=== MEMO ===\nIssues: The grey hat is here.\n```\nAn inner code fence.").replace(/\n/g, newline);
+		const note = `Other visible prose.${newline}${newline}${block}`;
+		expect(locateAnchor(note, anchor).status).toBe("not-located");
+		expect(maskNonProse(note)).not.toContain("The grey hat");
+		expect(maskNonProse(note).length).toBe(note.length);
+	});
+
+	it("keeps real prose offsets after a long fence and ignores an apparent closer with text", () => {
+		const note = "````editorialist-review\n=== MEMO ===\n````quoted code, not a closer\nThe grey hat is here.\n````\n\nThe grey hat is here.";
+		const location = locateAnchor(note, anchor);
+		expect(location.status).toBe("located");
+		if (location.status === "located") {
+			expect(location.start).toBe(note.lastIndexOf("The grey hat"));
+			expect(location.ambiguous).toBe(false);
+		}
+	});
+
+	it.each([
+		"Visible.\n\n%% The grey hat is here. %%",
+		"Visible.\n\n%%\nThe grey hat is here.\n%%",
+	])("never locates a passage that exists only in a hidden comment", (note) => {
+		expect(locateAnchor(note, anchor).status).toBe("not-located");
+	});
+
+	it("matches visible prose once when the author query quotes it too", () => {
+		const note = "%%query: Should I cut The grey hat is here.?%%\n\nThe grey hat is here.";
+		const location = locateAnchor(note, anchor);
+		expect(location.status).toBe("located");
+		if (location.status === "located") {
+			expect(location.start).toBe(note.lastIndexOf("The grey hat"));
+			expect(location.ambiguous).toBe(false);
+		}
+	});
+
+	it("does not offer an edit whose original exists only in a hidden comment", () => {
+		const review = createReviewBlock("Reviewer: Morgan Lee\nReviewerType: developmental-editor\n=== EDIT ===\nOriginal: The grey hat is here.\nRevised: The grey hat was here.\nWhy: Tense.");
+		const note = `Visible.\n\n%% The grey hat is here. %%\n\n${review}`;
+		const engine = new ReviewEngine(new SuggestionParser(new ContributorDirectory()), new MatchEngine());
+		const session = engine.buildSession("scene.md", note);
+		expect(session.suggestions).toHaveLength(1);
+		expect(session.suggestions[0]?.location.primary?.matchType).toBe("none");
+		expect(engine.refreshSuggestions(note, session.suggestions)[0]?.location.primary?.matchType).toBe("none");
+	});
+});
+
+const dashForms = ["cannot-I", "cannot--I", "cannot---I", "cannot–I", "cannot—I"];
+describe("dash tolerance is symmetric between the manuscript and feedback", () => {
+	it.each(dashForms.flatMap((source) => dashForms.map((target) => [source, target])))
+		("finds %j when the reviewer quoted %j", (source, target) => {
+			const matches = findFuzzyMatches(source, target);
+			expect(matches).toEqual([{ startOffset: 0, endOffset: source.length }]);
+		});
 });

@@ -21,6 +21,9 @@
 
 import { isLocated, locateAnchor, type AnchorRange } from "./EditorialismAnchorLocator";
 import type { EditorialismAnchor } from "../models/Editorialism";
+import { maskNonProse } from "./TextMatching";
+
+export { maskNonProse } from "./TextMatching";
 
 export type SceneContextVia = "quoted" | "names" | "search";
 
@@ -44,56 +47,6 @@ export type SceneContextRef = Pick<EditorialismAnchor, "scene" | "opening" | "cl
 
 export interface Paragraph extends AnchorRange {
 	text: string;
-}
-
-export function maskNonProse(noteText: string): string {
-	const chars = noteText.split("");
-	const blank = (from: number, to: number): void => {
-		for (let index = from; index < to; index++) {
-			if (chars[index] !== "\n") chars[index] = " ";
-		}
-	};
-	const lines = noteText.split("\n");
-	let offset = 0;
-	let inFrontmatter = lines[0]?.trim() === "---";
-	let fence: string | null = null;
-	let inComment = false;
-
-	lines.forEach((line, index) => {
-		const lineStart = offset;
-		const lineEnd = lineStart + line.length;
-		offset = lineEnd + 1;
-		const trimmed = line.trim();
-		if (inFrontmatter) {
-			blank(lineStart, lineEnd);
-			if (index > 0 && trimmed === "---") inFrontmatter = false;
-			return;
-		}
-		if (fence) {
-			blank(lineStart, lineEnd);
-			if (trimmed.startsWith(fence)) fence = null;
-			return;
-		}
-		const fenceMatch = inComment ? null : trimmed.match(/^(```+|~~~+)/);
-		if (fenceMatch) {
-			blank(lineStart, lineEnd);
-			fence = fenceMatch[1] ?? "```";
-			return;
-		}
-		// Comments open and close anywhere: inline, or across lines.
-		for (let position = lineStart; position < lineEnd; position++) {
-			if (noteText.startsWith("%%", position)) {
-				blank(position, position + 2);
-				inComment = !inComment;
-				position++;
-			} else if (inComment) {
-				blank(position, position + 1);
-			}
-		}
-		// Headings are structure, not prose.
-		if (/^\s*#{1,6}\s/.test(chars.slice(lineStart, lineEnd).join(""))) blank(lineStart, lineEnd);
-	});
-	return chars.join("");
 }
 
 // Display text for a masked range: what remains once hidden text is gone,

@@ -1,5 +1,3 @@
-import { REVIEW_BLOCK_FENCE } from "./ReviewBlockFormat";
-
 // Blank a span with spaces (newlines kept), so every offset still points into
 // the real note while the span can no longer match.
 function blankRange(text: string, start: number, end: number): string {
@@ -14,16 +12,58 @@ export function maskFrontmatter(noteText: string): string {
 	return frontmatter ? blankRange(noteText, 0, frontmatter[0].length) : noteText;
 }
 
-// Prose only: properties and Editorialist's own review blocks blanked. Review
-// blocks hold suggestions and memos that quote the prose they are about.
+// One offset-preserving prose boundary for review matching, editorialism
+// anchors and context lookup. Properties, fenced code/reviews, hidden comments
+// and headings must never become editable manuscript targets.
 export function maskNonProse(noteText: string): string {
-	let masked = maskFrontmatter(noteText);
-	const fence = new RegExp("^```" + REVIEW_BLOCK_FENCE + "[^\\n]*\\n[\\s\\S]*?^```[ \\t]*$", "gm");
-	let match: RegExpExecArray | null;
-	while ((match = fence.exec(noteText)) !== null) {
-		masked = blankRange(masked, match.index, match.index + match[0].length);
-	}
-	return masked;
+	const chars = noteText.split("");
+	const blank = (from: number, to: number): void => {
+		for (let index = from; index < to; index++) {
+			if (chars[index] !== "\n" && chars[index] !== "\r") chars[index] = " ";
+		}
+	};
+	const lines = noteText.split("\n");
+	let offset = 0;
+	let inFrontmatter = lines[0]?.trim() === "---";
+	let fence: string | null = null;
+	let inComment = false;
+
+	lines.forEach((line, index) => {
+		const lineStart = offset;
+		const lineEnd = lineStart + line.length;
+		offset = lineEnd + 1;
+		const trimmed = line.trim();
+		if (inFrontmatter) {
+			blank(lineStart, lineEnd);
+			if (index > 0 && trimmed === "---") inFrontmatter = false;
+			return;
+		}
+		if (fence) {
+			blank(lineStart, lineEnd);
+			const closer = trimmed.match(/^(`{3,}|~{3,})$/)?.[1];
+			if (closer && closer[0] === fence[0] && closer.length >= fence.length) fence = null;
+			return;
+		}
+		const fenceMatch = inComment ? null : trimmed.match(/^(```+|~~~+)/);
+		if (fenceMatch) {
+			blank(lineStart, lineEnd);
+			fence = fenceMatch[1] ?? "```";
+			return;
+		}
+		// Comments open and close anywhere: inline, or across lines.
+		for (let position = lineStart; position < lineEnd; position++) {
+			if (noteText.startsWith("%%", position)) {
+				blank(position, position + 2);
+				inComment = !inComment;
+				position++;
+			} else if (inComment) {
+				blank(position, position + 1);
+			}
+		}
+		// Headings are structure, not prose.
+		if (/^\s*#{1,6}\s/.test(chars.slice(lineStart, lineEnd).join(""))) blank(lineStart, lineEnd);
+	});
+	return chars.join("");
 }
 
 export function findExactMatches(noteText: string, text: string): number[] {
@@ -103,7 +143,7 @@ function buildFuzzyMatchPattern(text: string): string | null {
 	// Collapse runs of whitespace in the target so they map to `\s+` in the
 	// pattern. Then escape regex meta chars and replace the placeholder runs
 	// of single spaces with `\s+`. Quote and dash variants get character classes.
-	const collapsed = text.replace(/\s+/g, " ").trim();
+	const collapsed = text.replace(/-{2,3}/g, "-").replace(/\s+/g, " ").trim();
 	if (!collapsed) {
 		return null;
 	}
