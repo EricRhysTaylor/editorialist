@@ -1,7 +1,8 @@
 import { DEFAULT_SCHEDULE, type ScheduleDefaults, type WorkPhase } from "./ScheduleDefaults";
 import { normalizePlanProgress, type PlanProgress } from "./PlanProgress";
+import { entryDeadline, normalizeEditorialProject, type EditorialProject } from "./EditorialProject";
 /** Planning identity is independent of line numbers and pending-edit indexes. */
-export type WorkKind = "pending" | "batch" | "directive";
+export type WorkKind = "pending" | "batch" | "directive" | "preparation";
 export interface WorkSource {
 	kind: WorkKind;
 	path: string;
@@ -42,6 +43,7 @@ export interface PlanEntry {
 	afterId: string | null;
 }
 export interface RevisionPlan {
+	project?: EditorialProject;
 	scheduling?: ScheduleDefaults;
 	deadline: string | null;
 	/** Sunday through Saturday; zero means a day off. */
@@ -88,9 +90,11 @@ export function normalizeRevisionPlans(raw: unknown): RevisionPlanStore {
 		const input = object(rawPlan);
 		if (!input) continue;
 		const plan = emptyRevisionPlan();
+		const project = normalizeEditorialProject(input.project);
+		if (project) plan.project = project;
 		const scheduling = object(input.scheduling);
 		if (scheduling) plan.scheduling = { preset: ["developmental", "copy", "mixed"].includes(String(scheduling.preset)) ? scheduling.preset as ScheduleDefaults["preset"] : DEFAULT_SCHEDULE.preset, sessionMinutes: Math.max(15, Math.min(240, minutes(scheduling.sessionMinutes) ?? 60)), useEstimates: scheduling.useEstimates !== false };
-		plan.deadline = isDate(input.deadline) ? input.deadline : null;
+		plan.deadline = project && !project.actualReturn ? project.submissionDate : (isDate(input.deadline) ? input.deadline : null);
 		const progress = normalizePlanProgress(input.progress);
 		if (progress) plan.progress = progress;
 		plan.reserveMinutes = minutes(input.reserveMinutes) ?? plan.reserveMinutes;
@@ -102,7 +106,7 @@ export function normalizeRevisionPlans(raw: unknown): RevisionPlanStore {
 			const entry = object(value);
 			const source = object(entry?.source);
 			if (!entry || typeof entry.id !== "string" || !entry.id || ids.has(entry.id) || !source ||
-				!['pending', 'batch', 'directive'].includes(String(source.kind)) || typeof source.path !== "string" || typeof source.locator !== "string") continue;
+				!['pending', 'batch', 'directive', 'preparation'].includes(String(source.kind)) || typeof source.path !== "string" || typeof source.locator !== "string") continue;
 			ids.add(entry.id);
 			const low = minutes(entry.lowMinutes);
 			const high = minutes(entry.highMinutes);
@@ -166,7 +170,8 @@ export function forecastPlan(plan: RevisionPlan, candidates: readonly WorkCandid
 	for (const entry of open) {
 		if (resolvePlanSource(entry.source, candidates).state !== "ready") result.unlinkedCount++;
 		if (!entry.day) result.unscheduledCount++;
-		if (entry.day && plan.deadline && entry.day > plan.deadline && entry.required) result.afterDeadlineCount++;
+		const due = entryDeadline(plan, entry, candidates);
+		if (entry.day && due && entry.day > due) result.afterDeadlineCount++;
 		if (entry.required) {
 			if (entry.lowMinutes === null || entry.highMinutes === null) result.unknownCount++;
 			else { result.lowMinutes += entry.lowMinutes; result.highMinutes += entry.highMinutes; }
@@ -178,9 +183,10 @@ export function forecastPlan(plan: RevisionPlan, candidates: readonly WorkCandid
 				(plan.entries.indexOf(prerequisite) >= plan.entries.indexOf(entry) || (entry.day && (!prerequisite.day || prerequisite.day > entry.day))))) result.dependencyWarnings.push(entry.id);
 		}
 	}
-	if (plan.deadline && isDate(today)) {
+	const deadline = plan.deadline;
+	if (deadline && isDate(today)) {
 		// UTC calendar dates avoid daylight-saving shifts; full weeks need no loop.
-		const days = Math.max(0, Math.round((Date.parse(plan.deadline + "T00:00:00Z") - Date.parse(today + "T00:00:00Z")) / 86400000) + 1);
+		const days = Math.max(0, Math.round((Date.parse(deadline + "T00:00:00Z") - Date.parse(today + "T00:00:00Z")) / 86400000) + 1);
 		let total = Math.floor(days / 7) * plan.capacity.reduce((sum, value) => sum + value, 0);
 		const startDay = new Date(today + "T12:00:00").getDay();
 		for (let day = 0; day < days % 7; day++) total += plan.capacity[(startDay + day) % 7] ?? 0;

@@ -1,0 +1,52 @@
+import { describe, expect, it } from "vitest";
+import { TFile, TFolder, type App } from "obsidian";
+import { createEditorialProject, materialState } from "../core/planning/EditorialProject";
+import { EditorialProjectService } from "./EditorialProjectService";
+import { strToU8, zipSync } from "fflate";
+class Vault {
+	files = new Map<string, TFile>(); contents = new Map<string, string>(); bytes = new Map<string, ArrayBuffer>(); folders = new Set<string>();
+	onCreate: (() => void) | null = null;
+	getMarkdownFiles(): TFile[] { return [...this.files.values()].filter((file) => file.extension === "md"); }
+	getAbstractFileByPath(path: string): TFile | TFolder | null { if (this.files.has(path)) return this.files.get(path)!; if (this.folders.has(path)) { const folder = new TFolder(); folder.path = path; return folder; } return null; }
+	async createFolder(path: string): Promise<void> { this.folders.add(path); }
+	async create(path: string, text: string): Promise<TFile> { const file = new TFile(); file.path = path; file.basename = path.split("/").at(-1)!.split(".")[0]!; file.extension = path.split(".").at(-1)!; Object.assign(file, { name: path.split("/").at(-1)! }); this.files.set(path, file); this.contents.set(path, text); this.onCreate?.(); return file; }
+	async createBinary(path: string, bytes: ArrayBuffer): Promise<TFile> { const file = await this.create(path, ""); this.bytes.set(path, bytes.slice(0)); return file; }
+	async read(file: TFile): Promise<string> { if (!this.contents.has(file.path)) throw new Error("Missing file"); return this.contents.get(file.path)!; }
+	async readBinary(file: TFile): Promise<ArrayBuffer> { return this.bytes.get(file.path)?.slice(0) ?? new TextEncoder().encode(await this.read(file)).buffer; }
+}
+async function fixture() {
+	const vault = new Vault();
+	await vault.create("Book/1 Opening.md", "Scene one"); await vault.create("Book/2 Crossing.md", "Scene two"); await vault.create("Other/1 Opening.md", "Other book"); await vault.create("Book/Cut/1 Opening.md", "Cut archive"); await vault.create("Book/Outline.md", "Outline"); await vault.create("Workshop/Overview.md", "Series overview");
+	const fronts = new Map([["Book/1 Opening.md", { Class: "Scene", SceneId: "one" }], ["Book/2 Crossing.md", { Class: "Scene", SceneId: "two" }], ["Other/1 Opening.md", { Class: "Scene", SceneId: "other" }]]);
+	const app = { vault, metadataCache: { getFileCache: (file: TFile) => ({ frontmatter: fronts.get(file.path) }) } } as unknown as App;
+	let scope = { label: "Book", sourceFolder: "Book", structured: true };
+	const open = new Map<string, string>(); const service = new EditorialProjectService(app, () => scope, () => "", (path) => open.get(path));
+	let id = 0; const project = createEditorialProject("Test Editor", "2026-11-30", () => `id-${++id}`);
+	const material = project.materials[0]!; material.exportPath = "Exports/Manuscript.docx"; material.wordCount = 120000;
+	const bytes = zipSync({ "[Content_Types].xml": strToU8("<Types/>"), "word/document.xml": strToU8('<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body/></w:document>') });
+	await vault.createBinary(material.exportPath, bytes.slice().buffer);
+	return { vault, service, project, material, open, switchBook: () => { scope = { ...scope, sourceFolder: "Other" }; } };
+}
+describe("Editorial submission evidence", () => {
+	it("captures bounded scene membership in numeric order and retains identities", async () => { const { service, material } = await fixture(); const observed = await service.observe(material); expect(observed.sources.map((item) => item.path)).toEqual(["Book/1 Opening.md", "Book/2 Crossing.md"]); expect(observed.sources.map((item) => item.sceneId)).toEqual(["one", "two"]); });
+	it("preserves exact source bytes without modifying the working manuscript", async () => { const { service, project, material, vault } = await fixture(); const approval = await service.approve(project, material); for (const item of approval.sources) expect(vault.contents.get(item.copy)).toBe(vault.contents.get(item.path)); expect(vault.contents.get("Book/1 Opening.md")).toBe("Scene one"); });
+	it("fingerprints unsaved editor content and notices source drift", async () => { const { service, material, open } = await fixture(); const before = await service.observe(material); open.set("Book/1 Opening.md", "Unsaved new text"); expect((await service.observe(material)).sourceDigest).not.toBe(before.sourceDigest); });
+	it("allows explicitly linked supporting notes outside the book", async () => { const { service, project } = await fixture(); const material = project.materials[1]!; material.source = "Workshop/Overview.md"; const observed = await service.observe(material); expect(observed.error).toBeNull(); expect(observed.sources[0]!.path).toBe("Workshop/Overview.md"); });
+	it("fails clearly for missing notes", async () => { const { service, project } = await fixture(); const observed = await service.observe(project.materials[1]!); expect(observed.sourceDigest).toBeNull(); expect(observed.error).toMatch(/existing vault note/); });
+	it("detects membership changes even if remaining scene text is unchanged", async () => { const { service, material, vault } = await fixture(); const before = await service.observe(material); vault.files.delete("Book/2 Crossing.md"); expect((await service.observe(material)).sourceDigest).not.toBe(before.sourceDigest); });
+	it("refuses approval when sources change during copying", async () => { const { service, project, material, vault } = await fixture(); vault.onCreate = () => { vault.contents.set("Book/2 Crossing.md", "Changed mid snapshot"); }; await expect(service.approve(project, material)).rejects.toThrow(/changed/); });
+	it("requires current author approval and every inspection requirement", async () => { const { service, project, material } = await fixture(); await expect(service.check(project, material, material.requirements)).rejects.toThrow(/Approve/); material.approvedDigest = (await service.approve(project, material)).digest; await expect(service.check(project, material, [])).rejects.toThrow(/every requirement/); });
+	it("stages a verified copy and preserves the inspection against later export changes", async () => { const { service, project, material, vault } = await fixture(); material.approvedDigest = (await service.approve(project, material)).digest; material.check = await service.check(project, material, material.requirements); expect(materialState(material, await service.observe(material))).toBe("checked"); expect(await service.verifyUpload(project, material)).toEqual(material.check); vault.bytes.set(material.exportPath, new Uint8Array([80, 75, 3, 4, 99]).buffer); expect(materialState(material, await service.observe(material))).toBe("recheck"); await expect(service.verifyUpload(project, material)).rejects.toThrow(/Check/); });
+	it("refuses upload evidence when the staged copy was corrupted", async () => { const { service, project, material, vault } = await fixture(); material.approvedDigest = (await service.approve(project, material)).digest; material.check = await service.check(project, material, material.requirements); vault.bytes.set(material.check.copy, new Uint8Array([1, 2, 3]).buffer); expect(materialState(material, await service.observe(material))).toBe("recheck"); await expect(service.verifyUpload(project, material)).rejects.toThrow(/staged/); });
+	it("refuses non-Word export bytes", async () => { const { service, project, material, vault } = await fixture(); material.approvedDigest = (await service.approve(project, material)).digest; vault.bytes.set(material.exportPath, new Uint8Array([1, 2, 3]).buffer); await expect(service.check(project, material, material.requirements)).rejects.toThrow(/Word/); });
+	it("refuses a source change while staging an inspected export", async () => { const { service, project, material, vault } = await fixture(); material.approvedDigest = (await service.approve(project, material)).digest; vault.onCreate = () => { vault.contents.set("Book/1 Opening.md", "New prose"); }; await expect(service.check(project, material, material.requirements)).rejects.toThrow(/changed/); });
+	it("detects deleted or changed source snapshots without calling the source draft missing", async () => { const { service, project, material, vault } = await fixture(); const approval = await service.approve(project, material); material.approvedDigest = approval.digest; material.frozenSources = approval.sources; vault.contents.set(approval.sources[0]!.copy, "Corrupted snapshot"); const observed = await service.observe(material); expect(observed.sourceDigest).toBe(approval.digest); expect(observed.snapshotError).toMatch(/snapshot/); expect(materialState(material, observed)).toBe("recheck"); });
+	it("rejects project identities that could redirect snapshot storage", async () => { const { service, project, material } = await fixture(); project.id = "../../outside"; await expect(service.approve(project, material)).rejects.toThrow(/identity/); });
+	it("requires the final export word count and preserves it in recovery records", async () => { const { service, project, material, vault } = await fixture(); material.approvedDigest = (await service.approve(project, material)).digest; delete material.wordCount; await expect(service.check(project, material, material.requirements)).rejects.toThrow(/word count/); material.wordCount = 120000; const check = await service.check(project, material, material.requirements); expect(check.wordCount).toBe(120000); expect(JSON.parse(vault.contents.get(check.copy + ".manifest.json")!).check.wordCount).toBe(120000); });
+	it("invalidates supporting-document inspection when the manuscript word count changes", async () => {
+		const { service, project, material } = await fixture(); const query = project.materials[2]!; query.source = "Workshop/Overview.md"; query.exportPath = material.exportPath;
+		query.approvedDigest = (await service.approve(project, query)).digest; query.check = await service.check(project, query, query.requirements);
+		expect(materialState(query, (await service.observeProject(project))[query.id])).toBe("checked"); material.wordCount = 119900;
+		expect(materialState(query, (await service.observeProject(project))[query.id])).toBe("recheck"); expect(query.check.packetWordCount).toBe(120000); await expect(service.verifyUpload(project, query)).rejects.toThrow(/Check/);
+	});
+});

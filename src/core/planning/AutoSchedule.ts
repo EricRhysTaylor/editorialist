@@ -1,5 +1,6 @@
 import { isDate, isPlanEntryComplete, localDate, progressDoneKeys, resolvePlanSource, sourceKey, type PlanEntry, type RevisionPlan, type WorkCandidate } from "./RevisionPlan";
 import type { ScheduleDefaults, SchedulePreset, WorkPhase } from "./ScheduleDefaults";
+import { entryDeadline, workDeadline } from "./EditorialProject";
 export interface TriageChoice { phase?: WorkPhase | null; low?: number; high?: number; skip?: boolean }
 export interface ScheduleOptions extends ScheduleDefaults {
 	/** The delivery to plan, or null for every open piece of work in the book. */
@@ -16,6 +17,7 @@ export function addDays(day: string, count: number): string {
 }
 /** Suggestions only: explicit scope/word cues outrank the source format. */
 export function suggestPhase(candidate: WorkCandidate, preset: SchedulePreset): WorkPhase | null {
+	if (candidate.kind === "preparation") return "structure";
 	if (/\b(structur\w*|arc|subplot|act|chapter order|reorder|cut scene|remove scene)\b/i.test(candidate.title)) return "structure";
 	if (/\b(rewrit\w*|expand|rework|rebuild|new scene|motivation|character|pacing|stakes|emotional|consequence|payoff|reunion)\b/i.test(candidate.title)) return "rewrite";
 	if (/\b(copy.?edit|typo|grammar|punctuation|spelling|wording|line.?edit|prose|trim|sentence|repetition|dialogue|gesture|gestures|word choice|voice|description|syntax|clarify|tighten|concision|tone)\b/i.test(candidate.title)) return "polish";
@@ -62,10 +64,11 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 	};
 	const scene = (candidate: WorkCandidate): string => candidate.sceneOrder?.match(/\d+/)?.[0]?.padStart(8, "0") ?? "~";
 	chosen.sort((a, b) => {
+		const preparationOrder = plan.project && !plan.project.actualReturn ? (workDeadline(plan, a.kind, a.due) ?? options.end).localeCompare(workDeadline(plan, b.kind, b.due) ?? options.end) || Number(a.kind === "preparation") - Number(b.kind === "preparation") : 0;
 		const scenes = scene(a).localeCompare(scene(b)) || (a.sceneOrder ?? "").localeCompare(b.sceneOrder ?? "", undefined, { numeric: true });
 		const phases = rank(phase(a)) - rank(phase(b));
 		const structure = Number(phase(a) !== "structure") - Number(phase(b) !== "structure");
-		return (options.preset === "copy" ? scenes : options.preset === "mixed" ? structure || scenes || phases : phases || scenes) || a.title.localeCompare(b.title);
+		return preparationOrder || (options.preset === "copy" ? scenes : options.preset === "mixed" ? structure || scenes || phases : phases || scenes) || a.title.localeCompare(b.title);
 	});
 	let estimated = 0;
 	let previousNewId: string | null = null;
@@ -115,7 +118,7 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 			const parentDone = parent ? isPlanEntryComplete(parent, candidates, doneKeys) : false;
 			const resolved = resolvePlanSource(entry.source, candidates);
 			const due = resolved.state === "ready" ? resolved.candidate.due : null;
-			const deadlines = [options.end, due, entry.required ? plan.deadline : null].filter((day): day is string => Boolean(day));
+			const deadlines = [options.end, due, entryDeadline(plan, entry, candidates)].filter((day): day is string => Boolean(day));
 			const end = deadlines.sort()[0]!;
 			let reason = "";
 			if (entry.afterId && (!parent || (!parentDone && !parent.day))) reason = "Prerequisite is missing or unscheduled.";

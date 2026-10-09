@@ -1,14 +1,18 @@
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
 import { pendingWorkTitle, planDayLabel } from "../core/planning/WorkPresentation";
-import { ItemView, Notice, setIcon, type WorkspaceLeaf } from "obsidian";
+import { ItemView, Notice, TFile, setIcon, type WorkspaceLeaf } from "obsidian";
 import type EditorialistPlugin from "../main";
 import { renderPanelHeader } from "./primitives/PanelHeader";
 import { emptyRevisionPlan, forecastPlan, isDate, isPlanEntryComplete, localDate, movePlanEntry, progressDoneKeys, resolvePlanSource, sourceKey, type PlanEntry, type RevisionPlan, type WorkCandidate } from "../core/planning/RevisionPlan";
 import { advancePlanProgress, summarizePlanProgress, type ProgressInput } from "../core/planning/PlanProgress";
 import { estimateRange } from "../core/planning/AutoSchedule";
+import { EditorialProjectPanel } from "./EditorialProjectPanel";
+import { EditorialProjectService } from "../services/EditorialProjectService";
+import { entryDeadline, type MaterialObservation } from "../core/planning/EditorialProject";
 
 export const REVISION_PLAN_VIEW_TYPE = "editorialist-revision-plan";
-const kindLabels = { pending: "Pending edit", batch: "Scene batch", directive: "Editorialism" };
+const kindLabels = { pending: "Pending edit", batch: "Scene batch", directive: "Editorialism", preparation: "Preparation task" };
+const kindIcons = { pending: "pencil-line", batch: "messages-square", directive: "list-checks", preparation: "clipboard-list" };
 const duration = (minutes: number): string => `${Math.round(minutes / 6) / 10} h`;
 
 /** Planning writes only plugin data. Source editing stays in the existing tools. */
@@ -18,6 +22,8 @@ export class RevisionPlanPanel extends ItemView {
 	private candidates: WorkCandidate[] = [];
 	private warnings: string[] = [];
 	private view: "queue" | "days" = "queue";
+	private section: "overview" | "materials" | "schedule" | "history" = "overview";
+	private observations: Record<string, MaterialObservation> = {};
 	private dragging: string | null = null;
 	private busy = false;
 	private loaded = false;
@@ -29,6 +35,14 @@ export class RevisionPlanPanel extends ItemView {
 	private backlogLimit = 12;
 	private refreshTimer: number | null = null;
 	constructor(leaf: WorkspaceLeaf, private readonly plugin: EditorialistPlugin) { super(leaf); }
+	private projectService(): EditorialProjectService { return new EditorialProjectService(this.app, () => this.plugin.getActiveBookScopeInfo(), () => this.plugin.getCutFolderOverride(), (path) => this.plugin.resolveOpenNoteText(path)); }
+	private projectPanel(): EditorialProjectPanel {
+		const book = this.book;
+		return new EditorialProjectPanel({ app: this.app, plan: this.plan, observations: this.observations, busy: this.busy || this.stale, service: this.projectService(), deliveries: this.plugin.getEditorialDeliveries(),
+			save: async (expected, next) => { if (!book || book !== this.scopeKey()) throw new Error("The active book changed. Reopen the project before saving."); await this.plugin.applyScheduledPlan(book, expected, next); },
+			openWorkspace: () => this.plugin.openEditorialProjectWorkspace(), openSchedule: () => { this.section = "schedule"; this.render(); }, openSource: async (path) => { const file = this.app.vault.getAbstractFileByPath(path); if (!(file instanceof TFile)) throw new Error("This file is unavailable. Check its path in material details."); await this.app.workspace.openLinkText(file.path, "", false); },
+		});
+	}
 	getViewType(): string { return REVISION_PLAN_VIEW_TYPE; }
 	getDisplayText(): string { return "Revision plan"; }
 	getIcon(): string { return EDITORIALIST_ICON_ID; }
@@ -89,7 +103,11 @@ export class RevisionPlanPanel extends ItemView {
 			// Only a complete, current read may advance progress: a source that
 			// failed to load would otherwise look like finished work.
 			if (book && !this.stale && !work.warnings.length) await this.recordProgress(book, work.candidates);
-			this.plan = book ? this.plugin.getRevisionPlan(book) : emptyRevisionPlan();
+			const plan = book ? this.plugin.getRevisionPlan(book) : emptyRevisionPlan();
+			const observations = plan.project ? await this.projectService().observeProject(plan.project) : {};
+			if (book !== this.scopeKey()) { this.stale = true; return; }
+			this.plan = plan; this.observations = observations;
+			this.stale = revision !== this.sourceRevision;
 		} catch { this.stale = true; this.warnings = ["Could not load the revision plan. Refresh to try again."]; }
 		finally { this.busy = false; this.render(); }
 	}
@@ -146,8 +164,21 @@ export class RevisionPlanPanel extends ItemView {
 		// Background refreshes re-render; keep the author's place.
 		const scrollTop = container.scrollTop;
 		container.empty();
-		renderPanelHeader(container, this.plugin, REVISION_PLAN_VIEW_TYPE, "Revision plan");
+		renderPanelHeader(container, this.plugin, REVISION_PLAN_VIEW_TYPE, this.plan.project ? "Editorial project" : "Revision plan");
 		const root = container.createDiv({ cls: "editorialist-plan__body" });
+		if (this.plan.project) {
+			const navigation = root.createDiv({ cls: "editorialist-project__tabs", attr: { "aria-label": "Project view" } });
+			for (const [value, label] of [["overview", "Overview"], ["materials", "Materials"], ["schedule", "Schedule"], ["history", "History"]] as const) { const tab = this.button(navigation, label, () => { this.section = value; this.render(); }); tab.setAttribute("aria-pressed", String(this.section === value)); }
+			if (this.section !== "schedule") {
+				for (const warning of this.warnings) root.createEl("p", { cls: "editorialist-plan__warning", text: warning });
+				if (this.stale) root.createEl("p", { cls: "editorialist-plan__freshness", text: "Sources changed. Updating…", attr: { role: "status" } });
+				const project = this.projectPanel();
+				if (this.section === "overview") project.renderOverview(root); else if (this.section === "materials") project.renderMaterials(root); else project.renderHistory(root);
+				for (const item of Array.from(root.querySelectorAll<HTMLDetailsElement>("details[data-plan-section]"))) if (expanded.has(item.dataset.planSection)) item.open = true;
+				if (this.busy) for (const control of Array.from(root.querySelectorAll<HTMLButtonElement>("button"))) control.disabled = true;
+				container.scrollTop = scrollTop; return;
+			}
+		}
 		const toolbar = root.createDiv({ cls: "editorialist-plan__toolbar" });
 		const tabs = toolbar.createDiv({ cls: "editorialist-plan__tabs", attr: { "aria-label": "Plan layout" } });
 		for (const [value, label, icon] of [["queue", "Queue", "list-ordered"], ["days", "Days", "calendar-days"]] as const) {
@@ -163,6 +194,11 @@ export class RevisionPlanPanel extends ItemView {
 		root.createEl("p", { cls: "editorialist-plan__freshness", text: this.stale ? "Sources changed. Updating…" : "", attr: { role: "status" } });
 		for (const warning of this.warnings) root.createEl("p", { cls: "editorialist-plan__warning", text: warning });
 		if (!this.book || !this.loaded) return;
+		if (!this.plan.project) {
+			const prepare = root.createDiv({ cls: "editorialist-project__entry" });
+			this.button(prepare, "Prepare for editor", () => this.projectPanel().setup());
+			prepare.createEl("p", { cls: "editorialist-project__hint", text: "Add manuscript, overview and query-letter preparation to this book." });
+		}
 		this.renderProgress(root);
 		this.renderSummary(root);
 		this.renderCapacity(root);
@@ -230,7 +266,7 @@ export class RevisionPlanPanel extends ItemView {
 			item.createSpan({ text: ` ${text}` });
 		}
 		const kinds = card.createDiv({ cls: "editorialist-plan__momentum-kinds" });
-		for (const [kind, text] of [["batch", "Batches"], ["directive", "Editorialisms"], ["pending", "Notes"]] as const) {
+		for (const [kind, text] of [["batch", "Batches"], ["directive", "Editorialisms"], ["pending", "Notes"], ["preparation", "Preparation"]] as const) {
 			const counts = summary.byKind[kind];
 			if (!counts.done && !counts.remaining) continue;
 			kinds.createSpan({ text: `${text} ${counts.done}/${counts.done + counts.remaining}` });
@@ -269,14 +305,14 @@ export class RevisionPlanPanel extends ItemView {
 		label.createSpan({ text: this.plan.deadline ? `Working toward ${planDayLabel(this.plan.deadline)}` : "Your revision plan" });
 		if (!this.plan.entries.length) {
 			summary.createEl("h2", { text: "Choose what comes next." });
-			summary.createEl("p", { text: "Bring scene notes, review batches, and directives into one working queue." });
+			summary.createEl("p", { text: this.plan.project ? "Bring preparation tasks, scene notes, review batches and directives into one working queue." : "Bring scene notes, review batches, and directives into one working queue." });
 			const choose = this.button(summary, "Choose work", () => {
 				const backlog = root.querySelector<HTMLDetailsElement>(".editorialist-plan__backlog");
 				if (backlog) { backlog.open = true; backlog.scrollIntoView({ block: "start", behavior: "smooth" }); backlog.querySelector<HTMLInputElement>("input")?.focus(); }
 			});
 			choose.addClass("editorialist-plan__choose");
 			setIcon(choose.createSpan(), "arrow-down");
-			this.renderAutoPlanButton(summary, true);
+			if (this.available().length) this.renderAutoPlanButton(summary, true);
 			return;
 		}
 		const metric = summary.createDiv({ cls: "editorialist-plan__hero-metric" });
@@ -344,7 +380,8 @@ export class RevisionPlanPanel extends ItemView {
 		setIcon(summary.createSpan(), "sliders-horizontal");
 		summary.createSpan({ text: "Deadline & capacity" });
 		summary.createSpan({ cls: "editorialist-plan__capacity-value", text: this.plan.deadline ? planDayLabel(this.plan.deadline) : "Set up" });
-		this.input(details, "Deadline", "date", this.plan.deadline ?? "", (value) => { void this.change((plan) => { plan.deadline = isDate(value) ? value : null; }); });
+		if (this.plan.project && !this.plan.project.actualReturn) details.createEl("p", { text: `Hard submission deadline: ${this.plan.project.submissionDate}. Change it in project details. Each task must also fit before its preparation milestone; packet readiness is ${this.plan.project.readinessDate}.` });
+		else this.input(details, "Deadline", "date", this.plan.deadline ?? "", (value) => { void this.change((plan) => { plan.deadline = isDate(value) ? value : null; }); });
 		const days = details.createDiv({ cls: "editorialist-plan__fields" });
 		["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].forEach((day, index) => {
 			const input = this.input(days, `${day} minutes`, "number", String(this.plan.capacity[index]), (value) => { void this.change((plan) => { plan.capacity[index] = Math.min(1440, Number(value)); }); });
@@ -358,7 +395,7 @@ export class RevisionPlanPanel extends ItemView {
 		const resolved = resolvePlanSource(entry.source, this.candidates);
 		const heading = row.createDiv({ cls: "editorialist-plan__entry-heading" });
 		const badge = heading.createSpan({ cls: "editorialist-plan__kind" });
-		setIcon(badge.createSpan(), { pending: "pencil-line", batch: "messages-square", directive: "list-checks" }[entry.source.kind]);
+		setIcon(badge.createSpan(), kindIcons[entry.source.kind]);
 		badge.createSpan({ text: kindLabels[entry.source.kind] });
 		if (entry.locked) heading.createSpan({ cls: "editorialist-plan__done-label", text: "Locked" });
 		if (entry.sessionCount) heading.createSpan({ cls: "editorialist-plan__done-label", text: `Session ${entry.sessionIndex}/${entry.sessionCount}` });
@@ -372,7 +409,8 @@ export class RevisionPlanPanel extends ItemView {
 		if (this.view === "queue") this.dropTarget(row, (id) => { void this.change((plan) => { plan.entries = movePlanEntry(plan.entries, id, entry.id); }); });
 		row.createEl("p", { cls: "editorialist-plan__task-context", text: `${resolved.state === "ready" ? resolved.candidate.detail : entry.source.path}${resolved.state === "ready" && resolved.candidate.deferred ? " · Deferred at source" : ""}` });
 		if (resolved.state === "ready" && resolved.candidate.inactive) row.createEl("p", { cls: "editorialist-plan__hint", text: "Source inactive · kept in your plan. Keep this task or remove it in schedule & options." });
-		if (resolved.state === "ready" && resolved.candidate.due && entry.day && entry.day > resolved.candidate.due) row.createEl("p", { cls: "editorialist-plan__hint", text: `Scheduled after delivery deadline (${resolved.candidate.due}).` });
+		const deadline = entryDeadline(this.plan, entry, this.candidates);
+		if (deadline && entry.day && entry.day > deadline) row.createEl("p", { cls: "editorialist-plan__warning", text: `Scheduled after its deadline or milestone (${deadline}).` });
 		const metadata = row.createDiv({ cls: "editorialist-plan__task-meta" });
 		for (const [icon, text] of [["calendar", entry.day ? planDayLabel(entry.day) : "Unscheduled"], ["clock-3", entry.lowMinutes === null || entry.highMinutes === null ? "Add estimate" : `${entry.lowMinutes}–${entry.highMinutes} min`]]) {
 			const chip = metadata.createSpan(); setIcon(chip.createSpan(), icon!); chip.createSpan({ text });
@@ -380,7 +418,7 @@ export class RevisionPlanPanel extends ItemView {
 		if (!entry.required) metadata.createSpan({ text: "Optional" });
 		const footer = row.createDiv({ cls: "editorialist-plan__entry-footer" });
 		const actions = footer.createDiv({ cls: "editorialist-plan__actions" });
-		this.sourceButton(actions, "Open source", () => { if (resolved.state === "ready") void this.plugin.openRevisionWork(resolved.candidate); }, resolved.state !== "ready" || this.stale);
+		if (entry.source.kind !== "preparation") this.sourceButton(actions, "Open source", () => { if (resolved.state === "ready") void this.plugin.openRevisionWork(resolved.candidate); }, resolved.state !== "ready" || this.stale);
 		this.button(actions, entry.done ? "Reopen" : "Finish session", () => { void this.edit(entry.id, (item) => { item.done = !item.done; }); });
 		const details = footer.createEl("details", { attr: { "data-plan-section": entry.id } });
 		details.createEl("summary", { text: "Schedule & options" });
@@ -450,7 +488,7 @@ export class RevisionPlanPanel extends ItemView {
 				const content = row.createDiv({ cls: "editorialist-plan__backlog-content" });
 				const title = content.createEl("strong", { attr: { title: candidate.title } });
 				const icon = title.createSpan({ cls: "editorialist-plan__source-icon", attr: { "aria-hidden": "true" } });
-				setIcon(icon, { pending: "pencil-line", batch: "messages-square", directive: "list-checks" }[candidate.kind]);
+				setIcon(icon, kindIcons[candidate.kind]);
 				title.createSpan({ text: candidate.title });
 				content.createEl("p", { text: `${candidate.detail}${candidate.deferred ? " · Deferred" : ""}` });
 				this.sourceButton(row, "", () => { void this.change((plan) => { plan.entries.push({ id: crypto.randomUUID(), source: { kind: candidate.kind, path: candidate.path, locator: candidate.locator }, title: candidate.title, lowMinutes: null, highMinutes: null, day: null, required: true, done: false, afterId: null }); }); }, this.stale);
@@ -474,7 +512,7 @@ export class RevisionPlanPanel extends ItemView {
 			}
 			if (!shown.length) list.createEl("p", { cls: "editorialist-plan__empty-copy", text: "No available work matches this filter." });
 		};
-		for (const [value, label] of Object.entries({ all: "All", pending: "Notes", batch: "Batches", directive: "Editorialisms" })) {
+		for (const [value, label] of Object.entries({ all: "All", pending: "Notes", batch: "Batches", directive: "Editorialisms", preparation: "Preparation" })) {
 			const button = this.button(filters, label, () => { this.sourceFilter = value; this.backlogLimit = 12; for (const item of Array.from(filters.querySelectorAll("button"))) item.setAttribute("aria-pressed", String(item === button)); render(); });
 			button.setAttribute("aria-pressed", String(this.sourceFilter === value));
 		}

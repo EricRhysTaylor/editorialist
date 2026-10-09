@@ -6,6 +6,7 @@ import { formatReviewerTypeLabel, normalizeReviewerType } from "./core/Contribut
 import { RevisionPlanPanel, REVISION_PLAN_VIEW_TYPE } from "./ui/RevisionPlanPanel";
 import { localDate, type RevisionPlan, type WorkCandidate } from "./core/planning/RevisionPlan";
 import { batchWork, directiveWork, pendingWork } from "./core/planning/RevisionWork";
+import { preparationWork } from "./core/planning/EditorialProject";
 import { collectPendingEdits, describeCollectFailure } from "./core/PendingEditsCollector";
 import { endReviewRound, getEndableRoundBatches } from "./orchestrators/EndReviewRound";
 import type { EditorView } from "@codemirror/view";
@@ -863,6 +864,10 @@ export default class EditorialistPlugin extends Plugin {
 	async openRevisionPlanPanel(): Promise<void> {
 		await this.openEditorialistPanel(REVISION_PLAN_VIEW_TYPE);
 	}
+	async openEditorialProjectWorkspace(): Promise<void> {
+		const leaf = this.app.workspace.getLeaf("tab");
+		await leaf.setViewState({ type: REVISION_PLAN_VIEW_TYPE, active: true });
+	}
 
 	getRevisionPlan(book: string): RevisionPlan { return this.registry.getRevisionPlan(book); }
 	async saveRevisionPlan(book: string, plan: RevisionPlan): Promise<void> { await this.registry.setRevisionPlan(book, plan); }
@@ -928,11 +933,13 @@ export default class EditorialistPlugin extends Plugin {
 		const warnings: string[] = [];
 		const folder = scope.sourceFolder?.replace(/\/$/, "");
 		if (!folder) return { candidates, warnings: ["Select an active book with a source folder to plan revisions."] };
+		const project = this.getRevisionPlan(JSON.stringify(["folder", folder])).project;
+		if (project) candidates.push(...preparationWork(project));
 		try {
 			const pending = await collectPendingEdits(this.app);
 			if (pending.ok && pending.session.sourceFolder.replace(/\/$/, "") === folder) candidates.push(...pendingWork(pending.session));
 			else if (pending.ok) warnings.push("Pending edits belong to a different active book. Refresh after selecting the intended book.");
-			else if (pending.reason !== "no_scenes_with_pending_edits") warnings.push(describeCollectFailure(pending.reason));
+			else if (pending.reason !== "no_scenes_with_pending_edits" && !(project && pending.reason === "radial_timeline_missing")) warnings.push(describeCollectFailure(pending.reason));
 		} catch { warnings.push("Pending edits could not be loaded. Their absence is not a completed backlog."); }
 		try {
 			for (const summary of await this.listEditorialismsForActiveBook(scope.label)) {
@@ -2119,7 +2126,7 @@ export default class EditorialistPlugin extends Plugin {
 	// ReviewRegistryService so the service stays at the vault/persistence
 	// layer and never reaches `app.workspace` directly. Mirrors the original
 	// private helper that lived inside the service; the search is unchanged.
-	private resolveOpenNoteText(notePath: string): string | null {
+	resolveOpenNoteText(notePath: string): string | null {
 		for (const leaf of this.app.workspace.getLeavesOfType("markdown")) {
 			const view = leaf.view as { file?: { path?: string }; editor?: { getValue: () => string } };
 			if (view.file?.path !== notePath || !view.editor) {

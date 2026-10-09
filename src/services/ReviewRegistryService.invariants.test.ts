@@ -18,6 +18,7 @@
 // vault + engine; a minimal in-memory app + a deterministic fake engine
 // keep those fixtures small.
 
+import { createEditorialProject } from "../core/planning/EditorialProject";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { TFile } from "obsidian";
 import { ReviewRegistryService } from "./ReviewRegistryService";
@@ -957,6 +958,22 @@ describe("ended-round statistics", () => {
 
 // Planning must survive unrelated review saves and never mutate source decisions.
 describe("revision plan persistence", () => {
+	it("preserves project sources across renames without rewriting historical evidence", async () => {
+		const { service } = makeService(); let id = 0;
+		const project = createEditorialProject("Test Editor", "2026-11-30", () => `project-${++id}`);
+		project.materials[1]!.source = "Workshop/Overview.md";
+		project.materials[1]!.frozenSources = [{ path: "Workshop/Overview.md", digest: "a".repeat(64), copy: "Editorialist/Submissions/Overview.md" }];
+		await service.setRevisionPlan("book", { ...service.getRevisionPlan("book"), project });
+		await service.renameNotePath("Workshop/Overview.md", "Workshop/Series.md");
+		const material = service.getRevisionPlan("book").project!.materials[1]!;
+		expect(material.source).toBe("Workshop/Series.md"); expect(material.frozenSources![0]!.path).toBe("Workshop/Overview.md");
+		const restored = makeService().service; restored.load(service.buildPluginData([])); expect(restored.getRevisionPlan("book").project).toEqual(service.getRevisionPlan("book").project); expect(restored.getRevisionPlan("other-book").project).toBeUndefined();
+	});
+	it("rolls back project and readiness changes when persistence fails", async () => {
+		const service = new ReviewRegistryService(makeApp([]), makeEngine({}), new ContributorDirectory(), async () => { throw new Error("disk full"); }, () => null);
+		let id = 0; const project = createEditorialProject("Test Editor", "2026-11-30", () => `project-${++id}`);
+		await expect(service.setRevisionPlan("book", { ...service.getRevisionPlan("book"), project })).rejects.toThrow("disk full"); expect(service.getRevisionPlan("book").project).toBeUndefined();
+	});
 	it("round-trips ordering, follows a note rename, and returns detached snapshots", async () => {
 		const { service } = makeService();
 		const plan = service.getRevisionPlan("book");

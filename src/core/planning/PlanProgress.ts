@@ -41,7 +41,7 @@ export interface ProgressInput extends TrackedWork {
 	state: "open" | "complete" | "inactive";
 }
 
-const KINDS: WorkKind[] = ["batch", "directive", "pending"];
+const KINDS: WorkKind[] = ["batch", "directive", "pending", "preparation"];
 
 export function advancePlanProgress(
 	previous: PlanProgress | undefined,

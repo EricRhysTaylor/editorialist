@@ -38,7 +38,7 @@ export class AutoScheduleModal extends Modal {
 	private render(): void {
 		const root = this.contentEl; root.empty();
 		root.createEl("h2", { text: this.adjusting ? "Adjust remaining schedule" : this.delivery ? "Plan this delivery" : "Plan all open work" });
-		root.createEl("p", { cls: "editorialist-deliveries__intro", text: this.delivery?.title ?? "Every open review batch, editorialism directive, and pending edit in this book, spread across your working days up to the finish date. Work already in your plan keeps its place." });
+		root.createEl("p", { cls: "editorialist-deliveries__intro", text: this.delivery?.title ?? "Open preparation tasks, review batches, editorialism directives and pending edits in this book, spread across your working days before their deadlines and milestones. Work already in your plan keeps its place." });
 		const grid = root.createDiv({ cls: "editorialist-deliveries__fields" });
 		const input = (parent: HTMLElement, label: string, type: string, value: string, change: (value: string) => void): HTMLInputElement => {
 			const wrap = parent.createEl("label", { text: label }); const field = wrap.createEl("input", { type, value, attr: { "aria-label": label } });
