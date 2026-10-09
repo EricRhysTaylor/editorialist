@@ -8243,7 +8243,43 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 }
 
 .editorialist-project__hero {
+	container-type: inline-size;
 	border-color: color-mix(in srgb, var(--interactive-accent) 45%, var(--background-modifier-border));
+}
+
+.editorialist-project__editor-label {
+	margin-bottom: 8px;
+	font-size: var(--font-smallest);
+	font-weight: var(--font-semibold);
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+
+.editorialist-project__hero .editorialist-project__editor-name {
+	margin: 0 0 8px;
+	font-family: "JetBrains Mono", var(--font-monospace);
+	font-size: clamp(1.85rem, 10cqi, 2.5rem);
+	font-weight: 600;
+	letter-spacing: -0.045em;
+	line-height: 1.15;
+	color: var(--text-normal);
+	text-wrap: balance;
+	word-break: normal;
+}
+
+.editorialist-project__editor-role {
+	margin-bottom: 18px;
+	font-size: var(--font-small);
+	color: var(--text-muted);
+}
+
+.editorialist-project__submission-heading {
+	margin: 0;
+	padding-top: 12px;
+	border-top: 1px solid var(--background-modifier-border);
+	font-size: var(--font-small);
+	font-weight: var(--font-semibold);
 }
 
 .editorialist-project__hero h2 {

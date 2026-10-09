@@ -115,9 +115,11 @@ export class EditorialProjectPanel {
 		}
 		const hero = root.createDiv({ cls: "editorialist-project__hero" });
 		const editor = projectEditor(project, this.host.getReviewers());
-		hero.createDiv({ cls: "editorialist-project__eyebrow", text: `${editor.name} · ${project.title}` });
+		hero.createDiv({ cls: "editorialist-project__editor-label", text: "Your editor" });
+		hero.createEl("h2", { cls: "editorialist-project__editor-name", text: editor.name });
+		hero.createDiv({ cls: "editorialist-project__editor-role", text: project.title });
 		if (editor.state === "unavailable") hero.createEl("p", { cls: "editorialist-project__warning", text: "The saved editor profile is unavailable. Choose an existing contributor in project details." });
-		hero.createEl("h2", { text: `Submit by ${planDayLabel(project.submissionDate)}` });
+		hero.createEl("h3", { cls: "editorialist-project__submission-heading", text: `Submit by ${planDayLabel(project.submissionDate)}` });
 		hero.createEl("p", { cls: "editorialist-project__hint", text: `Hard deadline · ${project.submissionDate} · Packet ready by ${planDayLabel(project.readinessDate)}` });
 		const required = project.materials.filter((item) => item.required);
 		const checked = required.filter((item) => ["checked", "uploaded"].includes(this.state(item))).length;
