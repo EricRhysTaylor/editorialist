@@ -12,6 +12,7 @@
 
 import { describe, it, expect } from "vitest";
 import { ReviewStateMachine } from "./ReviewStateMachine";
+import { MatchEngine } from "../MatchEngine";
 import type {
 	AppliedReviewChangeLike,
 	GuidedSweepState,
@@ -305,5 +306,39 @@ describe("ReviewStateMachine — transaction safety on partial failure", () => {
 		expect(host.signalsReflect).toEqual({ s1: "rejected" });
 		expect(host.inventoryReflect).toEqual({ s1: "rejected" });
 		expect(host.notices).toEqual([]);
+	});
+});
+
+
+describe("native Undo regression — completion follows the restored manuscript", () => {
+	it("reopens the accepted suggestion before matching the restored original", async () => {
+		const host = new StatefulHost();
+		host.storeStatuses.set("s1", "accepted");
+		host.persistedDecisions.set("s1", "accepted");
+		host._lastAppliedChange = { notePath: "n.md", suggestionId: "s1", start: 0, end: 5, textFingerprint: "fp" };
+		// The real matcher preserves terminal decisions. A status left accepted
+		// here keeps the panel complete even after the editor restores "hello".
+		host.resyncSessionForActiveNote = () => {
+			const refreshed = new MatchEngine().matchSuggestions("hello world", host.store.getSession()!.suggestions);
+			host.storeStatuses.set("s1", refreshed[0]!.status);
+		};
+		await new ReviewStateMachine(host).undoLastAppliedSuggestion();
+		expect(host.storeStatuses.get("s1")).toBe("pending");
+		expect(host.inventoryReflect).toEqual({ s1: "pending" });
+		expect(host.persistedDecisions.has("s1")).toBe(false);
+		expect(host.getLastAppliedChange()).toBeNull();
+		expect(host.notices).toEqual(["Applied change undone."]);
+	});
+
+	it("keeps the accepted decision when the editor cannot undo", async () => {
+		const host = new StatefulHost();
+		host.storeStatuses.set("s1", "accepted");
+		host.persistedDecisions.set("s1", "accepted");
+		host._lastAppliedChange = { notePath: "n.md", suggestionId: "s1", start: 0, end: 5, textFingerprint: "fp" };
+		host.executeEditorUndo = () => false;
+		await new ReviewStateMachine(host).undoLastAppliedSuggestion();
+		expect(host.storeStatuses.get("s1")).toBe("accepted");
+		expect(host.persistedDecisions.get("s1")).toBe("accepted");
+		expect(host.getLastAppliedChange()).not.toBeNull();
 	});
 });

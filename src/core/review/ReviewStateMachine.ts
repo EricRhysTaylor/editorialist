@@ -437,6 +437,9 @@ export class ReviewStateMachine {
 			await this.host.registry.clearPersistedReviewDecision(change.notePath, appliedSuggestion, {
 				persist: false,
 			});
+			// Reconciliation deliberately preserves terminal decisions. Clear the
+			// in-memory acceptance too, before rebuilding from the restored prose.
+			this.host.store.updateSuggestionStatus(change.suggestionId, "pending");
 		}
 		this.host.setLastAppliedChange(null);
 		if (completedSweep) {
@@ -449,6 +452,9 @@ export class ReviewStateMachine {
 			});
 		}
 		this.host.resyncSessionForActiveNote();
+		// Completion cards also consult the scene inventory. Waiting for the
+		// restored session to reach that index prevents a stale finished card.
+		await this.host.registry.syncSceneInventoryForSession(this.host.store.getSession());
 		this.host.store.selectSuggestion(change.suggestionId);
 		await this.host.revealSuggestionContext(change.suggestionId);
 		this.host.notify("Applied change undone.");
