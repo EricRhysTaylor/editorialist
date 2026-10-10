@@ -916,6 +916,7 @@ export default class EditorialistPlugin extends Plugin {
 	}
 	openDeliveryScheduler(delivery: EditorialDelivery | null, adjusting = false): void { new AutoScheduleModal(this, delivery, adjusting).open(); }
 	async applyScheduledPlan(book: string, expected: RevisionPlan, next: RevisionPlan): Promise<void> {
+		await this.refreshActiveBookScope();
 		const active = JSON.stringify(["folder", this.getActiveBookScopeInfo().sourceFolder?.replace(/\/$/, "")]);
 		if (book !== active || JSON.stringify(this.getRevisionPlan(book)) !== JSON.stringify(expected)) throw new Error("The book or plan changed. Reopen the planner before applying.");
 		await this.saveRevisionPlan(book, next);
@@ -931,6 +932,7 @@ export default class EditorialistPlugin extends Plugin {
 	}
 
 	async collectRevisionWork(): Promise<{ candidates: WorkCandidate[]; warnings: string[] }> {
+		await this.refreshActiveBookScope();
 		const scope = this.getActiveBookScopeInfo();
 		const candidates: WorkCandidate[] = [];
 		const warnings: string[] = [];
@@ -1616,6 +1618,10 @@ export default class EditorialistPlugin extends Plugin {
 
 	getActiveBookScopeInfo(): { label: string | null; sourceFolder: string | null; structured: boolean } {
 		return this.registry.getActiveBookScopeInfo();
+	}
+
+	async refreshActiveBookScope(): Promise<void> {
+		await this.registry.refreshActiveBookScope();
 	}
 
 	async syncOperationalMetadata(): Promise<void> {

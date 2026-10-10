@@ -24,6 +24,7 @@ export class AutoScheduleModal extends Modal {
 	onOpen(): void { this.contentEl.addClass("editorialist-autoschedule"); void this.load().catch(() => { this.contentEl.empty(); this.contentEl.createEl("p", { text: "Could not load scheduling sources. Close this window and try again." }); }); }
 	onClose(): void { this.contentEl.empty(); }
 	private async load(): Promise<void> {
+		await this.plugin.refreshActiveBookScope();
 		this.book = JSON.stringify(["folder", this.delivery?.bookFolder ?? this.plugin.getActiveBookScopeInfo().sourceFolder?.replace(/\/$/, "")]);
 		this.original = this.plugin.getRevisionPlan(this.book);
 		this.plan = structuredClone(this.original);

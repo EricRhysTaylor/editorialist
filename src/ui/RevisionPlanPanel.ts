@@ -93,6 +93,7 @@ export class RevisionPlanPanel extends ItemView {
 		this.busy = true;
 		this.render();
 		try {
+			await this.plugin.refreshActiveBookScope();
 			const book = this.scopeKey();
 			const revision = this.sourceRevision;
 			const work = await this.plugin.collectRevisionWork();
