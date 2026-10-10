@@ -8260,7 +8260,7 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	margin: 0 0 8px;
 	font-family: "JetBrains Mono", var(--font-monospace);
 	font-size: clamp(1.85rem, 10cqi, 2.5rem);
-	font-weight: 600;
+	font-weight: 100;
 	letter-spacing: -0.045em;
 	line-height: 1.15;
 	color: var(--text-normal);
