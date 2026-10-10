@@ -1,4 +1,4 @@
-import { Modal, Notice, TFile, normalizePath, type App } from "obsidian";
+import { Modal, Notice, TFile, normalizePath, setIcon, type App } from "obsidian";
 import { collaborationUrl, createEditorialProject, isProjectEditorProfile, materialDue, materialState, MATERIAL_STATE_LABELS, projectEditor, recordProjectEvent, shiftDate, type EditorialProject, type MaterialObservation, type ProjectMaterial } from "../core/planning/EditorialProject";
 import { isDate, localDate, type RevisionPlan } from "../core/planning/RevisionPlan";
 import { planDayLabel } from "../core/planning/WorkPresentation";
@@ -135,6 +135,20 @@ export class EditorialProjectPanel {
 			milestone.createEl("strong", { text: next.title }); milestone.createSpan({ text: ` · ${planDayLabel(next.day)}` });
 			if (next.day < localDate(new Date())) milestone.createEl("p", { cls: "editorialist-project__warning", text: "This milestone is overdue. Review remaining work before moving its date." });
 		}
+		if (project.expectedReturn || project.actualReturn) {
+			const returnInfo = root.createEl("details", { cls: "editorialist-project__return", attr: { open: "" } });
+			const summary = returnInfo.createEl("summary");
+			setIcon(summary.createSpan({ cls: "editorialist-panel__disclosure-icon", attr: { "aria-hidden": "true" } }), "calendar-clock");
+			const heading = summary.createSpan({ cls: "editorialist-project__return-heading" });
+			heading.createSpan({ cls: "editorialist-project__return-title", text: "Editor return & questions" });
+			const returnDate = project.actualReturn ?? project.expectedReturn;
+			const dateLabel = new Date(`${returnDate}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+			heading.createSpan({ cls: "editorialist-project__hint", text: `${project.actualReturn ? "Returned" : "Expected return"} · ${dateLabel}` });
+			setIcon(summary.createSpan({ cls: "editorialist-panel__disclosure-caret", attr: { "aria-hidden": "true" } }), "chevron-right");
+			const body = returnInfo.createDiv({ cls: "editorialist-project__return-body" });
+			body.createEl("p", { text: project.actualReturn ? `Questions due: ${shiftDate(project.actualReturn, project.questionsDays)} (${project.questionsDays} days after actual return)` : `Questions window: ${project.questionsDays} days after actual delivery; return not yet recorded.` });
+			if (project.deliveryId) body.createEl("p", { text: `Feedback: ${this.host.deliveries.find((item) => item.id === project.deliveryId)?.title ?? "Linked delivery unavailable"}` });
+		}
 		root.createEl("h3", { text: "Submission materials" }); this.renderMaterials(root, true);
 		const blockers = required.filter((item) => !["checked", "uploaded"].includes(this.state(item)));
 		if (blockers.length) {
@@ -142,12 +156,6 @@ export class EditorialProjectPanel {
 			for (const item of blockers) block.createEl("p", { text: `${item.title}: ${this.host.observations[item.id]?.error || MATERIAL_STATE_LABELS[this.state(item)]}` });
 		}
 		this.renderMilestones(root); this.renderTasks(root);
-		if (project.expectedReturn || project.actualReturn) {
-			const returnInfo = root.createEl("details"); returnInfo.createEl("summary", { text: "Editor return & questions" });
-			if (project.expectedReturn) returnInfo.createEl("p", { text: `Expected return: ${project.expectedReturn}` });
-			returnInfo.createEl("p", { text: project.actualReturn ? `Questions due: ${shiftDate(project.actualReturn, project.questionsDays)} (${project.questionsDays} days after actual return)` : `Questions window: ${project.questionsDays} days after actual delivery; return not yet recorded.` });
-			if (project.deliveryId) returnInfo.createEl("p", { text: `Feedback: ${this.host.deliveries.find((item) => item.id === project.deliveryId)?.title ?? "Linked delivery unavailable"}` });
-		}
 	}
 	renderMaterials(root: HTMLElement, compact = false): void {
 		const project = this.host.plan.project; if (!project) { this.renderOverview(root); return; }
