@@ -1,3 +1,5 @@
+import { AUTHOR_PLAN_SCOPE } from "../core/planning/AuthorPlan";
+import { AuthorTargetPanel } from "./AuthorTargetPanel";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
 import { pendingWorkTitle, planDayLabel } from "../core/planning/WorkPresentation";
 import { ItemView, Notice, TFile, setIcon, type WorkspaceLeaf } from "obsidian";
@@ -11,6 +13,7 @@ import { EditorialProjectService } from "../services/EditorialProjectService";
 import { entryDeadline, type MaterialObservation } from "../core/planning/EditorialProject";
 
 export const REVISION_PLAN_VIEW_TYPE = "editorialist-revision-plan";
+export const AUTHOR_PLAN_VIEW_TYPE = "editorialist-author-plan";
 const kindLabels = { pending: "Pending edit", batch: "Scene batch", directive: "Editorialism", preparation: "Preparation task" };
 const kindIcons = { pending: "pencil-line", batch: "messages-square", directive: "list-checks", preparation: "clipboard-list" };
 const duration = (minutes: number): string => `${Math.round(minutes / 6) / 10} h`;
@@ -34,7 +37,10 @@ export class RevisionPlanPanel extends ItemView {
 	private deliveryFilter = "all";
 	private backlogLimit = 12;
 	private refreshTimer: number | null = null;
-	constructor(leaf: WorkspaceLeaf, private readonly plugin: EditorialistPlugin) { super(leaf); }
+	constructor(leaf: WorkspaceLeaf, private readonly plugin: EditorialistPlugin, private readonly author = false) { super(leaf); }
+	private authorPanel(): AuthorTargetPanel {
+		return new AuthorTargetPanel({ app: this.app, plan: this.plan, busy: this.busy, save: async (expected, next) => { await this.plugin.applyScheduledPlan(AUTHOR_PLAN_SCOPE, expected, next); }, openSource: async (path) => { await this.app.workspace.openLinkText(path, "", false); }, openSchedule: () => this.plugin.openAuthorScheduler() });
+	}
 	private projectService(): EditorialProjectService { return new EditorialProjectService(this.app, () => this.plugin.getActiveBookScopeInfo(), () => this.plugin.getCutFolderOverride(), (path) => this.plugin.resolveOpenNoteText(path)); }
 	private projectPanel(): EditorialProjectPanel {
 		const book = this.book;
@@ -43,8 +49,8 @@ export class RevisionPlanPanel extends ItemView {
 			openWorkspace: () => this.plugin.openEditorialProjectWorkspace(), openSchedule: () => { this.section = "schedule"; this.render(); }, openSource: async (path) => { const file = this.app.vault.getAbstractFileByPath(path); if (!(file instanceof TFile)) throw new Error("This file is unavailable. Check its path in material details."); await this.app.workspace.openLinkText(file.path, "", false); },
 		});
 	}
-	getViewType(): string { return REVISION_PLAN_VIEW_TYPE; }
-	getDisplayText(): string { return "Revision plan"; }
+	getViewType(): string { return this.author ? AUTHOR_PLAN_VIEW_TYPE : REVISION_PLAN_VIEW_TYPE; }
+	getDisplayText(): string { return this.author ? "Author planner" : "Editor engagement"; }
 	getIcon(): string { return EDITORIALIST_ICON_ID; }
 	/** Native contributor changes share the existing refresh path and preserve input focus. */
 	refreshContributorIdentity(): void { this.scheduleRefresh(); }
@@ -85,6 +91,7 @@ export class RevisionPlanPanel extends ItemView {
 	}
 	private doneKeys(): ReadonlySet<string> { return progressDoneKeys(this.plan); }
 	private scopeKey(): string | null {
+		if (this.author) return AUTHOR_PLAN_SCOPE;
 		const folder = this.plugin.getActiveBookScopeInfo().sourceFolder?.replace(/\/$/, "");
 		return folder ? JSON.stringify(["folder", folder]) : null;
 	}
@@ -93,10 +100,10 @@ export class RevisionPlanPanel extends ItemView {
 		this.busy = true;
 		this.render();
 		try {
-			await this.plugin.refreshActiveBookScope();
+			if (!this.author) await this.plugin.refreshActiveBookScope();
 			const book = this.scopeKey();
 			const revision = this.sourceRevision;
-			const work = await this.plugin.collectRevisionWork();
+			const work = this.author ? this.plugin.collectAuthorWork() : await this.plugin.collectRevisionWork();
 			if (book !== this.scopeKey()) { this.stale = true; return; }
 			this.book = book;
 			this.candidates = work.candidates;
@@ -105,9 +112,9 @@ export class RevisionPlanPanel extends ItemView {
 			this.stale = revision !== this.sourceRevision;
 			// Only a complete, current read may advance progress: a source that
 			// failed to load would otherwise look like finished work.
-			if (book && !this.stale && !work.warnings.length) await this.recordProgress(book, work.candidates);
+			if (!this.author && book && !this.stale && !work.warnings.length) await this.recordProgress(book, work.candidates);
 			const plan = book ? this.plugin.getRevisionPlan(book) : emptyRevisionPlan();
-			const observations = plan.project ? await this.projectService().observeProject(plan.project) : {};
+			const observations = plan.project && plan.project.formality !== "simple" ? await this.projectService().observeProject(plan.project) : {};
 			if (book !== this.scopeKey()) { this.stale = true; return; }
 			this.plan = plan; this.observations = observations;
 			this.stale = revision !== this.sourceRevision;
@@ -167,8 +174,18 @@ export class RevisionPlanPanel extends ItemView {
 		// Background refreshes re-render; keep the author's place.
 		const scrollTop = container.scrollTop;
 		container.empty();
-		renderPanelHeader(container, this.plugin, REVISION_PLAN_VIEW_TYPE, this.plan.project ? "Editorial project" : "Revision plan");
+		renderPanelHeader(container, this.plugin, this.getViewType(), this.getDisplayText(), this.author ? "Across your vault" : undefined, this.author ? { label: "Add goal", action: () => this.authorPanel().edit(), disabled: this.busy || !this.loaded } : undefined);
 		const root = container.createDiv({ cls: "editorialist-plan__body" });
+		if (this.author) {
+			const navigation = root.createDiv({ cls: "editorialist-project__tabs editorialist-author__tabs", attr: { "aria-label": "Author planner view" } });
+			for (const [value, label] of [["overview", "Goals"], ["schedule", "Schedule"]] as const) { const tab = this.button(navigation, label, () => { this.section = value; this.render(); }); tab.setAttribute("aria-pressed", String(this.section === value)); }
+			if (this.section !== "schedule") {
+				this.authorPanel().render(root);
+				for (const item of Array.from(root.querySelectorAll<HTMLDetailsElement>("details[data-plan-section]"))) if (expanded.has(item.dataset.planSection)) item.open = true;
+				container.scrollTop = scrollTop; return;
+			}
+		}
+
 		if (this.plan.project) {
 			const navigation = root.createDiv({ cls: "editorialist-project__tabs", attr: { "aria-label": "Project view" } });
 			for (const [value, label] of [["overview", "Overview"], ["materials", "Materials"], ["schedule", "Schedule"], ["history", "History"]] as const) { const tab = this.button(navigation, label, () => { this.section = value; this.render(); }); tab.setAttribute("aria-pressed", String(this.section === value)); }
@@ -197,12 +214,12 @@ export class RevisionPlanPanel extends ItemView {
 		root.createEl("p", { cls: "editorialist-plan__freshness", text: this.stale ? "Sources changed. Updating…" : "", attr: { role: "status" } });
 		for (const warning of this.warnings) root.createEl("p", { cls: "editorialist-plan__warning", text: warning });
 		if (!this.book || !this.loaded) return;
-		if (!this.plan.project) {
+		if (!this.author && !this.plan.project) {
 			const prepare = root.createDiv({ cls: "editorialist-project__entry" });
 			this.button(prepare, "Prepare for editor", () => this.projectPanel().setup());
 			prepare.createEl("p", { cls: "editorialist-project__hint", text: "Add manuscript, overview and query-letter preparation to this book." });
 		}
-		this.renderProgress(root);
+		if (!this.author) this.renderProgress(root);
 		this.renderSummary(root);
 		this.renderCapacity(root);
 		const open = this.plan.entries.filter((entry) => !isPlanEntryComplete(entry, this.candidates, this.doneKeys()));
@@ -305,11 +322,12 @@ export class RevisionPlanPanel extends ItemView {
 		const summary = root.createDiv({ cls: "editorialist-plan__summary" });
 		const label = summary.createDiv({ cls: "editorialist-plan__summary-label" });
 		setIcon(label.createSpan(), "calendar-check");
-		label.createSpan({ text: this.plan.deadline ? `Working toward ${planDayLabel(this.plan.deadline)}` : "Your revision plan" });
+		label.createSpan({ text: this.plan.deadline ? `Working toward ${planDayLabel(this.plan.deadline)}` : this.author ? "Your writing schedule" : "Your revision plan" });
 		if (!this.plan.entries.length) {
 			summary.createEl("h2", { text: "Choose what comes next." });
-			summary.createEl("p", { text: this.plan.project ? "Bring preparation tasks, scene notes, review batches and directives into one working queue." : "Bring scene notes, review batches, and directives into one working queue." });
-			const choose = this.button(summary, "Choose work", () => {
+			summary.createEl("p", { text: this.author ? "Add goals, then plan writing sessions around their deadlines and your weekly capacity." : this.plan.project ? "Bring preparation tasks, scene notes, review batches and directives into one working queue." : "Bring scene notes, review batches, and directives into one working queue." });
+			const choose = this.button(summary, this.author ? "View goals" : "Choose work", () => {
+				if (this.author) { this.section = "overview"; this.render(); return; }
 				const backlog = root.querySelector<HTMLDetailsElement>(".editorialist-plan__backlog");
 				if (backlog) { backlog.open = true; backlog.scrollIntoView({ block: "start", behavior: "smooth" }); backlog.querySelector<HTMLInputElement>("input")?.focus(); }
 			});
@@ -354,7 +372,7 @@ export class RevisionPlanPanel extends ItemView {
 	// instead of the one or two items added by hand.
 	private renderAutoPlanButton(parent: HTMLElement, primary: boolean): void {
 		const count = this.available().length;
-		const button = this.button(parent, "", () => { this.plugin.openDeliveryScheduler(null); }, !count || this.stale);
+		const button = this.button(parent, "", () => { if (this.author) this.plugin.openAuthorScheduler(); else this.plugin.openDeliveryScheduler(null); }, !count || this.stale);
 		button.addClass("editorialist-plan__autoplan");
 		if (primary) button.addClass("mod-cta");
 		setIcon(button.createSpan(), "calendar-range");
@@ -399,7 +417,7 @@ export class RevisionPlanPanel extends ItemView {
 		const heading = row.createDiv({ cls: "editorialist-plan__entry-heading" });
 		const badge = heading.createSpan({ cls: "editorialist-plan__kind" });
 		setIcon(badge.createSpan(), kindIcons[entry.source.kind]);
-		badge.createSpan({ text: kindLabels[entry.source.kind] });
+		badge.createSpan({ text: this.author ? "Writing goal" : kindLabels[entry.source.kind] });
 		if (entry.locked) heading.createSpan({ cls: "editorialist-plan__done-label", text: "Locked" });
 		if (entry.sessionCount) heading.createSpan({ cls: "editorialist-plan__done-label", text: `Session ${entry.sessionIndex}/${entry.sessionCount}` });
 		if (entry.estimated) heading.createSpan({ cls: "editorialist-plan__done-label", text: "Estimated" });
@@ -425,7 +443,7 @@ export class RevisionPlanPanel extends ItemView {
 		this.button(actions, entry.done ? "Reopen" : "Finish session", () => { void this.edit(entry.id, (item) => { item.done = !item.done; }); });
 		const details = footer.createEl("details", { attr: { "data-plan-section": entry.id } });
 		details.createEl("summary", { text: "Schedule & options" });
-		details.createEl("p", { cls: "editorialist-plan__hint", text: "Finish session changes this plan only. It does not accept edits or resolve the source instruction." });
+		details.createEl("p", { cls: "editorialist-plan__hint", text: this.author ? "Finish session records this work period. Mark complete on the goal when its outcome is ready." : "Finish session changes this plan only. It does not accept edits or resolve the source instruction." });
 		const fields = details.createDiv({ cls: "editorialist-plan__fields" });
 		this.input(fields, "Day", "date", entry.day ?? "", (value) => { void this.edit(entry.id, (item) => { item.day = isDate(value) ? value : null; }); });
 		this.input(fields, "Low minutes", "number", entry.lowMinutes === null ? "" : String(entry.lowMinutes), (value) => { void this.edit(entry.id, (item) => { item.lowMinutes = value === "" ? null : Number(value); }); });

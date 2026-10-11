@@ -1,3 +1,4 @@
+import { normalizeAuthorTargets, type AuthorTarget } from "./AuthorPlan";
 import { DEFAULT_SCHEDULE, type ScheduleDefaults, type WorkPhase } from "./ScheduleDefaults";
 import { normalizePlanProgress, type PlanProgress } from "./PlanProgress";
 import { entryDeadline, normalizeEditorialProject, type EditorialProject } from "./EditorialProject";
@@ -14,6 +15,8 @@ export interface WorkCandidate extends WorkSource {
 	inactive?: boolean;
 	deliveryId?: string;
 	due?: string | null;
+	/** Preferred author target date for ordering, without imposing a hard cutoff. */
+	targetDate?: string;
 	title: string;
 	detail: string;
 	complete: boolean;
@@ -43,6 +46,7 @@ export interface PlanEntry {
 	afterId: string | null;
 }
 export interface RevisionPlan {
+	targets?: AuthorTarget[];
 	project?: EditorialProject;
 	scheduling?: ScheduleDefaults;
 	deadline: string | null;
@@ -90,6 +94,7 @@ export function normalizeRevisionPlans(raw: unknown): RevisionPlanStore {
 		const input = object(rawPlan);
 		if (!input) continue;
 		const plan = emptyRevisionPlan();
+		if (input.targets !== undefined) plan.targets = normalizeAuthorTargets(input.targets);
 		const project = normalizeEditorialProject(input.project);
 		if (project) plan.project = project;
 		const scheduling = object(input.scheduling);

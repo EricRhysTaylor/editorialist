@@ -186,6 +186,9 @@ export class ReviewRegistryService {
 			if (delivery.source === oldPath) { delivery.source = newPath; changed = true; }
 		}
 		for (const plan of Object.values(this.revisionPlans.books)) {
+			for (const target of plan.targets ?? []) {
+				if (target.file === oldPath) { target.file = newPath; changed = true; }
+			}
 			for (const material of plan.project?.materials ?? []) {
 				if (material.source === oldPath) { material.source = newPath; changed = true; }
 				if (material.exportPath === oldPath) { material.exportPath = newPath; changed = true; }

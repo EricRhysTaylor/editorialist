@@ -1,7 +1,8 @@
 import type EditorialistPlugin from "../main";
 
 export function registerCommands(plugin: EditorialistPlugin): void {
-	plugin.addCommand({ id: "open-revision-plan", name: "Open revision plan", callback: () => { void plugin.openRevisionPlanPanel(); } });
+	plugin.addCommand({ id: "open-author-planner", name: "Open author planner", callback: () => { void plugin.openAuthorPlanner(); } });
+	plugin.addCommand({ id: "open-revision-plan", name: "Open editor engagement", callback: () => { void plugin.openRevisionPlanPanel(); } });
 	plugin.addCommand({ id: "open-editorial-project-workspace", name: "Open editorial project in workspace", callback: () => { void plugin.openEditorialProjectWorkspace(); } });
 	plugin.addCommand({
 		id: "open-review-launcher",

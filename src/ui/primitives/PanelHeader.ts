@@ -3,7 +3,7 @@ import { Menu, setIcon } from "obsidian";
 import type EditorialistPlugin from "../../main";
 
 /** Consistent navigation; source-specific work stays in the panel body. */
-export function renderPanelHeader(parent: HTMLElement, plugin: EditorialistPlugin, viewType: string, label: string): HTMLElement {
+export function renderPanelHeader(parent: HTMLElement, plugin: EditorialistPlugin, viewType: string, label: string, scopeLabel?: string, primary?: { label: string; action: () => void; disabled?: boolean }): HTMLElement {
 	const header = parent.createDiv({ cls: "editorialist-panel__header" });
 	const row = header.createDiv({ cls: "editorialist-panel__title-row" });
 	const mode = row.createEl("button", {
@@ -14,10 +14,11 @@ export function renderPanelHeader(parent: HTMLElement, plugin: EditorialistPlugi
 	mode.createSpan({ text: label });
 	setIcon(mode.createSpan(), "chevron-down");
 	mode.addEventListener("click", (event) => plugin.showPanelModeMenu(event, viewType));
-	const launch = row.createEl("button", { cls: "editorialist-panel__import", attr: { type: "button", "aria-label": "Import revision notes" } });
+	const launch = row.createEl("button", { cls: "editorialist-panel__import", attr: { type: "button", "aria-label": primary?.label ?? "Import revision notes" } });
 	setIcon(launch.createSpan(), "plus");
-	launch.createSpan({ text: "Import" });
-	launch.addEventListener("click", () => { void plugin.openEditorialistModal(); });
+	launch.createSpan({ text: primary?.label ?? "Import" });
+	launch.disabled = primary?.disabled ?? false;
+	launch.addEventListener("click", () => { if (primary) primary.action(); else void plugin.openEditorialistModal(); });
 	const more = row.createEl("button", { cls: "editorialist-panel__settings-button", attr: { type: "button", "aria-label": "Panel actions", "aria-haspopup": "menu" } });
 	setIcon(more.createSpan(), "ellipsis");
 	more.addEventListener("click", (event) => {
@@ -37,6 +38,6 @@ export function renderPanelHeader(parent: HTMLElement, plugin: EditorialistPlugi
 	});
 	const book = header.createDiv({ cls: "editorialist-panel__book" });
 	setIcon(book.createSpan({ cls: "editorialist-panel__book-icon" }), "book-open");
-	book.createSpan({ text: plugin.getActiveBookScopeInfo().label ?? "No active book selected" });
+	book.createSpan({ text: scopeLabel ?? plugin.getActiveBookScopeInfo().label ?? "No active book selected" });
 	return header;
 }

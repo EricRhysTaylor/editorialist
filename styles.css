@@ -8533,3 +8533,43 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 .editorialist-plan__entry[data-work-kind="preparation"] .editorialist-plan__kind {
 	color: var(--text-accent);
 }
+
+.editorialist-author__tabs {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.editorialist-author__hero h2 {
+	font-weight: var(--font-medium);
+}
+
+.editorialist-author__due {
+	font-size: var(--font-small);
+	font-weight: var(--font-semibold);
+}
+
+.editorialist-author__card[data-target-status="overdue"] {
+	border-inline-start: 3px solid var(--text-warning);
+}
+
+.editorialist-author__card[data-target-status="late"] {
+	border-inline-start: 3px solid var(--text-error);
+}
+
+.editorialist-author__card[data-target-status="done"] {
+	border-inline-start: 3px solid var(--text-success);
+}
+
+.editorialist-author__estimates {
+	margin-top: 12px;
+	padding: 10px 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	background: var(--background-secondary);
+}
+
+.editorialist-author__estimates > summary {
+	padding: 4px 0;
+	font-size: var(--font-small);
+	font-weight: var(--font-semibold);
+	cursor: pointer;
+}

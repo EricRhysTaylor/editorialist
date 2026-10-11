@@ -30,7 +30,7 @@ Editorialist turns outside feedback into a controlled revision workflow inside O
 - **Editorialisms** are separate structural checklist files under `Editorialist/<Book>/`; use them for broader guidance that spans scenes or the whole manuscript. A directive can carry **anchors** — verbatim fragments pinning it to the passages it is actually about, so a manuscript-wide note becomes a short route through the prose instead of a hunt. Anchors are jump targets only; nothing is ever applied for you.
 - A directive that asks for a choice shows **Decision needed**: record the answer once with **Decide**, or write your own question with **Ask a question…**. Each Editorialism's **Hand off to AI** card copies one prompt covering every unfinished directive you have decided or questioned; the edits and answers come back through Import as a review batch.
 - An **editorial delivery** groups one editor's handoff (its batches and Editorialism files, received date, and return deadline) so you can track and plan it as a unit.
-- The **revision plan** puts batches, directives, and pending edits in one queue against your deadline and daily capacity. **Auto-plan** spreads every open item in the book across your working days, and the progress card counts finished work across the whole book, planned or not.
+- The **editor engagement** plan puts batches, directives, and pending edits in one queue against your deadline and daily capacity. **Auto-plan** spreads every open item in the book across your working days, and the progress card counts finished work across the whole book, planned or not.
 - Maintenance actions can clean review blocks or reset history, and bulk actions ask for confirmation.
 
 ## How feedback gets in
@@ -51,7 +51,8 @@ From there, Editorialist runs the workflow: it matches each suggestion to its pa
 - `Open review panel` — opens the review side panel for the active note.
 - `Find selection across scenes` — lists every paragraph in the active book containing the selected phrase, grouped by scene, each openable beside the current one. Also available from the editor right-click menu when text is selected.
 - `Open editorialism panel` — opens the Editorialisms panel for structural guidance documents.
-- `Open revision plan` — orders mixed revision work and plans author estimates against daily capacity and a deadline.
+- `Open editor engagement` — orders mixed revision work and plans author estimates against daily capacity and a deadline.
+- `Open author planner` — vault-wide writing goals with optional document links, book labels, target dates, hard deadlines, and shared capacity scheduling.
 - `Open editorial project in workspace` — opens the planner in a full workspace tab. Use **Prepare for editor** to add materials, preparation milestones, source snapshots, export inspection, and upload history.
 - `Open pending edits panel` — opens the Pending edits panel for author notes and Inquiry follow-ups.
 - `Review pending edits in active book` — starts the pending-edits review flow across the active book.

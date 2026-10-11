@@ -18,6 +18,7 @@ export interface MaterialCheck {
 }
 export interface MaterialUpload { at: string; filename: string; confirmation: string; check: MaterialCheck }
 export interface ProjectMaterial {
+	completed?: boolean;
 	wordCount?: number;
 	id: string;
 	title: string;
@@ -34,6 +35,7 @@ export interface ProjectMaterial {
 }
 export interface ProjectEvent { at: string; text: string }
 export interface EditorialProject {
+	formality?: "simple" | "prepared" | "submission";
 	/** Stable identity in the existing contributor directory; editor retains the saved name. */
 	reviewerId?: string;
 	version: 1;
@@ -158,8 +160,8 @@ export function normalizeEditorialProject(raw: unknown): EditorialProject | unde
 		const item = record(value); if (!item || !str(item.id) || !str(item.title) || !["manuscript", "document"].includes(str(item.kind))) return [];
 		const uploads = list(item.uploads).flatMap((value): MaterialUpload[] => { const upload = record(value), check = normalizeCheck(upload?.check); return upload && check && stamp(upload.at) && str(upload.filename) && str(upload.confirmation) ? [{ at: stamp(upload.at), filename: str(upload.filename), confirmation: str(upload.confirmation), check }] : []; });
 		const frozenSources = list(item.frozenSources).flatMap((value): FrozenSource[] => { const source = record(value); return source && str(source.path) && digest(source.digest) && str(source.copy) ? [{ path: str(source.path), digest: digest(source.digest)!, copy: str(source.copy), ...(str(source.sceneId) ? { sceneId: str(source.sceneId) } : {}) }] : []; });
-		return [{ id: str(item.id), title: str(item.title), kind: item.kind as ProjectMaterial["kind"], required: item.required !== false, source: str(item.source), exportPath: str(item.exportPath), milestoneId: str(item.milestoneId) || null, requirements: texts(item.requirements), approvedDigest: digest(item.approvedDigest), check: normalizeCheck(item.check), uploads, ...(item.frozenSources !== undefined ? { frozenSources } : {}), ...(typeof item.wordCount === "number" && Number.isInteger(item.wordCount) && item.wordCount > 0 ? { wordCount: item.wordCount } : {}) }];
+		return [{ ...(item.completed === true ? { completed: true } : {}), id: str(item.id), title: str(item.title), kind: item.kind as ProjectMaterial["kind"], required: item.required !== false, source: str(item.source), exportPath: str(item.exportPath), milestoneId: str(item.milestoneId) || null, requirements: texts(item.requirements), approvedDigest: digest(item.approvedDigest), check: normalizeCheck(item.check), uploads, ...(item.frozenSources !== undefined ? { frozenSources } : {}), ...(typeof item.wordCount === "number" && Number.isInteger(item.wordCount) && item.wordCount > 0 ? { wordCount: item.wordCount } : {}) }];
 	}));
 	const tasks = unique(list(data.tasks).flatMap((value): PreparationTask[] => { const item = record(value); return item && str(item.id) && str(item.title) ? [{ id: str(item.id), title: str(item.title), materialId: str(item.materialId) || null, milestoneId: str(item.milestoneId) || null, done: item.done === true }] : []; }));
-	return { version: 1, id: str(data.id), title: str(data.title) || "Editorial project", editor: str(data.editor), ...(str(data.reviewerId) ? { reviewerId: str(data.reviewerId) } : {}), collaborationUrl: collaborationUrl(str(data.collaborationUrl)), readinessDate: data.readinessDate, submissionDate: data.submissionDate, expectedReturn: isDate(data.expectedReturn) ? data.expectedReturn : null, actualReturn: isDate(data.actualReturn) ? data.actualReturn : null, questionsDays: typeof data.questionsDays === "number" && Number.isFinite(data.questionsDays) ? Math.max(0, Math.min(365, Math.round(data.questionsDays))) : 10, deliveryId: str(data.deliveryId) || null, milestones, materials, tasks, history: list(data.history).flatMap((value): ProjectEvent[] => { const item = record(value); return item && stamp(item.at) && str(item.text) ? [{ at: stamp(item.at), text: str(item.text) }] : []; }) };
+	return { ...(["simple", "prepared", "submission"].includes(String(data.formality)) ? { formality: data.formality as EditorialProject["formality"] } : {}), version: 1, id: str(data.id), title: str(data.title) || "Editorial project", editor: str(data.editor), ...(str(data.reviewerId) ? { reviewerId: str(data.reviewerId) } : {}), collaborationUrl: collaborationUrl(str(data.collaborationUrl)), readinessDate: data.readinessDate, submissionDate: data.submissionDate, expectedReturn: isDate(data.expectedReturn) ? data.expectedReturn : null, actualReturn: isDate(data.actualReturn) ? data.actualReturn : null, questionsDays: typeof data.questionsDays === "number" && Number.isFinite(data.questionsDays) ? Math.max(0, Math.min(365, Math.round(data.questionsDays))) : 10, deliveryId: str(data.deliveryId) || null, milestones, materials, tasks, history: list(data.history).flatMap((value): ProjectEvent[] => { const item = record(value); return item && stamp(item.at) && str(item.text) ? [{ at: stamp(item.at), text: str(item.text) }] : []; }) };
 }

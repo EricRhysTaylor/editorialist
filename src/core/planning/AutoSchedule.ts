@@ -64,7 +64,7 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 	};
 	const scene = (candidate: WorkCandidate): string => candidate.sceneOrder?.match(/\d+/)?.[0]?.padStart(8, "0") ?? "~";
 	chosen.sort((a, b) => {
-		const preparationOrder = plan.project && !plan.project.actualReturn ? (workDeadline(plan, a.kind, a.due) ?? options.end).localeCompare(workDeadline(plan, b.kind, b.due) ?? options.end) || Number(a.kind === "preparation") - Number(b.kind === "preparation") : 0;
+		const preparationOrder = plan.targets || plan.project && !plan.project.actualReturn ? (a.targetDate ?? workDeadline(plan, a.kind, a.due) ?? options.end).localeCompare(b.targetDate ?? workDeadline(plan, b.kind, b.due) ?? options.end) || Number(a.kind === "preparation") - Number(b.kind === "preparation") : 0;
 		const scenes = scene(a).localeCompare(scene(b)) || (a.sceneOrder ?? "").localeCompare(b.sceneOrder ?? "", undefined, { numeric: true });
 		const phases = rank(phase(a)) - rank(phase(b));
 		const structure = Number(phase(a) !== "structure") - Number(phase(b) !== "structure");
@@ -88,7 +88,7 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 		if (count > 500) { issues.push({ key, title: candidate.title, reason: "Estimate exceeds 500 sessions. Review its scope and effort." }); continue; }
 		const heuristic = choice?.low === undefined || choice.high === undefined;
 		if (heuristic) estimated++;
-		let highLeft = Math.ceil(range.high), lowLeft = Math.floor(range.low), after: string | null = previousNewId;
+		let highLeft = Math.ceil(range.high), lowLeft = Math.floor(range.low), after: string | null = plan.targets ? null : previousNewId;
 		for (let index = 0; index < count; index++) {
 			const high = Math.min(size, highLeft), low = index === count - 1 ? lowLeft : Math.floor(range.low * high / range.high);
 			const entry: PlanEntry = { id: makeId(), source: { kind: candidate.kind, path: candidate.path, locator: candidate.locator }, title: candidate.title, lowMinutes: low, highMinutes: high, day: null, required: true, done: false, afterId: after, ...(options.deliveryId !== null ? { autoDeliveryId: options.deliveryId } : {}), sessionIndex: index + 1, sessionCount: count, estimated: heuristic, phase: selectedPhase };

@@ -21,21 +21,21 @@ export interface ProjectPanelHost {
 	openSource(path: string): Promise<void>;
 }
 const button = (parent: HTMLElement, text: string, action: () => void): HTMLButtonElement => { const el = parent.createEl("button", { text, attr: { type: "button" } }); el.addEventListener("click", action); return el; };
-function field(parent: HTMLElement, label: string, value: string, type = "text"): HTMLInputElement {
+export function field(parent: HTMLElement, label: string, value: string, type = "text"): HTMLInputElement {
 	const wrap = parent.createEl("label", { cls: "editorialist-project__field", text: label });
 	return wrap.createEl("input", { type, value, attr: { "aria-label": label } });
 }
-function area(parent: HTMLElement, label: string, value: string): HTMLTextAreaElement {
+export function area(parent: HTMLElement, label: string, value: string): HTMLTextAreaElement {
 	const wrap = parent.createEl("label", { cls: "editorialist-project__field", text: label });
 	return wrap.createEl("textarea", { text: value, attr: { "aria-label": label, rows: "4" } });
 }
-function select(parent: HTMLElement, label: string, options: [string, string][], value: string): HTMLSelectElement {
+export function select(parent: HTMLElement, label: string, options: [string, string][], value: string): HTMLSelectElement {
 	const wrap = parent.createEl("label", { cls: "editorialist-project__field", text: label });
 	const el = wrap.createEl("select", { cls: "dropdown", attr: { "aria-label": label } });
 	for (const [value, text] of options) el.createEl("option", { value, text });
 	el.value = value; return el;
 }
-class ProjectDialog extends Modal {
+export class ProjectDialog extends Modal {
 	constructor(app: App, private readonly title: string, private readonly renderFields: (form: HTMLElement) => () => Promise<void>, private readonly saveLabel = "Save") { super(app); }
 	onOpen(): void {
 		this.contentEl.addClass("editorialist-project-dialog"); this.contentEl.createEl("h2", { text: this.title });
@@ -66,6 +66,8 @@ export class EditorialProjectPanel {
 			if (project && !selected?.profile) options.push(["__unlinked__", selected?.state === "unavailable" ? "Saved editor profile unavailable" : `${project.editor} · Not linked`]);
 			const editor = humans.length || project?.reviewerId ? select(form, "Editor", options, selected?.profile?.id ?? (project ? "__unlinked__" : "")) : field(form, "Editor", project?.editor ?? ""); editor.required = true;
 			if (humans.length) editor.parentElement?.createEl("span", { cls: "editorialist-project__hint", text: "Uses your existing contributor profile." });
+			const formality = select(form, "Process formality", [["simple", "Simple checklist"], ["prepared", "Checked preparation"], ["submission", "Recorded submission"]], project?.formality ?? "submission");
+			form.createEl("p", { cls: "editorialist-project__hint", text: "Simple tracks your completion decisions. Checked preparation adds source snapshots and export inspection. Recorded submission also tracks verified uploads." });
 			const title = field(form, "Project title", project?.title ?? "Developmental edit"); title.required = true;
 			const deadline = field(form, "Hard submission deadline", project?.submissionDate ?? this.host.plan.deadline ?? "", "date"); deadline.required = true;
 			const readiness = field(form, "Packet readiness date", project?.readinessDate ?? "", "date");
@@ -88,6 +90,8 @@ export class EditorialProjectPanel {
 				if (!isDate(ready) || ready > deadline.value) throw new Error("Packet readiness must be on or before submission.");
 				if (actual.value && actual.value > localDate(new Date())) throw new Error("Record actual delivery only after it has happened; use expected return for a future date.");
 				draft.title = title.value.trim(); draft.editor = editorName.trim(); if (reviewer) draft.reviewerId = reviewer.id; draft.submissionDate = deadline.value; draft.readinessDate = ready;
+				draft.formality = formality.value as EditorialProject["formality"];
+				if (!project && draft.formality !== "submission") draft.tasks = draft.tasks.filter((task) => !task.title.startsWith("Upload and verify") && (draft.formality !== "simple" || !task.title.startsWith("Inspect all exports")));
 				draft.collaborationUrl = collaborationUrl(url.value); draft.expectedReturn = expectedReturn.value || null; draft.actualReturn = actual.value || null; draft.questionsDays = Number(questions.value); draft.deliveryId = delivery.value || null;
 				recordProjectEvent(draft, project ? "Project details updated" : "Preparation project created"); next.project = draft;
 				if (!draft.actualReturn) next.deadline = draft.submissionDate;
@@ -105,7 +109,7 @@ export class EditorialProjectPanel {
 		const el = button(parent, text, () => { if (el.disabled) return; el.disabled = true; void action().catch((reason: unknown) => { new Notice(reason instanceof Error ? reason.message : "Could not update project."); }).finally(() => { if (el.isConnected) el.disabled = this.host.busy || disabled; }); });
 		el.disabled = this.host.busy || disabled; return el;
 	}
-	private state(material: ProjectMaterial): ReturnType<typeof materialState> { return materialState(material, this.host.observations[material.id]); }
+	private state(material: ProjectMaterial): ReturnType<typeof materialState> { return this.host.plan.project?.formality === "simple" ? material.completed ? "checked" : "drafting" : materialState(material, this.host.observations[material.id]); }
 	renderOverview(root: HTMLElement): void {
 		const project = this.host.plan.project;
 		if (!project) {
@@ -120,11 +124,11 @@ export class EditorialProjectPanel {
 		hero.createDiv({ cls: "editorialist-project__editor-role", text: project.title });
 		if (editor.state === "unavailable") hero.createEl("p", { cls: "editorialist-project__warning", text: "The saved editor profile is unavailable. Choose an existing contributor in project details." });
 		hero.createEl("h3", { cls: "editorialist-project__submission-heading", text: `Submit by ${planDayLabel(project.submissionDate)}` });
-		hero.createEl("p", { cls: "editorialist-project__hint", text: `Hard deadline · ${project.submissionDate} · Packet ready by ${planDayLabel(project.readinessDate)}` });
+		hero.createEl("p", { cls: "editorialist-project__hint", text: project.formality === "simple" ? `Hard deadline · ${project.submissionDate}` : `Hard deadline · ${project.submissionDate} · Packet ready by ${planDayLabel(project.readinessDate)}` });
 		const required = project.materials.filter((item) => item.required);
 		const checked = required.filter((item) => ["checked", "uploaded"].includes(this.state(item))).length;
 		const uploaded = required.filter((item) => this.state(item) === "uploaded").length;
-		hero.createEl("strong", { cls: "editorialist-project__readiness", text: required.length ? `${checked} of ${required.length} current exports checked · ${uploaded} current uploads` : "No required materials selected" });
+		hero.createEl("strong", { cls: "editorialist-project__readiness", text: !required.length ? "No required materials selected" : project.formality === "simple" ? `${checked} of ${required.length} materials complete` : project.formality === "prepared" ? `${checked} of ${required.length} current exports checked` : `${checked} of ${required.length} current exports checked · ${uploaded} current uploads` });
 		const actions = hero.createDiv({ cls: "editorialist-project__actions" }); button(actions, "Project details", () => this.setup());
 		if (editor.profile) this.action(actions, "Editor profile", () => this.host.manageEditor(editor.profile!.id));
 		this.action(actions, "Open in workspace", () => this.host.openWorkspace());
@@ -149,34 +153,35 @@ export class EditorialProjectPanel {
 			body.createEl("p", { text: project.actualReturn ? `Questions due: ${shiftDate(project.actualReturn, project.questionsDays)} (${project.questionsDays} days after actual return)` : `Questions window: ${project.questionsDays} days after actual delivery; return not yet recorded.` });
 			if (project.deliveryId) body.createEl("p", { text: `Feedback: ${this.host.deliveries.find((item) => item.id === project.deliveryId)?.title ?? "Linked delivery unavailable"}` });
 		}
-		root.createEl("h3", { text: "Submission materials" }); this.renderMaterials(root, true);
+		root.createEl("h3", { text: project.formality === "simple" ? "Engagement checklist" : "Submission materials" }); this.renderMaterials(root, true);
 		const blockers = required.filter((item) => !["checked", "uploaded"].includes(this.state(item)));
 		if (blockers.length) {
-			const block = root.createDiv({ cls: "editorialist-project__blockers" }); block.createEl("h3", { text: "Before the packet is ready" });
+			const block = root.createDiv({ cls: "editorialist-project__blockers" }); block.createEl("h3", { text: project.formality === "simple" ? "Checklist still open" : "Before the packet is ready" });
 			for (const item of blockers) block.createEl("p", { text: `${item.title}: ${this.host.observations[item.id]?.error || MATERIAL_STATE_LABELS[this.state(item)]}` });
 		}
 		this.renderMilestones(root); this.renderTasks(root);
 	}
 	renderMaterials(root: HTMLElement, compact = false): void {
 		const project = this.host.plan.project; if (!project) { this.renderOverview(root); return; }
-		if (!compact) root.createEl("p", { cls: "editorialist-project__hint", text: "Approve sources, inspect exports, then record uploads. Session completion does not advance material readiness." });
+		if (!compact) root.createEl("p", { cls: "editorialist-project__hint", text: project.formality === "simple" ? "Track the items agreed with your editor. Completion is an explicit decision; document links are optional." : project.formality === "prepared" ? "Approve sources and inspect exports before sharing them with your editor." : "Approve sources, inspect exports, then record uploads. Session completion does not advance material readiness." });
 		for (const material of project.materials) {
 			const state = this.state(material), observed = this.host.observations[material.id];
 			const row = root.createDiv({ cls: "editorialist-project__material", attr: { "data-material-id": material.id, "data-material-state": state } });
 			const header = row.createDiv({ cls: "editorialist-project__material-heading" }); header.createEl("strong", { text: material.title });
-			header.createSpan({ cls: "editorialist-project__status", text: MATERIAL_STATE_LABELS[state], attr: { role: "status" } });
-			row.createEl("p", { cls: "editorialist-project__hint", text: `${material.required ? "Required" : "Optional"} · Source by ${planDayLabel(materialDue(project, material))} · Export by ${planDayLabel(project.readinessDate)}` });
+			header.createSpan({ cls: "editorialist-project__status", text: project.formality === "simple" ? material.completed ? "Complete" : "To do" : MATERIAL_STATE_LABELS[state], attr: { role: "status" } });
+			row.createEl("p", { cls: "editorialist-project__hint", text: project.formality === "simple" ? `${material.required ? "Required" : "Optional"} · Complete by ${planDayLabel(materialDue(project, material))}` : `${material.required ? "Required" : "Optional"} · Source by ${planDayLabel(materialDue(project, material))} · Export by ${planDayLabel(project.readinessDate)}` });
 			const actions = row.createDiv({ cls: "editorialist-project__actions" });
 			button(actions, "Details", () => this.editMaterial(material));
-			if (["drafting", "recheck"].includes(state)) this.action(actions, material.kind === "manuscript" ? "Freeze sources" : "Approve source", () => this.change(async (draft) => {
+			if (project.formality === "simple") button(actions, material.completed ? "Reopen item" : "Mark complete", () => { void this.change(async (draft) => { const target = draft.materials.find((item) => item.id === material.id)!; target.completed = !target.completed; recordProjectEvent(draft, `${target.title}: ${target.completed ? "completed" : "reopened"}`); }); });
+			if (project.formality !== "simple" && ["drafting", "recheck"].includes(state)) this.action(actions, material.kind === "manuscript" ? "Freeze sources" : "Approve source", () => this.change(async (draft) => {
 				const target = draft.materials.find((item) => item.id === material.id)!;
 				const approval = await this.host.service.approve(draft, target); target.approvedDigest = approval.digest; target.frozenSources = approval.sources; target.check = null;
 				recordProjectEvent(draft, `${target.title}: source approved and snapshot preserved`);
 			}), !observed?.sourceDigest);
-			if (["approved", "checked", "uploaded"].includes(state) || state === "recheck" && material.approvedDigest === observed?.sourceDigest) button(actions, "Check export", () => this.checkMaterial(material));
-			if (state === "checked") button(actions, "Record upload", () => this.uploadMaterial(material));
+			if (project.formality !== "simple" && (["approved", "checked", "uploaded"].includes(state) || state === "recheck" && material.approvedDigest === observed?.sourceDigest)) button(actions, "Check export", () => this.checkMaterial(material));
+			if (state === "checked" && project.formality !== "simple" && project.formality !== "prepared") button(actions, "Record upload", () => this.uploadMaterial(material));
 			if (!compact) {
-				row.createEl("p", { cls: "editorialist-project__path", text: material.kind === "manuscript" ? "Source: active book scenes; snapshot order shown below" : `Source: ${material.source || "Choose a source note"}` });
+				row.createEl("p", { cls: "editorialist-project__path", text: project.formality === "simple" ? material.kind === "manuscript" ? "Active book manuscript" : material.source || "No document linked" : material.kind === "manuscript" ? "Source: active book scenes; snapshot order shown below" : `Source: ${material.source || "Choose a source note"}` });
 				if (material.source) this.action(actions, "Open source", () => this.host.openSource(material.source));
 				if (material.exportPath) this.action(actions, "Open export", () => this.host.openSource(material.exportPath));
 				if (observed?.error || observed?.snapshotError) row.createEl("p", { cls: "editorialist-project__warning", text: observed.error || observed.snapshotError });
@@ -209,7 +214,7 @@ export class EditorialProjectPanel {
 				const target = material ? project.materials.find((item) => item.id === material.id)! : { id: crypto.randomUUID(), title: "", kind: "document" as const, required: false, source: "", exportPath: "", milestoneId: null, requirements: [], approvedDigest: null, check: null, uploads: [] };
 				target.title = title.value.trim(); if (!target.title) throw new Error("Enter a material title."); target.source = sourcePath; target.exportPath = output; target.required = required.checked; target.milestoneId = milestone.value || null;
 				if (wordCount) { if (wordCount.value && (!Number.isInteger(Number(wordCount.value)) || Number(wordCount.value) < 1)) throw new Error("Enter a positive whole word count, or leave it blank until export."); if (wordCount.value) target.wordCount = Number(wordCount.value); else delete target.wordCount; }
-				target.requirements = [...new Set(requirements.value.split("\n").map((item) => item.trim()).filter(Boolean))]; if (!target.requirements.length) throw new Error("Add an inspection requirement.");
+				target.requirements = [...new Set(requirements.value.split("\n").map((item) => item.trim()).filter(Boolean))]; if (!target.requirements.length && project.formality !== "simple") throw new Error("Add an inspection requirement.");
 				if (!material) project.materials.push(target); recordProjectEvent(project, `${target.title}: details updated`); await this.host.save(expected, next);
 			};
 		}).open();

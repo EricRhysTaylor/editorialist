@@ -90,3 +90,31 @@ native selector and contributor controls, saved identity, existing queue, and
 300px/420px light/dark layouts. Source manuscript and overview hashes were
 compared before and after; no prose changes or material approvals were made.
 Private captures remain outside this repository.
+
+## Editor engagement and author planner
+
+The existing `editorialist-revision-plan` view is labeled **Editor engagement**;
+its command ID and per-book plan keys remain compatible. **Author planner** is a
+second instance of the same view class, using the reserved `["author","vault"]`
+scope in the existing version-1 plan store. Review, Pending edits, and
+Editorialisms remain separate modes.
+
+Author goals have a title, author-defined completion description, an optional
+vault document, an optional book label, a target date, an explicit hard-deadline
+flag, and optional effort bounds. Linking, editing, or losing a document never
+completes a goal. Completion and reopening are explicit; document renames update
+the link through the registry's existing rename path. Removing a goal removes
+its own planned sessions and leaves its document intact.
+
+Goals reuse the existing queue, days view, capacity, reserve, forecast, and
+schedule preview. Target dates influence ordering; hard deadlines constrain
+placement. Sessions within a goal are ordered, while unrelated goals remain
+independent so an unschedulable goal does not block another. Finishing a session
+records work; completing the goal records the outcome.
+
+Editor process formality is optional and defaults to recorded submission for
+existing projects. Simple checklist tracks explicit material completion;
+checked preparation retains source snapshots and export checks; recorded
+submission also exposes verified upload recording. Switching process levels
+preserves prior checks, snapshots, and history. Author plans never create editor
+profiles, revision imports, or outbound deliveries.

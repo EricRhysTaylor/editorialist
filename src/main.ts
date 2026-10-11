@@ -3,7 +3,8 @@ import { AutoScheduleModal } from "./ui/AutoScheduleModal";
 import { EditorialDeliveriesModal } from "./ui/EditorialDeliveriesModal";
 import { deliveryCaption, planDeliveryLink, type DeliverySource, type EditorialDelivery } from "./core/EditorialDeliveries";
 import { formatReviewerTypeLabel, normalizeReviewerType } from "./core/ContributorIdentity";
-import { RevisionPlanPanel, REVISION_PLAN_VIEW_TYPE } from "./ui/RevisionPlanPanel";
+import { RevisionPlanPanel, REVISION_PLAN_VIEW_TYPE, AUTHOR_PLAN_VIEW_TYPE } from "./ui/RevisionPlanPanel";
+import { AUTHOR_PLAN_SCOPE, authorWork } from "./core/planning/AuthorPlan";
 import { localDate, type RevisionPlan, type WorkCandidate } from "./core/planning/RevisionPlan";
 import { batchWork, directiveWork, pendingWork } from "./core/planning/RevisionWork";
 import { preparationWork } from "./core/planning/EditorialProject";
@@ -483,6 +484,7 @@ export default class EditorialistPlugin extends Plugin {
 		registerEditorialistIcon();
 		registerRadialTimelineIcon();
 		this.registerView(REVISION_PLAN_VIEW_TYPE, (leaf) => new RevisionPlanPanel(leaf, this));
+		this.registerView(AUTHOR_PLAN_VIEW_TYPE, (leaf) => new RevisionPlanPanel(leaf, this, true));
 		this.registerView(REVIEW_PANEL_VIEW_TYPE, (leaf) => new ReviewPanel(leaf, this));
 		this.registerView(EDITORIALISM_PANEL_VIEW_TYPE, (leaf) => new EditorialismPanel(leaf, this));
 		this.registerView(PENDING_EDITS_PANEL_VIEW_TYPE, (leaf) => new PendingEditsPanel(leaf, this));
@@ -722,6 +724,7 @@ export default class EditorialistPlugin extends Plugin {
 			...this.app.workspace.getLeavesOfType(EDITORIALISM_PANEL_VIEW_TYPE),
 			...this.app.workspace.getLeavesOfType(PENDING_EDITS_PANEL_VIEW_TYPE),
 			...this.app.workspace.getLeavesOfType(REVISION_PLAN_VIEW_TYPE),
+			...this.app.workspace.getLeavesOfType(AUTHOR_PLAN_VIEW_TYPE),
 		];
 		const [primary, ...duplicates] = existing;
 		for (const duplicate of duplicates) {
@@ -872,6 +875,9 @@ export default class EditorialistPlugin extends Plugin {
 		await leaf.setViewState({ type: REVISION_PLAN_VIEW_TYPE, active: true });
 	}
 
+	async openAuthorPlanner(): Promise<void> { await this.openEditorialistPanel(AUTHOR_PLAN_VIEW_TYPE); }
+	openAuthorScheduler(): void { new AutoScheduleModal(this, null, false, AUTHOR_PLAN_SCOPE).open(); }
+	collectAuthorWork(): { candidates: WorkCandidate[]; warnings: string[] } { return { candidates: authorWork(this.getRevisionPlan(AUTHOR_PLAN_SCOPE)), warnings: [] }; }
 	getRevisionPlan(book: string): RevisionPlan { return this.registry.getRevisionPlan(book); }
 	async saveRevisionPlan(book: string, plan: RevisionPlan): Promise<void> { await this.registry.setRevisionPlan(book, plan); }
 
@@ -916,11 +922,11 @@ export default class EditorialistPlugin extends Plugin {
 	}
 	openDeliveryScheduler(delivery: EditorialDelivery | null, adjusting = false): void { new AutoScheduleModal(this, delivery, adjusting).open(); }
 	async applyScheduledPlan(book: string, expected: RevisionPlan, next: RevisionPlan): Promise<void> {
-		await this.refreshActiveBookScope();
-		const active = JSON.stringify(["folder", this.getActiveBookScopeInfo().sourceFolder?.replace(/\/$/, "")]);
+		if (book !== AUTHOR_PLAN_SCOPE) await this.refreshActiveBookScope();
+		const active = book === AUTHOR_PLAN_SCOPE ? AUTHOR_PLAN_SCOPE : JSON.stringify(["folder", this.getActiveBookScopeInfo().sourceFolder?.replace(/\/$/, "")]);
 		if (book !== active || JSON.stringify(this.getRevisionPlan(book)) !== JSON.stringify(expected)) throw new Error("The book or plan changed. Reopen the planner before applying.");
 		await this.saveRevisionPlan(book, next);
-		for (const leaf of this.app.workspace.getLeavesOfType(REVISION_PLAN_VIEW_TYPE)) if (leaf.view instanceof RevisionPlanPanel) await leaf.view.refresh();
+		for (const type of [REVISION_PLAN_VIEW_TYPE, AUTHOR_PLAN_VIEW_TYPE]) for (const leaf of this.app.workspace.getLeavesOfType(type)) if (leaf.view instanceof RevisionPlanPanel) await leaf.view.refresh();
 	}
 	async saveEditorialDelivery(delivery: EditorialDelivery): Promise<void> {
 		if (delivery.bookFolder !== this.getActiveBookScopeInfo().sourceFolder?.replace(/\/$/, "")) throw new Error("The active book changed. Reopen deliveries before saving.");
@@ -1004,7 +1010,8 @@ export default class EditorialistPlugin extends Plugin {
 			this.app.workspace.getLeavesOfType(REVIEW_PANEL_VIEW_TYPE)[0] ??
 			this.app.workspace.getLeavesOfType(PENDING_EDITS_PANEL_VIEW_TYPE)[0] ??
 			this.app.workspace.getLeavesOfType(EDITORIALISM_PANEL_VIEW_TYPE)[0] ??
-			this.app.workspace.getLeavesOfType(REVISION_PLAN_VIEW_TYPE)[0];
+			this.app.workspace.getLeavesOfType(REVISION_PLAN_VIEW_TYPE)[0] ??
+			this.app.workspace.getLeavesOfType(AUTHOR_PLAN_VIEW_TYPE)[0];
 		if (existing) {
 			await this.app.workspace.revealLeaf(existing);
 			return;
@@ -1012,12 +1019,13 @@ export default class EditorialistPlugin extends Plugin {
 		await this.openReviewPanel();
 	}
 
-	// The swatch mode switcher: a small menu of the four panel modes, the
+	// The swatch mode switcher: a small menu of the panel modes, the
 	// current one checked. Direct selection (no blind cycling) and it swaps the
 	// single Ed leaf in place. Each mode also has its own command.
 	showPanelModeMenu(event: MouseEvent, currentViewType: string): void {
 		const modes: Array<{ type: string; label: string }> = [
-			{ type: REVISION_PLAN_VIEW_TYPE, label: "Revision plan" },
+			{ type: REVISION_PLAN_VIEW_TYPE, label: "Editor engagement" },
+			{ type: AUTHOR_PLAN_VIEW_TYPE, label: "Author planner" },
 			{ type: REVIEW_PANEL_VIEW_TYPE, label: "Review" },
 			{ type: PENDING_EDITS_PANEL_VIEW_TYPE, label: "Pending edits" },
 			{ type: EDITORIALISM_PANEL_VIEW_TYPE, label: "Editorialisms" },

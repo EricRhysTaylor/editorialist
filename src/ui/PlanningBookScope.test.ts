@@ -9,6 +9,7 @@ vi.mock("obsidian", async (importOriginal) => ({
 	ItemView: class {},
 	PluginSettingTab: class {},
 	SuggestModal: class {},
+	FuzzySuggestModal: class {},
 }));
 
 const key = (folder: string): string => JSON.stringify(["folder", folder]);
@@ -66,4 +67,13 @@ describe("planning after a Radial Timeline book switch", () => {
 		expect(host.saveRevisionPlan).not.toHaveBeenCalled();
 		expect(plans[key("Book A")]).toEqual(expected);
 	});
+});
+
+it("saves vault-wide author goals independently of the active book", async () => {
+	const scope = JSON.stringify(["author", "vault"]);
+	const { host, plans } = planningHost(); plans[scope] = emptyRevisionPlan();
+	const next = { ...emptyRevisionPlan(), deadline: "2026-12-31" };
+	await EditorialistPlugin.prototype.applyScheduledPlan.call(host as unknown as EditorialistPlugin, scope, emptyRevisionPlan(), next);
+	expect(plans[scope]?.deadline).toBe("2026-12-31");
+	expect(plans[key("Book A")]?.deadline).toBe("2026-11-30");
 });
