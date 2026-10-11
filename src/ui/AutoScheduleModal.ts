@@ -25,9 +25,9 @@ export class AutoScheduleModal extends Modal {
 	onOpen(): void { this.contentEl.addClass("editorialist-autoschedule"); void this.load().catch(() => { this.contentEl.empty(); this.contentEl.createEl("p", { text: "Could not load scheduling sources. Close this window and try again." }); }); }
 	onClose(): void { this.contentEl.empty(); }
 	private async load(): Promise<void> {
-		if (this.planningScope !== AUTHOR_PLAN_SCOPE) await this.plugin.refreshActiveBookScope();
+		if (this.planningScope === AUTHOR_PLAN_SCOPE) await this.plugin.synchronizeAuthorTargets(); else await this.plugin.refreshActiveBookScope();
 		this.book = this.planningScope ?? JSON.stringify(["folder", this.delivery?.bookFolder ?? this.plugin.getActiveBookScopeInfo().sourceFolder?.replace(/\/$/, "")]);
-		this.original = this.plugin.getRevisionPlan(this.book);
+		this.original = this.planningScope === AUTHOR_PLAN_SCOPE ? this.plugin.getAuthorPlanningPlan() : this.plugin.getRevisionPlan(this.book);
 		this.plan = structuredClone(this.original);
 		const work = this.planningScope === AUTHOR_PLAN_SCOPE ? this.plugin.collectAuthorWork() : await this.plugin.collectRevisionWork(); this.candidates = work.candidates; this.warnings = work.warnings;
 		this.fingerprint = JSON.stringify(work);
@@ -141,7 +141,7 @@ export class AutoScheduleModal extends Modal {
 			}
 		}
 		const apply = this.button(preview, "Use this plan", () => { apply.disabled = true; void this.apply(draft).catch((error: unknown) => { new Notice(error instanceof Error ? error.message : "Could not apply schedule."); this.invalidate(); }); });
-		apply.addClass("mod-cta"); apply.disabled = this.warnings.length > 0 || draft.generated.length === 0;
+		apply.addClass("mod-cta"); apply.disabled = (this.planningScope !== AUTHOR_PLAN_SCOPE && this.warnings.length > 0) || draft.generated.length === 0;
 		preview.scrollIntoView({ block: "start", behavior: "smooth" });
 	}
 	private async apply(draft: ScheduleDraft): Promise<void> {

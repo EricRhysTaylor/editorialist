@@ -27,6 +27,7 @@ function planningHost() {
 		refreshActiveBookScope,
 		getActiveBookScopeInfo: () => ({ sourceFolder: cachedFolder, label: cachedFolder, structured: true }),
 		getRevisionPlan: (book: string) => structuredClone(plans[book]!),
+		getAuthorPlanningPlan: () => structuredClone(plans[JSON.stringify(["author", "vault"])]!),
 		collectRevisionWork: async () => ({ candidates: [], warnings: [] }),
 		saveRevisionPlan: vi.fn(async (book: string, next: RevisionPlan) => { plans[book] = structuredClone(next); }),
 		app: { workspace: { getLeavesOfType: () => [] } },
@@ -76,4 +77,15 @@ it("saves vault-wide author goals independently of the active book", async () =>
 	await EditorialistPlugin.prototype.applyScheduledPlan.call(host as unknown as EditorialistPlugin, scope, emptyRevisionPlan(), next);
 	expect(plans[scope]?.deadline).toBe("2026-12-31");
 	expect(plans[key("Book A")]?.deadline).toBe("2026-11-30");
+});
+
+it("rolls an RT stage date back if saving its linked goal fails", async () => {
+	const scope = JSON.stringify(["author", "vault"]);
+	const raw = emptyRevisionPlan();
+	const receipt = { link: { bookId: "b2", stage: "Zero" }, previousDate: "2026-12-20", date: "2026-12-31" };
+	const rollback = vi.fn(async () => {});
+	const host = { getRevisionPlan: () => structuredClone(raw), radialBookGoals: { resolve: (plan: RevisionPlan) => ({ plan }), update: vi.fn(async () => receipt), rollback }, saveRevisionPlan: vi.fn(async () => { throw new Error("disk full"); }), app: { workspace: { getLeavesOfType: () => [] } } };
+	await expect(EditorialistPlugin.prototype.saveAuthorGoalPlan.call(host as unknown as EditorialistPlugin, raw, { ...raw, deadline: "2026-12-31" }, { link: { bookId: "b2", stage: "Zero" }, expectedDate: "2026-12-20", date: "2026-12-31" })).rejects.toThrow("disk full");
+	expect(rollback).toHaveBeenCalledWith(receipt); expect(Reflect.get(host, "authorGoalSaving")).toBe(false);
+	expect(host.saveRevisionPlan).toHaveBeenCalledWith(scope, expect.anything());
 });

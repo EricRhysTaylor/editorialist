@@ -32,6 +32,7 @@ export class RevisionPlanPanel extends ItemView {
 	private loaded = false;
 	private stale = false;
 	private sourceRevision = 0;
+	private rtSignature = "";
 	private search = "";
 	private sourceFilter = "all";
 	private deliveryFilter = "all";
@@ -39,7 +40,7 @@ export class RevisionPlanPanel extends ItemView {
 	private refreshTimer: number | null = null;
 	constructor(leaf: WorkspaceLeaf, private readonly plugin: EditorialistPlugin, private readonly author = false) { super(leaf); }
 	private authorPanel(): AuthorTargetPanel {
-		return new AuthorTargetPanel({ app: this.app, plan: this.plan, busy: this.busy, save: async (expected, next) => { await this.plugin.applyScheduledPlan(AUTHOR_PLAN_SCOPE, expected, next); }, openSource: async (path) => { await this.app.workspace.openLinkText(path, "", false); }, openSchedule: () => this.plugin.openAuthorScheduler() });
+		return new AuthorTargetPanel({ app: this.app, plan: this.plan, busy: this.busy, rt: this.plugin.radialBookGoals, save: async (expected, next, edit) => { await this.plugin.saveAuthorGoalPlan(expected, next, edit); }, openSource: async (path) => { await this.app.workspace.openLinkText(path, "", false); }, openSchedule: () => this.plugin.openAuthorScheduler() });
 	}
 	private projectService(): EditorialProjectService { return new EditorialProjectService(this.app, () => this.plugin.getActiveBookScopeInfo(), () => this.plugin.getCutFolderOverride(), (path) => this.plugin.resolveOpenNoteText(path)); }
 	private projectPanel(): EditorialProjectPanel {
@@ -65,6 +66,13 @@ export class RevisionPlanPanel extends ItemView {
 			this.scheduleRefresh();
 		};
 		this.register(() => { if (this.refreshTimer !== null) window.clearTimeout(this.refreshTimer); });
+		if (this.author) {
+			this.rtSignature = JSON.stringify(this.plugin.radialBookGoals.status());
+			this.registerInterval(window.setInterval(() => {
+				const current = JSON.stringify(this.plugin.radialBookGoals.status());
+				if (current !== this.rtSignature) { this.rtSignature = current; markStale(); }
+			}, 2000));
+		}
 		this.registerEvent(this.app.vault.on("modify", markStale));
 		this.registerEvent(this.app.vault.on("create", markStale));
 		this.registerEvent(this.app.vault.on("delete", markStale));
@@ -100,7 +108,7 @@ export class RevisionPlanPanel extends ItemView {
 		this.busy = true;
 		this.render();
 		try {
-			if (!this.author) await this.plugin.refreshActiveBookScope();
+			if (this.author) await this.plugin.synchronizeAuthorTargets(); else await this.plugin.refreshActiveBookScope();
 			const book = this.scopeKey();
 			const revision = this.sourceRevision;
 			const work = this.author ? this.plugin.collectAuthorWork() : await this.plugin.collectRevisionWork();
@@ -113,10 +121,11 @@ export class RevisionPlanPanel extends ItemView {
 			// Only a complete, current read may advance progress: a source that
 			// failed to load would otherwise look like finished work.
 			if (!this.author && book && !this.stale && !work.warnings.length) await this.recordProgress(book, work.candidates);
-			const plan = book ? this.plugin.getRevisionPlan(book) : emptyRevisionPlan();
+			const plan = this.author ? this.plugin.getAuthorPlanningPlan() : book ? this.plugin.getRevisionPlan(book) : emptyRevisionPlan();
 			const observations = plan.project && plan.project.formality !== "simple" ? await this.projectService().observeProject(plan.project) : {};
 			if (book !== this.scopeKey()) { this.stale = true; return; }
 			this.plan = plan; this.observations = observations;
+			if (this.author) this.rtSignature = JSON.stringify(this.plugin.radialBookGoals.status());
 			this.stale = revision !== this.sourceRevision;
 		} catch { this.stale = true; this.warnings = ["Could not load the revision plan. Refresh to try again."]; }
 		finally { this.busy = false; this.render(); }
@@ -138,11 +147,11 @@ export class RevisionPlanPanel extends ItemView {
 		}
 		this.busy = true;
 		for (const control of Array.from(this.contentEl.querySelectorAll<HTMLInputElement | HTMLButtonElement | HTMLSelectElement>("input, button, select"))) control.disabled = true;
-		const next = this.plugin.getRevisionPlan(this.book);
+		const next = this.author ? this.plugin.getAuthorPlanningPlan() : this.plugin.getRevisionPlan(this.book);
 		update(next);
 		try {
 			await this.plugin.saveRevisionPlan(this.book, next);
-			this.plan = this.plugin.getRevisionPlan(this.book);
+			this.plan = this.author ? this.plugin.getAuthorPlanningPlan() : this.plugin.getRevisionPlan(this.book);
 		} catch { new Notice("Could not save the revision plan. Refresh before continuing."); this.stale = true; }
 		finally { this.busy = false; this.render(); }
 	}

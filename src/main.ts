@@ -4,6 +4,7 @@ import { EditorialDeliveriesModal } from "./ui/EditorialDeliveriesModal";
 import { deliveryCaption, planDeliveryLink, type DeliverySource, type EditorialDelivery } from "./core/EditorialDeliveries";
 import { formatReviewerTypeLabel, normalizeReviewerType } from "./core/ContributorIdentity";
 import { RevisionPlanPanel, REVISION_PLAN_VIEW_TYPE, AUTHOR_PLAN_VIEW_TYPE } from "./ui/RevisionPlanPanel";
+import { RadialBookGoals, type RTDateEdit } from "./services/RadialBookGoals";
 import { AUTHOR_PLAN_SCOPE, authorWork } from "./core/planning/AuthorPlan";
 import { localDate, type RevisionPlan, type WorkCandidate } from "./core/planning/RevisionPlan";
 import { batchWork, directiveWork, pendingWork } from "./core/planning/RevisionWork";
@@ -877,7 +878,39 @@ export default class EditorialistPlugin extends Plugin {
 
 	async openAuthorPlanner(): Promise<void> { await this.openEditorialistPanel(AUTHOR_PLAN_VIEW_TYPE); }
 	openAuthorScheduler(): void { new AutoScheduleModal(this, null, false, AUTHOR_PLAN_SCOPE).open(); }
-	collectAuthorWork(): { candidates: WorkCandidate[]; warnings: string[] } { return { candidates: authorWork(this.getRevisionPlan(AUTHOR_PLAN_SCOPE)), warnings: [] }; }
+	readonly radialBookGoals = new RadialBookGoals(() => {
+		// SAFE: Obsidian's loaded-plugin map is not in the public App typings.
+		const app = this.app as typeof this.app & { plugins?: { plugins?: Record<string, unknown> } };
+		return app.plugins?.plugins?.["radial-timeline"];
+	});
+	getAuthorPlanningPlan(): RevisionPlan { return this.radialBookGoals.resolve(this.getRevisionPlan(AUTHOR_PLAN_SCOPE)).plan; }
+	collectAuthorWork(): { candidates: WorkCandidate[]; warnings: string[] } {
+		const resolved = this.radialBookGoals.resolve(this.getRevisionPlan(AUTHOR_PLAN_SCOPE));
+		return { candidates: authorWork(resolved.plan).map((item) => resolved.unavailable.has(item.locator) ? { ...item, inactive: true, due: null, targetDate: undefined } : item), warnings: resolved.warnings };
+	}
+	private authorGoalSaving = false;
+	async synchronizeAuthorTargets(): Promise<void> {
+		if (this.authorGoalSaving) return;
+		const raw = this.getRevisionPlan(AUTHOR_PLAN_SCOPE), resolved = this.radialBookGoals.resolve(raw).plan;
+		if (JSON.stringify(raw) !== JSON.stringify(resolved)) await this.saveRevisionPlan(AUTHOR_PLAN_SCOPE, resolved);
+	}
+	async saveAuthorGoalPlan(expected: RevisionPlan, next: RevisionPlan, edit?: RTDateEdit): Promise<void> {
+		if (this.authorGoalSaving) throw new Error("A goal save is already in progress. Try again after it finishes.");
+		this.authorGoalSaving = true;
+		try {
+			const raw = this.getRevisionPlan(AUTHOR_PLAN_SCOPE);
+			if (JSON.stringify(this.radialBookGoals.resolve(raw).plan) !== JSON.stringify(expected)) throw new Error("The goal or RT target changed. Reopen goal details before saving.");
+			const receipt = edit ? await this.radialBookGoals.update(edit) : null;
+			try {
+				if (JSON.stringify(this.getRevisionPlan(AUTHOR_PLAN_SCOPE)) !== JSON.stringify(raw)) throw new Error("The author plan changed during the save. Reopen goal details.");
+				await this.saveRevisionPlan(AUTHOR_PLAN_SCOPE, this.radialBookGoals.resolve(next).plan);
+			} catch (error) {
+				if (receipt) { try { await this.radialBookGoals.rollback(receipt); } catch (rollbackError) { throw new Error(`Goal save failed; ${rollbackError instanceof Error ? rollbackError.message : "check the RT target before retrying"}`); } }
+				throw error;
+			}
+		} finally { this.authorGoalSaving = false; }
+		for (const leaf of this.app.workspace.getLeavesOfType(AUTHOR_PLAN_VIEW_TYPE)) if (leaf.view instanceof RevisionPlanPanel) await leaf.view.refresh();
+	}
 	getRevisionPlan(book: string): RevisionPlan { return this.registry.getRevisionPlan(book); }
 	async saveRevisionPlan(book: string, plan: RevisionPlan): Promise<void> { await this.registry.setRevisionPlan(book, plan); }
 
@@ -924,7 +957,7 @@ export default class EditorialistPlugin extends Plugin {
 	async applyScheduledPlan(book: string, expected: RevisionPlan, next: RevisionPlan): Promise<void> {
 		if (book !== AUTHOR_PLAN_SCOPE) await this.refreshActiveBookScope();
 		const active = book === AUTHOR_PLAN_SCOPE ? AUTHOR_PLAN_SCOPE : JSON.stringify(["folder", this.getActiveBookScopeInfo().sourceFolder?.replace(/\/$/, "")]);
-		if (book !== active || JSON.stringify(this.getRevisionPlan(book)) !== JSON.stringify(expected)) throw new Error("The book or plan changed. Reopen the planner before applying.");
+		if (book !== active || JSON.stringify(book === AUTHOR_PLAN_SCOPE ? this.getAuthorPlanningPlan() : this.getRevisionPlan(book)) !== JSON.stringify(expected)) throw new Error("The book or plan changed. Reopen the planner before applying.");
 		await this.saveRevisionPlan(book, next);
 		for (const type of [REVISION_PLAN_VIEW_TYPE, AUTHOR_PLAN_VIEW_TYPE]) for (const leaf of this.app.workspace.getLeavesOfType(type)) if (leaf.view instanceof RevisionPlanPanel) await leaf.view.refresh();
 	}

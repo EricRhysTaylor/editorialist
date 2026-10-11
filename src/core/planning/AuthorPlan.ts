@@ -1,8 +1,17 @@
 import { isDate, type RevisionPlan, type WorkCandidate } from "./RevisionPlan";
 
+export const RT_STAGES = { Zero: "Zero draft", Author: "Author draft", House: "House draft", Press: "Press ready" } as const;
+export type RTStage = keyof typeof RT_STAGES;
+export interface RTGoalLink { bookId: string; stage: RTStage }
+export function normalizeRTLink(value: unknown): RTGoalLink | undefined {
+	if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+	const item = value as Record<string, unknown>;
+	return typeof item.bookId === "string" && item.bookId && typeof item.stage === "string" && Object.prototype.hasOwnProperty.call(RT_STAGES, item.stage) ? { bookId: item.bookId, stage: item.stage as RTStage } : undefined;
+}
 /** A reserved scope in the existing plan store; independent of the active book. */
 export const AUTHOR_PLAN_SCOPE = JSON.stringify(["author", "vault"]);
 export interface AuthorTarget {
+	rt?: RTGoalLink;
 	id: string;
 	title: string;
 	description: string;
@@ -23,7 +32,7 @@ export function normalizeAuthorTargets(raw: unknown): AuthorTarget[] {
 		ids.add(item.id);
 		const minutes = (value: unknown): number | null => typeof value === "number" && Number.isFinite(value) && value >= 0 ? Math.round(value) : null;
 		const low = minutes(item.lowMinutes), high = minutes(item.highMinutes);
-		return [{ id: item.id, title: item.title.trim(), description: typeof item.description === "string" ? item.description : "", file: typeof item.file === "string" ? item.file : "", bookLabel: typeof item.bookLabel === "string" ? item.bookLabel : "", due: item.due, hardDeadline: item.hardDeadline === true, done: item.done === true, lowMinutes: low, highMinutes: high === null ? null : Math.max(low ?? 0, high) }];
+		return [{ ...(normalizeRTLink(item.rt) ? { rt: normalizeRTLink(item.rt) } : {}), id: item.id, title: item.title.trim(), description: typeof item.description === "string" ? item.description : "", file: typeof item.file === "string" ? item.file : "", bookLabel: typeof item.bookLabel === "string" ? item.bookLabel : "", due: item.due, hardDeadline: item.hardDeadline === true, done: item.done === true, lowMinutes: low, highMinutes: high === null ? null : Math.max(low ?? 0, high) }];
 	});
 }
 export function authorWork(plan: RevisionPlan): WorkCandidate[] {

@@ -1,7 +1,8 @@
 import { FuzzySuggestModal, Notice, TFile, type App } from "obsidian";
-import { AUTHOR_PLAN_SCOPE, type AuthorTarget } from "../core/planning/AuthorPlan";
+import { AUTHOR_PLAN_SCOPE, RT_STAGES, type RTStage, type AuthorTarget } from "../core/planning/AuthorPlan";
 import { isDate, localDate, type RevisionPlan } from "../core/planning/RevisionPlan";
-import { ProjectDialog, area, field } from "./EditorialProjectPanel";
+import type { RadialBookGoals, RTDateEdit } from "../services/RadialBookGoals";
+import { ProjectDialog, area, field, select } from "./EditorialProjectPanel";
 
 class VaultFilePicker extends FuzzySuggestModal<TFile> {
 	constructor(app: App, private readonly picked: (file: TFile) => void) { super(app); this.setPlaceholder("Find a vault document"); }
@@ -13,7 +14,8 @@ export interface AuthorTargetHost {
 	app: App;
 	plan: RevisionPlan;
 	busy: boolean;
-	save(expected: RevisionPlan, next: RevisionPlan): Promise<void>;
+	rt: RadialBookGoals;
+	save(expected: RevisionPlan, next: RevisionPlan, edit?: RTDateEdit): Promise<void>;
 	openSource(path: string): Promise<void>;
 	openSchedule(): void;
 }
@@ -40,13 +42,16 @@ export class AuthorTargetPanel {
 		if (completed.length) { const details = root.createEl("details", { attr: { "data-plan-section": "author-completed" } }); details.createEl("summary", { text: `${completed.length} completed goals` }); for (const target of completed) this.card(details, target); }
 	}
 	private card(root: HTMLElement, target: AuthorTarget): void {
-		const overdue = !target.done && target.due < localDate(new Date());
+		const syncWarning = this.host.rt.warning(target);
+		const overdue = !syncWarning && !target.done && target.due < localDate(new Date());
 		const card = root.createDiv({ cls: "editorialist-project__material editorialist-author__card", attr: { "data-target-id": target.id, "data-target-status": target.done ? "done" : overdue ? target.hardDeadline ? "late" : "overdue" : "open" } });
 		const heading = card.createDiv({ cls: "editorialist-project__material-heading" });
 		heading.createEl("strong", { text: target.title });
 		if (target.bookLabel) heading.createSpan({ cls: "editorialist-project__status", text: target.bookLabel });
+		if (target.rt) card.createEl("p", { cls: "editorialist-project__hint", text: `Radial Timeline · ${RT_STAGES[target.rt.stage]}${syncWarning ? " · Sync paused" : " · Date synced"}` });
+		if (syncWarning) card.createEl("p", { cls: "editorialist-plan__warning", text: syncWarning });
 		const date = new Date(`${target.due}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-		card.createEl("p", { cls: "editorialist-author__due", text: `${target.done ? "Completed · " : overdue ? "Past due · " : ""}${target.hardDeadline ? "Hard deadline" : "Target"} · ${date}` });
+		card.createEl("p", { cls: "editorialist-author__due", text: `${syncWarning ? "Last synced · " : ""}${target.done ? "Completed · " : overdue ? "Past due · " : ""}${target.hardDeadline ? "Hard deadline" : "Target"} · ${date}` });
 		if (target.description) card.createEl("p", { text: target.description });
 		if (target.file) card.createEl("p", { cls: "editorialist-project__path", text: target.file });
 		if (target.file && !(this.host.app.vault.getAbstractFileByPath(target.file) instanceof TFile)) card.createEl("p", { cls: "editorialist-plan__warning", text: "Linked file unavailable. Choose another file in goal details." });
@@ -73,6 +78,20 @@ export class AuthorTargetPanel {
 			const due = field(form, "Target date", existing?.due ?? "", "date"); due.required = true;
 			const hard = field(form, "This is a hard deadline", "", "checkbox"); hard.checked = existing?.hardDeadline ?? false;
 			const book = field(form, "Book label (optional)", existing?.bookLabel ?? "");
+			const rtStatus = this.host.rt.status(), rtBooks = rtStatus.books;
+			const choices: [string, string][] = [["", "Standalone goal"], ...rtBooks.map((item): [string, string] => [item.id, item.title])];
+			if (existing?.rt && !rtBooks.some((item) => item.id === existing.rt!.bookId)) choices.push([existing.rt.bookId, `${existing.bookLabel || "Linked book"} · Unavailable`]);
+			const rtBook = select(form, "RT book project (optional)", choices, existing?.rt?.bookId ?? "");
+			const stage = select(form, "Publishing stage", Object.entries(RT_STAGES), existing?.rt?.stage ?? "Zero");
+			const syncHint = form.createEl("p", { cls: "editorialist-project__hint" });
+			const updateLink = (adoptDate: boolean): void => {
+				const selected = rtBooks.find((item) => item.id === rtBook.value), linked = Boolean(rtBook.value);
+				stage.disabled = !linked; book.readOnly = linked;
+				due.disabled = linked && !selected;
+				if (selected) { book.value = selected.title; if (adoptDate && selected.dates[stage.value as RTStage]) due.value = selected.dates[stage.value as RTStage]!; }
+				syncHint.setText(linked ? selected ? "This goal shares the selected RT stage target. Changing this date updates RT; changes in RT appear here. Completion stays your decision." : "RT book unavailable. Unlink to edit the date; the saved link is preserved." : rtStatus.available && rtBooks.length ? "Optional: select an RT book to sync a publishing-stage target. Standalone goals keep their own dates." : rtStatus.available ? "Create a book in Radial Timeline to link its stage targets. Standalone goals keep their own dates." : "Enable a compatible Radial Timeline installation to link a book. Standalone goals keep their own dates.");
+			};
+			rtBook.addEventListener("change", () => updateLink(true)); stage.addEventListener("change", () => updateLink(true)); updateLink(false);
 			const file = field(form, "Vault document (optional)", existing?.file ?? ""); file.readOnly = true;
 			const actions = form.createDiv({ cls: "editorialist-project__actions" });
 			this.button(actions, "Choose document", () => new VaultFilePicker(this.host.app, (picked) => { file.value = picked.path; }).open());
@@ -87,9 +106,13 @@ export class AuthorTargetPanel {
 				if (file.value && !(this.host.app.vault.getAbstractFileByPath(file.value) instanceof TFile)) throw new Error("Choose an available vault document, or clear the link.");
 				const lowMinutes = low.value ? Number(low.value) : null, highMinutes = high.value ? Number(high.value) : null;
 				if ((lowMinutes === null) !== (highMinutes === null) || lowMinutes !== null && highMinutes !== null && (!Number.isFinite(lowMinutes) || !Number.isFinite(highMinutes) || lowMinutes < 0 || highMinutes < Math.max(1, lowMinutes))) throw new Error("Enter a valid low and high estimate, or leave both blank.");
-				const target: AuthorTarget = { id: existing?.id ?? crypto.randomUUID(), title: title.value.trim(), description: description.value.trim(), due: due.value, hardDeadline: hard.checked, bookLabel: book.value.trim(), file: file.value, done: existing?.done ?? false, lowMinutes, highMinutes };
+				const linked = rtBooks.find((item) => item.id === rtBook.value);
+				if (rtBook.value && !linked && (!existing?.rt || rtBook.value !== existing.rt.bookId || stage.value !== existing.rt.stage || due.value !== existing.due)) throw new Error("Reconnect RT or unlink before changing this target.");
+				const rt = rtBook.value ? { bookId: rtBook.value, stage: stage.value as RTStage } : undefined;
+				const edit: RTDateEdit | undefined = rt && linked ? { link: rt, expectedDate: linked.dates[rt.stage] ?? null, date: due.value } : undefined;
+				const target: AuthorTarget = { ...(rt ? { rt } : {}), id: existing?.id ?? crypto.randomUUID(), title: title.value.trim(), description: description.value.trim(), due: due.value, hardDeadline: hard.checked, bookLabel: book.value.trim(), file: file.value, done: existing?.done ?? false, lowMinutes, highMinutes };
 				next.targets ??= []; const index = next.targets.findIndex((item) => item.id === target.id); if (index < 0) next.targets.push(target); else next.targets[index] = target;
-				await this.host.save(expected, next);
+				await this.host.save(expected, next, edit);
 			};
 		});
 		dialog.open();

@@ -118,3 +118,29 @@ checked preparation retains source snapshots and export checks; recorded
 submission also exposes verified upload recording. Switching process levels
 preserves prior checks, snapshots, and history. Author plans never create editor
 profiles, revision imports, or outbound deliveries.
+
+## Optional Radial Timeline stage targets
+
+A goal can link to an existing RT book ID and one publishing stage: Zero,
+Author, House, or Press. The book picker is independent of the active RT book.
+Unlinked goals remain vault-wide personal commitments with their own dates.
+
+RT's per-book `stageTargetDates` is authoritative for linked dates. The bridge
+reads only book IDs, titles, and target dates from the loaded plugin and uses
+its existing `saveSettings()` API for explicit date edits. It does not write
+RT's settings file directly, switch the active book, or change manuscript
+publishing status. Goal completion remains an author decision.
+
+The author panel watches the small book-target snapshot while open. A change
+refreshes the linked goal and retains its last observed date in the existing
+plan store. Scheduler snapshots use the resolved current dates. A missing
+plugin, book, or stage date pauses that goal's scheduling and is visible on the
+card; its saved link is retained. Standalone goals remain schedulable. Unlinking
+or removing a goal leaves RT's target untouched.
+
+Writes check the previously observed RT date, enforce RT's stage ordering, and
+respect its blocked-settings state. If the goal cannot be persisted after the
+RT date update, the bridge restores only its own stage change when still safe;
+a newer concurrent RT edit is preserved and reported. Tests cover selected-book
+identity, source-date projection, absent RT, stage clearing, stale edits,
+chronology, and persistence failures.
