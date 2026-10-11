@@ -961,15 +961,16 @@ describe("revision plan persistence", () => {
 	it("preserves project sources across renames without rewriting historical evidence", async () => {
 		const { service } = makeService(); let id = 0;
 		const project = createEditorialProject("Test Editor", "2026-11-30", () => `project-${++id}`);
-		project.materials[1]!.source = "Workshop/Overview.md";
-		project.materials[1]!.frozenSources = [{ path: "Workshop/Overview.md", digest: "a".repeat(64), copy: "Editorialist/Submissions/Overview.md" }];
+		project.materials.push({ id: "m", title: "Overview", kind: "document", required: false, source: "Workshop/Overview.md", exportPath: "", milestoneId: null, requirements: [], approvedDigest: null, check: null, uploads: [] });
+		project.records.push({ id: "r", day: "2026-10-11", kind: "sent", description: "Sent", filenames: "Overview.md", referencePath: "Workshop/Overview.md", archive: { copy: "Editorialist/Engagement history/Overview.md", digest: "a".repeat(64) } });
+		project.materials[0]!.frozenSources = [{ path: "Workshop/Overview.md", digest: "a".repeat(64), copy: "Editorialist/Submissions/Overview.md" }];
 		await service.setRevisionPlan("book", { ...service.getRevisionPlan("book"), project });
 		await service.renameNotePath("Workshop/Overview.md", "Workshop/Series.md");
-		const material = service.getRevisionPlan("book").project!.materials[1]!;
-		expect(material.source).toBe("Workshop/Series.md"); expect(material.frozenSources![0]!.path).toBe("Workshop/Overview.md");
+		const material = service.getRevisionPlan("book").project!.materials[0]!;
+		expect(material.source).toBe("Workshop/Series.md"); expect(service.getRevisionPlan("book").project!.records[0]!.referencePath).toBe("Workshop/Series.md"); expect(service.getRevisionPlan("book").project!.records[0]!.archive?.copy).toBe("Editorialist/Engagement history/Overview.md"); expect(material.frozenSources![0]!.path).toBe("Workshop/Overview.md");
 		const restored = makeService().service; restored.load(service.buildPluginData([])); expect(restored.getRevisionPlan("book").project).toEqual(service.getRevisionPlan("book").project); expect(restored.getRevisionPlan("other-book").project).toBeUndefined();
 	});
-	it("rolls back project and readiness changes when persistence fails", async () => {
+	it("rolls back engagement changes when persistence fails", async () => {
 		const service = new ReviewRegistryService(makeApp([]), makeEngine({}), new ContributorDirectory(), async () => { throw new Error("disk full"); }, () => null);
 		let id = 0; const project = createEditorialProject("Test Editor", "2026-11-30", () => `project-${++id}`);
 		await expect(service.setRevisionPlan("book", { ...service.getRevisionPlan("book"), project })).rejects.toThrow("disk full"); expect(service.getRevisionPlan("book").project).toBeUndefined();

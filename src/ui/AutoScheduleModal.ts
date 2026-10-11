@@ -44,7 +44,7 @@ export class AutoScheduleModal extends Modal {
 	private render(): void {
 		const root = this.contentEl; root.empty();
 		root.createEl("h2", { text: this.planningScope === AUTHOR_PLAN_SCOPE ? "Plan your writing goals" : this.adjusting ? "Adjust remaining schedule" : this.delivery ? "Plan this delivery" : "Plan all open work" });
-		root.createEl("p", { cls: "editorialist-deliveries__intro", text: this.planningScope === AUTHOR_PLAN_SCOPE ? "Your vault-wide goals share one weekly capacity. Add effort estimates to schedule sessions; hard goal deadlines are enforced, while target dates remain personal aims." : this.delivery?.title ?? "Open preparation tasks, review batches, editorialism directives and pending edits in this book, spread across your working days before their deadlines and milestones. Work already in your plan keeps its place." });
+		root.createEl("p", { cls: "editorialist-deliveries__intro", text: this.planningScope === AUTHOR_PLAN_SCOPE ? "Your vault-wide goals share one weekly capacity. Add effort estimates to schedule sessions; hard goal deadlines are enforced, while target dates remain personal aims." : this.delivery?.title ?? "Open engagement tasks, review batches, editorialism directives and pending edits in this book, spread across your working days before their deadlines and milestones. Work already in your plan keeps its place." });
 		const grid = root.createDiv({ cls: "editorialist-deliveries__fields" });
 		const input = (parent: HTMLElement, label: string, type: string, value: string, change: (value: string) => void): HTMLInputElement => {
 			const wrap = parent.createEl("label", { text: label }); const field = wrap.createEl("input", { type, value, attr: { "aria-label": label } });

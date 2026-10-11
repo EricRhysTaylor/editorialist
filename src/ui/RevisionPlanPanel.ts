@@ -10,11 +10,11 @@ import { advancePlanProgress, summarizePlanProgress, type ProgressInput } from "
 import { estimateRange } from "../core/planning/AutoSchedule";
 import { EditorialProjectPanel } from "./EditorialProjectPanel";
 import { EditorialProjectService } from "../services/EditorialProjectService";
-import { entryDeadline, type MaterialObservation } from "../core/planning/EditorialProject";
+import { entryDeadline } from "../core/planning/EditorialProject";
 
 export const REVISION_PLAN_VIEW_TYPE = "editorialist-revision-plan";
 export const AUTHOR_PLAN_VIEW_TYPE = "editorialist-author-plan";
-const kindLabels = { pending: "Pending edit", batch: "Scene batch", directive: "Editorialism", preparation: "Preparation task" };
+const kindLabels = { pending: "Pending edit", batch: "Scene batch", directive: "Editorialism", preparation: "Engagement task" };
 const kindIcons = { pending: "pencil-line", batch: "messages-square", directive: "list-checks", preparation: "clipboard-list" };
 const duration = (minutes: number): string => `${Math.round(minutes / 6) / 10} h`;
 
@@ -26,7 +26,6 @@ export class RevisionPlanPanel extends ItemView {
 	private warnings: string[] = [];
 	private view: "queue" | "days" = "queue";
 	private section: "overview" | "materials" | "schedule" | "history" = "overview";
-	private observations: Record<string, MaterialObservation> = {};
 	private dragging: string | null = null;
 	private busy = false;
 	private loaded = false;
@@ -42,10 +41,10 @@ export class RevisionPlanPanel extends ItemView {
 	private authorPanel(): AuthorTargetPanel {
 		return new AuthorTargetPanel({ app: this.app, plan: this.plan, busy: this.busy, rt: this.plugin.radialBookGoals, save: async (expected, next, edit) => { await this.plugin.saveAuthorGoalPlan(expected, next, edit); }, openSource: async (path) => { await this.app.workspace.openLinkText(path, "", false); }, openSchedule: () => this.plugin.openAuthorScheduler() });
 	}
-	private projectService(): EditorialProjectService { return new EditorialProjectService(this.app, () => this.plugin.getActiveBookScopeInfo(), () => this.plugin.getCutFolderOverride(), (path) => this.plugin.resolveOpenNoteText(path)); }
+	private projectService(): EditorialProjectService { return new EditorialProjectService(this.app); }
 	private projectPanel(): EditorialProjectPanel {
 		const book = this.book;
-		return new EditorialProjectPanel({ app: this.app, plan: this.plan, observations: this.observations, busy: this.busy || this.stale, service: this.projectService(), deliveries: this.plugin.getEditorialDeliveries(), getReviewers: () => this.plugin.getReviewerProfiles(), manageEditor: async (id) => { await this.plugin.contributors.openContributorManagementFlow(id); },
+		return new EditorialProjectPanel({ app: this.app, plan: this.plan, busy: this.busy || this.stale, service: this.projectService(), deliveries: this.plugin.getEditorialDeliveries(), getReviewers: () => this.plugin.getReviewerProfiles(), manageEditor: async (id) => { await this.plugin.contributors.openContributorManagementFlow(id); },
 			save: async (expected, next) => { if (!book || book !== this.scopeKey()) throw new Error("The active book changed. Reopen the project before saving."); await this.plugin.applyScheduledPlan(book, expected, next); },
 			openWorkspace: () => this.plugin.openEditorialProjectWorkspace(), openSchedule: () => { this.section = "schedule"; this.render(); }, openSource: async (path) => { const file = this.app.vault.getAbstractFileByPath(path); if (!(file instanceof TFile)) throw new Error("This file is unavailable. Check its path in material details."); await this.app.workspace.openLinkText(file.path, "", false); },
 		});
@@ -122,9 +121,8 @@ export class RevisionPlanPanel extends ItemView {
 			// failed to load would otherwise look like finished work.
 			if (!this.author && book && !this.stale && !work.warnings.length) await this.recordProgress(book, work.candidates);
 			const plan = this.author ? this.plugin.getAuthorPlanningPlan() : book ? this.plugin.getRevisionPlan(book) : emptyRevisionPlan();
-			const observations = plan.project && plan.project.formality !== "simple" ? await this.projectService().observeProject(plan.project) : {};
 			if (book !== this.scopeKey()) { this.stale = true; return; }
-			this.plan = plan; this.observations = observations;
+			this.plan = plan;
 			if (this.author) this.rtSignature = JSON.stringify(this.plugin.radialBookGoals.status());
 			this.stale = revision !== this.sourceRevision;
 		} catch { this.stale = true; this.warnings = ["Could not load the revision plan. Refresh to try again."]; }
@@ -223,11 +221,7 @@ export class RevisionPlanPanel extends ItemView {
 		root.createEl("p", { cls: "editorialist-plan__freshness", text: this.stale ? "Sources changed. Updating…" : "", attr: { role: "status" } });
 		for (const warning of this.warnings) root.createEl("p", { cls: "editorialist-plan__warning", text: warning });
 		if (!this.book || !this.loaded) return;
-		if (!this.author && !this.plan.project) {
-			const prepare = root.createDiv({ cls: "editorialist-project__entry" });
-			this.button(prepare, "Prepare for editor", () => this.projectPanel().setup());
-			prepare.createEl("p", { cls: "editorialist-project__hint", text: "Add manuscript, overview and query-letter preparation to this book." });
-		}
+		if (!this.author && !this.plan.project) this.projectPanel().renderOverview(root);
 		if (!this.author) this.renderProgress(root);
 		this.renderSummary(root);
 		this.renderCapacity(root);
@@ -295,7 +289,7 @@ export class RevisionPlanPanel extends ItemView {
 			item.createSpan({ text: ` ${text}` });
 		}
 		const kinds = card.createDiv({ cls: "editorialist-plan__momentum-kinds" });
-		for (const [kind, text] of [["batch", "Batches"], ["directive", "Editorialisms"], ["pending", "Notes"], ["preparation", "Preparation"]] as const) {
+		for (const [kind, text] of [["batch", "Batches"], ["directive", "Editorialisms"], ["pending", "Notes"], ["preparation", this.author ? "Goals" : "Engagement tasks"]] as const) {
 			const counts = summary.byKind[kind];
 			if (!counts.done && !counts.remaining) continue;
 			kinds.createSpan({ text: `${text} ${counts.done}/${counts.done + counts.remaining}` });
@@ -334,7 +328,7 @@ export class RevisionPlanPanel extends ItemView {
 		label.createSpan({ text: this.plan.deadline ? `Working toward ${planDayLabel(this.plan.deadline)}` : this.author ? "Your writing schedule" : "Your revision plan" });
 		if (!this.plan.entries.length) {
 			summary.createEl("h2", { text: "Choose what comes next." });
-			summary.createEl("p", { text: this.author ? "Add goals, then plan writing sessions around their deadlines and your weekly capacity." : this.plan.project ? "Bring preparation tasks, scene notes, review batches and directives into one working queue." : "Bring scene notes, review batches, and directives into one working queue." });
+			summary.createEl("p", { text: this.author ? "Add goals, then plan writing sessions around their deadlines and your weekly capacity." : this.plan.project ? "Bring engagement tasks, scene notes, review batches and directives into one working queue." : "Bring scene notes, review batches, and directives into one working queue." });
 			const choose = this.button(summary, this.author ? "View goals" : "Choose work", () => {
 				if (this.author) { this.section = "overview"; this.render(); return; }
 				const backlog = root.querySelector<HTMLDetailsElement>(".editorialist-plan__backlog");
@@ -385,7 +379,7 @@ export class RevisionPlanPanel extends ItemView {
 		button.addClass("editorialist-plan__autoplan");
 		if (primary) button.addClass("mod-cta");
 		setIcon(button.createSpan(), "calendar-range");
-		button.createSpan({ text: primary ? `Auto-plan all ${count} open items` : `Auto-plan ${count} more open items${this.plan.deadline ? ` by ${planDayLabel(this.plan.deadline)}` : ""}` });
+		button.createSpan({ text: primary ? `Auto-plan all ${count} open ${count === 1 ? "item" : "items"}` : `Auto-plan ${count} more open ${count === 1 ? "item" : "items"}${this.plan.deadline ? ` by ${planDayLabel(this.plan.deadline)}` : ""}` });
 	}
 	private renderWeek(root: HTMLElement, loads: Record<string, number>): void {
 		const week = root.createDiv({ cls: "editorialist-plan__week", attr: { "aria-label": "Next seven days" } });
@@ -410,8 +404,7 @@ export class RevisionPlanPanel extends ItemView {
 		setIcon(summary.createSpan(), "sliders-horizontal");
 		summary.createSpan({ text: "Deadline & capacity" });
 		summary.createSpan({ cls: "editorialist-plan__capacity-value", text: this.plan.deadline ? planDayLabel(this.plan.deadline) : "Set up" });
-		if (this.plan.project && !this.plan.project.actualReturn) details.createEl("p", { text: `Hard submission deadline: ${this.plan.project.submissionDate}. Change it in project details. Each task must also fit before its preparation milestone; packet readiness is ${this.plan.project.readinessDate}.` });
-		else this.input(details, "Deadline", "date", this.plan.deadline ?? "", (value) => { void this.change((plan) => { plan.deadline = isDate(value) ? value : null; }); });
+		this.input(details, "Schedule deadline", "date", this.plan.deadline ?? "", (value) => { void this.change((plan) => { plan.deadline = isDate(value) ? value : null; }); });
 		const days = details.createDiv({ cls: "editorialist-plan__fields" });
 		["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].forEach((day, index) => {
 			const input = this.input(days, `${day} minutes`, "number", String(this.plan.capacity[index]), (value) => { void this.change((plan) => { plan.capacity[index] = Math.min(1440, Number(value)); }); });
@@ -542,7 +535,7 @@ export class RevisionPlanPanel extends ItemView {
 			}
 			if (!shown.length) list.createEl("p", { cls: "editorialist-plan__empty-copy", text: "No available work matches this filter." });
 		};
-		for (const [value, label] of Object.entries({ all: "All", pending: "Notes", batch: "Batches", directive: "Editorialisms", preparation: "Preparation" })) {
+		for (const [value, label] of Object.entries({ all: "All", pending: "Notes", batch: "Batches", directive: "Editorialisms", preparation: this.author ? "Goals" : "Engagement tasks" })) {
 			const button = this.button(filters, label, () => { this.sourceFilter = value; this.backlogLimit = 12; for (const item of Array.from(filters.querySelectorAll("button"))) item.setAttribute("aria-pressed", String(item === button)); render(); });
 			button.setAttribute("aria-pressed", String(this.sourceFilter === value));
 		}

@@ -3,7 +3,7 @@ import { normalizeContributorValue } from "../ContributorIdentity";
 import type { ContributorProfile } from "../../models/ContributorProfile";
 
 export interface ProjectMilestone { id: string; title: string; day: string; done: boolean }
-export interface PreparationTask { id: string; title: string; materialId: string | null; milestoneId: string | null; done: boolean }
+export interface EngagementTask { id: string; title: string; materialId: string | null; milestoneId: string | null; done: boolean }
 export interface FrozenSource { path: string; digest: string; copy: string; sceneId?: string }
 export interface MaterialCheck {
 	packetWordCount?: number;
@@ -17,7 +17,9 @@ export interface MaterialCheck {
 	requirements: string[];
 }
 export interface MaterialUpload { at: string; filename: string; confirmation: string; check: MaterialCheck }
+/** Preparation evidence is read-only history; new items use title, notes and optional links. */
 export interface ProjectMaterial {
+	notes?: string;
 	completed?: boolean;
 	wordCount?: number;
 	id: string;
@@ -34,8 +36,17 @@ export interface ProjectMaterial {
 	uploads: MaterialUpload[];
 }
 export interface ProjectEvent { at: string; text: string }
+export interface EngagementRecord {
+	id: string;
+	day: string;
+	kind: "sent" | "received" | "note";
+	description: string;
+	filenames: string;
+	referencePath: string;
+	archive?: { copy: string; digest: string };
+}
 export interface EditorialProject {
-	formality?: "simple" | "prepared" | "submission";
+	records: EngagementRecord[];
 	/** Stable identity in the existing contributor directory; editor retains the saved name. */
 	reviewerId?: string;
 	version: 1;
@@ -43,7 +54,8 @@ export interface EditorialProject {
 	title: string;
 	editor: string;
 	collaborationUrl: string;
-	readinessDate: string;
+	/** Historical date retained with earlier preparation evidence; never a scheduling gate. */
+	readinessDate?: string;
 	submissionDate: string;
 	expectedReturn: string | null;
 	actualReturn: string | null;
@@ -51,13 +63,9 @@ export interface EditorialProject {
 	deliveryId: string | null;
 	milestones: ProjectMilestone[];
 	materials: ProjectMaterial[];
-	tasks: PreparationTask[];
+	tasks: EngagementTask[];
 	history: ProjectEvent[];
 }
-export interface MaterialObservation { sourceDigest: string | null; exportDigest: string | null; error: string | null; snapshotError?: string; packetWordCount?: number; sources: FrozenSource[] }
-export type MaterialState = "missing" | "drafting" | "approved" | "checked" | "uploaded" | "recheck";
-export const MATERIAL_STATE_LABELS: Record<MaterialState, string> = { missing: "Missing source", drafting: "Drafting", approved: "Author approved", checked: "Export checked", uploaded: "Uploaded", recheck: "Needs recheck" };
-
 export function isProjectEditorProfile(profile: ContributorProfile): boolean {
 	// Older imports can carry a human role on an AI identity. Do not offer those as people.
 	return profile.kind === "human" && !profile.reviewerType.startsWith("ai-") && !profile.id.startsWith("contributor-ai-") && !profile.provider?.trim() && !profile.model?.trim();
@@ -76,7 +84,7 @@ export function projectEditor(project: EditorialProject, profiles: readonly Cont
 }
 
 export function shiftDate(day: string, offset: number): string {
-	if (!isDate(day)) throw new Error("Choose a valid submission date.");
+	if (!isDate(day)) throw new Error("Choose a valid date.");
 	return new Date(Date.parse(`${day}T00:00:00Z`) + offset * 86400000).toISOString().slice(0, 10);
 }
 export function collaborationUrl(value: string): string {
@@ -85,49 +93,24 @@ export function collaborationUrl(value: string): string {
 	if (url.protocol !== "https:" || url.username || url.password) throw new Error("Use an HTTPS collaboration link without credentials.");
 	return url.href;
 }
-/** Generic preset; manuscript text and the editor's requirements remain author-owned. */
+/** Starts with an empty author-owned schedule and reference register. */
 export function createEditorialProject(editor: string, deadline: string, makeId: () => string): EditorialProject {
-	const milestones = [
-		["Series overview approved", -30], ["Query letter drafted", -21], ["Manuscript frozen", -14], ["Packet checked", -7],
-	].map(([title, offset]) => ({ id: makeId(), title: String(title), day: shiftDate(deadline, Number(offset)), done: false }));
-	const materials: ProjectMaterial[] = [
-		{ id: makeId(), title: "Manuscript", kind: "manuscript", milestoneId: milestones[2]!.id, requirements: ["Title page and author name confirmed", "Complete scene order and intended frontmatter", "Word count reconciled with query letter", "Reader-facing headings; no scene IDs or filenames", "Internal feedback and planning annotations excluded", "Times New Roman, 12 pt, double spacing", "One-inch margins and paragraph indents", "Opened in Word and visually inspected"] },
-		{ id: makeId(), title: "Series overview", kind: "document", milestoneId: milestones[0]!.id, requirements: ["Author rewrite approved", "Established story distinguished from exploratory plans", "Opened exported document and visually inspected"] },
-		{ id: makeId(), title: "Query letter", kind: "document", milestoneId: milestones[1]!.id, requirements: ["Complete author-approved draft for editorial review", "Title, positioning and word count consistent with packet", "Opened exported document and visually inspected"] },
-	].map((item) => ({ ...item, kind: item.kind as ProjectMaterial["kind"], required: true, source: "", exportPath: "", approvedDigest: null, check: null, uploads: [] }));
-	const tasks: PreparationTask[] = materials.map((material) => ({ id: makeId(), title: `Prepare ${material.title.toLowerCase()}`, materialId: material.id, milestoneId: material.milestoneId, done: false }));
-	tasks.push({ id: makeId(), title: "Inspect all exports and stage packet", materialId: null, milestoneId: milestones[3]!.id, done: false });
-	tasks.push({ id: makeId(), title: "Upload and verify files in collaboration", materialId: null, milestoneId: null, done: false });
-	return { version: 1, id: makeId(), title: "Developmental edit", editor: editor.trim(), collaborationUrl: "", submissionDate: deadline, readinessDate: shiftDate(deadline, -7), expectedReturn: null, actualReturn: null, questionsDays: 10, deliveryId: null, milestones, materials, tasks, history: [] };
+	if (!isDate(deadline)) throw new Error("Choose a valid engagement start date.");
+	return { version: 1, id: makeId(), title: "Developmental edit", editor: editor.trim(), collaborationUrl: "", submissionDate: deadline, expectedReturn: null, actualReturn: null, questionsDays: 10, deliveryId: null, milestones: [], materials: [], tasks: [], history: [], records: [] };
 }
-export function materialState(material: ProjectMaterial, observed: MaterialObservation | undefined): MaterialState {
-	if (!observed || observed.error || !observed.sourceDigest) return "missing";
-	if (observed.snapshotError) return "recheck";
-	const checked = material.check;
-	const matches = checked && checked.sourceDigest === observed.sourceDigest && checked.exportDigest === observed.exportDigest && checked.exportPath === material.exportPath && checked.wordCount === material.wordCount && checked.packetWordCount === observed.packetWordCount && JSON.stringify(checked.requirements) === JSON.stringify(material.requirements);
-	if (checked && !matches) return "recheck";
-	if (material.approvedDigest !== observed.sourceDigest) return material.approvedDigest ? "recheck" : "drafting";
-	if (!matches) return "approved";
-	const upload = material.uploads.at(-1);
-	return upload && upload.check.at === checked.at && upload.check.exportDigest === checked.exportDigest ? "uploaded" : "checked";
-}
-export function materialDue(project: EditorialProject, material: ProjectMaterial): string {
-	const milestone = project.milestones.find((item) => item.id === material.milestoneId);
-	return [project.readinessDate, project.submissionDate, milestone?.day].filter((day): day is string => Boolean(day)).sort()[0]!;
+export function materialDue(project: EditorialProject, material: ProjectMaterial): string | null {
+	return project.milestones.find((item) => item.id === material.milestoneId)?.day ?? null;
 }
 export function preparationWork(project: EditorialProject): WorkCandidate[] {
 	return project.tasks.map((task) => {
 		const milestone = project.milestones.find((item) => item.id === task.milestoneId);
-		return { kind: "preparation", path: project.id, locator: task.id, title: task.title, detail: [project.title, milestone?.title].filter(Boolean).join(" · "), due: [project.submissionDate, task.milestoneId ? milestone?.day : null, task.materialId ? project.readinessDate : null].filter((day): day is string => Boolean(day)).sort()[0], complete: task.done, deferred: false };
+		const due = task.milestoneId === "__start__" ? project.submissionDate : milestone?.day;
+		return { kind: "preparation", path: project.id, locator: task.id, title: task.title, detail: [project.title, milestone?.title].filter(Boolean).join(" · "), ...(due ? { due } : {}), complete: task.done, deferred: false };
 	});
 }
-/** Deadline of an entry includes its milestone, even when manually scheduled. */
-export function workDeadline(plan: RevisionPlan, kind: WorkKind, due: string | null | undefined, required = true): string | null {
-	const project = plan.project;
-	const manuscript = project?.materials.find((item) => item.kind === "manuscript" && item.required);
-	const freeze = project?.milestones.find((item) => item.id === manuscript?.milestoneId)?.day;
-	const preparing = required && kind !== "preparation" && project && !project.actualReturn;
-	return [required ? plan.deadline : null, preparing ? freeze : null, preparing ? project.readinessDate : null, due].filter((day): day is string => Boolean(day)).sort()[0] ?? null;
+/** Only the author's explicit schedule deadline and the task's selected milestone constrain work. */
+export function workDeadline(plan: RevisionPlan, _kind: WorkKind, due: string | null | undefined, required = true): string | null {
+	return [required ? plan.deadline : null, due].filter((day): day is string => Boolean(day)).sort()[0] ?? null;
 }
 export function entryDeadline(plan: RevisionPlan, entry: Pick<PlanEntry, "source" | "required">, candidates: readonly WorkCandidate[]): string | null {
 	const source = resolvePlanSource(entry.source, candidates);
@@ -154,14 +137,23 @@ export function normalizeEditorialProject(raw: unknown): EditorialProject | unde
 	const data = record(raw);
 	if (!data || data.version !== 1) throw new Error("Unsupported editorial project version; update before saving.");
 	if (!/^[\w-]{1,128}$/.test(str(data.id))) throw new Error("The editorial project identity is invalid.");
-	if (!isDate(data.submissionDate) || !isDate(data.readinessDate) || data.readinessDate > data.submissionDate) throw new Error("The project needs valid readiness and submission dates.");
+	if (!isDate(data.submissionDate)) throw new Error("The engagement needs a valid start date.");
 	const milestones = unique(list(data.milestones).flatMap((value): ProjectMilestone[] => { const item = record(value); return item && str(item.id) && str(item.title) && isDate(item.day) ? [{ id: str(item.id), title: str(item.title), day: item.day, done: item.done === true }] : []; }));
 	const materials = unique(list(data.materials).flatMap((value): ProjectMaterial[] => {
 		const item = record(value); if (!item || !str(item.id) || !str(item.title) || !["manuscript", "document"].includes(str(item.kind))) return [];
 		const uploads = list(item.uploads).flatMap((value): MaterialUpload[] => { const upload = record(value), check = normalizeCheck(upload?.check); return upload && check && stamp(upload.at) && str(upload.filename) && str(upload.confirmation) ? [{ at: stamp(upload.at), filename: str(upload.filename), confirmation: str(upload.confirmation), check }] : []; });
 		const frozenSources = list(item.frozenSources).flatMap((value): FrozenSource[] => { const source = record(value); return source && str(source.path) && digest(source.digest) && str(source.copy) ? [{ path: str(source.path), digest: digest(source.digest)!, copy: str(source.copy), ...(str(source.sceneId) ? { sceneId: str(source.sceneId) } : {}) }] : []; });
-		return [{ ...(item.completed === true ? { completed: true } : {}), id: str(item.id), title: str(item.title), kind: item.kind as ProjectMaterial["kind"], required: item.required !== false, source: str(item.source), exportPath: str(item.exportPath), milestoneId: str(item.milestoneId) || null, requirements: texts(item.requirements), approvedDigest: digest(item.approvedDigest), check: normalizeCheck(item.check), uploads, ...(item.frozenSources !== undefined ? { frozenSources } : {}), ...(typeof item.wordCount === "number" && Number.isInteger(item.wordCount) && item.wordCount > 0 ? { wordCount: item.wordCount } : {}) }];
+		return [{ ...(str(item.notes) ? { notes: str(item.notes) } : {}), ...(item.completed === true ? { completed: true } : {}), id: str(item.id), title: str(item.title), kind: item.kind as ProjectMaterial["kind"], required: item.required !== false, source: str(item.source), exportPath: str(item.exportPath), milestoneId: str(item.milestoneId) || null, requirements: texts(item.requirements), approvedDigest: digest(item.approvedDigest), check: normalizeCheck(item.check), uploads, ...(item.frozenSources !== undefined ? { frozenSources } : {}), ...(typeof item.wordCount === "number" && Number.isInteger(item.wordCount) && item.wordCount > 0 ? { wordCount: item.wordCount } : {}) }];
 	}));
-	const tasks = unique(list(data.tasks).flatMap((value): PreparationTask[] => { const item = record(value); return item && str(item.id) && str(item.title) ? [{ id: str(item.id), title: str(item.title), materialId: str(item.materialId) || null, milestoneId: str(item.milestoneId) || null, done: item.done === true }] : []; }));
-	return { ...(["simple", "prepared", "submission"].includes(String(data.formality)) ? { formality: data.formality as EditorialProject["formality"] } : {}), version: 1, id: str(data.id), title: str(data.title) || "Editorial project", editor: str(data.editor), ...(str(data.reviewerId) ? { reviewerId: str(data.reviewerId) } : {}), collaborationUrl: collaborationUrl(str(data.collaborationUrl)), readinessDate: data.readinessDate, submissionDate: data.submissionDate, expectedReturn: isDate(data.expectedReturn) ? data.expectedReturn : null, actualReturn: isDate(data.actualReturn) ? data.actualReturn : null, questionsDays: typeof data.questionsDays === "number" && Number.isFinite(data.questionsDays) ? Math.max(0, Math.min(365, Math.round(data.questionsDays))) : 10, deliveryId: str(data.deliveryId) || null, milestones, materials, tasks, history: list(data.history).flatMap((value): ProjectEvent[] => { const item = record(value); return item && stamp(item.at) && str(item.text) ? [{ at: stamp(item.at), text: str(item.text) }] : []; }) };
+	const tasks = unique(list(data.tasks).flatMap((value): EngagementTask[] => { const item = record(value); return item && str(item.id) && str(item.title) ? [{ id: str(item.id), title: str(item.title), materialId: str(item.materialId) || null, milestoneId: str(item.milestoneId) || null, done: item.done === true }] : []; }));
+	return { records: normalizeEngagementRecords(data.records), version: 1, id: str(data.id), title: str(data.title) || "Editorial project", editor: str(data.editor), ...(str(data.reviewerId) ? { reviewerId: str(data.reviewerId) } : {}), collaborationUrl: collaborationUrl(str(data.collaborationUrl)), ...(isDate(data.readinessDate) ? { readinessDate: data.readinessDate } : {}), submissionDate: data.submissionDate, expectedReturn: isDate(data.expectedReturn) ? data.expectedReturn : null, actualReturn: isDate(data.actualReturn) ? data.actualReturn : null, questionsDays: typeof data.questionsDays === "number" && Number.isFinite(data.questionsDays) ? Math.max(0, Math.min(365, Math.round(data.questionsDays))) : 10, deliveryId: str(data.deliveryId) || null, milestones, materials, tasks, history: list(data.history).flatMap((value): ProjectEvent[] => { const item = record(value); return item && stamp(item.at) && str(item.text) ? [{ at: stamp(item.at), text: str(item.text) }] : []; }) };
+}
+
+function normalizeEngagementRecords(raw: unknown): EngagementRecord[] {
+	return unique(list(raw).map((value): EngagementRecord => {
+		const item = record(value), archive = record(item?.archive);
+		if (!item || !str(item.id) || !isDate(item.day) || !["sent", "received", "note"].includes(str(item.kind)) || !str(item.description)) throw new Error("An engagement record is invalid; repair it before saving.");
+		if (item.archive !== undefined && (!archive || !str(archive.copy) || !digest(archive.digest))) throw new Error("An archived reference is invalid; repair it before saving.");
+		return { id: str(item.id), day: item.day, kind: item.kind as EngagementRecord["kind"], description: str(item.description), filenames: str(item.filenames), referencePath: str(item.referencePath), ...(archive ? { archive: { copy: str(archive.copy), digest: digest(archive.digest)! } } : {}) };
+	}));
 }

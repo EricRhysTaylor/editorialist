@@ -99,7 +99,7 @@ export function normalizeRevisionPlans(raw: unknown): RevisionPlanStore {
 		if (project) plan.project = project;
 		const scheduling = object(input.scheduling);
 		if (scheduling) plan.scheduling = { preset: ["developmental", "copy", "mixed"].includes(String(scheduling.preset)) ? scheduling.preset as ScheduleDefaults["preset"] : DEFAULT_SCHEDULE.preset, sessionMinutes: Math.max(15, Math.min(240, minutes(scheduling.sessionMinutes) ?? 60)), useEstimates: scheduling.useEstimates !== false };
-		plan.deadline = project && !project.actualReturn ? project.submissionDate : (isDate(input.deadline) ? input.deadline : null);
+		plan.deadline = isDate(input.deadline) ? input.deadline : null;
 		const progress = normalizePlanProgress(input.progress);
 		if (progress) plan.progress = progress;
 		plan.reserveMinutes = minutes(input.reserveMinutes) ?? plan.reserveMinutes;

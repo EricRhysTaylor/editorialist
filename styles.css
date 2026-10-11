@@ -8232,7 +8232,6 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 .editorialist-project__hero,
 .editorialist-project__material,
 .editorialist-project__next,
-.editorialist-project__blockers,
 .editorialist-project__return {
 	min-width: 0;
 	padding: 14px;
@@ -8343,8 +8342,7 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 }
 
 .editorialist-project__hero p,
-.editorialist-project__material p,
-.editorialist-project__blockers p {
+.editorialist-project__material p p {
 	margin: 8px 0;
 	line-height: 1.45;
 }
@@ -8385,14 +8383,7 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	background: var(--background-primary);
 }
 
-.editorialist-project__material[data-material-state="recheck"] .editorialist-project__status,
-.editorialist-project__material[data-material-state="missing"] .editorialist-project__status,
-.editorialist-project__warning {
-	color: var(--text-normal);
-}
-
-.editorialist-project__material[data-material-state="uploaded"] .editorialist-project__status,
-.editorialist-project__material[data-material-state="checked"] .editorialist-project__status {
+.editorialist-project__material[data-material-state="complete"] .editorialist-project__status {
 	color: var(--text-normal);
 }
 
@@ -8406,14 +8397,8 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	background: var(--text-muted);
 }
 
-.editorialist-project__material[data-material-state="checked"] .editorialist-project__status::before,
-.editorialist-project__material[data-material-state="uploaded"] .editorialist-project__status::before {
+.editorialist-project__material[data-material-state="complete"] .editorialist-project__status::before {
 	background: var(--text-success);
-}
-
-.editorialist-project__material[data-material-state="missing"] .editorialist-project__status::before,
-.editorialist-project__material[data-material-state="recheck"] .editorialist-project__status::before {
-	background: var(--text-warning);
 }
 
 .editorialist-project__warning {
@@ -8466,7 +8451,28 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 }
 
 .editorialist-project__section {
-	margin: 14px 0;
+	margin: 16px 0;
+	padding: 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+}
+
+.editorialist-project__section > summary {
+	padding-block: 4px;
+	font-size: var(--font-small);
+	font-weight: var(--font-semibold);
+}
+
+.editorialist-project__material > button,
+.editorialist-project__section > button {
+	margin-block-start: 10px;
+	max-width: 100%;
+	height: auto;
+	white-space: normal;
+}
+
+.editorialist-project__material > button {
+	display: block;
 }
 
 .editorialist-project__history {

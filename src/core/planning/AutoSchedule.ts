@@ -64,11 +64,11 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 	};
 	const scene = (candidate: WorkCandidate): string => candidate.sceneOrder?.match(/\d+/)?.[0]?.padStart(8, "0") ?? "~";
 	chosen.sort((a, b) => {
-		const preparationOrder = plan.targets || plan.project && !plan.project.actualReturn ? (a.targetDate ?? workDeadline(plan, a.kind, a.due) ?? options.end).localeCompare(b.targetDate ?? workDeadline(plan, b.kind, b.due) ?? options.end) || Number(a.kind === "preparation") - Number(b.kind === "preparation") : 0;
+		const targetOrder = plan.targets || plan.project ? (a.targetDate ?? workDeadline(plan, a.kind, a.due) ?? options.end).localeCompare(b.targetDate ?? workDeadline(plan, b.kind, b.due) ?? options.end) || Number(a.kind === "preparation") - Number(b.kind === "preparation") : 0;
 		const scenes = scene(a).localeCompare(scene(b)) || (a.sceneOrder ?? "").localeCompare(b.sceneOrder ?? "", undefined, { numeric: true });
 		const phases = rank(phase(a)) - rank(phase(b));
 		const structure = Number(phase(a) !== "structure") - Number(phase(b) !== "structure");
-		return preparationOrder || (options.preset === "copy" ? scenes : options.preset === "mixed" ? structure || scenes || phases : phases || scenes) || a.title.localeCompare(b.title);
+		return targetOrder || (options.preset === "copy" ? scenes : options.preset === "mixed" ? structure || scenes || phases : phases || scenes) || a.title.localeCompare(b.title);
 	});
 	let estimated = 0;
 	let previousNewId: string | null = null;

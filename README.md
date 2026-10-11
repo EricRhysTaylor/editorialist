@@ -53,7 +53,7 @@ From there, Editorialist runs the workflow: it matches each suggestion to its pa
 - `Open editorialism panel` — opens the Editorialisms panel for structural guidance documents.
 - `Open editor engagement` — orders mixed revision work and plans author estimates against daily capacity and a deadline.
 - `Open author planner` — vault-wide writing goals with optional document links, book labels, target dates, hard deadlines, and shared capacity scheduling. Optionally link a goal to an RT book and publishing-stage target for two-way date sync.
-- `Open editorial project in workspace` — opens the planner in a full workspace tab. Use **Prepare for editor** to add materials, preparation milestones, source snapshots, export inspection, and upload history.
+- `Open editorial project in workspace` — opens the planner in a full workspace tab. Use **Create engagement** to record agreed dates, personal milestones, tasks, optional document references, and editorial activity history.
 - `Open pending edits panel` — opens the Pending edits panel for author notes and Inquiry follow-ups.
 - `Review pending edits in active book` — starts the pending-edits review flow across the active book.
 - `End current round` — removes the current batch or all remaining batches in the book, keeping manuscript edits and decision counts. Unfinished feedback is marked ended early; no archive is created.

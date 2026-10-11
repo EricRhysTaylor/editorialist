@@ -1,95 +1,78 @@
-# Editorial project planner
+# Editor engagement planner
 
-The Revision plan can now prepare a book for an editor before feedback arrives.
-Choose **Prepare for editor**, or use **Open editorial project in workspace** for
-a wider view. A project belongs to the active book's existing plan. Project data
-has its own version stamp; older plans load without a project, and unsupported
-project versions fail rather than silently losing data.
+Editor engagement records the author's commitments and editorial history. The
+author prepares, sends and receives files directly through their collaboration.
+The plugin has no submission preparation pipeline or remote transfer/verification.
 
 ## Workflow
 
-The developmental-edit preset adds manuscript, series overview and query letter
-materials. Four editable milestones fall 30, 21, 14 and 7 calendar days before
-submission. Readiness and the hard submission date are separate. The preset's
-requirements are editable assumptions to confirm against the editor's offer.
+Create an engagement using an existing human contributor, title, agreed start
+date and optional collaboration link. Expected and actual return dates and the
+questions window are editable. Existing feedback deliveries can be linked after
+the author imports them through the review tools.
 
-Overview emphasizes current packet readiness, next milestone, material blockers
-and preparation tasks. Materials shows sources, exports and preserved copies.
-Schedule retains Queue, Days, capacity and the preview-based auto-planner.
-History retains recorded uploads and project events. Optional supporting
-materials and editable preparation tasks can be added without importing feedback.
+New engagements start with empty milestones, tasks, references and records.
+The author adds milestones before or after the start date. Tasks optionally
+reference an item and target a milestone or the agreed start; no selected target
+means no task deadline. The schedule's own deadline is independently editable.
+The engagement start, former readiness dates and manuscript freeze dates never
+implicitly restrict revision work or block activity recording.
 
-The editor selector uses the existing contributor directory and stores its
-stable reviewer ID. The saved name remains a historical snapshot; current names
-come from the linked profile. The Editor profile action opens the existing
-contributor management flow. Missing identities require explicit relinking;
-legacy AI identities carrying human roles are excluded from the person picker.
-Legacy name-only projects remain readable and can link a unique human on save.
+Overview emphasizes the editor, agreed dates, next milestone and personal work.
+Materials is an optional reference register with descriptions, vault file links,
+personal milestone targets and explicit completion/reopening. Completion records
+an author decision; it has no connection to source hashes, export checks, task
+completion or remote delivery. Schedule retains Queue, Days, capacity, reserve
+and the existing auto-scheduler preview.
 
-Material readiness is independent of task or session completion:
+History contains author-recorded sent/received activity and notes. A record needs
+only an activity date and description; filenames and vault references are
+optional. Future activity belongs in the schedule rather than historical records.
+Authors can correct records, retaining their original archived copy. Live vault
+references follow file renames; historical filenames and archive evidence do not.
+Missing original references do not prevent correcting an existing record.
 
-1. Link an existing Markdown source and an exported DOCX inside the vault.
-   Supporting notes may be outside the manuscript folder.
-2. Approve the source, or freeze manuscript sources. Exact source copies,
-   membership, numeric path order and scene IDs are preserved locally.
-3. Record the final manuscript Word-export count. Open the exact export and
-   confirm each inspection requirement. Source/file SHA-256 fingerprints and a
-   readable Word package are checked; formatting, intended frontmatter, complete
-   export order and visual layout are author-confirmed, not automatically proven.
-4. A successful inspection preserves source copies, export bytes and JSON
-   recovery manifests under `Editorialist/Submissions/<project-id>/`.
-5. Upload through the external collaboration, then record its filename, date and
-   confirmation. Recording an upload does not send a file or verify a remote
-   account. The submitted copy and evidence remain separate from working drafts.
+## Optional reference archive
 
-Changing a source, its membership/order, export bytes, requirements, or recorded
-word count invalidates its current readiness. Missing/changed preserved copies
-also require rechecking. Historical uploads are retained. Headline counts refer
-to versions that match the current drafts. Snapshot operations never alter
-manuscript prose or accept review suggestions.
+On explicit request, a record can preserve a single saved vault file under
+`Editorialist/Engagement history/<project-id>/<unique-id>/`. Any file type is
+allowed within a 64 MB limit. The service copies saved bytes and checks that the
+copy was saved intact. It never assembles manuscript scenes, prepares packages,
+inspects Word formatting, transmits files or establishes receipt by an editor.
+The archived copy is independent of subsequent edits to the working document.
+If record persistence fails after copying, the error identifies the preserved
+copy; history and manuscript files are never deleted to compensate.
 
-## Scheduling and returns
+Earlier preparation events, checks, source snapshots and recorded-upload copies
+remain readable in History's **Preserved preparation history** section. Their
+original pointers and evidence stay in the plan store; existing archived files
+are untouched. They are read-only historical evidence and have no effect on
+readiness, scheduling or eligibility to record a new activity. The former process
+formality options and DOCX package checker have been removed.
 
-Preparation candidates retain stable task identities and milestone deadlines.
-Source revision work is due by manuscript freeze and packet readiness; uploading
-may be scheduled until the hard submission date. Automatic planning sorts
-preparation commitments by deadline, puts source work ahead of freeze tasks with
-the same deadline, and retains existing dependency, capacity and reserve rules.
-Unknown estimates remain unknown. Applying a preview checks book, plan and source
-freshness. Preparation sessions and author task completion remain distinct.
+## Contributor identity
 
-Project details can link an existing feedback delivery. Record actual editor
-return separately from expected return; the questions deadline is calculated
-from actual delivery. Recording actual return unlocks a separate revision
-deadline while preserving the historical submission deadline.
+The editor selector uses the contributor directory's stable human reviewer ID.
+Current display names follow that profile; the saved name remains a historical
+snapshot. Missing explicit identities require relinking. AI identities are never
+offered as human editors. The profile action opens existing contributor controls.
 
-## Hardening and verification
+## Validation
 
-Unit and integration coverage includes legacy persistence, unknown schemas,
-book isolation, source renames, rollback on save failure, snapshot byte fidelity,
-unsaved editor buffers, source membership changes, changes during copying,
-requirements, final word count, damaged staged copies, upload provenance,
-milestone scheduling, and calendar arithmetic through daylight saving.
-
-Word package inspection uses pinned `fflate` with filtered, bounded extraction;
-arbitrary ZIPs, malformed packages and oversized document parts are rejected.
-Its MIT notice is embedded in the generated plugin bundle. This is not a full
-OOXML conformance checker or an automated visual Word review.
-
-Rendered audit: Obsidian 1.14.4 in a separate local profile and synthetic vault,
-with no author manuscript fixtures. Overview, Materials, Schedule and History
-were captured at 420px and 300px in light/dark themes, along with empty, drift,
-inspection and project-detail states. The visual pass corrected light-theme
-status contrast, empty-state duplication, URL input styling and modal density.
-Capture artifacts are retained outside the public repository. Custom themes,
-mobile layouts and live collaboration upload were not verified.
-
-The follow-up integration pass used the actual Author-vault project and its
-existing human contributor in a separate Obsidian profile. It verified the
-native selector and contributor controls, saved identity, existing queue, and
-300px/420px light/dark layouts. Source manuscript and overview hashes were
-compared before and after; no prose changes or material approvals were made.
-Private captures remain outside this repository.
+Focused tests cover independent schedule deadlines, milestones after the start,
+optional file references, record round trips, historical evidence preservation,
+rename handling, save rollback and single-file archive fidelity. UI verification
+uses a separate synthetic Obsidian vault, normal/narrow sidebar widths and both
+light/dark themes. The native desktop audit inspected empty/populated views, engagement and activity
+dialogs, materials, preserved history, expected/actual return states and schedule
+sessions at 420 px and 300 px in light/dark themes. Forty captures are retained
+outside the public repository. Native interaction checks confirmed records with
+no files, opt-in archive fidelity after edits and renames, corrected-record and
+history persistence on reload, future-activity rejection, independently editable
+schedule deadlines, and post-start milestone work through schedule preview/apply.
+The bug sweep removed a stale preparation prompt, corrected chronological history
+ordering and preserved archive pointers when live references were renamed.
+`npm run check`, all 1,208 tests, and CSS drift checks passed.
 
 ## Editor engagement and author planner
 
@@ -112,12 +95,9 @@ placement. Sessions within a goal are ordered, while unrelated goals remain
 independent so an unschedulable goal does not block another. Finishing a session
 records work; completing the goal records the outcome.
 
-Editor process formality is optional and defaults to recorded submission for
-existing projects. Simple checklist tracks explicit material completion;
-checked preparation retains source snapshots and export checks; recorded
-submission also exposes verified upload recording. Switching process levels
-preserves prior checks, snapshots, and history. Author plans never create editor
-profiles, revision imports, or outbound deliveries.
+Editor engagement has one scheduling and record-keeping workflow. No process
+level enables source freezing, export inspection, packet staging or upload
+verification. Author plans never create editor profiles or outbound deliveries.
 
 ## Optional Radial Timeline stage targets
 
