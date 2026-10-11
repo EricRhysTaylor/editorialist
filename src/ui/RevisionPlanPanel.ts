@@ -209,7 +209,7 @@ export class RevisionPlanPanel extends ItemView {
 		if (open.length) {
 			const heading = root.createDiv({ cls: "editorialist-plan__section-heading" });
 			heading.createEl("h3", { text: this.view === "queue" ? "Your work queue" : "Your schedule" });
-			heading.createSpan({ text: `${open.length} tasks` });
+			heading.createSpan({ text: `${open.length} ${open.length === 1 ? "task" : "tasks"}` });
 		}
 		if (this.view === "queue") {
 			if (open.length) root.createEl("p", { cls: "editorialist-plan__hint", text: "Drag to prioritize · scheduling options on each task" });
@@ -233,7 +233,7 @@ export class RevisionPlanPanel extends ItemView {
 		const completed = this.plan.entries.filter((entry) => isPlanEntryComplete(entry, this.candidates, this.doneKeys()));
 		if (completed.length) {
 			const details = root.createEl("details", { attr: { "data-plan-section": "completed" } });
-			details.createEl("summary", { text: `${completed.length} finished sessions or resolved sources` });
+			details.createEl("summary", { text: completed.length === 1 ? "1 finished session or resolved source" : `${completed.length} finished sessions or resolved sources` });
 			for (const entry of completed) this.renderEntry(details, entry);
 		}
 		this.renderBacklog(root);
@@ -339,7 +339,7 @@ export class RevisionPlanPanel extends ItemView {
 			forecast.unlinkedCount ? `${forecast.unlinkedCount} ${forecast.unlinkedCount === 1 ? "task needs" : "tasks need"} relinking` : "",
 			forecast.afterDeadlineCount ? `${forecast.afterDeadlineCount} required tasks fall after the deadline` : "",
 			forecast.overloadedDays.length ? `Over capacity: ${forecast.overloadedDays.map(planDayLabel).join(", ")}` : "",
-			forecast.dependencyWarnings.length ? `${forecast.dependencyWarnings.length} tasks need prerequisite checks` : "",
+			forecast.dependencyWarnings.length ? (forecast.dependencyWarnings.length === 1 ? "1 task needs prerequisite checks" : `${forecast.dependencyWarnings.length} tasks need prerequisite checks`) : "",
 			open.some((entry) => entry.day && entry.day < localDate(new Date())) ? "Past dates need rescheduling" : "",
 		].filter(Boolean);
 		for (const issue of issues) summary.createDiv({ cls: "editorialist-plan__warning", text: issue });

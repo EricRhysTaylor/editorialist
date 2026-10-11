@@ -1491,7 +1491,7 @@ export default class EditorialistPlugin extends Plugin {
 				const choice = await openEditorialistChoiceModal(this.app, {
 					title: "End current round",
 					description: `Choose the feedback to remove from ${scope.label ?? "the current scene"}. Your manuscript edits will be kept.`,
-					details: entries.map((entry) => `${entry.batchId} · ${entry.importedNotePaths.length} scenes`),
+					details: entries.map((entry) => `${entry.batchId} · ${entry.importedNotePaths.length} ${entry.importedNotePaths.length === 1 ? "scene" : "scenes"}`),
 					choices: [
 						...(current ? [{ label: "Current batch only", value: "current" }] : []),
 						{ label: "All remaining batches in this book", value: "all" },
@@ -1680,7 +1680,7 @@ export default class EditorialistPlugin extends Plugin {
 			};
 		}
 
-		const parts = [`${session.suggestions.length} suggestions`];
+		const parts = [`${session.suggestions.length} ${session.suggestions.length === 1 ? "suggestion" : "suggestions"}`];
 		const guidedSweep = this.getGuidedSweep();
 		if (guidedSweep?.notePaths.length) {
 			parts.push(`${guidedSweep.notePaths.length} ${this.getSweepUnitLabel(guidedSweep.notePaths.length, session.notePath)}`);

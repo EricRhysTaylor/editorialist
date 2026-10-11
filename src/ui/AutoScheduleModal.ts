@@ -99,7 +99,7 @@ export class AutoScheduleModal extends Modal {
 		for (const [value, label] of [[`${Math.round(low / 6) / 10}–${Math.round(high / 6) / 10}`, "Estimated hours"], [String(draft.generated.length), "Sessions"], [String(new Set(dated.map((entry) => entry.day)).size), "Working days"]]) {
 			const metric = metrics.createDiv(); metric.createEl("strong", { text: value }); metric.createSpan({ text: label });
 		}
-		if (unscheduled) preview.createEl("p", { cls: "editorialist-plan__warning", text: `${unscheduled} sessions do not fit. Increase availability or shorten the selected work, then preview again.` });
+		if (unscheduled) preview.createEl("p", { cls: "editorialist-plan__warning", text: `${unscheduled === 1 ? "1 session does" : `${unscheduled} sessions do`} not fit. Increase availability or shorten the selected work, then preview again.` });
 		if (this.adjusting) preview.createEl("p", { text: "Completed work, dates you kept, and other commitments stay in place." });
 		for (const warning of this.warnings) preview.createEl("p", { cls: "editorialist-plan__warning", text: warning });
 		if (draft.issues.length) {

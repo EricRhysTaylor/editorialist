@@ -190,7 +190,7 @@ export class EditorialismPanel extends ItemView {
 			title.createSpan({ text: summary.title });
 			const meta = main.createDiv({ cls: "editorialist-editorialism-panel__list-meta" });
 			meta.createSpan({
-				text: `${summary.totalItems} items · ${summary.totalItems - summary.doneItems} remaining${summary.deferredItems ? ` · ${summary.deferredItems} deferred` : ""}${summary.remainingMinutes ? ` · ~${formatEffortDuration(summary.remainingMinutes)}` : ""}`,
+				text: `${summary.totalItems} ${summary.totalItems === 1 ? "item" : "items"} · ${summary.totalItems - summary.doneItems} remaining${summary.deferredItems ? ` · ${summary.deferredItems} deferred` : ""}${summary.remainingMinutes ? ` · ~${formatEffortDuration(summary.remainingMinutes)}` : ""}`,
 			});
 			const attribution = formatAttribution(summary) || deliveries.find((delivery) => delivery.files.includes(summary.filePath))?.reviewer || "Unattributed";
 			if (attribution) {

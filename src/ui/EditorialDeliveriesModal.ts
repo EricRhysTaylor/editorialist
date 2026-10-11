@@ -33,12 +33,12 @@ export class EditorialDeliveriesModal extends Modal {
 				card.createEl("p", { text: `Received ${deliveryDate(delivery.received)} · Due ${deliveryDate(delivery.due)}` });
 				for (const path of delivery.files) {
 					const file = files.find((item) => item.filePath === path);
-					card.createEl("p", { text: file ? `${file.title} · ${file.doneItems}/${file.totalItems} items done${file.status === "inactive" ? " · Inactive" : ""}` : `${path} · File unavailable for this book` });
+					card.createEl("p", { text: file ? `${file.title} · ${file.doneItems}/${file.totalItems} ${file.totalItems === 1 ? "item" : "items"} done${file.status === "inactive" ? " · Inactive" : ""}` : `${path} · File unavailable for this book` });
 				}
 				for (const id of delivery.batchIds) {
 					const batch = batches.find((item) => item.batchId === id);
 					const stats = this.plugin.getBatchDecisionStats(id);
-					card.createEl("p", { text: batch ? `Batch ${new Date(batch.importedAt).toLocaleDateString()} · ${stats.accepted + stats.rejected + stats.rewritten}/${batch.totalSuggestions} decisions · ${batch.status.replace(/_/g, " ")}` : `Batch ${id} · Unavailable for this book` });
+					card.createEl("p", { text: batch ? `Batch ${new Date(batch.importedAt).toLocaleDateString()} · ${stats.accepted + stats.rejected + stats.rewritten}/${batch.totalSuggestions} ${batch.totalSuggestions === 1 ? "decision" : "decisions"} · ${batch.status.replace(/_/g, " ")}` : `Batch ${id} · Unavailable for this book` });
 				}
 				if (!delivery.files.length && !delivery.batchIds.length) card.createEl("p", { text: "No feedback linked yet." });
 				const actions = card.createDiv({ cls: "editorialist-deliveries__actions" });
@@ -77,7 +77,7 @@ export class EditorialDeliveriesModal extends Modal {
 			input.addEventListener("change", () => { draft[kind] = input.checked ? [...new Set([...draft[kind], value])] : draft[kind].filter((item) => item !== value); });
 		};
 		form.createEl("h3", { text: "Editorialism files" });
-		for (const file of files) link(form, `${file.title} · ${file.reviewer || "Unattributed"} · ${file.totalItems} items`, file.filePath, "files");
+		for (const file of files) link(form, `${file.title} · ${file.reviewer || "Unattributed"} · ${file.totalItems} ${file.totalItems === 1 ? "item" : "items"}`, file.filePath, "files");
 		for (const path of draft.files.filter((path) => !files.some((file) => file.filePath === path))) link(form, `${path} · Unavailable`, path, "files");
 		form.createEl("h3", { text: "Batches" });
 		form.createEl("p", { cls: "editorialist-deliveries__intro", text: "Batch progress counts suggestion decisions. Memos do not have completion decisions." });
