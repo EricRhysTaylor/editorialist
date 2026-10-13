@@ -13,7 +13,9 @@ Keep an editor’s agreed dates, personal milestones, tasks, optional reference 
 
 ## Overview and milestones
 
-The overview puts the editor, agreed start, next milestone, and **Editor return & questions** together. Add personal milestones before or after the start date; mark them complete when you decide the work is done.
+The overview starts with your editor and the agreed start date, counted down in days ("9 days away", "Today", or "3 days ago"). **Next up** follows: the first unfinished item in your schedule's work queue, so the overview and the **Schedule** tab always agree on what comes first. An engagement task can be finished right there with its check circle; any other kind of work shows what it is, when it is scheduled, and an **Open** button. The card also shows the next open milestone, marked overdue in amber once its date passes, and **Open schedule**. When the queue is empty, it says so and points you to the **Schedule** tab.
+
+**Editor return & questions**, **Engagement tasks**, **Milestones**, and **Materials & references** follow as sections you can collapse; each remembers whether you left it open or closed. Rows show their state at the left (a check circle for tasks and materials, a flag for milestones, struck through once done) and quiet icon actions at the right. Add personal milestones before or after the start date; mark them complete when you decide the work is done.
 
 Tasks can target a milestone or the agreed start date, and optionally reference a material. Leaving a target unset gives that task no individual deadline. The schedule’s own deadline stays independently editable. The start date does not cut off work after an editor returns.
 
@@ -39,7 +41,7 @@ Choose **Record activity** to record sent files, received files, or a note. A da
 
 If you explicitly choose to archive the referenced file, Editorialist preserves one saved file, up to 64 MB, under `Editorialist/Engagement history/`. That copy remains independent of later changes to the working document. Live references follow file renames; historical filenames and archived copies preserve the record.
 
-Earlier preparation records and archived evidence remain readable in **Preserved preparation history**, if present. They do not gate scheduling or new activity.
+Earlier preparation records and archived evidence remain readable in **Preserved preparation history**, if present. The section starts collapsed; each archived export and source copy is a link that opens it. They do not gate scheduling or new activity.
 
 ## Upgrading from 2.0.0
 

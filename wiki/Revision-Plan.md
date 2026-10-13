@@ -25,9 +25,11 @@ The forecast uses the high end of estimates and includes scheduled optional work
 
 ## Work a session
 
-**Open source** takes you to the underlying feedback. **Finish session** completes only the planning session: it does not accept a batch suggestion, check off an Editorialism, or remove a Pending edit. Resolve those in their source workflow. Source completion can also make its planned work complete. A batch is complete once every suggestion in it is decided; its memos ride along. A batch holding only memos has nothing to decide, so it stays open until you finish its session.
+Each card in the queue shows its kind, title, context, and its date and estimate (dashed when not yet set). The check circle at the left is **Finish session**; the icons at the right are **Open source**, which takes you to the underlying feedback, and **Schedule & options**. Clicking the date or estimate opens the same options.
 
-**Schedule & options** holds the date, effort range, required-for-deadline flag, lock, prerequisite, and removal controls. **Remove from plan** preserves the source feedback. **Keep this date** protects the session during regeneration; manual editing remains available.
+**Finish session** completes only the planning session: it does not accept a batch suggestion, check off an Editorialism, or remove a Pending edit. Resolve those in their source workflow. Source completion can also make its planned work complete. A batch is complete once every suggestion in it is decided; its memos ride along. A batch holding only memos has nothing to decide, so it stays open until you finish its session.
+
+The options hold the date, effort range, required-for-deadline flag, lock, prerequisite, and removal controls. **Remove from plan** preserves the source feedback. **Keep this date** protects the session during regeneration; manual editing remains available.
 
 If an instruction changes or goes missing, its task asks to be relinked. Once the plan has refreshed, choose the replacement and click **Relink**. Its date and estimate are preserved. Keep unchanged agenda wording, scope, and section headings stable to avoid unnecessary relinking. A planned batch whose review blocks are cleaned away while progress is being tracked counts as complete rather than asking to be relinked.
 
