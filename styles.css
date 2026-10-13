@@ -7256,10 +7256,11 @@
 .editorialist-plan__entry {
 	--editorialist-source-color: var(--color-blue);
 
-	padding: 14px;
-	margin: 10px 0;
+	margin: 8px 0;
+	padding: 10px 8px 10px 4px;
 	border: 1px solid var(--background-modifier-border);
-	border-radius: 10px;
+	border-inline-start: 3px solid color-mix(in srgb, var(--editorialist-source-color) 65%, var(--background-modifier-border));
+	border-radius: 8px;
 	background: var(--background-primary);
 	overflow-wrap: anywhere;
 	transition: border-color 120ms ease, opacity 120ms ease;
@@ -7275,17 +7276,71 @@
 
 .editorialist-plan__entry:hover {
 	border-color: color-mix(in srgb, var(--interactive-accent) 40%, var(--background-modifier-border));
+	border-inline-start-color: color-mix(in srgb, var(--editorialist-source-color) 85%, var(--background-modifier-border));
 }
 
 .editorialist-plan__entry.is-dragging {
 	opacity: 0.45;
 }
 
+.editorialist-plan__entry.is-done .editorialist-plan__task-title {
+	color: var(--text-faint);
+	text-decoration: line-through;
+}
+
+.editorialist-plan__entry-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 4px;
+}
+
+.editorialist-plan__grip {
+	display: inline-flex;
+	flex: 0 0 auto;
+	padding: 6px 0;
+	color: var(--text-faint);
+	cursor: grab;
+}
+
+.editorialist-plan__entry:not(:hover) .editorialist-plan__grip {
+	opacity: 0.45;
+}
+
+.editorialist-plan__body button.editorialist-plan__finish,
+.editorialist-plan__body button.editorialist-plan__icon-action {
+	flex: 0 0 auto;
+	height: auto;
+	padding: 4px;
+	border: none;
+	background: transparent;
+	box-shadow: none;
+	color: var(--text-muted);
+}
+
+.editorialist-plan__body button.editorialist-plan__finish svg {
+	width: 20px;
+	height: 20px;
+}
+
+.editorialist-plan__body button.editorialist-plan__finish:hover,
+.editorialist-plan__body button.editorialist-plan__finish.is-done {
+	color: var(--color-green);
+}
+
+.editorialist-plan__entry-main {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	gap: 3px;
+	min-width: 0;
+	padding: 3px 2px 0 4px;
+}
+
 .editorialist-plan__entry-heading {
 	display: flex;
-	justify-content: space-between;
+	flex-wrap: wrap;
 	align-items: center;
-	margin-bottom: 9px;
+	gap: 4px 8px;
 }
 
 .editorialist-plan__kind {
@@ -7302,56 +7357,88 @@
 	height: 12px;
 }
 
-.editorialist-plan__done-label {
+.editorialist-plan__entry-flag {
 	font-size: 10px;
-	color: var(--text-success);
+	color: var(--text-faint);
 }
 
 .editorialist-plan__task-title {
-	display: flex;
-	align-items: flex-start;
-	gap: 5px;
+	color: var(--text-normal);
 	font-size: 14px;
 	font-weight: 600;
-	line-height: 1.5;
+	line-height: 1.4;
 	cursor: grab;
 }
 
-.editorialist-plan__grip {
-	color: var(--text-faint);
-	margin-left: -6px;
-	margin-top: 2px;
-	flex-shrink: 0;
-}
-
 .editorialist-plan__entry .editorialist-plan__task-context {
-	font-size: 11px;
 	color: var(--text-muted);
-	line-height: 1.5;
-	margin: 6px 0 10px;
+	font-size: 11px;
+	line-height: 1.45;
 }
 
 .editorialist-plan__task-meta {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 6px;
-	margin-bottom: 12px;
+	margin-top: 5px;
 }
 
-.editorialist-plan__task-meta > span {
+.editorialist-plan__body button.editorialist-plan__chip {
 	display: inline-flex;
 	align-items: center;
 	gap: 5px;
-	padding: 3px 6px;
+	height: auto;
+	padding: 3px 7px;
+	border: none;
 	border-radius: 4px;
-	font-size: 10px;
-	color: var(--text-muted);
 	background: var(--background-secondary);
+	box-shadow: none;
+	color: var(--text-muted);
+	font-size: 10px;
+	cursor: pointer;
 }
 
-.editorialist-plan__task-meta svg {
+.editorialist-plan__body button.editorialist-plan__chip:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+.editorialist-plan__body button.editorialist-plan__chip.is-unset {
+	border: 1px dashed var(--background-modifier-border);
+	background: transparent;
+}
+
+.editorialist-plan__body button.editorialist-plan__chip svg {
 	width: 11px;
 	height: 11px;
+}
+
+/* Stacked, so the title keeps the width in a narrow sidebar. */
+.editorialist-plan__entry-actions {
+	display: flex;
+	flex: 0 0 auto;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.editorialist-plan__body button.editorialist-plan__icon-action svg {
+	width: 16px;
+	height: 16px;
+}
+
+.editorialist-plan__body button.editorialist-plan__icon-action:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+.editorialist-plan__entry-options > summary {
+	display: none;
+}
+
+.editorialist-plan__entry-options[open] {
+	margin: 10px 4px 0 30px;
+	padding-top: 10px;
+	border-top: 1px solid var(--background-modifier-border);
 }
 
 .editorialist-plan__actions {
@@ -7387,11 +7474,6 @@
 .editorialist-plan details > summary {
 	cursor: pointer;
 	list-style-position: inside;
-}
-
-.editorialist-plan__entry details > summary {
-	font-size: 11px;
-	color: var(--text-muted);
 }
 
 .editorialist-plan__fields {
@@ -7656,23 +7738,6 @@
 	font-size: 10px;
 	font-variant-numeric: tabular-nums;
 	color: var(--text-muted);
-}
-
-.editorialist-plan__entry-footer {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 12px 10px;
-}
-
-.editorialist-plan__entry-footer > .editorialist-plan__actions {
-	margin: 0;
-}
-
-.editorialist-plan__entry-footer > details {
-	flex-basis: 100%;
-	padding-top: 12px;
-	border-top: 1px solid var(--background-modifier-border);
 }
 
 .editorialist-panel__welcome {

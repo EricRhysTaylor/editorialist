@@ -26,7 +26,9 @@ export class RevisionPlanPanel extends ItemView {
 	private warnings: string[] = [];
 	private view: "queue" | "days" = "queue";
 	private section: "overview" | "materials" | "schedule" | "history" = "overview";
-	private readonly collapsedSections = new Set<string>();
+	// Each section's last open/closed state as the author left it, kept across
+	// re-renders and tab switches; a section never toggled keeps its default.
+	private readonly sectionOpen = new Map<string, boolean>();
 	private dragging: string | null = null;
 	private busy = false;
 	private loaded = false;
@@ -197,10 +199,7 @@ export class RevisionPlanPanel extends ItemView {
 	}
 	private render(): void {
 		const container = this.contentEl;
-		const expanded = new Set(Array.from(container.querySelectorAll<HTMLDetailsElement>("details[data-plan-section]")).filter((item) => item.open).map((item) => item.dataset.planSection));
-		// Sections that render open by default must stay closed once the author
-		// closes them; a re-render would otherwise reopen them on every refresh.
-		for (const item of Array.from(container.querySelectorAll<HTMLDetailsElement>("details[data-plan-section]"))) { const key = item.dataset.planSection; if (!key) continue; if (item.open) this.collapsedSections.delete(key); else this.collapsedSections.add(key); }
+		for (const item of Array.from(container.querySelectorAll<HTMLDetailsElement>("details[data-plan-section]"))) { const key = item.dataset.planSection; if (key) this.sectionOpen.set(key, item.open); }
 		// Background refreshes re-render; keep the author's place.
 		const scrollTop = container.scrollTop;
 		container.empty();
@@ -211,7 +210,7 @@ export class RevisionPlanPanel extends ItemView {
 			for (const [value, label] of [["overview", "Goals"], ["schedule", "Schedule"]] as const) { const tab = this.button(navigation, label, () => { this.section = value; this.render(); }); tab.setAttribute("aria-pressed", String(this.section === value)); }
 			if (this.section !== "schedule") {
 				this.authorPanel().render(root);
-				for (const item of Array.from(root.querySelectorAll<HTMLDetailsElement>("details[data-plan-section]"))) { const key = item.dataset.planSection; if (key && this.collapsedSections.has(key)) item.open = false; else if (expanded.has(key)) item.open = true; }
+				this.restoreSections(root);
 				container.scrollTop = scrollTop; return;
 			}
 		}
@@ -224,7 +223,7 @@ export class RevisionPlanPanel extends ItemView {
 				if (this.stale) root.createEl("p", { cls: "editorialist-plan__freshness", text: "Sources changed. Updating…", attr: { role: "status" } });
 				const project = this.projectPanel();
 				if (this.section === "overview") project.renderOverview(root); else if (this.section === "materials") project.renderMaterials(root); else project.renderHistory(root);
-				for (const item of Array.from(root.querySelectorAll<HTMLDetailsElement>("details[data-plan-section]"))) { const key = item.dataset.planSection; if (key && this.collapsedSections.has(key)) item.open = false; else if (expanded.has(key)) item.open = true; }
+				this.restoreSections(root);
 				if (this.busy) for (const control of Array.from(root.querySelectorAll<HTMLButtonElement>("button"))) control.disabled = true;
 				container.scrollTop = scrollTop; return;
 			}
@@ -280,8 +279,14 @@ export class RevisionPlanPanel extends ItemView {
 			for (const entry of completed) this.renderEntry(details, entry);
 		}
 		this.renderBacklog(root);
-		for (const item of Array.from(root.querySelectorAll<HTMLDetailsElement>("details[data-plan-section]"))) { const key = item.dataset.planSection; if (key && this.collapsedSections.has(key)) item.open = false; else if (expanded.has(key)) item.open = true; }
+		this.restoreSections(root);
 		container.scrollTop = scrollTop;
+	}
+	private restoreSections(root: HTMLElement): void {
+		for (const item of Array.from(root.querySelectorAll<HTMLDetailsElement>("details[data-plan-section]"))) {
+			const open = item.dataset.planSection ? this.sectionOpen.get(item.dataset.planSection) : undefined;
+			if (open !== undefined) item.open = open;
+		}
 	}
 	private weekDays(): string[] {
 		return Array.from({ length: 7 }, (_, index) => { const day = new Date(); day.setDate(day.getDate() + index); return localDate(day); });
@@ -436,39 +441,63 @@ export class RevisionPlanPanel extends ItemView {
 		this.input(details, "Reserve minutes", "number", String(this.plan.reserveMinutes), (value) => { void this.change((plan) => { plan.reserveMinutes = Number(value); }); });
 		details.createEl("p", { text: "Set zero for days off. Reserve leaves room for surprises. Capacity repeats weekly and includes a full allowance for today." });
 	}
+	// A queue card reads like the engagement rows: state at the left (drag
+	// handle, then a check circle that finishes or reopens the session), the
+	// work in the middle, and quiet icon actions at the right. Scheduling
+	// fields stay one click away instead of a footer of grey text buttons;
+	// the date and estimate chips open them too.
 	private renderEntry(parent: HTMLElement, entry: PlanEntry): void {
-		const row = parent.createDiv({ cls: "editorialist-plan__entry", attr: { "data-work-kind": entry.source.kind } });
+		const row = parent.createDiv({ cls: `editorialist-plan__entry${entry.done ? " is-done" : ""}`, attr: { "data-work-kind": entry.source.kind } });
 		const resolved = resolvePlanSource(entry.source, this.candidates);
-		const heading = row.createDiv({ cls: "editorialist-plan__entry-heading" });
+		const layout = row.createDiv({ cls: "editorialist-plan__entry-row" });
+		const grip = layout.createSpan({ cls: "editorialist-plan__grip", attr: { draggable: "true", title: "Drag to reorder or assign a day" } });
+		setIcon(grip, "grip-vertical");
+		grip.addEventListener("dragstart", (event) => { this.dragging = entry.id; row.addClass("is-dragging"); event.dataTransfer?.setData("text/plain", entry.id); });
+		grip.addEventListener("dragend", () => { this.dragging = null; row.removeClass("is-dragging"); });
+		if (this.view === "queue") this.dropTarget(row, (id) => { void this.change((plan) => { plan.entries = movePlanEntry(plan.entries, id, entry.id); }); });
+		const finish = this.button(layout, "", () => { void this.edit(entry.id, (item) => { item.done = !item.done; }); });
+		finish.addClass("clickable-icon", "editorialist-plan__finish");
+		if (entry.done) finish.addClass("is-done");
+		finish.setAttribute("aria-label", entry.done ? "Reopen session" : "Finish session");
+		setIcon(finish, entry.done ? "check-circle-2" : "circle");
+
+		const main = layout.createDiv({ cls: "editorialist-plan__entry-main" });
+		const heading = main.createDiv({ cls: "editorialist-plan__entry-heading" });
 		const badge = heading.createSpan({ cls: "editorialist-plan__kind" });
 		setIcon(badge.createSpan(), kindIcons[entry.source.kind]);
 		badge.createSpan({ text: this.author ? "Writing goal" : kindLabels[entry.source.kind] });
-		if (entry.locked) heading.createSpan({ cls: "editorialist-plan__done-label", text: "Locked" });
-		if (entry.sessionCount) heading.createSpan({ cls: "editorialist-plan__done-label", text: `Session ${entry.sessionIndex}/${entry.sessionCount}` });
-		if (entry.estimated) heading.createSpan({ cls: "editorialist-plan__done-label", text: "Estimated" });
-		if (entry.done) heading.createSpan({ cls: "editorialist-plan__done-label", text: "Finished" });
-		const title = row.createDiv({ cls: "editorialist-plan__task-title", attr: { draggable: "true", title: "Drag to reorder or assign a day" } });
-		setIcon(title.createSpan({ cls: "editorialist-plan__grip" }), "grip-vertical");
-		title.createSpan({ text: resolved.state === "ready" ? resolved.candidate.title : entry.source.kind === "pending" ? pendingWorkTitle(entry.title) : entry.title });
+		for (const label of [entry.sessionCount ? `Session ${entry.sessionIndex}/${entry.sessionCount}` : "", entry.estimated ? "Estimated" : "", entry.locked ? "Date kept" : "", entry.done ? "Finished" : "", entry.required ? "" : "Optional"]) {
+			if (label) heading.createSpan({ cls: "editorialist-plan__entry-flag", text: label });
+		}
+		const title = main.createDiv({ cls: "editorialist-plan__task-title", attr: { draggable: "true" } });
+		title.setText(resolved.state === "ready" ? resolved.candidate.title : entry.source.kind === "pending" ? pendingWorkTitle(entry.title) : entry.title);
 		title.addEventListener("dragstart", (event) => { this.dragging = entry.id; row.addClass("is-dragging"); event.dataTransfer?.setData("text/plain", entry.id); });
 		title.addEventListener("dragend", () => { this.dragging = null; row.removeClass("is-dragging"); });
-		if (this.view === "queue") this.dropTarget(row, (id) => { void this.change((plan) => { plan.entries = movePlanEntry(plan.entries, id, entry.id); }); });
-		row.createEl("p", { cls: "editorialist-plan__task-context", text: `${resolved.state === "ready" ? resolved.candidate.detail : entry.source.path}${resolved.state === "ready" && resolved.candidate.deferred ? " · Deferred at source" : ""}` });
-		if (resolved.state === "ready" && resolved.candidate.inactive) row.createEl("p", { cls: "editorialist-plan__hint", text: "Source inactive · kept in your plan. Keep this task or remove it in schedule & options." });
+		main.createDiv({ cls: "editorialist-plan__task-context", text: `${resolved.state === "ready" ? resolved.candidate.detail : entry.source.path}${resolved.state === "ready" && resolved.candidate.deferred ? " · Deferred at source" : ""}` });
+		if (resolved.state === "ready" && resolved.candidate.inactive) main.createEl("p", { cls: "editorialist-plan__hint", text: "Source inactive · kept in your plan. Keep this task or remove it in its options." });
 		const deadline = entryDeadline(this.plan, entry, this.candidates);
-		if (deadline && entry.day && entry.day > deadline) row.createEl("p", { cls: "editorialist-plan__warning", text: `Scheduled after its deadline or milestone (${deadline}).` });
-		const metadata = row.createDiv({ cls: "editorialist-plan__task-meta" });
-		for (const [icon, text] of [["calendar", entry.day ? planDayLabel(entry.day) : "Unscheduled"], ["clock-3", entry.lowMinutes === null || entry.highMinutes === null ? "Add estimate" : `${entry.lowMinutes}–${entry.highMinutes} min`]]) {
-			const chip = metadata.createSpan(); setIcon(chip.createSpan(), icon!); chip.createSpan({ text });
-		}
-		if (!entry.required) metadata.createSpan({ text: "Optional" });
-		const footer = row.createDiv({ cls: "editorialist-plan__entry-footer" });
-		const actions = footer.createDiv({ cls: "editorialist-plan__actions" });
-		if (entry.source.kind !== "preparation") this.sourceButton(actions, "Open source", () => { if (resolved.state === "ready") void this.plugin.openRevisionWork(resolved.candidate); }, resolved.state !== "ready" || this.stale);
-		this.button(actions, entry.done ? "Reopen" : "Finish session", () => { void this.edit(entry.id, (item) => { item.done = !item.done; }); });
-		const details = footer.createEl("details", { attr: { "data-plan-section": entry.id } });
+		if (deadline && entry.day && entry.day > deadline) main.createEl("p", { cls: "editorialist-plan__warning", text: `Scheduled after its deadline or milestone (${deadline}).` });
+
+		const details = row.createEl("details", { cls: "editorialist-plan__entry-options", attr: { "data-plan-section": entry.id } });
 		details.createEl("summary", { text: "Schedule & options" });
-		details.createEl("p", { cls: "editorialist-plan__hint", text: this.author ? "Finish session records this work period. Mark complete on the goal when its outcome is ready." : "Finish session changes this plan only. It does not accept edits or resolve the source instruction." });
+		const metadata = main.createDiv({ cls: "editorialist-plan__task-meta" });
+		for (const [icon, text, unset] of [["calendar", entry.day ? planDayLabel(entry.day) : "Unscheduled", !entry.day], ["clock-3", entry.lowMinutes === null || entry.highMinutes === null ? "Add estimate" : `${entry.lowMinutes}–${entry.highMinutes} min`, entry.lowMinutes === null || entry.highMinutes === null]] as const) {
+			const chip = this.button(metadata, "", () => { details.open = true; details.querySelector<HTMLInputElement>("input")?.focus(); });
+			chip.addClass("editorialist-plan__chip");
+			if (unset) chip.addClass("is-unset");
+			setIcon(chip.createSpan(), icon); chip.createSpan({ text });
+		}
+
+		const actions = layout.createDiv({ cls: "editorialist-plan__entry-actions" });
+		if (entry.source.kind !== "preparation") {
+			this.sourceButton(actions, "", () => { if (resolved.state === "ready") void this.plugin.openRevisionWork(resolved.candidate); }, resolved.state !== "ready" || this.stale);
+			const open = actions.lastElementChild as HTMLButtonElement;
+			open.addClass("clickable-icon", "editorialist-plan__icon-action"); open.setAttribute("aria-label", "Open source"); setIcon(open, "arrow-up-right");
+		}
+		const options = this.button(actions, "", () => { details.open = !details.open; });
+		options.addClass("clickable-icon", "editorialist-plan__icon-action"); options.setAttribute("aria-label", "Schedule & options"); setIcon(options, "sliders-horizontal");
+
+		details.createEl("p", { cls: "editorialist-plan__hint", text: this.author ? "The check records this work period as finished. Mark complete on the goal when its outcome is ready." : "The check finishes this session in your plan only. It does not accept edits or resolve the source instruction." });
 		const fields = details.createDiv({ cls: "editorialist-plan__fields" });
 		this.input(fields, "Day", "date", entry.day ?? "", (value) => { void this.edit(entry.id, (item) => { item.day = isDate(value) ? value : null; }); });
 		this.input(fields, "Low minutes", "number", entry.lowMinutes === null ? "" : String(entry.lowMinutes), (value) => { void this.edit(entry.id, (item) => { item.lowMinutes = value === "" ? null : Number(value); }); });
