@@ -1,5 +1,5 @@
 import { Modal, Notice, TFile, normalizePath, setIcon, type App } from "obsidian";
-import { collaborationUrl, createEditorialProject, engagementStartCountdown, isProjectEditorProfile, materialDue, projectEditor, recordProjectEvent, shiftDate, type EditorialProject, type EngagementRecord, type ProjectMaterial } from "../core/planning/EditorialProject";
+import { collaborationUrl, createEditorialProject, engagementStartCountdown, isProjectEditorProfile, materialDue, projectEditor, recordProjectEvent, shiftDate, type EditorialProject, type EngagementRecord, type EngagementTask, type ProjectMaterial } from "../core/planning/EditorialProject";
 import { isDate, localDate, type RevisionPlan } from "../core/planning/RevisionPlan";
 
 import type { EditorialDelivery } from "../core/EditorialDeliveries";
@@ -21,6 +21,25 @@ export interface ProjectPanelHost {
 }
 const dayLabel = (day: string): string => new Date(`${day}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 const button = (parent: HTMLElement, text: string, action: () => void): HTMLButtonElement => { const el = parent.createEl("button", { text, attr: { type: "button" } }); el.addEventListener("click", action); return el; };
+// A quiet icon-only control for row actions (edit, open, finish), so the
+// handful of real buttons on the page — adding things, scheduling — keep
+// their weight instead of competing with a dozen identical grey ones.
+const iconButton = (parent: HTMLElement, icon: string, label: string, action: () => void, cls = ""): HTMLButtonElement => {
+	const el = parent.createEl("button", { cls: `clickable-icon editorialist-project__icon-button ${cls}`.trim(), attr: { type: "button", "aria-label": label, title: label } });
+	setIcon(el, icon); el.addEventListener("click", action); return el;
+};
+// One collapsible section shape for milestones, tasks, and materials: icon,
+// full-strength title, count, and a large chevron. Open by default; the
+// panel remembers sections the author collapses.
+function section(root: HTMLElement, key: string, icon: string, title: string, count: number): HTMLElement {
+	const details = root.createEl("details", { cls: "editorialist-project__section", attr: { "data-plan-section": key, open: "" } });
+	const summary = details.createEl("summary", { cls: "editorialist-project__section-summary" });
+	setIcon(summary.createSpan({ cls: "editorialist-project__section-icon", attr: { "aria-hidden": "true" } }), icon);
+	summary.createSpan({ cls: "editorialist-project__section-title", text: title });
+	if (count) summary.createSpan({ cls: "editorialist-project__section-count", text: String(count) });
+	setIcon(summary.createSpan({ cls: "editorialist-project__section-caret", attr: { "aria-hidden": "true" } }), "chevron-down");
+	return details.createDiv({ cls: "editorialist-project__section-body" });
+}
 export function field(parent: HTMLElement, label: string, value: string, type = "text"): HTMLInputElement {
 	const wrap = parent.createEl("label", { cls: type === "checkbox" ? "editorialist-project__field editorialist-project__field--checkbox" : "editorialist-project__field", text: label });
 	return wrap.createEl("input", { type, value, attr: { "aria-label": label } });
@@ -119,12 +138,7 @@ export class EditorialProjectPanel {
 		if (editor.profile) this.action(actions, "Editor profile", () => this.host.manageEditor(editor.profile!.id));
 		this.action(actions, "Open in workspace", () => this.host.openWorkspace());
 		if (project.collaborationUrl) button(actions, "Open collaboration", () => window.open(project.collaborationUrl, "_blank", "noopener,noreferrer"));
-		const next = [...project.milestones].filter((item) => !item.done).sort((a, b) => a.day.localeCompare(b.day))[0];
-		if (next) {
-			const milestone = root.createDiv({ cls: "editorialist-project__next" }); milestone.createDiv({ cls: "editorialist-project__eyebrow", text: "Next milestone" });
-			milestone.createEl("strong", { text: next.title }); milestone.createSpan({ text: ` · ${dayLabel(next.day)}` });
-			if (next.day < localDate(new Date())) milestone.createEl("p", { cls: "editorialist-project__warning", text: "This milestone is overdue." });
-		}
+		this.renderNextUp(root, project);
 		if (project.expectedReturn || project.actualReturn) {
 			const returnInfo = root.createEl("details", { cls: "editorialist-project__return", attr: { open: "" } });
 			const summary = returnInfo.createEl("summary");
@@ -139,27 +153,68 @@ export class EditorialProjectPanel {
 			if (project.deliveryId) body.createEl("p", { text: `Feedback: ${this.host.deliveries.find((item) => item.id === project.deliveryId)?.title ?? "Linked feedback unavailable"}` });
 			button(body, "Update return dates", () => this.setup());
 		}
-		this.renderMilestones(root); this.renderTasks(root);
-		root.createEl("h3", { text: "Materials & references" }); this.renderMaterials(root, true);
+		this.renderTasks(root); this.renderMilestones(root);
+		this.renderMaterials(section(root, "materials", "folder-open", "Materials & references", project.materials.filter((item) => !item.completed).length), true);
+	}
+	// What an author opening the engagement on any given day needs first: the
+	// next task to work on (finishable in place) and the next date that
+	// matters. Everything else on the page is reference.
+	private renderNextUp(root: HTMLElement, project: EditorialProject): void {
+		const today = localDate(new Date());
+		const due = (task: EngagementTask): string => task.milestoneId === "__start__" ? project.submissionDate : project.milestones.find((item) => item.id === task.milestoneId)?.day ?? "9999-12-31";
+		const task = project.tasks.map((item, index) => ({ item, index })).filter(({ item }) => !item.done)
+			.sort((left, right) => due(left.item).localeCompare(due(right.item)) || left.index - right.index)[0]?.item;
+		const milestone = [...project.milestones].filter((item) => !item.done).sort((a, b) => a.day.localeCompare(b.day))[0];
+		if (!task && !milestone) return;
+		const card = root.createDiv({ cls: "editorialist-project__next" });
+		card.createDiv({ cls: "editorialist-project__eyebrow", text: "Next up" });
+		if (task) {
+			const row = card.createDiv({ cls: "editorialist-project__next-task" });
+			this.finishToggle(row, task);
+			row.createSpan({ cls: "editorialist-project__next-title", text: task.title });
+			const day = due(task);
+			if (day !== "9999-12-31") card.createDiv({ cls: `editorialist-project__next-meta${day < today ? " is-overdue" : ""}`, text: `${day < today ? "Overdue · was due" : "Due"} ${dayLabel(day)}` });
+		}
+		if (milestone) {
+			const row = card.createDiv({ cls: `editorialist-project__next-milestone${milestone.day < today ? " is-overdue" : ""}` });
+			setIcon(row.createSpan({ cls: "editorialist-project__next-milestone-icon", attr: { "aria-hidden": "true" } }), "flag");
+			row.createSpan({ text: `${milestone.title} · ${dayLabel(milestone.day)}${milestone.day < today ? " · overdue" : ""}` });
+		}
+		const actions = card.createDiv({ cls: "editorialist-project__actions" });
+		button(actions, "Open schedule", () => this.host.openSchedule()).addClass("mod-cta");
+	}
+	private finishToggle(parent: HTMLElement, task: EngagementTask): void {
+		const toggle = iconButton(parent, task.done ? "check-circle-2" : "circle", task.done ? `Reopen “${task.title}”` : `Finish “${task.title}”`, () => {
+			if (toggle.disabled) return; toggle.disabled = true;
+			void this.change((draft) => { const item = draft.tasks.find((value) => value.id === task.id)!; item.done = !item.done; recordProjectEvent(draft, `${item.title}: ${item.done ? "task finished" : "task reopened"}`); })
+				.catch((reason: unknown) => { new Notice(reason instanceof Error ? reason.message : "Could not update engagement."); toggle.disabled = false; });
+		}, `editorialist-project__check${task.done ? " is-done" : ""}`);
+		toggle.disabled = this.host.busy;
 	}
 	renderMaterials(root: HTMLElement, compact = false): void {
 		const project = this.host.plan.project; if (!project) { this.renderOverview(root); return; }
 		if (!compact) root.createEl("p", { cls: "editorialist-project__hint", text: "Your own reference list. Document links are optional, and you decide when an item is complete." });
 		if (!project.materials.length) root.createEl("p", { cls: "editorialist-project__hint", text: "No materials linked yet. Add a reference or a personal checklist item when useful." });
 		for (const material of project.materials) {
-			const row = root.createDiv({ cls: "editorialist-project__material", attr: { "data-material-id": material.id, "data-material-state": material.completed ? "complete" : "open" } });
-			const header = row.createDiv({ cls: "editorialist-project__material-heading" }); header.createEl("strong", { text: material.title });
-			header.createSpan({ cls: "editorialist-project__status", text: material.completed ? "Complete" : "Open", attr: { role: "status" } });
+			const row = root.createDiv({ cls: `editorialist-project__row editorialist-project__material-row${material.completed ? " is-done" : ""}`, attr: { "data-material-id": material.id, "data-material-state": material.completed ? "complete" : "open" } });
+			const toggle = iconButton(row, material.completed ? "check-circle-2" : "circle", material.completed ? `Reopen “${material.title}”` : `Mark “${material.title}” complete`, () => {
+				if (toggle.disabled) return; toggle.disabled = true;
+				void this.change((draft) => { const target = draft.materials.find((item) => item.id === material.id)!; target.completed = !target.completed; recordProjectEvent(draft, `${target.title}: ${target.completed ? "completed" : "reopened"}`); })
+					.catch((reason: unknown) => { new Notice(reason instanceof Error ? reason.message : "Could not update engagement."); toggle.disabled = false; });
+			}, `editorialist-project__check${material.completed ? " is-done" : ""}`);
+			toggle.disabled = this.host.busy;
+			const main = row.createDiv({ cls: "editorialist-project__row-main" });
+			main.createDiv({ cls: "editorialist-project__row-title", text: material.title });
 			const due = materialDue(project, material);
-			if (due) row.createEl("p", { cls: "editorialist-project__hint", text: `Personal target · ${dayLabel(due)}` });
-			if (material.notes) row.createEl("p", { text: material.notes });
-			const actions = row.createDiv({ cls: "editorialist-project__actions" }); button(actions, "Edit item", () => this.editMaterial(material));
-			this.action(actions, material.completed ? "Reopen item" : "Mark complete", () => this.change((draft) => { const target = draft.materials.find((item) => item.id === material.id)!; target.completed = !target.completed; recordProjectEvent(draft, `${target.title}: ${target.completed ? "completed" : "reopened"}`); }));
-			if (material.source) this.action(actions, "Open document", () => this.host.openSource(material.source));
-			if (material.exportPath) this.action(actions, "Open file reference", () => this.host.openSource(material.exportPath));
-			if (!compact && material.source) row.createEl("p", { cls: "editorialist-project__path", text: material.source });
+			if (due) main.createDiv({ cls: "editorialist-project__row-meta", text: `Personal target · ${dayLabel(due)}` });
+			if (material.notes) main.createDiv({ cls: "editorialist-project__row-notes", text: material.notes });
+			if (!compact && material.source) main.createDiv({ cls: "editorialist-project__path", text: material.source });
+			const actions = row.createDiv({ cls: "editorialist-project__row-actions" });
+			if (material.source) iconButton(actions, "file-text", "Open document", () => { void this.host.openSource(material.source).catch((reason: unknown) => new Notice(reason instanceof Error ? reason.message : "Could not open the document.")); });
+			if (material.exportPath) iconButton(actions, "file-output", "Open file reference", () => { void this.host.openSource(material.exportPath).catch((reason: unknown) => new Notice(reason instanceof Error ? reason.message : "Could not open the file.")); });
+			iconButton(actions, "pencil", "Edit item", () => this.editMaterial(material));
 		}
-		button(root, "Add reference item", () => this.editMaterial(null));
+		button(root, "Add reference item", () => this.editMaterial(null)).addClass("editorialist-project__add");
 	}
 	private fileField(form: HTMLElement, label: string, value: string): HTMLInputElement {
 		const input = field(form, label, value), paths = form.createEl("datalist", { attr: { id: `engagement-paths-${crypto.randomUUID()}` } });
@@ -212,13 +267,17 @@ export class EditorialProjectPanel {
 	}
 	private renderMilestones(root: HTMLElement): void {
 		const project = this.host.plan.project!;
-		const details = root.createEl("details", { cls: "editorialist-project__section", attr: { "data-plan-section": "milestones", open: "" } }); details.createEl("summary", { text: "Milestones" });
-		if (!project.milestones.length) details.createEl("p", { cls: "editorialist-project__hint", text: "Set your own targets before or after the engagement starts." });
+		const body = section(root, "milestones", "flag", "Milestones", project.milestones.filter((item) => !item.done).length);
+		if (!project.milestones.length) body.createEl("p", { cls: "editorialist-project__hint", text: "Set your own targets before or after the engagement starts." });
+		const today = localDate(new Date());
 		for (const milestone of [...project.milestones].sort((a, b) => a.day.localeCompare(b.day))) {
-			const row = details.createDiv({ cls: "editorialist-project__milestone" }); row.createEl("strong", { text: milestone.title }); row.createSpan({ text: `${dayLabel(milestone.day)}${milestone.done ? " · Finished" : ""}` });
-			button(row, "Edit", () => this.editMilestone(milestone.id));
+			const row = body.createDiv({ cls: `editorialist-project__row editorialist-project__milestone${milestone.done ? " is-done" : milestone.day < today ? " is-overdue" : ""}` });
+			setIcon(row.createSpan({ cls: "editorialist-project__row-icon", attr: { "aria-hidden": "true" } }), milestone.done ? "check-circle-2" : "flag");
+			row.createDiv({ cls: "editorialist-project__row-main" }).createDiv({ cls: "editorialist-project__row-title", text: milestone.title });
+			row.createSpan({ cls: "editorialist-project__row-date", text: `${dayLabel(milestone.day)}${milestone.done ? " · Finished" : ""}` });
+			iconButton(row.createDiv({ cls: "editorialist-project__row-actions" }), "pencil", `Edit “${milestone.title}”`, () => this.editMilestone(milestone.id));
 		}
-		button(details, "Add milestone", () => this.editMilestone());
+		button(body, "Add milestone", () => this.editMilestone()).addClass("editorialist-project__add");
 	}
 	private editMilestone(id?: string): void {
 		const expected = structuredClone(this.host.plan), next = structuredClone(expected), draft = next.project!;
@@ -231,14 +290,18 @@ export class EditorialProjectPanel {
 		}).open();
 	}
 	private renderTasks(root: HTMLElement): void {
-		const project = this.host.plan.project!; root.createEl("h3", { text: "Engagement tasks" });
-		if (!project.tasks.length) root.createEl("p", { cls: "editorialist-project__hint", text: "Add personal work you want to schedule." });
+		const project = this.host.plan.project!;
+		const body = section(root, "tasks", "list-checks", "Engagement tasks", project.tasks.filter((item) => !item.done).length);
+		if (!project.tasks.length) body.createEl("p", { cls: "editorialist-project__hint", text: "Add personal work you want to schedule." });
 		for (const task of project.tasks) {
-			const row = root.createDiv({ cls: "editorialist-project__task" }); row.createSpan({ text: task.title });
-			button(row, "Edit", () => this.editTask(task.id));
-			this.action(row, task.done ? "Reopen" : "Finish task", () => this.change((draft) => { const item = draft.tasks.find((value) => value.id === task.id)!; item.done = !item.done; recordProjectEvent(draft, `${item.title}: ${item.done ? "task finished" : "task reopened"}`); }));
+			const row = body.createDiv({ cls: `editorialist-project__row editorialist-project__task${task.done ? " is-done" : ""}` });
+			this.finishToggle(row, task);
+			row.createDiv({ cls: "editorialist-project__row-main" }).createDiv({ cls: "editorialist-project__row-title", text: task.title });
+			iconButton(row.createDiv({ cls: "editorialist-project__row-actions" }), "pencil", `Edit “${task.title}”`, () => this.editTask(task.id));
 		}
-		const actions = root.createDiv({ cls: "editorialist-project__actions" }); button(actions, "Add task", () => this.editTask()); button(actions, "Schedule work", () => this.host.openSchedule());
+		const actions = body.createDiv({ cls: "editorialist-project__actions" });
+		button(actions, "Add task", () => this.editTask()).addClass("editorialist-project__add");
+		button(actions, "Schedule work", () => this.host.openSchedule());
 	}
 	private editTask(id?: string): void {
 		const expected = structuredClone(this.host.plan), next = structuredClone(expected), draft = next.project!;

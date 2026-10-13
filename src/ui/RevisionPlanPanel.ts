@@ -26,6 +26,7 @@ export class RevisionPlanPanel extends ItemView {
 	private warnings: string[] = [];
 	private view: "queue" | "days" = "queue";
 	private section: "overview" | "materials" | "schedule" | "history" = "overview";
+	private readonly collapsedSections = new Set<string>();
 	private dragging: string | null = null;
 	private busy = false;
 	private loaded = false;
@@ -178,6 +179,9 @@ export class RevisionPlanPanel extends ItemView {
 	private render(): void {
 		const container = this.contentEl;
 		const expanded = new Set(Array.from(container.querySelectorAll<HTMLDetailsElement>("details[data-plan-section]")).filter((item) => item.open).map((item) => item.dataset.planSection));
+		// Sections that render open by default must stay closed once the author
+		// closes them; a re-render would otherwise reopen them on every refresh.
+		for (const item of Array.from(container.querySelectorAll<HTMLDetailsElement>("details[data-plan-section]"))) { const key = item.dataset.planSection; if (!key) continue; if (item.open) this.collapsedSections.delete(key); else this.collapsedSections.add(key); }
 		// Background refreshes re-render; keep the author's place.
 		const scrollTop = container.scrollTop;
 		container.empty();
@@ -188,20 +192,20 @@ export class RevisionPlanPanel extends ItemView {
 			for (const [value, label] of [["overview", "Goals"], ["schedule", "Schedule"]] as const) { const tab = this.button(navigation, label, () => { this.section = value; this.render(); }); tab.setAttribute("aria-pressed", String(this.section === value)); }
 			if (this.section !== "schedule") {
 				this.authorPanel().render(root);
-				for (const item of Array.from(root.querySelectorAll<HTMLDetailsElement>("details[data-plan-section]"))) if (expanded.has(item.dataset.planSection)) item.open = true;
+				for (const item of Array.from(root.querySelectorAll<HTMLDetailsElement>("details[data-plan-section]"))) { const key = item.dataset.planSection; if (key && this.collapsedSections.has(key)) item.open = false; else if (expanded.has(key)) item.open = true; }
 				container.scrollTop = scrollTop; return;
 			}
 		}
 
 		if (this.plan.project) {
 			const navigation = root.createDiv({ cls: "editorialist-project__tabs", attr: { "aria-label": "Project view" } });
-			for (const [value, label] of [["overview", "Overview"], ["materials", "Materials"], ["schedule", "Schedule"], ["history", "History"]] as const) { const tab = this.button(navigation, label, () => { this.section = value; this.render(); }); tab.setAttribute("aria-pressed", String(this.section === value)); }
+			for (const [value, label] of [["overview", "Overview"], ["schedule", "Schedule"], ["materials", "Materials"], ["history", "History"]] as const) { const tab = this.button(navigation, label, () => { this.section = value; this.render(); }); tab.setAttribute("aria-pressed", String(this.section === value)); }
 			if (this.section !== "schedule") {
 				for (const warning of this.warnings) root.createEl("p", { cls: "editorialist-plan__warning", text: warning });
 				if (this.stale) root.createEl("p", { cls: "editorialist-plan__freshness", text: "Sources changed. Updating…", attr: { role: "status" } });
 				const project = this.projectPanel();
 				if (this.section === "overview") project.renderOverview(root); else if (this.section === "materials") project.renderMaterials(root); else project.renderHistory(root);
-				for (const item of Array.from(root.querySelectorAll<HTMLDetailsElement>("details[data-plan-section]"))) if (expanded.has(item.dataset.planSection)) item.open = true;
+				for (const item of Array.from(root.querySelectorAll<HTMLDetailsElement>("details[data-plan-section]"))) { const key = item.dataset.planSection; if (key && this.collapsedSections.has(key)) item.open = false; else if (expanded.has(key)) item.open = true; }
 				if (this.busy) for (const control of Array.from(root.querySelectorAll<HTMLButtonElement>("button"))) control.disabled = true;
 				container.scrollTop = scrollTop; return;
 			}
@@ -257,7 +261,7 @@ export class RevisionPlanPanel extends ItemView {
 			for (const entry of completed) this.renderEntry(details, entry);
 		}
 		this.renderBacklog(root);
-		for (const item of Array.from(root.querySelectorAll<HTMLDetailsElement>("details[data-plan-section]"))) if (expanded.has(item.dataset.planSection)) item.open = true;
+		for (const item of Array.from(root.querySelectorAll<HTMLDetailsElement>("details[data-plan-section]"))) { const key = item.dataset.planSection; if (key && this.collapsedSections.has(key)) item.open = false; else if (expanded.has(key)) item.open = true; }
 		container.scrollTop = scrollTop;
 	}
 	private weekDays(): string[] {
