@@ -124,6 +124,11 @@ Accepted cost: these settings do not appear in Obsidian's settings search on
   justification.
 - Prefer `color-mix(in srgb, var(--obsidian-var) x%, transparent)` for
   translucent surfaces so the result still tracks the theme.
+- No CSS that Obsidian's review scan reports as partially supported:
+  `text-decoration-*` longhands, a multi-value `text-decoration` shorthand
+  (`underline wavy <color>`), or `:has()`. Use a single-keyword
+  `text-decoration`, a `border-bottom` for a styled underline, and a class
+  toggled from code instead of `:has()`. `css-audit.mjs` fails on all three.
 
 ### 1.7 Vault and filesystem access
 

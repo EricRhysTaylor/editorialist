@@ -41,6 +41,7 @@ let hasError = false;
 
 for (const file of CSS_FILES) {
 	const css = fs.readFileSync(file, "utf8");
+	auditScannerCompatibility(file, css);
 	const blocks = extractSelectorBlocks(css);
 
 	for (const block of blocks) {
@@ -127,6 +128,37 @@ function checkUnprefixedClasses(file, selector) {
 			`Unapproved class "${className}" found. Use an approved namespace such as "editorialist-", "ert-", legacy "rt-"/"radial-timeline-", or state prefixes "is-"/"has-".`,
 		);
 	}
+}
+
+// Obsidian's community review scan reports these as only partially
+// supported. They were cleared for 3.0.1 (and before it in 455a92b), then
+// crept back twice through new styling, because nothing local caught them.
+//   - any text-decoration-* longhand (color, style, thickness, line, …)
+//   - a multi-value text-decoration shorthand such as `underline wavy red`;
+//     a single keyword (`line-through`, `underline`, `none`) is fine
+//   - the :has() selector
+// Use a single-keyword shorthand, or a border-bottom for styled underlines.
+function auditScannerCompatibility(file, css) {
+	const source = css.replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, " "));
+	const lineOf = (index) => source.slice(0, index).split("\n").length;
+	for (const match of source.matchAll(/(^|[;{\s])(text-decoration-[a-z-]+)\s*:/g)) {
+		failAt(file, lineOf(match.index), `"${match[2]}" is flagged by Obsidian's review scan as partially supported. Use a single-keyword text-decoration, or a border-bottom for a styled underline.`);
+	}
+	for (const match of source.matchAll(/(^|[;{\s])text-decoration\s*:\s*([^;}]+)/g)) {
+		const value = match[2].trim().replace(/\s*!important$/, "");
+		if (/\s/.test(value.replace(/\([^)]*\)/g, ""))) {
+			failAt(file, lineOf(match.index), `Multi-value "text-decoration: ${value}" is flagged by Obsidian's review scan. Keep the shorthand to one keyword.`);
+		}
+	}
+	for (const match of source.matchAll(/:has\(/g)) {
+		failAt(file, lineOf(match.index), `":has()" is flagged by Obsidian's review scan. Toggle a class from code instead.`);
+	}
+}
+
+function failAt(file, line, message) {
+	hasError = true;
+	console.error(`\n[css-audit] ${path.relative(ROOT, file)}:${line}`);
+	console.error(`  Error: ${message}`);
 }
 
 function hasEditorialistScope(selector) {
