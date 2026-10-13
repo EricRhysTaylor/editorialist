@@ -207,7 +207,7 @@ export class RevisionPlanPanel extends ItemView {
 		renderPanelHeader(container, this.plugin, this.getViewType(), this.getDisplayText(), this.author ? "Across your vault" : undefined, this.author ? { label: "Add goal", action: () => this.authorPanel().edit(), disabled: this.busy || !this.loaded } : undefined);
 		const root = container.createDiv({ cls: "editorialist-plan__body" });
 		if (this.author) {
-			const navigation = root.createDiv({ cls: "editorialist-project__tabs editorialist-author__tabs", attr: { "aria-label": "Author planner view" } });
+			const navigation = root.createDiv({ cls: "editorialist-project__tabs editorialist-author__tabs" });
 			for (const [value, label] of [["overview", "Goals"], ["schedule", "Schedule"]] as const) { const tab = this.button(navigation, label, () => { this.section = value; this.render(); }); tab.setAttribute("aria-pressed", String(this.section === value)); }
 			if (this.section !== "schedule") {
 				this.authorPanel().render(root);
@@ -217,7 +217,7 @@ export class RevisionPlanPanel extends ItemView {
 		}
 
 		if (this.plan.project) {
-			const navigation = root.createDiv({ cls: "editorialist-project__tabs", attr: { "aria-label": "Project view" } });
+			const navigation = root.createDiv({ cls: "editorialist-project__tabs" });
 			for (const [value, label] of [["overview", "Overview"], ["schedule", "Schedule"], ["materials", "Materials"], ["history", "History"]] as const) { const tab = this.button(navigation, label, () => { this.section = value; this.render(); }); tab.setAttribute("aria-pressed", String(this.section === value)); }
 			if (this.section !== "schedule") {
 				for (const warning of this.warnings) root.createEl("p", { cls: "editorialist-plan__warning", text: warning });
@@ -230,7 +230,7 @@ export class RevisionPlanPanel extends ItemView {
 			}
 		}
 		const toolbar = root.createDiv({ cls: "editorialist-plan__toolbar" });
-		const tabs = toolbar.createDiv({ cls: "editorialist-plan__tabs", attr: { "aria-label": "Plan layout" } });
+		const tabs = toolbar.createDiv({ cls: "editorialist-plan__tabs" });
 		for (const [value, label, icon] of [["queue", "Queue", "list-ordered"], ["days", "Days", "calendar-days"]] as const) {
 			const tab = this.button(tabs, label, () => { this.view = value; this.render(); });
 			tab.setAttribute("aria-pressed", String(this.view === value));
@@ -520,7 +520,7 @@ export class RevisionPlanPanel extends ItemView {
 		const searchWrap = details.createDiv({ cls: "editorialist-plan__search" });
 		setIcon(searchWrap.createSpan(), "search");
 		const search = searchWrap.createEl("input", { type: "search", value: this.search, attr: { placeholder: "Find a scene or instruction…", "aria-label": "Find available work" } });
-		const filters = details.createDiv({ cls: "editorialist-plan__filters", attr: { "aria-label": "Work type" } });
+		const filters = details.createDiv({ cls: "editorialist-plan__filters" });
 		const deliveryFilter = details.createEl("select", { cls: "dropdown", attr: { "aria-label": "Filter available work by delivery" } });
 		deliveryFilter.createEl("option", { value: "all", text: "All deliveries" });
 		for (const delivery of this.plugin.getEditorialDeliveries()) deliveryFilter.createEl("option", { value: delivery.id, text: delivery.title });
