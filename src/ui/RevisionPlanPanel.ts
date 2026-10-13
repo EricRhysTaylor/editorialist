@@ -167,7 +167,7 @@ export class RevisionPlanPanel extends ItemView {
 		button.setAttribute("data-plan-source-action", "");
 	}
 	private input(parent: HTMLElement, label: string, type: string, value: string, change: (value: string) => void): HTMLInputElement {
-		const wrapper = parent.createEl("label", { cls: "editorialist-plan__field" });
+		const wrapper = parent.createEl("label", { cls: type === "checkbox" ? "editorialist-plan__field editorialist-plan__field--checkbox" : "editorialist-plan__field" });
 		wrapper.createSpan({ text: label });
 		const input = wrapper.createEl("input", { type, value, attr: { "aria-label": label } });
 		input.disabled = this.busy;

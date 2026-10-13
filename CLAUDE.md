@@ -58,15 +58,17 @@ Key rules that are most often violated:
 ```bash
 npm run dev              # watch build
 npm run check            # typecheck + lint + css + qa-audit + compliance
-npm run build            # full check + production bundle + copy-to-vault
+npm run build            # full check + portable production bundle
+npm run build:dev        # full build + copy to configured local vaults
 npm run release:check    # check + tests + css-drift + build
 npm run release -- patch # bump, rebuild, commit, tag, PUSH, open a draft GitHub Release
 npm run release          # finish: CI build + asset upload + publish + download check (one y)
 npm run backup           # commits everything and PUSHES main — Eric's tool, never an agent's
 ```
 
-`npm run build` no longer runs the hourly auto-backup; it builds and copies
-to the dev vault and stops there. The only scripts that push are `release`
+`npm run build` produces the plugin without machine-specific filesystem writes.
+`npm run build:dev` then copies it to the configured local vaults and stops there.
+Neither command runs the hourly auto-backup. The only scripts that push are `release`
 and `backup`, and both are Eric's to run.
 
 The compliance script (`scripts/obsidian-compliance.mjs`) runs on every build
@@ -84,7 +86,7 @@ The rules around that:
 
 - **Commit directly to `main`.** This repo has a linear, direct-to-main
   history and no PR workflow. Do not open branches for ordinary work.
-- **Always deliver finished work.** After checks pass, commit, run `npm run build`
+- **Always deliver finished work.** After checks pass, commit, run `npm run build:dev`
   to produce and copy the plugin to all configured vaults, and push `main` to
   GitHub without asking again. This is Eric's standing instruction, updated
   September 22, 2026. Verify the copied artifacts and remote commit before

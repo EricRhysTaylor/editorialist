@@ -6656,13 +6656,7 @@
    a Notice that has already faded. */
 .editorialist-editorialism-panel__anchor--unlocated .editorialist-editorialism-panel__anchor-fragment {
 	color: color-mix(in srgb, var(--text-error) 80%, var(--text-muted));
-
-	/* Longhands rather than the shorthand: the `underline wavy <color>` form is
-	   only partially supported in older Obsidian versions, while each longhand
-	   is not. Same rendering, no compatibility warning. */
-	text-decoration-line: underline;
-	text-decoration-style: wavy;
-	text-decoration-color: color-mix(in srgb, var(--text-error) 55%, transparent);
+	border-bottom: 1px dashed color-mix(in srgb, var(--text-error) 55%, transparent);
 }
 
 .editorialist-editorialism-panel__anchor-warning {
@@ -7415,7 +7409,7 @@
 	color: var(--text-muted);
 }
 
-.editorialist-plan__field:has(input[type="checkbox"]) {
+.editorialist-plan__field--checkbox {
 	flex-direction: row;
 	align-items: center;
 	justify-content: space-between;
@@ -8500,7 +8494,7 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	min-width: 0;
 }
 
-.editorialist-project__field:has(input[type="checkbox"]) {
+.editorialist-project__field--checkbox {
 	flex-direction: row-reverse;
 	justify-content: flex-end;
 	align-items: baseline;
@@ -8531,7 +8525,7 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	.editorialist-project-dialog form > p,
 	.editorialist-project-dialog form > button,
 	.editorialist-project-dialog form > .editorialist-project__actions,
-	.editorialist-project-dialog .editorialist-project__field:has(textarea) {
+	.editorialist-project-dialog .editorialist-project__field--area {
 		grid-column: 1 / -1;
 	}
 }

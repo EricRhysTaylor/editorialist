@@ -22,11 +22,11 @@ export interface ProjectPanelHost {
 const dayLabel = (day: string): string => new Date(`${day}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 const button = (parent: HTMLElement, text: string, action: () => void): HTMLButtonElement => { const el = parent.createEl("button", { text, attr: { type: "button" } }); el.addEventListener("click", action); return el; };
 export function field(parent: HTMLElement, label: string, value: string, type = "text"): HTMLInputElement {
-	const wrap = parent.createEl("label", { cls: "editorialist-project__field", text: label });
+	const wrap = parent.createEl("label", { cls: type === "checkbox" ? "editorialist-project__field editorialist-project__field--checkbox" : "editorialist-project__field", text: label });
 	return wrap.createEl("input", { type, value, attr: { "aria-label": label } });
 }
 export function area(parent: HTMLElement, label: string, value: string): HTMLTextAreaElement {
-	const wrap = parent.createEl("label", { cls: "editorialist-project__field", text: label });
+	const wrap = parent.createEl("label", { cls: "editorialist-project__field editorialist-project__field--area", text: label });
 	return wrap.createEl("textarea", { text: value, attr: { "aria-label": label, rows: "4" } });
 }
 export function select(parent: HTMLElement, label: string, options: [string, string][], value: string): HTMLSelectElement {

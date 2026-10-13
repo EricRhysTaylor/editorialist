@@ -14,8 +14,8 @@ baseline in `scripts/eslint-obsidian-enforced-baseline.json`:
 - `npm run css-check`, `css-audit`, `qa-audit`, `compliance`, `test`, and
   `css-drift -- --maintenance` remain project gates.
 - `npm run build-only` is the side-effect-free production bundle used in CI.
-- `npm run build` still performs local dev copy/backup behavior and is not used
-  by CI.
+- `npm run build` runs checks and produces a portable production bundle.
+- `npm run build:dev` explicitly copies the verified build to local vaults.
 
 ## Report-Only Obsidian Preset
 

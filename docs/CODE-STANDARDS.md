@@ -165,6 +165,8 @@ The release funnel:
 ```bash
 # Sanity funnel — run as often as you like while developing.
 npm run check              # typecheck + lint + css + qa-audit + compliance
+npm run build              # full check + portable production bundle
+npm run build:dev          # build + explicit local vault delivery
 
 # Full pre-release gate.
 npm run release:check      # check + test + css-drift + build
@@ -214,7 +216,12 @@ The community directory's automated review runs MORE than the public
 `obsidian` typings, a ban on `eslint-disable` directives for `no-console`, and
 CSS feature checks. To keep local scans equivalent:
 
-- `npm run lint:obsidian:report` now includes `@typescript-eslint/no-deprecated`.
+- `npm run lint:obsidian:report` includes typed deprecation detection.
+- `tsconfig.json` must explicitly include the library declarations for every
+  built-in in use, including ES2022 for `Array.at`; verify without ambient Node
+  types when investigating scanner-only unsafe-value findings.
+- `npm run build` must succeed in a clean checkout without the author’s local
+  vault folders. Copying to configured vaults belongs in `npm run build:dev`.
 - Weekly (or before any release): `npm install -D obsidian@latest eslint-plugin-obsidianmd@latest`
   then run the report. Stale typings hide new deprecations — that is how
   `setActiveLeaf` slipped through 1.0.0.

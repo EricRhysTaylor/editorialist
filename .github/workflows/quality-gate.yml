@@ -1,8 +1,8 @@
 name: Quality Gate
 
 # Blocking, deterministic quality gates for ordinary pushes/PRs. This workflow
-# avoids npm run build because build copies to a local vault and can trigger
-# backup behavior; check:ci uses build-only instead.
+# uses check:ci for the complete lint/test funnel and a portable production build.
+# Local vault delivery is a separate explicit build:dev command.
 on:
   pull_request:
   push:
@@ -25,3 +25,6 @@ jobs:
 
       - name: Quality checks
         run: npm run check:ci
+
+      - name: Verify portable review build
+        run: npm run build

@@ -30,9 +30,9 @@ both projects. It is subordinate to:
   prioritized findings and get approval before editing. Apply fixes only when
   the user opts in (low-risk-only / non-architectural / full).
 - **Verification uses `npm run check` (or `npx tsc --noEmit` + `npx vitest run`
-  + `npm run build-only`).** Do NOT run `npm run build` for mid-audit
-  verification — it copies into the vault and the backup hook commits + pushes
-  to `main`. The closing build-and-commit happens once, after approved fixes
+  + `npm run build-only`).** Do NOT run `npm run build:dev` for mid-audit
+  verification — it copies into local vaults. The portable `npm run build` has
+  no vault-copy or backup side effects. The closing build-and-commit happens once, after approved fixes
   land, as a deliberate final step — not as a verification probe.
 - **Complement the gates, don't re-implement them.** `qa-audit.mjs`,
   `obsidian-compliance.mjs`, `css-audit.mjs`, and `css-drift-check.mjs` already

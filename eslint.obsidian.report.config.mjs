@@ -27,7 +27,7 @@ export default defineConfig([
     languageOptions: {
       parser: tsparser,
       parserOptions: {
-        project: './tsconfig.json',
+        project: './tsconfig.scanner.json',
         tsconfigRootDir: import.meta.dirname,
       },
     },
@@ -35,6 +35,10 @@ export default defineConfig([
       // Product and feature names are proper nouns; sentence case still
       // applies to the rest of each string.
       '@typescript-eslint/no-deprecated': 'error',
+      '@typescript-eslint/no-unsafe-assignment': 'error',
+      '@typescript-eslint/no-unsafe-call': 'error',
+      '@typescript-eslint/no-unsafe-member-access': 'error',
+      '@typescript-eslint/no-unsafe-argument': 'error',
       'obsidianmd/ui/sentence-case': ['error', {
         ignoreWords: ['Editorialist', 'Editorialism', 'Editorialisms', 'Radial', 'Timeline'],
       }],
