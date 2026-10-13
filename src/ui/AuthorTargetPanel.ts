@@ -39,7 +39,7 @@ export class AuthorTargetPanel {
 		const open = targets.filter((target) => !target.done).sort((a, b) => a.due.localeCompare(b.due));
 		for (const target of open) this.card(root, target);
 		const completed = targets.filter((target) => target.done);
-		if (completed.length) { const details = root.createEl("details", { attr: { "data-plan-section": "author-completed" } }); details.createEl("summary", { text: `${completed.length} completed goals` }); for (const target of completed) this.card(details, target); }
+		if (completed.length) { const details = root.createEl("details", { attr: { "data-plan-section": "author-completed" } }); details.createEl("summary", { text: `${completed.length} completed ${completed.length === 1 ? "goal" : "goals"}` }); for (const target of completed) this.card(details, target); }
 	}
 	private card(root: HTMLElement, target: AuthorTarget): void {
 		const syncWarning = this.host.rt.warning(target);

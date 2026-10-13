@@ -18,7 +18,9 @@ Editorialist registers these commands in the command palette:
 | Command | What it does |
 |---|---|
 | **Open review launcher** | Opens the launcher modal to import a review batch or start a pending-edits review |
-| **Open revision plan** | Opens the combined [Revision Plan](Revision-Plan) queue and schedule |
+| **Open editor engagement** | Opens [Editor Engagement](Editor-Engagement), with dates, milestones, history, and a revision schedule |
+| **Open author planner** | Opens [Author Planner](Author-Planner) for vault-wide writing goals and schedules |
+| **Open editorial project in workspace** | Opens the active book’s engagement in a full workspace tab |
 | **Open review panel** | Opens the [Review Panel](Review-Panel) in the sidebar |
 | **Open editorialism panel** | Opens the [Editorialisms Panel](Editorialisms-Panel) in the sidebar |
 | **Open pending edits panel** | Opens the [Pending Edits](Pending-Edits) panel in the sidebar |
@@ -79,9 +81,15 @@ When every suggestion is resolved, the sweep completes and the batch is recorded
 
 ## Plan your revision
 
-Open the **Revision plan** to see progress across the whole book and schedule what remains. On an empty plan, **Auto-plan all N open items** spreads every open batch, directive, and pending edit across your working days up to your finish date. You can also add items by hand from **Available work**.
+Open **Editor engagement → Schedule** (or the schedule shown before an engagement is created) to see progress across the whole book and schedule what remains. On an empty plan, **Auto-plan all N open items** spreads every open batch, directive, and pending edit across your working days up to your finish date. You can also add items by hand from **Available work**.
 
 For one editor's larger handoff, import line-level work as batches and structural tasks as Editorialisms. Each import files itself under that editor's delivery, so open **… → Editorial deliveries** and add the return deadline. Choose **Plan this delivery** to preview a schedule for just that handoff, using your working capacity and preferred preset. The [Revision Plan](Revision-Plan) page explains triage, estimates, locks, and sessions.
+
+## Plan your own goals
+
+Run **Open author planner**, choose **Add goal**, and give your goal a target date and a completion description. Optionally link a document or a Radial Timeline book-stage target. Choose **Schedule work** to preview sessions against your availability. See [Author Planner](Author-Planner).
+
+To track an editor’s agreed dates before feedback arrives, choose **Create engagement** in [Editor Engagement](Editor-Engagement). Add milestones, tasks, and reference items, then record activity as the collaboration progresses.
 
 ## Where things live in your vault
 
@@ -89,7 +97,8 @@ For one editor's larger handoff, import line-level work as batches and structura
 |---|---|
 | Your scene notes | Review blocks are appended here on import, removed on cleanup |
 | Each scene's **Pending Edits** property | [Pending edits](Pending-Edits), shared with Radial Timeline |
+| `Editorialist/Engagement history/` | Optional archived copies of explicitly selected reference files |
 | `Editorialist/<Book>/` | [Editorialism](Editorialisms-Panel) structural guidance documents, kept permanently |
 | `<book-source-folder>/Cut/` | Per-scene cut files (default location; [configurable](Settings-Reference#configuration-tab)) |
 
-Delivery records, revision plans, and plan progress live in Editorialist’s plugin data; they reference these source files without replacing them.
+Engagement records, author goals, delivery records, revision plans, and plan progress live in Editorialist’s plugin data; they reference these source files without replacing them.

@@ -1,7 +1,7 @@
 {
 	"name": "editorialist",
 	"version": "2.0.0",
-	"description": "Import editorial feedback that an AI has formatted, from its own review or an editor's notes, then review every suggested edit scene by scene.",
+	"description": "Plan editor engagements and writing goals, schedule revision work, and review AI-formatted editorial feedback scene by scene.",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {

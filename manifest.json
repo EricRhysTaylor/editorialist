@@ -3,7 +3,7 @@
 	"name": "Editorialist",
 	"version": "2.0.0",
 	"minAppVersion": "1.7.2",
-	"description": "Import editorial feedback that an AI has formatted, from its own review or an editor's notes, then review every suggested edit scene by scene.",
+	"description": "Plan editor engagements and writing goals, schedule revision work, and review AI-formatted editorial feedback scene by scene.",
 	"author": "Radial Timeline LLC",
 	"authorUrl": "https://github.com/EricRhysTaylor",
 	"isDesktopOnly": true

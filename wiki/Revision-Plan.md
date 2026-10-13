@@ -1,6 +1,8 @@
-Revision plan brings pending edits, scene batches, and Editorialism checklist items into one ordered work queue, and shows how the whole book is moving as you work. Open it from the panel mode selector or run **Open revision plan**.
+The **Schedule** section of [Editor Engagement](Editor-Engagement) brings personal engagement tasks, pending edits, scene batches, and Editorialism checklist items into one ordered work queue. Run **Open editor engagement**, then choose **Schedule** when an engagement exists. Without an engagement, the revision schedule remains directly available.
 
-<p align="center"><img src="images/panel-revision-plan.png" alt="Revision plan with deadline forecast, weekly workload, and an ordered queue of revision tasks" width="460"></p>
+This page retains the scheduling reference and its original URL for existing links. For vault-wide personal writing goals, use [Author Planner](Author-Planner).
+
+<p align="center"><img src="images/panel-revision-plan.png" alt="Editor engagement schedule with book progress and a capacity forecast" width="460"></p>
 
 ## Progress across the book
 
@@ -14,7 +16,7 @@ The plan refreshes itself a few seconds after your sources change, waits while y
 
 ## Build a plan
 
-1. Set your book deadline, working minutes for each weekday, and reserve time in **Deadline & capacity**. Zero minutes means a day off.
+1. Set your schedule deadline, working minutes for each weekday, and reserve time in **Deadline & capacity**. Zero minutes means a day off.
 2. Bring in work. To take in every open item at once, use [Auto-plan](#auto-plan-the-whole-book). To choose by hand, find work in **Available work**: search by scene or instruction, and filter by Notes, Batches, Editorialisms, or delivery. Add items one at a time with **+**, or choose **Add all N to the plan** to add everything the current filter shows, with suggested estimates.
 3. Drag to prioritize, or use **Move up** and **Move down** in **Schedule & options**.
 4. Set a day and a low/high effort range. Switch between **Queue** and **Days** to review the order or daily workload; tasks can also be dragged onto a day.
@@ -41,11 +43,11 @@ The planner's first screen asks for your start date, finish date, and availabili
 
 Phase suggestions use words in the instruction, not an AI assessment of your manuscript. **Ordering & estimates → Review ordering & estimates** lets you change phases, enter effort ranges, or leave individual items out. Unknown phases or effort appear under **Needs attention** with a shortcut to adjust the item.
 
-Set your planning window, session length, working minutes for each weekday, and reserve time. **Preview plan** previews the proposed sessions without saving. Scheduling uses the upper estimate, subtracts existing commitments, leaves reserve time at the end, and never schedules past the earliest of the finish date, the book deadline, and (when planning a delivery) its return deadline. Existing dated work without an estimate reserves its entire day. Work that cannot fit stays unscheduled; work lacking a phase or valid estimate stays in Available work.
+Set your planning window, session length, working minutes for each weekday, and reserve time. **Preview plan** previews the proposed sessions without saving. Scheduling uses the upper estimate, subtracts existing commitments, leaves reserve time at the end, and never schedules past the earliest of the finish date, the schedule deadline, and the item’s applicable deadline, such as a delivery return date or engagement milestone. Existing dated work without an estimate reserves its entire day. Work that cannot fit stays unscheduled; work lacking a phase or valid estimate stays in Available work.
 
 Suggested effort is a starting assumption: existing Editorialism heuristics, or five minutes per remaining batch suggestion and fifteen per memo, with a ±25% range. Replace these with your own ranges when known. Large tasks split into numbered sessions that keep their original source link. **Finish session** completes only that planning session; it does not check off an Editorialism or accept suggestions.
 
-<p align="center"><img src="images/delivery-schedule-preview.png" alt="Schedule preview with estimated hours, six sessions across five working days, and a finish-date forecast" width="526"></p>
+<p align="center"><img src="images/delivery-schedule-preview.png" alt="Schedule preview with estimated hours, six sessions across five working days, and a finish-date forecast" width="524"></p>
 
 **Use this plan** saves the plan and its defaults for this book. If feedback, the delivery, or the plan changes while the preview is open, reopen the planner and generate a fresh draft.
 

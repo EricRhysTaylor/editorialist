@@ -109,7 +109,7 @@ An author query is a `%%query: <question>%%` marker you leave inline in a scene 
 
 A query is hidden only inside Obsidian. A manuscript export keeps it unless you strip author queries, so anyone reading that file sees it: keep them in what you send a reviewer, and strip them from anything meant for readers. Radial Timeline's export has a **Strip author queries** toggle for this.
 
-Markers written before 2.0.1 use the original name, `%%ai: <question>%%`. Editorialist still reads, answers and resolves them; new markers are written as `%%query:`.
+Markers written before 3.0.0 use the original name, `%%ai: <question>%%`. Editorialist still reads, answers and resolves them; new markers are written as `%%query:`.
 
 The round trip:
 

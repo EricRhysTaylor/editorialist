@@ -3,7 +3,9 @@
 **Using Editorialist**
 
 - [Getting Started](Getting-Started)
-- [Revision Plan](Revision-Plan)
+- [Editor Engagement](Editor-Engagement)
+- [Author Planner](Author-Planner)
+- [Revision Scheduling](Revision-Plan)
 - [Review Panel](Review-Panel)
 - [Pending Edits](Pending-Edits)
 - [Editorialisms Panel](Editorialisms-Panel)

@@ -20,7 +20,7 @@ Between sessions the panel shows:
 
 | Control | What it does |
 |---|---|
-| **View name / chevron** | Choose Revision plan, Review, Pending edits, or Editorialisms. The Ed logo stays the same. |
+| **View name / chevron** | Choose Editor engagement, Author planner, Review, Pending edits, or Editorialisms. The Ed logo stays the same. |
 | **Import** | Open the launcher. At narrow widths this becomes a **+** button. |
 | **… → Editorial deliveries** | Group batches and Editorialism files by handoff, record dates, and start planning. |
 | **… → Insert author query** | Add a `%%query: …%%` question to the manuscript. |

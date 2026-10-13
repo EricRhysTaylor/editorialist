@@ -112,7 +112,7 @@ export class EditorialProjectPanel {
 		hero.createDiv({ cls: "editorialist-project__editor-role", text: project.title });
 		if (editor.state === "unavailable") hero.createEl("p", { cls: "editorialist-project__warning", text: "The saved editor profile is unavailable. Choose an existing contributor in engagement details." });
 		hero.createEl("h3", { cls: "editorialist-project__submission-heading", text: `Starts ${dayLabel(project.submissionDate)}` });
-		hero.createEl("p", { cls: "editorialist-project__hint", text: "Agreed start date · Prepare and exchange files directly through your collaboration." });
+		hero.createEl("p", { cls: "editorialist-project__hint", text: "Agreed start date · prepare and exchange files directly through your collaboration." });
 		const actions = hero.createDiv({ cls: "editorialist-project__actions" }); button(actions, "Engagement details", () => this.setup());
 		button(actions, "Record activity", () => this.recordActivity());
 		if (editor.profile) this.action(actions, "Editor profile", () => this.host.manageEditor(editor.profile!.id));

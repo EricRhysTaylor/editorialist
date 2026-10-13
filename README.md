@@ -16,9 +16,13 @@
 
 ## What it does
 
-Editorialist turns outside feedback into a controlled revision workflow inside Obsidian. Feedback arrives as review batches in Editorialist's format, packaged by an AI: either the AI's own review, or a human editor's or beta reader's notes that an AI has converted. Editorialist imports each batch into the scene notes you are already editing, matches suggestions conservatively against note content, and lets you accept, reject, rewrite, defer, or archive each change. Long-form editorial agendas become Editorialisms, checklists pinned to the passages they concern, and a revision plan schedules all of it, along with your own pending edits, against your deadline while tracking progress across the whole book.
+Editorialist turns outside feedback into a controlled revision workflow inside Obsidian. Feedback arrives as review batches in Editorialist's format, packaged by an AI: either the AI's own review, or a human editor's or beta reader's notes that an AI has converted. Editorialist imports each batch into the scene notes you are already editing, matches suggestions conservatively against note content, and lets you accept, reject, rewrite, defer, or archive each change. Long-form editorial agendas become Editorialisms, checklists pinned to the passages they concern, and **Editor engagement** schedules all of it, along with your own pending edits, against your deadline while tracking progress across the whole book.
 
-<!-- Screenshot placeholder — drop screenshots into /docs/images and reference them here. -->
+Version **3.0.0** adds two planning surfaces. **Editor engagement** keeps an editor’s agreed dates, personal milestones, tasks, optional document references, and activity history together. **Author planner** gives your own writing goals a vault-wide home, with target dates, hard deadlines, document links, and capacity scheduling. Goals can optionally share publishing-stage target dates with Radial Timeline.
+
+<p align="center"><img src="wiki/images/panel-editor-engagement.png" alt="Editor engagement with an editor, agreed dates, return window, and milestones" width="460"> <img src="wiki/images/panel-author-planner.png" alt="Author planner with personal writing goals and target dates" width="460"></p>
+
+Read the [user manual](https://github.com/EricRhysTaylor/Editorialist/wiki), including [Editor Engagement](https://github.com/EricRhysTaylor/Editorialist/wiki/Editor-Engagement) and [Author Planner](https://github.com/EricRhysTaylor/Editorialist/wiki/Author-Planner).
 
 ## How it works
 
@@ -30,7 +34,7 @@ Editorialist turns outside feedback into a controlled revision workflow inside O
 - **Editorialisms** are separate structural checklist files under `Editorialist/<Book>/`; use them for broader guidance that spans scenes or the whole manuscript. A directive can carry **anchors** — verbatim fragments pinning it to the passages it is actually about, so a manuscript-wide note becomes a short route through the prose instead of a hunt. Anchors are jump targets only; nothing is ever applied for you.
 - A directive that asks for a choice shows **Decision needed**: record the answer once with **Decide**, or write your own question with **Ask a question…**. Each Editorialism's **Hand off to AI** card copies one prompt covering every unfinished directive you have decided or questioned; the edits and answers come back through Import as a review batch.
 - An **editorial delivery** groups one editor's handoff (its batches and Editorialism files, received date, and return deadline) so you can track and plan it as a unit.
-- The **editor engagement** plan puts batches, directives, and pending edits in one queue against your deadline and daily capacity. **Auto-plan** spreads every open item in the book across your working days, and the progress card counts finished work across the whole book, planned or not.
+- **Editor engagement** records the editor’s start and return dates, questions window, milestones, tasks, optional references, and sent/received activity. File exchange stays in your collaboration; records describe what you record locally. Its schedule puts batches, directives, and pending edits in one queue against your deadline and daily capacity. **Auto-plan** spreads every open item in the book across your working days, and the progress card counts finished work across the whole book, planned or not.
 - Maintenance actions can clean review blocks or reset history, and bulk actions ask for confirmation.
 
 ## How feedback gets in
@@ -59,7 +63,7 @@ From there, Editorialist runs the workflow: it matches each suggestion to its pa
 - `End current round` — removes the current batch or all remaining batches in the book, keeping manuscript edits and decision counts. Unfinished feedback is marked ended early; no archive is created.
 - `Rescan review blocks for cleanup` — re-scans scene notes for review blocks ready to be cleaned.
 - `Backup selection to cut file` — copies the selected text into the scene's cut file without changing the manuscript. Also available from the editor right-click menu when text is selected.
-- `Insert author query` — drops a `%%query: …%%` marker into the scene at the cursor (hidden in reading view), so your next review — your editor's or an AI's — answers it in a `QUERY` block. Markers written as `%%ai: …%%` before 2.0.1 still work. Also available from the editor right-click menu.
+- `Insert author query` — drops a `%%query: …%%` marker into the scene at the cursor (hidden in reading view), so your next review — your editor's or an AI's — answers it in a `QUERY` block. Markers written as `%%ai: …%%` before 3.0.0 still work. Also available from the editor right-click menu.
 - `Anchor selection to editorialism directive` — pins the selected passage to an Editorialism directive so you can jump straight back to it later. Also available from the editor right-click menu.
 - `Go to next unprocessed anchor` — opens the next anchored passage in the active Editorialism, across scenes.
 - `Mark anchor processed and go to next` — records the current anchored passage as handled and advances.

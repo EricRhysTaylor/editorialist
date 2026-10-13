@@ -30,7 +30,7 @@ export class RadialBookGoals {
 			if (!target.rt) continue;
 			const book = books.find((item) => item.id === target.rt!.bookId), date = book?.dates[target.rt.stage];
 			if (!date) { unavailable.add(target.id); warnings.push(`${target.title}: ${book ? "the linked RT stage has no target date" : "the linked RT book is unavailable"}. Reconnect it or use a standalone goal before scheduling.`); continue; }
-			target.bookLabel = book!.title; target.due = date;
+			target.bookLabel = book.title; target.due = date;
 		}
 		return { plan: next, warnings, unavailable };
 	}
