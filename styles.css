@@ -8746,7 +8746,6 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	font-size: var(--font-smallest);
 	text-align: start;
 	text-decoration: underline;
-	text-decoration-color: color-mix(in srgb, var(--text-accent) 40%, transparent);
 	text-underline-offset: 2px;
 	white-space: normal;
 	overflow-wrap: anywhere;
