@@ -18,6 +18,17 @@ export interface ProjectPanelHost {
 	openSchedule(): void;
 	openWorkspace(): Promise<void>;
 	openSource(path: string): Promise<void>;
+	/** The first open item in the work queue — the same item the Schedule tab lists first. */
+	nextInQueue(): QueueHead | null;
+}
+export interface QueueHead {
+	title: string;
+	kindLabel: string;
+	detail: string;
+	/** Set when the item is one of this engagement's tasks, so it can be finished in place. */
+	taskId: string | null;
+	day: string | null;
+	open: (() => void) | null;
 }
 const dayLabel = (day: string): string => new Date(`${day}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 const button = (parent: HTMLElement, text: string, action: () => void): HTMLButtonElement => { const el = parent.createEl("button", { text, attr: { type: "button" } }); el.addEventListener("click", action); return el; };
@@ -31,8 +42,8 @@ const iconButton = (parent: HTMLElement, icon: string, label: string, action: ()
 // One collapsible section shape for milestones, tasks, and materials: icon,
 // full-strength title, count, and a large chevron. Open by default; the
 // panel remembers sections the author collapses.
-function section(root: HTMLElement, key: string, icon: string, title: string, count: number): HTMLElement {
-	const details = root.createEl("details", { cls: "editorialist-project__section", attr: { "data-plan-section": key, open: "" } });
+function section(root: HTMLElement, key: string, icon: string, title: string, count: number, open = true): HTMLElement {
+	const details = root.createEl("details", { cls: "editorialist-project__section", attr: { "data-plan-section": key, ...(open ? { open: "" } : {}) } });
 	const summary = details.createEl("summary", { cls: "editorialist-project__section-summary" });
 	setIcon(summary.createSpan({ cls: "editorialist-project__section-icon", attr: { "aria-hidden": "true" } }), icon);
 	summary.createSpan({ cls: "editorialist-project__section-title", text: title });
@@ -157,23 +168,24 @@ export class EditorialProjectPanel {
 		this.renderMaterials(section(root, "materials", "folder-open", "Materials & references", project.materials.filter((item) => !item.completed).length), true);
 	}
 	// What an author opening the engagement on any given day needs first: the
-	// next task to work on (finishable in place) and the next date that
-	// matters. Everything else on the page is reference.
+	// next thing to work on and the next date that matters. "Next" is the head
+	// of the work queue — the order the author set on the Schedule tab — so
+	// the two views can never disagree about what comes first.
 	private renderNextUp(root: HTMLElement, project: EditorialProject): void {
 		const today = localDate(new Date());
-		const due = (task: EngagementTask): string => task.milestoneId === "__start__" ? project.submissionDate : project.milestones.find((item) => item.id === task.milestoneId)?.day ?? "9999-12-31";
-		const task = project.tasks.map((item, index) => ({ item, index })).filter(({ item }) => !item.done)
-			.sort((left, right) => due(left.item).localeCompare(due(right.item)) || left.index - right.index)[0]?.item;
+		const head = this.host.nextInQueue();
 		const milestone = [...project.milestones].filter((item) => !item.done).sort((a, b) => a.day.localeCompare(b.day))[0];
-		if (!task && !milestone) return;
 		const card = root.createDiv({ cls: "editorialist-project__next" });
 		card.createDiv({ cls: "editorialist-project__eyebrow", text: "Next up" });
-		if (task) {
+		if (head) {
 			const row = card.createDiv({ cls: "editorialist-project__next-task" });
-			this.finishToggle(row, task);
-			row.createSpan({ cls: "editorialist-project__next-title", text: task.title });
-			const day = due(task);
-			if (day !== "9999-12-31") card.createDiv({ cls: `editorialist-project__next-meta${day < today ? " is-overdue" : ""}`, text: `${day < today ? "Overdue · was due" : "Due"} ${dayLabel(day)}` });
+			const task = head.taskId ? project.tasks.find((item) => item.id === head.taskId) : undefined;
+			if (task) this.finishToggle(row, task);
+			row.createSpan({ cls: "editorialist-project__next-title", text: head.title });
+			const meta = [task ? null : head.kindLabel, head.detail, head.day ? `Scheduled ${dayLabel(head.day)}` : null].filter(Boolean).join(" · ");
+			if (meta) card.createDiv({ cls: `editorialist-project__next-meta${task ? "" : " is-flush"}`, text: meta });
+		} else {
+			card.createDiv({ cls: "editorialist-project__next-empty", text: "Your work queue is empty. Add tasks or auto-plan from the Schedule tab." });
 		}
 		if (milestone) {
 			const row = card.createDiv({ cls: `editorialist-project__next-milestone${milestone.day < today ? " is-overdue" : ""}` });
@@ -181,6 +193,7 @@ export class EditorialProjectPanel {
 			row.createSpan({ text: `${milestone.title} · ${dayLabel(milestone.day)}${milestone.day < today ? " · overdue" : ""}` });
 		}
 		const actions = card.createDiv({ cls: "editorialist-project__actions" });
+		if (head?.open) button(actions, "Open", head.open);
 		button(actions, "Open schedule", () => this.host.openSchedule()).addClass("mod-cta");
 	}
 	private finishToggle(parent: HTMLElement, task: EngagementTask): void {
@@ -313,37 +326,58 @@ export class EditorialProjectPanel {
 			return async () => { if (!title.value.trim()) throw new Error("Enter a task title."); task.title = title.value.trim(); task.materialId = material.value || null; task.milestoneId = milestone.value || null; if (!id) draft.tasks.push(task); recordProjectEvent(draft, `Engagement task ${id ? "updated" : "added"}: ${task.title}`); await this.host.save(expected, next); };
 		}).open();
 	}
+	// History reads like the overview: one section per kind of record, rows
+	// with the record's kind at the left and quiet icon actions at the right.
 	renderHistory(root: HTMLElement): void {
 		const project = this.host.plan.project; if (!project) { this.renderOverview(root); return; }
-		const actions = root.createDiv({ cls: "editorialist-project__actions" }); button(actions, "Record activity", () => this.recordActivity());
-		root.createEl("h3", { text: "Activity records" });
-		if (!project.records.length) root.createEl("p", { cls: "editorialist-project__hint", text: "Record materials sent, feedback received or a conversation with your editor." });
-		for (const record of [...project.records].reverse().sort((a, b) => b.day.localeCompare(a.day))) {
-			const row = root.createDiv({ cls: "editorialist-project__material" });
-			row.createEl("strong", { text: `${{ sent: "Sent · Author recorded", received: "Received · Author recorded", note: "Engagement note" }[record.kind]} · ${dayLabel(record.day)}` });
-			row.createEl("p", { text: record.description }); if (record.filenames) row.createEl("p", { cls: "editorialist-project__path", text: record.filenames });
-			const actions = row.createDiv({ cls: "editorialist-project__actions" }); button(actions, "Edit record", () => this.recordActivity(record));
-			if (record.referencePath) this.action(actions, "Open reference", () => this.host.openSource(record.referencePath));
-			if (record.archive) this.action(actions, "Open archived copy", () => this.host.openSource(record.archive!.copy));
+		const records = [...project.records].reverse().sort((a, b) => b.day.localeCompare(a.day));
+		const activity = section(root, "activity", "inbox", "Activity records", records.length);
+		if (!records.length) activity.createEl("p", { cls: "editorialist-project__hint", text: "Record materials sent, feedback received or a conversation with your editor." });
+		const kinds = { sent: { icon: "send", label: "Sent" }, received: { icon: "inbox", label: "Received" }, note: { icon: "message-square", label: "Note" } } as const;
+		for (const record of records) {
+			const row = activity.createDiv({ cls: "editorialist-project__row editorialist-project__record" });
+			setIcon(row.createSpan({ cls: "editorialist-project__row-icon", attr: { "aria-hidden": "true" } }), kinds[record.kind].icon);
+			const main = row.createDiv({ cls: "editorialist-project__row-main" });
+			main.createDiv({ cls: "editorialist-project__row-title", text: record.description });
+			main.createDiv({ cls: "editorialist-project__row-meta", text: `${kinds[record.kind].label} · ${dayLabel(record.day)} · Author recorded` });
+			if (record.filenames) main.createDiv({ cls: "editorialist-project__path", text: record.filenames });
+			const actions = row.createDiv({ cls: "editorialist-project__row-actions" });
+			if (record.referencePath) iconButton(actions, "file-text", "Open reference", () => { void this.host.openSource(record.referencePath).catch((reason: unknown) => new Notice(reason instanceof Error ? reason.message : "Could not open the reference.")); });
+			if (record.archive) iconButton(actions, "archive", "Open archived copy", () => { void this.host.openSource(record.archive!.copy).catch((reason: unknown) => new Notice(reason instanceof Error ? reason.message : "Could not open the archived copy.")); });
+			iconButton(actions, "pencil", "Edit record", () => this.recordActivity(record));
 		}
+		button(activity, "Record activity", () => this.recordActivity()).addClass("editorialist-project__add");
+
 		const preserved = project.materials.filter((item) => item.check || item.frozenSources?.length || item.uploads.length);
 		if (preserved.length) {
-			const archive = root.createEl("details", { cls: "editorialist-project__section" }); archive.createEl("summary", { text: "Preserved preparation history" });
+			const archive = section(root, "preserved", "archive", "Preserved preparation history", preserved.length, false);
 			archive.createEl("p", { cls: "editorialist-project__hint", text: "Earlier records and copies remain available as history. They do not control this engagement's schedule." });
+			const open = (path: string) => (): void => { void this.host.openSource(path).catch((reason: unknown) => new Notice(reason instanceof Error ? reason.message : "Could not open the file.")); };
 			for (const material of preserved) {
-				const row = archive.createDiv({ cls: "editorialist-project__material" }); row.createEl("strong", { text: material.title });
-				if (material.check) this.action(row, "Open archived export", () => this.host.openSource(material.check!.copy));
-				for (const source of material.frozenSources ?? []) this.action(row, source.path, () => this.host.openSource(source.copy));
+				const group = archive.createDiv({ cls: "editorialist-project__row editorialist-project__preserved" });
+				setIcon(group.createSpan({ cls: "editorialist-project__row-icon", attr: { "aria-hidden": "true" } }), "file-archive");
+				const main = group.createDiv({ cls: "editorialist-project__row-main" });
+				main.createDiv({ cls: "editorialist-project__row-title", text: material.title });
+				const links = main.createDiv({ cls: "editorialist-project__links" });
+				const link = (text: string, path: string): void => { const el = links.createEl("button", { cls: "editorialist-project__link", text, attr: { type: "button" } }); el.addEventListener("click", open(path)); };
+				if (material.check) link("Archived export", material.check.copy);
+				for (const source of material.frozenSources ?? []) link(source.path, source.copy);
 				for (const upload of [...material.uploads].reverse()) {
-					row.createEl("p", { text: `Earlier sent record · ${upload.at.slice(0, 10)} · ${upload.filename} · ${upload.confirmation}` });
-					this.action(row, "Open recorded copy", () => this.host.openSource(upload.check.copy));
-					for (const source of upload.check.sources) this.action(row, source.path, () => this.host.openSource(source.copy));
+					main.createDiv({ cls: "editorialist-project__row-meta", text: `Earlier sent record · ${upload.at.slice(0, 10)} · ${upload.filename} · ${upload.confirmation}` });
+					link("Recorded copy", upload.check.copy);
+					for (const source of upload.check.sources) link(source.path, source.copy);
 				}
-				for (const source of material.check?.sources ?? []) if (!material.frozenSources?.some((item) => item.copy === source.copy)) this.action(row, source.path, () => this.host.openSource(source.copy));
+				for (const source of material.check?.sources ?? []) if (!material.frozenSources?.some((item) => item.copy === source.copy)) link(source.path, source.copy);
 			}
 		}
-		root.createEl("h3", { text: "Engagement history" });
-		if (!project.history.length) root.createEl("p", { cls: "editorialist-project__hint", text: "No engagement activity recorded yet." });
-		for (const event of [...project.history].sort((a, b) => Date.parse(b.at) - Date.parse(a.at))) { const row = root.createDiv({ cls: "editorialist-project__history" }); row.createSpan({ cls: "editorialist-project__hint", text: new Date(event.at).toLocaleString() }); row.createEl("p", { text: event.text }); }
+
+		const history = section(root, "history", "history", "Engagement history", project.history.length);
+		if (!project.history.length) history.createEl("p", { cls: "editorialist-project__hint", text: "No engagement activity recorded yet." });
+		for (const event of [...project.history].sort((a, b) => Date.parse(b.at) - Date.parse(a.at))) {
+			const row = history.createDiv({ cls: "editorialist-project__row editorialist-project__event" });
+			const main = row.createDiv({ cls: "editorialist-project__row-main" });
+			main.createDiv({ cls: "editorialist-project__event-text", text: event.text });
+			main.createDiv({ cls: "editorialist-project__row-meta", text: new Date(event.at).toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }) });
+		}
 	}
 }

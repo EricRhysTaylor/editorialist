@@ -8,7 +8,7 @@ import { renderPanelHeader } from "./primitives/PanelHeader";
 import { emptyRevisionPlan, forecastPlan, isDate, isPlanEntryComplete, localDate, movePlanEntry, progressDoneKeys, resolvePlanSource, sourceKey, type PlanEntry, type RevisionPlan, type WorkCandidate } from "../core/planning/RevisionPlan";
 import { advancePlanProgress, summarizePlanProgress, type ProgressInput } from "../core/planning/PlanProgress";
 import { estimateRange } from "../core/planning/AutoSchedule";
-import { EditorialProjectPanel } from "./EditorialProjectPanel";
+import { type QueueHead, EditorialProjectPanel } from "./EditorialProjectPanel";
 import { EditorialProjectService } from "../services/EditorialProjectService";
 import { entryDeadline } from "../core/planning/EditorialProject";
 
@@ -43,11 +43,30 @@ export class RevisionPlanPanel extends ItemView {
 		return new AuthorTargetPanel({ app: this.app, plan: this.plan, busy: this.busy, rt: this.plugin.radialBookGoals, save: async (expected, next, edit) => { await this.plugin.saveAuthorGoalPlan(expected, next, edit); }, openSource: async (path) => { await this.app.workspace.openLinkText(path, "", false); }, openSchedule: () => this.plugin.openAuthorScheduler() });
 	}
 	private projectService(): EditorialProjectService { return new EditorialProjectService(this.app); }
+	// The first open entry in the work queue, in the author's order — the
+	// single answer to "what is next" for both the Schedule and Overview tabs.
+	private queueHead(): QueueHead | null {
+		const entry = this.plan.entries.find((item) => !isPlanEntryComplete(item, this.candidates, this.doneKeys()));
+		if (!entry) return null;
+		const resolved = resolvePlanSource(entry.source, this.candidates);
+		const candidate = resolved.state === "ready" ? resolved.candidate : null;
+		const isTask = entry.source.kind === "preparation" && entry.source.path === this.plan.project?.id;
+		return {
+			title: candidate?.title ?? entry.title,
+			kindLabel: kindLabels[entry.source.kind],
+			detail: candidate?.detail ?? "",
+			taskId: isTask ? entry.source.locator : null,
+			day: entry.day,
+			open: candidate && entry.source.kind !== "preparation" && !this.stale ? () => { void this.plugin.openRevisionWork(candidate); } : null,
+		};
+	}
+
 	private projectPanel(): EditorialProjectPanel {
 		const book = this.book;
 		return new EditorialProjectPanel({ app: this.app, plan: this.plan, busy: this.busy || this.stale, service: this.projectService(), deliveries: this.plugin.getEditorialDeliveries(), getReviewers: () => this.plugin.getReviewerProfiles(), manageEditor: async (id) => { await this.plugin.contributors.openContributorManagementFlow(id); },
 			save: async (expected, next) => { if (!book || book !== this.scopeKey()) throw new Error("The active book changed. Reopen the project before saving."); await this.plugin.applyScheduledPlan(book, expected, next); },
 			openWorkspace: () => this.plugin.openEditorialProjectWorkspace(), openSchedule: () => { this.section = "schedule"; this.render(); }, openSource: async (path) => { const file = this.app.vault.getAbstractFileByPath(path); if (!(file instanceof TFile)) throw new Error("This file is unavailable. Check its path in material details."); await this.app.workspace.openLinkText(file.path, "", false); },
+			nextInQueue: () => this.queueHead(),
 		});
 	}
 	getViewType(): string { return this.author ? AUTHOR_PLAN_VIEW_TYPE : REVISION_PLAN_VIEW_TYPE; }
