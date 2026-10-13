@@ -1,6 +1,6 @@
 Keep an editor’s agreed dates, personal milestones, tasks, optional reference documents, and activity history together for the active book. Run **Open editor engagement**, or choose **Editor engagement** from the panel’s mode selector. **Open editorial project in workspace** opens the same plan in a full workspace tab.
 
-<p align="center"><img src="images/panel-editor-engagement.png" alt="Editor engagement overview showing the editor, start date, return window, and milestones" width="460"></p>
+<p align="center"><img src="images/panel-editor-engagement.png" alt="Editor engagement overview with the editor, a countdown to the agreed start date, and Next up showing the first queued task and the next milestone" width="460"></p>
 
 ## Create an engagement
 
@@ -37,7 +37,7 @@ See [Revision Plan](Revision-Plan) for estimates, automatic planning, delivery s
 
 Choose **Record activity** to record sent files, received files, or a note. A date and description are required; filenames and a vault reference are optional. Record events that have happened; put future work in the schedule. Records can be corrected later.
 
-<p align="center"><img src="images/engagement-history.png" alt="Engagement history with author-recorded sent activity and notes" width="460"></p>
+<p align="center"><img src="images/engagement-history.png" alt="Activity records with a sent record and a note, each with its kind icon and edit, reference, and archive actions" width="460"></p>
 
 If you explicitly choose to archive the referenced file, Editorialist preserves one saved file, up to 64 MB, under `Editorialist/Engagement history/`. That copy remains independent of later changes to the working document. Live references follow file renames; historical filenames and archived copies preserve the record.
 

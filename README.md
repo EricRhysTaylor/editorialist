@@ -20,7 +20,7 @@ Editorialist turns outside feedback into a controlled revision workflow inside O
 
 Version **3.0.0** adds two planning surfaces. **Editor engagement** keeps an editor’s agreed dates, personal milestones, tasks, optional document references, and activity history together. **Author planner** gives your own writing goals a vault-wide home, with target dates, hard deadlines, document links, and capacity scheduling. Goals can optionally share publishing-stage target dates with Radial Timeline.
 
-<p align="center"><img src="wiki/images/panel-editor-engagement.png" alt="Editor engagement with an editor, agreed dates, return window, and milestones" width="460"> <img src="wiki/images/panel-author-planner.png" alt="Author planner with personal writing goals and target dates" width="460"></p>
+<p align="center"><img src="wiki/images/panel-editor-engagement.png" alt="Editor engagement overview with the editor, a countdown to the agreed start date, and Next up showing the first queued task and the next milestone" width="460"> <img src="wiki/images/panel-author-planner.png" alt="Author planner with personal writing goals and target dates" width="460"></p>
 
 Read the [user manual](https://github.com/EricRhysTaylor/Editorialist/wiki), including [Editor Engagement](https://github.com/EricRhysTaylor/Editorialist/wiki/Editor-Engagement) and [Author Planner](https://github.com/EricRhysTaylor/Editorialist/wiki/Author-Planner).
 

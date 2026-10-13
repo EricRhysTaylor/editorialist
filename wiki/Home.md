@@ -40,7 +40,7 @@ The standard Review workflow supports a full set of scene-level editorial moves:
 
 Use the view name beside the Ed logo to switch modes. Book-scoped modes use the active-book header and **Import**. Author planner shows **Across your vault** and **Add goal**.
 
-<p align="center"><img src="images/panel-editor-engagement.png" alt="Editor engagement with agreed dates, return window, and personal milestones" width="460"></p>
+<p align="center"><img src="images/panel-editor-engagement.png" alt="Editor engagement overview with the editor, a countdown to the agreed start date, and Next up showing the first queued task and the next milestone" width="460"></p>
 
 | Mode | Use it for |
 |---|---|
