@@ -4,6 +4,8 @@ It is for writers who get notes from human editors, beta readers, or AI and want
 
 The plugin does not rewrite your prose on import. Line edits, memos, author questions, and pending-edit notes stay reviewable until you decide what to do with them. Any passage can be archived to a per-scene cut file — from the editor's right-click menu, the suggestion toolbar, or the command palette — and completed sweeps update revision history, contributor stats, and per-scene progress.
 
+Watch the walkthrough: [Turn Your Editor's Notes Into a Revision Schedule](https://youtu.be/uoGUkF6RQ2E) (Volume 9 on the Radial Timeline YouTube channel).
+
 ## Feedback and planning
 
 Review batches arrive in Editorialist’s format, packaged by an AI: the AI’s own review, or a human editor’s or beta reader’s notes converted with the formatting instructions. You choose the AI and paste its formatted response into Editorialist. The plugin makes no network calls and holds no API keys.

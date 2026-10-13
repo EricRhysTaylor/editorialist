@@ -24,6 +24,12 @@ Version **3.0.0** adds two planning surfaces. **Editor engagement** keeps an edi
 
 Read the [user manual](https://github.com/EricRhysTaylor/Editorialist/wiki), including [Editor Engagement](https://github.com/EricRhysTaylor/Editorialist/wiki/Editor-Engagement) and [Author Planner](https://github.com/EricRhysTaylor/Editorialist/wiki/Author-Planner).
 
+## Watch
+
+[![Obsidian Writers: Turn Your Editor's Notes Into a Revision Schedule (Editorialist, Volume 9)](https://i.ytimg.com/vi/uoGUkF6RQ2E/maxresdefault.jpg)](https://youtu.be/uoGUkF6RQ2E)
+
+An editor's round from start to finish: the notes come in, the AI you choose formats them, Editorialist plans the revision against your deadline, and every decision stays yours. Part of the series on the [Radial Timeline YouTube channel](https://www.youtube.com/@RadialTimeline).
+
 ## How it works
 
 - Copy the formatting instructions from the review launcher, send them with the prose or notes you want reviewed, then copy the formatted response back into Editorialist.
