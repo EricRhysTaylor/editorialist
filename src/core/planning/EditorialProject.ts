@@ -1,4 +1,4 @@
-import { isDate, resolvePlanSource, type PlanEntry, type RevisionPlan, type WorkCandidate, type WorkKind } from "./RevisionPlan";
+import { isDate, localDate, resolvePlanSource, type PlanEntry, type RevisionPlan, type WorkCandidate, type WorkKind } from "./RevisionPlan";
 import { normalizeContributorValue } from "../ContributorIdentity";
 import type { ContributorProfile } from "../../models/ContributorProfile";
 
@@ -86,6 +86,14 @@ export function projectEditor(project: EditorialProject, profiles: readonly Cont
 export function shiftDate(day: string, offset: number): string {
 	if (!isDate(day)) throw new Error("Choose a valid date.");
 	return new Date(Date.parse(`${day}T00:00:00Z`) + offset * 86400000).toISOString().slice(0, 10);
+}
+/** Compare local calendar dates using UTC day boundaries to avoid daylight saving drift. */
+export function engagementStartCountdown(day: string, today = localDate(new Date())): string {
+	if (!isDate(day) || !isDate(today)) throw new Error("Choose a valid date.");
+	const days = Math.round((Date.parse(`${day}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86400000);
+	if (days === 0) return "Today";
+	const count = Math.abs(days);
+	return `${count} ${count === 1 ? "day" : "days"} ${days > 0 ? "away" : "ago"}`;
 }
 export function collaborationUrl(value: string): string {
 	if (!value.trim()) return "";

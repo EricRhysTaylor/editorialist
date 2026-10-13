@@ -1,5 +1,5 @@
 import { Modal, Notice, TFile, normalizePath, setIcon, type App } from "obsidian";
-import { collaborationUrl, createEditorialProject, isProjectEditorProfile, materialDue, projectEditor, recordProjectEvent, shiftDate, type EditorialProject, type EngagementRecord, type ProjectMaterial } from "../core/planning/EditorialProject";
+import { collaborationUrl, createEditorialProject, engagementStartCountdown, isProjectEditorProfile, materialDue, projectEditor, recordProjectEvent, shiftDate, type EditorialProject, type EngagementRecord, type ProjectMaterial } from "../core/planning/EditorialProject";
 import { isDate, localDate, type RevisionPlan } from "../core/planning/RevisionPlan";
 
 import type { EditorialDelivery } from "../core/EditorialDeliveries";
@@ -111,7 +111,8 @@ export class EditorialProjectPanel {
 		hero.createEl("h2", { cls: "editorialist-project__editor-name", text: editor.name });
 		hero.createDiv({ cls: "editorialist-project__editor-role", text: project.title });
 		if (editor.state === "unavailable") hero.createEl("p", { cls: "editorialist-project__warning", text: "The saved editor profile is unavailable. Choose an existing contributor in engagement details." });
-		hero.createEl("h3", { cls: "editorialist-project__submission-heading", text: `Starts ${dayLabel(project.submissionDate)}` });
+		const today = localDate(new Date());
+		hero.createEl("h3", { cls: "editorialist-project__submission-heading", text: `${project.submissionDate < today ? "Started" : "Starts"} ${dayLabel(project.submissionDate)} · ${engagementStartCountdown(project.submissionDate, today)}` });
 		hero.createEl("p", { cls: "editorialist-project__hint", text: "Agreed start date · prepare and exchange files directly through your collaboration." });
 		const actions = hero.createDiv({ cls: "editorialist-project__actions" }); button(actions, "Engagement details", () => this.setup());
 		button(actions, "Record activity", () => this.recordActivity());

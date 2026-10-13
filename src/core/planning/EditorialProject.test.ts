@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { collaborationUrl, createEditorialProject, entryDeadline, isProjectEditorProfile, normalizeEditorialProject, preparationWork, projectEditor, shiftDate, type MaterialCheck } from "./EditorialProject";
+import { collaborationUrl, createEditorialProject, engagementStartCountdown, entryDeadline, isProjectEditorProfile, normalizeEditorialProject, preparationWork, projectEditor, shiftDate, type MaterialCheck } from "./EditorialProject";
 import type { ContributorProfile } from "../../models/ContributorProfile";
 import { emptyRevisionPlan, normalizeRevisionPlans } from "./RevisionPlan";
 import { draftSchedule } from "./AutoSchedule";
@@ -46,6 +46,19 @@ describe("Editorial preparation project", () => {
 		expect(result.generated[0]!.day).not.toBeNull();
 	});
 	it("uses calendar days through daylight saving for questions", () => { expect(shiftDate("2027-01-11", 10)).toBe("2027-01-21"); expect(() => shiftDate("2026-02-30", 1)).toThrow(); });
+	it("counts engagement calendar days across daylight saving changes", () => {
+		expect(engagementStartCountdown("2026-11-30", "2026-10-07")).toBe("54 days away");
+		expect(engagementStartCountdown("2026-11-30", "2026-10-13")).toBe("48 days away");
+		expect(engagementStartCountdown("2026-03-09", "2026-03-07")).toBe("2 days away");
+		expect(engagementStartCountdown("2026-11-02", "2026-10-31")).toBe("2 days away");
+	});
+	it("labels the start day and singular days before and after it", () => {
+		expect(engagementStartCountdown("2026-11-30", "2026-11-29")).toBe("1 day away");
+		expect(engagementStartCountdown("2026-11-30", "2026-11-30")).toBe("Today");
+		expect(engagementStartCountdown("2026-11-30", "2026-12-01")).toBe("1 day ago");
+		expect(engagementStartCountdown("2026-11-30", "2026-12-02")).toBe("2 days ago");
+		expect(() => engagementStartCountdown("2026-02-30", "2026-10-13")).toThrow();
+	});
 	it("refuses unsafe collaboration URLs", () => { expect(collaborationUrl("https://reedsy.com/collaborations/123")).toBe("https://reedsy.com/collaborations/123"); for (const url of ["javascript:alert(1)", "http://example.com", "https://user:secret@example.com"]) expect(() => collaborationUrl(url)).toThrow(); });
 	it("rejects unsafe storage identities", () => { expect(() => normalizeEditorialProject({ ...project(), id: "../outside" })).toThrow(/identity/); });
 });
