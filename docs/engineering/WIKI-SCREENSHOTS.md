@@ -79,5 +79,11 @@ Replaced three images whose screens changed in 3.0.2:
 panel is unchanged in 3.0.2 (same layout, 1 CSS pixel of crop rounding).
 The schedule-preview images come from a dialog 3.0.2 did not touch.
 
+Added `plan-queue-cards.png` for the Revision Plan page: the same vault and
+geometry, cropped from 12 px above the "Your work queue" heading to 12 px below
+the third card (417 CSS pixels tall), captured after the overlay scrollbar
+faded. It shows the three queued engagement-task sessions; engagement tasks
+have no Open source icon, which the page now says.
+
 Capture scripts and evidence are kept outside the public repository in the
 session scratchpad.

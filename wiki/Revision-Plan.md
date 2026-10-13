@@ -25,7 +25,9 @@ The forecast uses the high end of estimates and includes scheduled optional work
 
 ## Work a session
 
-Each card in the queue shows its kind, title, context, and its date and estimate (dashed when not yet set). The check circle at the left is **Finish session**; the icons at the right are **Open source**, which takes you to the underlying feedback, and **Schedule & options**. Clicking the date or estimate opens the same options.
+Each card in the queue shows its kind, title, context, and its date and estimate (dashed when not yet set). The check circle at the left is **Finish session**. At the right, **Schedule & options** opens the card's scheduling controls; clicking the date or estimate opens them too. Batches, Editorialism directives, and pending edits also get **Open source**, which takes you to the underlying feedback. Engagement tasks live in the engagement itself, so they have none.
+
+<p align="center"><img src="images/plan-queue-cards.png" alt="Work queue with three engagement-task cards: a check circle at the left, the kind and session, title and context, date and estimate chips, and a Schedule &amp; options icon at the right" width="460"></p>
 
 **Finish session** completes only the planning session: it does not accept a batch suggestion, check off an Editorialism, or remove a Pending edit. Resolve those in their source workflow. Source completion can also make its planned work complete. A batch is complete once every suggestion in it is decided; its memos ride along. A batch holding only memos has nothing to decide, so it stays open until you finish its session.
 
