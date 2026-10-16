@@ -75,8 +75,10 @@ export class CutFileController {
 	// sweep stats, or contributor metrics. `preferDisplayedSuggestion` flips the
 	// resolution order: the toolbar preserves the suggestion shown on the card,
 	// the right-click menu preserves the manual selection.
-	async backupSelectionToCutFile(options?: { preferDisplayedSuggestion?: boolean }): Promise<void> {
-		const resolved = this.resolveCutBackupSource(options?.preferDisplayedSuggestion ?? false);
+	// `view` is the editor the author right-clicked; without it (toolbar,
+	// command palette) the scene editor is resolved from the workspace.
+	async backupSelectionToCutFile(options?: { preferDisplayedSuggestion?: boolean; view?: MarkdownView }): Promise<void> {
+		const resolved = this.resolveCutBackupSource(options?.preferDisplayedSuggestion ?? false, options?.view);
 		if (!resolved) {
 			new Notice(
 				"Select text in the editor, or choose a cut or condense suggestion, to back up to the cut file.",
@@ -274,21 +276,21 @@ export class CutFileController {
 		return null;
 	}
 
-	private resolveCutBackupSource(preferDisplayedSuggestion: boolean): CutBackupSource | null {
+	private resolveCutBackupSource(preferDisplayedSuggestion: boolean, view?: MarkdownView): CutBackupSource | null {
 		// The toolbar "Backup to cut file" preserves the suggestion shown on the
 		// card; the right-click "Backup selection" preserves the user's manual
 		// selection. Both fall back to the other when their primary is empty.
 		return preferDisplayedSuggestion
-			? this.resolveDisplayedSuggestionSource() ?? this.resolveSelectionSource()
-			: this.resolveSelectionSource() ?? this.resolveDisplayedSuggestionSource();
+			? this.resolveDisplayedSuggestionSource() ?? this.resolveSelectionSource(view)
+			: this.resolveSelectionSource(view) ?? this.resolveDisplayedSuggestionSource();
 	}
 
 	// Live editor selection. Read at action time (not from cached toolbar state)
 	// so a toolbar click that doesn't steal focus still sees the current
 	// selection. Use the scene editor, never the cut panel — the cut file is
 	// itself a markdown view and would otherwise hijack this read.
-	private resolveSelectionSource(): CutBackupSource | null {
-		const view = this.getSceneEditorView();
+	private resolveSelectionSource(target?: MarkdownView): CutBackupSource | null {
+		const view = target ?? this.getSceneEditorView();
 		const selection = view?.editor.getSelection();
 		if (view?.file && selection && selection.trim()) {
 			return { sceneFile: view.file, text: selection, source: "selection" };

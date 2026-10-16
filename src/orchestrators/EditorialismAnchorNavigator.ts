@@ -1,3 +1,4 @@
+import { displayDirectiveText } from "../core/DirectiveText";
 // Owns editorialism anchor navigation: which editorialism is the current
 // subject, where the author is in its anchor walk, which anchors could not
 // be located on the last jump, and the anchor highlights for the note that
@@ -351,11 +352,27 @@ export class EditorialismAnchorNavigator {
 	// Anchor the current editor selection to a directive the author picks. This
 	// is how anchors accumulate during a read-through — the author notices a
 	// passage that belongs to a standing note and pins it in one step.
-	async anchorSelectionToEditorialismItem(): Promise<void> {
-		const view = this.host.app.workspace.getActiveViewOfType(MarkdownView);
+	// `target` is the editor the author right-clicked; from the command
+	// palette, the active editor.
+	async anchorSelectionToEditorialismItem(target?: MarkdownView): Promise<void> {
+		const view = target ?? this.host.app.workspace.getActiveViewOfType(MarkdownView);
 		const selection = view?.editor.getSelection() ?? "";
 		if (!selection.trim()) {
 			new Notice("Select the passage you want to anchor first.");
+			return;
+		}
+
+		// An anchor is found again by its scene number, so it can only be taken
+		// from a numbered scene in the active book. Anywhere else it would be
+		// written and then never located.
+		const file = view?.file ?? null;
+		if (!file || !isSceneNoteForScope(this.host.app, file, this.host.getActiveBookScopeInfo(), this.host.getCutFolderOverride())) {
+			new Notice("Anchors pin passages in the active book's scenes. Select the passage in a scene note.");
+			return;
+		}
+		const sceneNumber = sceneNumberFromName(file.basename);
+		if (sceneNumber === null) {
+			new Notice(`“${file.basename}” has no scene number in its title, so an anchor could not find it again.`);
 			return;
 		}
 
@@ -395,8 +412,7 @@ export class EditorialismAnchorNavigator {
 			return;
 		}
 
-		const sceneNumber = view?.file ? sceneNumberFromName(view.file.basename) : null;
-		const body = formatAnchorBody(sceneNumber === null ? null : String(sceneNumber), fragments);
+		const body = formatAnchorBody(String(sceneNumber), fragments);
 		const inserted = await this.host.editorialismService.appendAnchor(
 			choice.editorialism.filePath,
 			choice.item.lineIndex,
@@ -408,7 +424,7 @@ export class EditorialismAnchorNavigator {
 		}
 
 		this.host.refreshEditorialismPanel();
-		new Notice(`Anchored to "${choice.item.text}".`);
+		new Notice(`Anchored to "${displayDirectiveText(choice.item.text)}".`);
 	}
 
 	// Reveal a range in an explicitly supplied note, without touching review

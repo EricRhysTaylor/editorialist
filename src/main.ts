@@ -1,3 +1,4 @@
+import { editorMenuEntries, type EditorMenuEntry } from "./core/EditorMenuEntries";
 import { saveOpenEditors } from "./services/SaveOpenEditors";
 import { AutoScheduleModal } from "./ui/AutoScheduleModal";
 import { EditorialDeliveriesModal } from "./ui/EditorialDeliveriesModal";
@@ -536,48 +537,34 @@ export default class EditorialistPlugin extends Plugin {
 		);
 
 		this.registerEvent(
-			this.app.workspace.on("editor-menu", (menu, editor) => {
-				// Insert-author-query is offered regardless of selection — an author
-				// can drop a query at the cursor. "Ed —" text prefix: macOS native
-				// menus drop Obsidian's item icons, so the brand mark lives in the
-				// title itself.
-				menu.addItem((item) => {
-					item.setTitle("Ed — insert author query")
-						.setIcon("message-square-plus")
-						.onClick(() => {
-							void this.insertAuthorQuery();
-						});
-				});
+			this.app.workspace.on("editor-menu", (menu, editor, info) => {
+				// Every item acts on the editor that was right-clicked — passed in
+				// here — never on "the active editor", which can be a different
+				// pane (the scene under review while the author is in the cut
+				// file, or an unfocused side pane). "Ed —" text prefix: macOS
+				// native menus drop Obsidian's item icons, so the brand mark lives
+				// in the title itself.
+				const view = info instanceof MarkdownView ? info : null;
+				const file = view?.file ?? null;
+				// Which items appear where is decided in editorMenuEntries.
+				const inScene = view !== null && file !== null && isSceneNoteForScope(
+					this.app,
+					file,
+					this.registry.getActiveBookScopeInfo(),
+					this.registry.getCutFolderOverride(),
+				);
 
-				// Offered whenever text is selected — backupSelectionToCutFile
-				// resolves the cut file from the note itself, so it works with or
-				// without an active review batch.
-				if (!editor.getSelection().trim()) {
-					return;
+				const selection = editor.getSelection();
+				const items: Record<EditorMenuEntry, { title: string; icon: string; run: () => void }> = {
+					"author-query": { title: "Ed — insert author query", icon: "message-square-plus", run: () => { void this.insertAuthorQuery(view ?? undefined); } },
+					"backup-selection": { title: "Ed — backup selection to cut file", icon: "archive", run: () => { void this.cutFiles.backupSelectionToCutFile({ view: view ?? undefined }); } },
+					"find-across-scenes": { title: "Ed — find across scenes", icon: "search", run: () => { void this.findSelectionAcrossScenes(selection); } },
+					"anchor-selection": { title: "Ed — anchor selection to editorialism", icon: "corner-down-right", run: () => { void this.anchors.anchorSelectionToEditorialismItem(view ?? undefined); } },
+				};
+				for (const entry of editorMenuEntries({ inScene, hasSelection: selection.trim().length > 0 })) {
+					const spec = items[entry];
+					menu.addItem((item) => item.setTitle(spec.title).setIcon(spec.icon).onClick(spec.run));
 				}
-				menu.addItem((item) => {
-					item.setTitle("Ed — backup selection to cut file")
-						.setIcon("archive")
-						.onClick(() => {
-							void this.cutFiles.backupSelectionToCutFile();
-						});
-				});
-
-				menu.addItem((item) => {
-					item.setTitle("Ed — find across scenes")
-						.setIcon("search")
-						.onClick(() => {
-							void this.findSelectionAcrossScenes();
-						});
-				});
-
-				menu.addItem((item) => {
-					item.setTitle("Ed — anchor selection to editorialism")
-						.setIcon("corner-down-right")
-						.onClick(() => {
-							void this.anchors.anchorSelectionToEditorialismItem();
-						});
-				});
 			}),
 		);
 
@@ -1182,8 +1169,8 @@ export default class EditorialistPlugin extends Plugin {
 
 	// Every paragraph in the book containing the selected phrase, grouped by
 	// scene, each openable beside the current scene.
-	async findSelectionAcrossScenes(): Promise<void> {
-		const phrase = this.app.workspace.getActiveViewOfType(MarkdownView)?.editor.getSelection().trim() ?? "";
+	async findSelectionAcrossScenes(selection?: string): Promise<void> {
+		const phrase = (selection ?? this.app.workspace.getActiveViewOfType(MarkdownView)?.editor.getSelection() ?? "").trim();
 		if (!phrase) {
 			new Notice("Select a word or phrase to find across scenes.");
 			return;
@@ -1315,12 +1302,13 @@ export default class EditorialistPlugin extends Plugin {
 	// selection, never replacing it — so the next review picks it up. Falls back
 	// to the clipboard when no scene editor is in view (e.g. the panel is focused
 	// with no manuscript open).
-	async insertAuthorQuery(): Promise<void> {
-		// Resolve the target editor BEFORE the modal opens — once it is open the
-		// modal leaf is active, so getSceneEditorView would no longer see the
-		// scene. getSceneEditorView still recovers the review session's note when
-		// focus is on the panel.
-		const view = this.cutFiles.getSceneEditorView();
+	async insertAuthorQuery(target?: MarkdownView): Promise<void> {
+		// The right-click menu passes the editor that was clicked. From the
+		// command palette, resolve the target editor BEFORE the modal opens —
+		// once it is open the modal leaf is active, so getSceneEditorView would
+		// no longer see the scene. getSceneEditorView still recovers the review
+		// session's note when focus is on the panel.
+		const view = target ?? this.cutFiles.getSceneEditorView();
 		const question = await new AuthorQueryModal(this.app).present();
 		if (!question) {
 			return;
