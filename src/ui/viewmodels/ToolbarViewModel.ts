@@ -1,3 +1,4 @@
+import { t, tCount } from "../../i18n";
 // Pure toolbar-state projection. This is the live decision logic for the
 // toolbar: EditorialistPlugin.getToolbarState (main.ts) imports and calls
 // buildToolbarState after gathering the resolved values into
@@ -24,7 +25,7 @@ function buildReviewState(review: ReviewBranchInputs): ToolbarState {
 	return {
 		mode: "review",
 		anchorDirection: review.anchorDirection,
-		completionLabel: review.sweepComplete ? "sweep complete" : undefined,
+		completionLabel: review.sweepComplete ? t("toolbar.sweepComplete") : undefined,
 		pendingCount: countStatus(effectiveStatuses, "pending"),
 		acceptedCount: countStatus(effectiveStatuses, "accepted"),
 		rejectedCount: countStatus(effectiveStatuses, "rejected"),
@@ -33,11 +34,11 @@ function buildReviewState(review: ReviewBranchInputs): ToolbarState {
 		sceneProgressLabel: review.sceneProgressLabel,
 		selectedIndexLabel:
 			selectedIndex === -1
-				? `${suggestionsLength} ${suggestionsLength === 1 ? "entry" : "entries"}`
-				: `Entry ${selectedIndex + 1}/${suggestionsLength}`,
+				? tCount("toolbar.entries", suggestionsLength)
+				: t("toolbar.entryIndex", { index: selectedIndex + 1, total: suggestionsLength }),
 		unresolvedCount: unresolvedPositions.length,
 		unresolvedDetails:
-			unresolvedPositions.length > 0 ? `Unresolved items: ${unresolvedPositions.join(", ")}` : undefined,
+			unresolvedPositions.length > 0 ? t("toolbar.unresolvedItems", { items: unresolvedPositions.join(", ") }) : undefined,
 		canApply: review.canApply,
 		canDefer: review.canDefer,
 		canRewrite: review.canRewrite,
@@ -68,8 +69,8 @@ export function buildToolbarState(inputs: ToolbarStateInputs): ToolbarState | nu
 		return {
 			mode: "applied_review",
 			canUndo: inputs.canUndoLastAppliedSuggestion,
-			currentIndexLabel: `${appliedReview.currentIndex + 1} of ${appliedReview.entryCount}`,
-			title: "Review applied changes",
+			currentIndexLabel: t("toolbar.appliedIndex", { index: appliedReview.currentIndex + 1, total: appliedReview.entryCount }),
+			title: t("toolbar.reviewApplied"),
 		};
 	}
 
@@ -114,8 +115,8 @@ export function buildToolbarState(inputs: ToolbarStateInputs): ToolbarState | nu
 		return {
 			mode: "panel",
 			progressLabel: panelOnly.progressLabel,
-			remainingLabel: `${panelOnly.remainingCount} remaining`,
-			title: `Continue in ${panelOnly.unitLabel === "scene" ? "this scene" : "this note"}`,
+			remainingLabel: t("toolbar.remaining", { count: panelOnly.remainingCount }),
+			title: panelOnly.unitLabel === "scene" ? t("toolbar.continueScene") : t("toolbar.continueNote"),
 		};
 	}
 
@@ -127,8 +128,8 @@ export function buildToolbarState(inputs: ToolbarStateInputs): ToolbarState | nu
 		const count = inputs.bulkApplicableCount;
 		return {
 			mode: "bulk_confirm",
-			countLabel: `${count} ${count === 1 ? "change" : "changes"}`,
-			title: "Apply to all?",
+			countLabel: tCount("toolbar.changes", count),
+			title: t("toolbar.applyAllQuestion"),
 		};
 	}
 
@@ -140,7 +141,7 @@ export function buildToolbarState(inputs: ToolbarStateInputs): ToolbarState | nu
 	if (inputs.sessionHasNoOpenWork) {
 		return {
 			mode: "completed_review",
-			title: "All revisions complete",
+			title: t("toolbar.allComplete"),
 			canNext: inputs.completedReviewCanNext,
 			canPrevious: inputs.completedReviewCanPrevious,
 			canUndo: inputs.hasLastAppliedChange,

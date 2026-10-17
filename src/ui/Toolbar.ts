@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import { ButtonComponent, setIcon } from "obsidian";
 import type EditorialistPlugin from "../main";
 import type { SupportedReviewOperationType } from "../models/ReviewSuggestion";
@@ -175,7 +176,7 @@ export function createReviewToolbarElement(
 	if (state.mode === "bulk_confirm") {
 		toolbar.addClass("editorialist-toolbar--bulk-confirm");
 		const leading = toolbar.createDiv({ cls: "editorialist-toolbar__leading" });
-		buildFlatIconButton(leading, "Cancel bulk apply", "x", () => {
+		buildFlatIconButton(leading, t("toolbar.cancelBulk"), "x", () => {
 			plugin.reviewActions.cancelApplyAndReviewConfirmMode();
 		});
 
@@ -186,10 +187,10 @@ export function createReviewToolbarElement(
 		renderMetaSegment(meta, state.countLabel);
 
 		const actions = toolbar.createDiv({ cls: "editorialist-toolbar__actions" });
-		buildActionButton(actions, "Cancel", "arrow-left", () => {
+		buildActionButton(actions, t("toolbar.cancel"), "arrow-left", () => {
 			plugin.reviewActions.cancelApplyAndReviewConfirmMode();
 		}, true);
-		buildActionButton(actions, "Confirm", "triangle-alert", () => {
+		buildActionButton(actions, t("toolbar.confirm"), "triangle-alert", () => {
 			void plugin.reviewActions.confirmApplyAndReviewSceneSuggestions();
 		});
 		return overlay;
@@ -198,7 +199,7 @@ export function createReviewToolbarElement(
 	if (state.mode === "applied_review") {
 		toolbar.addClass("editorialist-toolbar--panel");
 		const leading = toolbar.createDiv({ cls: "editorialist-toolbar__leading" });
-		buildFlatIconButton(leading, "Finish review", "x", () => {
+		buildFlatIconButton(leading, t("toolbar.finishReview"), "x", () => {
 			void plugin.reviewActions.finishActiveReview();
 		});
 
@@ -209,14 +210,14 @@ export function createReviewToolbarElement(
 		renderMetaSegment(meta, state.currentIndexLabel);
 
 		const actions = toolbar.createDiv({ cls: "editorialist-toolbar__actions" });
-		buildButton(actions, tracker, "Previous", "arrow-left", () => {
+		buildButton(actions, tracker, t("toolbar.previous"), "arrow-left", () => {
 			void plugin.reviewActions.selectPreviousAppliedReviewChange();
 		}, false);
-		buildButton(actions, tracker, "Next", "arrow-right", () => {
+		buildButton(actions, tracker, t("toolbar.next"), "arrow-right", () => {
 			void plugin.reviewActions.selectNextAppliedReviewChange();
 		}, false);
 		if (state.canUndo) {
-			buildButton(actions, tracker, "Undo", "rotate-ccw", () => {
+			buildButton(actions, tracker, t("toolbar.undo"), "rotate-ccw", () => {
 				void plugin.reviewActions.undoLastAppliedSuggestion();
 			}, false);
 		}
@@ -226,7 +227,7 @@ export function createReviewToolbarElement(
 	if (state.mode === "accepted_review") {
 		toolbar.addClass("editorialist-toolbar--panel");
 		const leading = toolbar.createDiv({ cls: "editorialist-toolbar__leading" });
-		buildFlatIconButton(leading, "Finish review", "x", () => {
+		buildFlatIconButton(leading, t("toolbar.finishReview"), "x", () => {
 			void plugin.reviewActions.finishActiveReview();
 		});
 
@@ -237,14 +238,14 @@ export function createReviewToolbarElement(
 		renderMetaSegment(meta, state.currentIndexLabel);
 
 		const actions = toolbar.createDiv({ cls: "editorialist-toolbar__actions" });
-		buildButton(actions, tracker, "Previous", "arrow-left", () => {
+		buildButton(actions, tracker, t("toolbar.previous"), "arrow-left", () => {
 			void plugin.reviewActions.selectPreviousAcceptedSuggestion();
 		}, !state.canPrevious);
-		buildButton(actions, tracker, "Next", "arrow-right", () => {
+		buildButton(actions, tracker, t("toolbar.next"), "arrow-right", () => {
 			void plugin.reviewActions.selectNextAcceptedSuggestion();
 		}, !state.canNext);
 		if (state.canUndo) {
-			buildButton(actions, tracker, "Undo", "rotate-ccw", () => {
+			buildButton(actions, tracker, t("toolbar.undo"), "rotate-ccw", () => {
 				void plugin.reviewActions.undoLastAppliedSuggestion();
 			}, false);
 		}
@@ -254,7 +255,7 @@ export function createReviewToolbarElement(
 	if (state.mode === "pending_edits_review") {
 		toolbar.addClass("editorialist-toolbar--pending-edits");
 		const leading = toolbar.createDiv({ cls: "editorialist-toolbar__leading" });
-		buildFlatIconButton(leading, "Close pending edits review", "x", () => {
+		buildFlatIconButton(leading, t("toolbar.closePendingEdits"), "x", () => {
 			void plugin.pendingEdits.closePendingEditsReview();
 		});
 
@@ -282,7 +283,7 @@ export function createReviewToolbarElement(
 					// aria-label, not native `title`: the overlay re-renders while
 					// hovering, and Chromium ghosts orphaned title-tooltips over the
 					// editor text beneath.
-					"aria-label": `Open brief: ${state.briefContext.noteTitle}`,
+					"aria-label": t("toolbar.openBrief", { title: state.briefContext.noteTitle }),
 				},
 				text: state.briefContext.noteTitle,
 			});
@@ -314,13 +315,13 @@ export function createReviewToolbarElement(
 		markAsNonEditorSurface(action);
 
 		const actions = toolbar.createDiv({ cls: "editorialist-toolbar__actions" });
-		buildButton(actions, tracker, "Previous", "arrow-left", () => {
+		buildButton(actions, tracker, t("toolbar.previous"), "arrow-left", () => {
 			void plugin.pendingEdits.selectPreviousPendingEditSegment();
 		}, !state.canPrevious);
 		buildButton(
 			actions,
 			tracker,
-			"Next (leave item in pending edits)",
+			t("toolbar.nextPendingEdit"),
 			"arrow-right",
 			() => {
 				void plugin.pendingEdits.selectNextPendingEditSegment();
@@ -333,7 +334,7 @@ export function createReviewToolbarElement(
 		buildButton(
 			actions,
 			tracker,
-			"Complete and remove from pending edits",
+			t("toolbar.completePendingEdit"),
 			"list-x",
 			() => {
 				void plugin.pendingEdits.completeSelectedPendingEditSegment();
@@ -343,7 +344,7 @@ export function createReviewToolbarElement(
 		buildButton(
 			actions,
 			tracker,
-			"Backup to cut file",
+			t("toolbar.backup"),
 			"archive",
 			() => {
 				void plugin.cutFiles.backupSelectionToCutFile({ preferDisplayedSuggestion: true });
@@ -353,7 +354,7 @@ export function createReviewToolbarElement(
 			[
 				{
 					kind: "open",
-					label: "Open cut file for this scene",
+					label: t("toolbar.openCutFile"),
 					icon: "folder-open",
 					onClick: () => {
 						void plugin.cutFiles.openCutFileForActiveScene();
@@ -368,7 +369,7 @@ export function createReviewToolbarElement(
 	if (state.mode === "completed_review") {
 		toolbar.addClass("editorialist-toolbar--completed-review");
 		const leading = toolbar.createDiv({ cls: "editorialist-toolbar__leading" });
-		buildFlatIconButton(leading, "Finish review", "x", () => {
+		buildFlatIconButton(leading, t("toolbar.finishReview"), "x", () => {
 			void plugin.reviewActions.finishActiveReview();
 		});
 
@@ -381,14 +382,14 @@ export function createReviewToolbarElement(
 		}
 
 		const actions = toolbar.createDiv({ cls: "editorialist-toolbar__actions" });
-		buildButton(actions, tracker, "Previous", "arrow-left", () => {
+		buildButton(actions, tracker, t("toolbar.previous"), "arrow-left", () => {
 			void plugin.reviewActions.selectPreviousCompletedReviewSuggestion();
 		}, !state.canPrevious);
-		buildButton(actions, tracker, "Next", "arrow-right", () => {
+		buildButton(actions, tracker, t("toolbar.next"), "arrow-right", () => {
 			void plugin.reviewActions.selectNextCompletedReviewSuggestion();
 		}, !state.canNext);
 		if (state.canUndo) {
-			buildButton(actions, tracker, "Undo", "rotate-ccw", () => {
+			buildButton(actions, tracker, t("toolbar.undo"), "rotate-ccw", () => {
 				void plugin.reviewActions.undoLastAppliedSuggestion();
 			}, false);
 		}
@@ -397,7 +398,7 @@ export function createReviewToolbarElement(
 
 	{
 		const leading = toolbar.createDiv({ cls: "editorialist-toolbar__leading" });
-		buildFlatIconButton(leading, "Hide toolbar", "x", () => {
+		buildFlatIconButton(leading, t("toolbar.hide"), "x", () => {
 			plugin.reviewActions.dismissReviewToolbar();
 		});
 		buildLegendTrigger(leading);
@@ -409,11 +410,11 @@ export function createReviewToolbarElement(
 			markAsNonEditorSurface(indicator);
 			indicator.setAttribute(
 				"aria-label",
-				state.anchorDirection === "above" ? "Insert point is above" : "Insert point is below",
+				state.anchorDirection === "above" ? t("toolbar.insertAbove") : t("toolbar.insertBelow"),
 			);
 			indicator.setAttribute(
 				"title",
-				state.anchorDirection === "above" ? "Insert point is above" : "Insert point is below",
+				state.anchorDirection === "above" ? t("toolbar.insertAbove") : t("toolbar.insertBelow"),
 			);
 		}
 	}
@@ -428,30 +429,30 @@ export function createReviewToolbarElement(
 	metaSegments.push({ text: state.selectedIndexLabel });
 	if (state.acceptedCount > 0) {
 		metaSegments.push({
-			text: `${state.acceptedCount} accepted`,
+			text: t("toolbar.accepted", { count: state.acceptedCount }),
 			cls: "editorialist-toolbar__meta-segment--positive",
 		});
 	}
 	if (state.pendingCount > 0) {
-		metaSegments.push({ text: `${state.pendingCount} pending` });
+		metaSegments.push({ text: t("toolbar.pending", { count: state.pendingCount }) });
 	}
 	if (state.rejectedCount > 0) {
 		metaSegments.push({
-			text: `${state.rejectedCount} rejected`,
+			text: t("toolbar.rejected", { count: state.rejectedCount }),
 			cls: "editorialist-toolbar__meta-segment--negative",
 		});
 	}
 	if (state.unresolvedCount > 0) {
 		metaSegments.push({
-			text: `${state.unresolvedCount} unresolved`,
+			text: t("toolbar.unresolved", { count: state.unresolvedCount }),
 			title: state.unresolvedDetails,
 		});
 	}
 	if (state.deferredCount > 0) {
-		metaSegments.push({ text: `${state.deferredCount} deferred` });
+		metaSegments.push({ text: t("toolbar.deferred", { count: state.deferredCount }) });
 	}
 	if (state.rewrittenCount > 0) {
-		metaSegments.push({ text: `${state.rewrittenCount} rewritten` });
+		metaSegments.push({ text: t("toolbar.rewritten", { count: state.rewrittenCount }) });
 	}
 	if (state.completionLabel) {
 		metaSegments.push({
@@ -466,16 +467,16 @@ export function createReviewToolbarElement(
 
 	const actions = toolbar.createDiv({ cls: "editorialist-toolbar__actions" });
 	const applyOperationLabel = state.operationLabel.toLowerCase();
-	buildButton(actions, tracker, "Previous", "arrow-left", () => {
+	buildButton(actions, tracker, t("toolbar.previous"), "arrow-left", () => {
 		void plugin.reviewActions.selectPreviousSuggestion();
 	}, !state.canPrevious);
-	buildButton(actions, tracker, "Next", "arrow-right", () => {
+	buildButton(actions, tracker, t("toolbar.next"), "arrow-right", () => {
 		void plugin.reviewActions.selectNextSuggestion();
 	}, !state.canNext);
 	buildButton(
 		actions,
 		tracker,
-		`Apply ${applyOperationLabel}`,
+		t("toolbar.applyOperation", { operation: applyOperationLabel }),
 		"check",
 		() => {
 			void plugin.reviewActions.acceptSelectedSuggestion();
@@ -485,7 +486,7 @@ export function createReviewToolbarElement(
 		[
 			{
 				kind: "bulk",
-				label: "Apply to all",
+				label: t("toolbar.applyAll"),
 				icon: "list-checks",
 				onClick: () => {
 					void plugin.reviewActions.enterApplyAndReviewConfirmMode();
@@ -494,7 +495,7 @@ export function createReviewToolbarElement(
 			},
 			{
 				kind: "advance",
-				label: `Apply ${applyOperationLabel} and advance`,
+				label: t("toolbar.applyAndAdvance", { operation: applyOperationLabel }),
 				icon: "list-end",
 				onClick: () => {
 					void plugin.reviewActions.acceptSelectedSuggestionAndAdvance();
@@ -503,16 +504,16 @@ export function createReviewToolbarElement(
 			},
 		],
 	);
-	buildButton(actions, tracker, "Defer", "clock", () => {
+	buildButton(actions, tracker, t("toolbar.defer"), "clock", () => {
 		plugin.reviewActions.deferSelectedSuggestion();
 	}, !state.canDefer);
-	buildButton(actions, tracker, "Rewrite myself", "pen-line", () => {
+	buildButton(actions, tracker, t("toolbar.rewrite"), "pen-line", () => {
 		void plugin.reviewActions.rewriteSelectedSuggestion();
 	}, !state.canRewrite);
 	buildButton(
 		actions,
 		tracker,
-		"Backup to cut file",
+		t("toolbar.backup"),
 		"archive",
 		() => {
 			void plugin.cutFiles.backupSelectionToCutFile({ preferDisplayedSuggestion: true });
@@ -522,7 +523,7 @@ export function createReviewToolbarElement(
 		[
 			{
 				kind: "open",
-				label: "Open cut file for this scene",
+				label: t("toolbar.openCutFile"),
 				icon: "folder-open",
 				onClick: () => {
 					void plugin.cutFiles.openCutFileForActiveScene();
@@ -532,11 +533,11 @@ export function createReviewToolbarElement(
 		],
 	);
 	if (state.canUndoLastAccept) {
-		buildButton(actions, tracker, "Undo", "rotate-ccw", () => {
+		buildButton(actions, tracker, t("toolbar.undo"), "rotate-ccw", () => {
 			void plugin.reviewActions.undoLastAppliedSuggestion();
 		}, false);
 	} else {
-		buildButton(actions, tracker, "Reject", "circle-off", () => {
+		buildButton(actions, tracker, t("toolbar.reject"), "circle-off", () => {
 			void plugin.reviewActions.rejectSelectedSuggestion();
 		}, !state.canReject);
 	}
@@ -555,15 +556,15 @@ function renderToolbarLegend(parent: HTMLElement, applyOperationLabel: string): 
 	bindLegendReveal(parent, legend);
 
 	const rows: Array<{ icon: string; keys: string; label: string }> = [
-		{ icon: "check", keys: "Click", label: `Apply ${applyOperationLabel}` },
-		{ icon: "list-end", keys: "Shift", label: `Apply ${applyOperationLabel} and advance` },
-		{ icon: "list-checks", keys: "Shift + Cmd", label: "Apply to all" },
-		{ icon: "clock", keys: "Click", label: "Defer" },
-		{ icon: "pen-line", keys: "Click", label: "Rewrite myself" },
-		{ icon: "archive", keys: "Click", label: "Backup to cut file" },
-		{ icon: "folder-open", keys: "Shift", label: "Open cut file for this scene" },
-		{ icon: "circle-off", keys: "Click", label: "Reject" },
-		{ icon: "x", keys: "Click", label: "Hide toolbar" },
+		{ icon: "check", keys: t("toolbar.click"), label: t("toolbar.applyOperation", { operation: applyOperationLabel }) },
+		{ icon: "list-end", keys: t("toolbar.shift"), label: t("toolbar.applyAndAdvance", { operation: applyOperationLabel }) },
+		{ icon: "list-checks", keys: t("toolbar.shiftCmd"), label: t("toolbar.applyAll") },
+		{ icon: "clock", keys: t("toolbar.click"), label: t("toolbar.defer") },
+		{ icon: "pen-line", keys: t("toolbar.click"), label: t("toolbar.rewrite") },
+		{ icon: "archive", keys: t("toolbar.click"), label: t("toolbar.backup") },
+		{ icon: "folder-open", keys: t("toolbar.shift"), label: t("toolbar.openCutFile") },
+		{ icon: "circle-off", keys: t("toolbar.click"), label: t("toolbar.reject") },
+		{ icon: "x", keys: t("toolbar.click"), label: t("toolbar.hide") },
 	];
 
 	for (const row of rows) {
@@ -785,7 +786,7 @@ function renderMetaSegment(parent: HTMLElement, text: string, className?: string
 	});
 	markAsNonEditorSurface(segment);
 	if (title) {
-		segment.setAttribute("aria-label", `${text}. ${title}`);
+		segment.setAttribute("aria-label", t("toolbar.metaDescription", { text, title }));
 	}
 }
 

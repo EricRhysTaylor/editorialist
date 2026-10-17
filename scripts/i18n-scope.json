@@ -1,0 +1,8 @@
+{
+	"migratedFiles": [
+		"src/commands/Commands.ts",
+		"src/ui/Toolbar.ts",
+		"src/ui/primitives/PanelHeader.ts",
+		"src/ui/viewmodels/ToolbarViewModel.ts"
+	]
+}

@@ -1,12 +1,13 @@
+import { t } from "../i18n";
 import type EditorialistPlugin from "../main";
 
 export function registerCommands(plugin: EditorialistPlugin): void {
-	plugin.addCommand({ id: "open-author-planner", name: "Open author planner", callback: () => { void plugin.openAuthorPlanner(); } });
-	plugin.addCommand({ id: "open-revision-plan", name: "Open editor engagement", callback: () => { void plugin.openRevisionPlanPanel(); } });
-	plugin.addCommand({ id: "open-editorial-project-workspace", name: "Open editorial project in workspace", callback: () => { void plugin.openEditorialProjectWorkspace(); } });
+	plugin.addCommand({ id: "open-author-planner", name: t("commands.openAuthorPlanner"), callback: () => { void plugin.openAuthorPlanner(); } });
+	plugin.addCommand({ id: "open-revision-plan", name: t("commands.openEditorEngagement"), callback: () => { void plugin.openRevisionPlanPanel(); } });
+	plugin.addCommand({ id: "open-editorial-project-workspace", name: t("commands.openEditorialProject"), callback: () => { void plugin.openEditorialProjectWorkspace(); } });
 	plugin.addCommand({
 		id: "open-review-launcher",
-		name: "Open review launcher",
+		name: t("commands.openReviewLauncher"),
 		callback: () => {
 			void plugin.openEditorialistModal();
 		},
@@ -14,7 +15,7 @@ export function registerCommands(plugin: EditorialistPlugin): void {
 
 	plugin.addCommand({
 		id: "open-review-panel",
-		name: "Open review panel",
+		name: t("commands.openReviewPanel"),
 		callback: () => {
 			void plugin.openReviewPanel();
 		},
@@ -22,7 +23,7 @@ export function registerCommands(plugin: EditorialistPlugin): void {
 
 	plugin.addCommand({
 		id: "open-editorialism-panel",
-		name: "Open editorialism panel",
+		name: t("commands.openEditorialismPanel"),
 		callback: () => {
 			void plugin.openEditorialismPanel();
 		},
@@ -30,7 +31,7 @@ export function registerCommands(plugin: EditorialistPlugin): void {
 
 	plugin.addCommand({
 		id: "open-pending-edits-panel",
-		name: "Open pending edits panel",
+		name: t("commands.openPendingEditsPanel"),
 		callback: () => {
 			void plugin.openPendingEditsPanel();
 		},
@@ -38,7 +39,7 @@ export function registerCommands(plugin: EditorialistPlugin): void {
 
 	plugin.addCommand({
 		id: "review-pending-edits",
-		name: "Review pending edits in active book",
+		name: t("commands.reviewPendingEdits"),
 		callback: () => {
 			void plugin.pendingEdits.startPendingEditsReview();
 		},
@@ -46,13 +47,13 @@ export function registerCommands(plugin: EditorialistPlugin): void {
 
 	plugin.addCommand({
 		id: "end-current-review-round",
-		name: "End current round",
+		name: t("commands.endRound"),
 		callback: () => { void plugin.endCurrentReviewRound(); },
 	});
 
 	plugin.addCommand({
 		id: "rescan-review-blocks",
-		name: "Rescan review blocks for cleanup",
+		name: t("commands.rescanReviewBlocks"),
 		callback: () => {
 			void plugin.rescanReviewBlocks();
 		},
@@ -60,7 +61,7 @@ export function registerCommands(plugin: EditorialistPlugin): void {
 
 	plugin.addCommand({
 		id: "backup-selection-to-cut-file",
-		name: "Backup selection to cut file",
+		name: t("commands.backupSelection"),
 		// editorCallback so the command only appears when an editor is active;
 		// the plugin method re-reads the live selection itself.
 		editorCallback: () => {
@@ -70,7 +71,7 @@ export function registerCommands(plugin: EditorialistPlugin): void {
 
 	plugin.addCommand({
 		id: "insert-author-query",
-		name: "Insert author query",
+		name: t("commands.insertAuthorQuery"),
 		// editorCallback: only offered while editing a scene — exactly when an
 		// author would annotate one. No default hotkey; the user can assign one.
 		editorCallback: () => {
@@ -80,7 +81,7 @@ export function registerCommands(plugin: EditorialistPlugin): void {
 
 	plugin.addCommand({
 		id: "anchor-selection-to-editorialism",
-		name: "Anchor selection to editorialism directive",
+		name: t("commands.anchorSelection"),
 		editorCallback: () => {
 			void plugin.anchors.anchorSelectionToEditorialismItem();
 		},
@@ -90,7 +91,7 @@ export function registerCommands(plugin: EditorialistPlugin): void {
 	// then either move on or record that it is handled and move on.
 	plugin.addCommand({
 		id: "go-to-next-anchor",
-		name: "Go to next unprocessed anchor",
+		name: t("commands.nextAnchor"),
 		callback: () => {
 			void plugin.anchors.goToNextEditorialismAnchor();
 		},
@@ -98,7 +99,7 @@ export function registerCommands(plugin: EditorialistPlugin): void {
 
 	plugin.addCommand({
 		id: "mark-anchor-processed",
-		name: "Mark anchor processed and go to next",
+		name: t("commands.markAnchorProcessed"),
 		callback: () => {
 			void plugin.anchors.markCurrentEditorialismAnchorProcessed();
 		},

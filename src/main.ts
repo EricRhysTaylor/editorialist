@@ -1,3 +1,4 @@
+import { t } from "./i18n";
 import { editorMenuEntries, type EditorMenuEntry } from "./core/EditorMenuEntries";
 import { saveOpenEditors } from "./services/SaveOpenEditors";
 import { AutoScheduleModal } from "./ui/AutoScheduleModal";
@@ -492,7 +493,7 @@ export default class EditorialistPlugin extends Plugin {
 		// One ribbon for the single Ed panel. Editorialism mode is reached by the
 		// in-panel swatch toggle or the "Toggle editorialism mode" command — no
 		// second icon, no second tab.
-		this.addRibbonIcon(EDITORIALIST_ICON_ID, "Open editorialist side-panel", () => {
+		this.addRibbonIcon(EDITORIALIST_ICON_ID, t("ribbon.openPanel"), () => {
 			void this.openReviewPanel();
 		});
 		registerCommands(this);
@@ -554,9 +555,9 @@ export default class EditorialistPlugin extends Plugin {
 
 				const selection = editor.getSelection();
 				const items: Record<EditorMenuEntry, { title: string; icon: string; run: () => void }> = {
-					"author-query": { title: "Ed — insert author query", icon: "message-square-plus", run: () => { void this.insertAuthorQuery(view ?? undefined); } },
-					"backup-selection": { title: "Ed — backup selection to cut file", icon: "archive", run: () => { void this.cutFiles.backupSelectionToCutFile({ view: view ?? undefined }); } },
-					"anchor-selection": { title: "Ed — anchor selection to editorialism", icon: "corner-down-right", run: () => { void this.anchors.anchorSelectionToEditorialismItem(view ?? undefined); } },
+					"author-query": { title: t("editorMenu.authorQuery"), icon: "message-square-plus", run: () => { void this.insertAuthorQuery(view ?? undefined); } },
+					"backup-selection": { title: t("editorMenu.backupSelection"), icon: "archive", run: () => { void this.cutFiles.backupSelectionToCutFile({ view: view ?? undefined }); } },
+					"anchor-selection": { title: t("editorMenu.anchorSelection"), icon: "corner-down-right", run: () => { void this.anchors.anchorSelectionToEditorialismItem(view ?? undefined); } },
 				};
 				for (const entry of editorMenuEntries({ inScene, hasSelection: selection.trim().length > 0 })) {
 					const spec = items[entry];
@@ -1041,11 +1042,11 @@ export default class EditorialistPlugin extends Plugin {
 	// single Ed leaf in place. Each mode also has its own command.
 	showPanelModeMenu(event: MouseEvent, currentViewType: string): void {
 		const modes: Array<{ type: string; label: string }> = [
-			{ type: REVISION_PLAN_VIEW_TYPE, label: "Editor engagement" },
-			{ type: AUTHOR_PLAN_VIEW_TYPE, label: "Author planner" },
-			{ type: REVIEW_PANEL_VIEW_TYPE, label: "Review" },
-			{ type: PENDING_EDITS_PANEL_VIEW_TYPE, label: "Pending edits" },
-			{ type: EDITORIALISM_PANEL_VIEW_TYPE, label: "Editorialisms" },
+			{ type: REVISION_PLAN_VIEW_TYPE, label: t("panel.editorEngagement") },
+			{ type: AUTHOR_PLAN_VIEW_TYPE, label: t("panel.authorPlanner") },
+			{ type: REVIEW_PANEL_VIEW_TYPE, label: t("panel.review") },
+			{ type: PENDING_EDITS_PANEL_VIEW_TYPE, label: t("panel.pendingEdits") },
+			{ type: EDITORIALISM_PANEL_VIEW_TYPE, label: t("panel.editorialisms") },
 		];
 		const menu = new Menu();
 		for (const mode of modes) {

@@ -1,3 +1,4 @@
+import { t } from "../../i18n";
 import { EDITORIALIST_ICON_ID } from "../EditorialistLogoIcon";
 import { Menu, setIcon } from "obsidian";
 import type EditorialistPlugin from "../../main";
@@ -8,36 +9,36 @@ export function renderPanelHeader(parent: HTMLElement, plugin: EditorialistPlugi
 	const row = header.createDiv({ cls: "editorialist-panel__title-row" });
 	const mode = row.createEl("button", {
 		cls: "editorialist-panel__view-selector",
-		attr: { type: "button", "aria-label": `Panel view: ${label}`, "aria-haspopup": "menu" },
+		attr: { type: "button", "aria-label": t("panel.view", { label }), "aria-haspopup": "menu" },
 	});
 	setIcon(mode.createSpan({ cls: "editorialist-panel__brand" }), EDITORIALIST_ICON_ID);
 	mode.createSpan({ text: label });
 	setIcon(mode.createSpan(), "chevron-down");
 	mode.addEventListener("click", (event) => plugin.showPanelModeMenu(event, viewType));
-	const launch = row.createEl("button", { cls: "editorialist-panel__import", attr: { type: "button", "aria-label": primary?.label ?? "Import revision notes" } });
+	const launch = row.createEl("button", { cls: "editorialist-panel__import", attr: { type: "button", "aria-label": primary?.label ?? t("panel.importNotes") } });
 	setIcon(launch.createSpan(), "plus");
-	launch.createSpan({ text: primary?.label ?? "Import" });
+	launch.createSpan({ text: primary?.label ?? t("panel.import") });
 	launch.disabled = primary?.disabled ?? false;
 	launch.addEventListener("click", () => { if (primary) primary.action(); else void plugin.openEditorialistModal(); });
-	const more = row.createEl("button", { cls: "editorialist-panel__settings-button", attr: { type: "button", "aria-label": "Panel actions", "aria-haspopup": "menu" } });
+	const more = row.createEl("button", { cls: "editorialist-panel__settings-button", attr: { type: "button", "aria-label": t("panel.actions"), "aria-haspopup": "menu" } });
 	setIcon(more.createSpan(), "ellipsis");
 	more.addEventListener("click", (event) => {
 		const menu = new Menu();
-		menu.addItem((item) => item.setTitle("Editorial deliveries").setIcon("package").onClick(() => plugin.openEditorialDeliveries()));
+		menu.addItem((item) => item.setTitle(t("panel.deliveries")).setIcon("package").onClick(() => plugin.openEditorialDeliveries()));
 		menu.addSeparator();
-		menu.addItem((item) => item.setTitle("Insert author query").setIcon("message-square-plus").onClick(() => { void plugin.insertAuthorQuery(); }));
+		menu.addItem((item) => item.setTitle(t("commands.insertAuthorQuery")).setIcon("message-square-plus").onClick(() => { void plugin.insertAuthorQuery(); }));
 		const cut = plugin.cutFiles.getActiveSceneCutStatus();
-		menu.addItem((item) => item.setTitle(cut.hasCutFile ? `Open cut file for ${cut.sceneName}` : "No cut file for this scene").setIcon("scissors").setDisabled(!cut.hasCutFile).onClick(() => { void plugin.cutFiles.openCutFileForActiveScene(); }));
+		menu.addItem((item) => item.setTitle(cut.hasCutFile ? t("panel.openCutFile", { scene: String(cut.sceneName) }) : t("panel.noCutFile")).setIcon("scissors").setDisabled(!cut.hasCutFile).onClick(() => { void plugin.cutFiles.openCutFileForActiveScene(); }));
 		menu.addSeparator();
 		const count = plugin.getCleanableBatchIds().length;
-		menu.addItem((item) => item.setTitle(count ? `Clean ${count} resolved batches…` : "No resolved batches to clean").setIcon("eraser").setDisabled(count === 0).onClick(() => { void plugin.cleanReadyBatches(); }));
-		menu.addItem((item) => item.setTitle("End current round…").setIcon("circle-stop").setDisabled(plugin.getEndableRoundBatches().length === 0).onClick(() => { void plugin.endCurrentReviewRound(); }));
+		menu.addItem((item) => item.setTitle(count ? t("panel.cleanBatches", { count }) : t("panel.noCleanableBatches")).setIcon("eraser").setDisabled(count === 0).onClick(() => { void plugin.cleanReadyBatches(); }));
+		menu.addItem((item) => item.setTitle(t("panel.endRound")).setIcon("circle-stop").setDisabled(plugin.getEndableRoundBatches().length === 0).onClick(() => { void plugin.endCurrentReviewRound(); }));
 		menu.addSeparator();
-		menu.addItem((item) => item.setTitle("Settings").setIcon("settings").onClick(() => plugin.openSettings()));
+		menu.addItem((item) => item.setTitle(t("panel.settings")).setIcon("settings").onClick(() => plugin.openSettings()));
 		menu.showAtMouseEvent(event);
 	});
 	const book = header.createDiv({ cls: "editorialist-panel__book" });
 	setIcon(book.createSpan({ cls: "editorialist-panel__book-icon" }), "book-open");
-	book.createSpan({ text: scopeLabel ?? plugin.getActiveBookScopeInfo().label ?? "No active book selected" });
+	book.createSpan({ text: scopeLabel ?? plugin.getActiveBookScopeInfo().label ?? t("panel.noActiveBook") });
 	return header;
 }
