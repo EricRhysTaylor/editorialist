@@ -51,9 +51,18 @@ class AnchorTargetModal extends SuggestModal<AnchorTargetChoice> {
 		}
 	}
 
-	onChooseSuggestion(choice: AnchorTargetChoice): void {
+	// Obsidian's SuggestModal closes BEFORE it calls onChooseSuggestion, so
+	// onClose would settle the promise with null and the real choice would
+	// arrive after it was already decided — anchoring silently did nothing.
+	// Record the choice here, ahead of the close.
+	selectSuggestion(choice: AnchorTargetChoice, evt: MouseEvent | KeyboardEvent): void {
 		this.resolved = true;
 		this.resolve(choice);
+		super.selectSuggestion(choice, evt);
+	}
+
+	onChooseSuggestion(): void {
+		// Settled in selectSuggestion.
 	}
 
 	onClose(): void {
