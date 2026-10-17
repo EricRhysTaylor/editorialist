@@ -30,11 +30,7 @@ export function renderSceneContextGroups(
 			const footer = row.createDiv({ cls: "editorialist-scene-context__footer" });
 			footer.createSpan({
 				cls: "editorialist-scene-context__via",
-				text: snippet.via === "quoted"
-					? "Quoted reference"
-					: snippet.via === "names"
-						? `Shares ${snippet.matched.join(", ")}`
-						: "Contains the phrase",
+				text: snippet.via === "quoted" ? "Quoted reference" : `Shares ${snippet.matched.join(", ")}`,
 			});
 			const open = footer.createEl("button", {
 				cls: "editorialist-scene-context__open",

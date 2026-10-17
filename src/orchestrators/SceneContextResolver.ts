@@ -9,7 +9,6 @@ import {
 	extractSceneMentions,
 	paragraphForRef,
 	paragraphsByNames,
-	paragraphsContaining,
 	relocateParagraph,
 	type SceneContextRef,
 	type SceneContextSnippet,
@@ -27,7 +26,6 @@ export interface SceneContextGroup {
 export interface SceneContextHost {
 	readonly app: App;
 	resolveSceneFileByNumber(sceneNumber: number): TFile | null;
-	listSceneFiles(): TFile[];
 	resolveOpenNoteText(path: string): string | null;
 }
 
@@ -35,7 +33,6 @@ export interface SceneContextHost {
 // a second manuscript.
 const MAX_SCENES = 5;
 const MAX_SNIPPETS_PER_SCENE = 3;
-const MAX_SEARCH_SNIPPETS = 60;
 
 export class SceneContextResolver {
 	private besideLeaf: WorkspaceLeaf | null = null;
@@ -80,25 +77,6 @@ export class SceneContextResolver {
 			.sort((left, right) => (left.sceneNumber ?? Infinity) - (right.sceneNumber ?? Infinity))
 			.slice(0, MAX_SCENES)
 			.map((group) => ({ ...group, snippets: group.snippets.sort((a, b) => a.start - b.start).slice(0, MAX_SNIPPETS_PER_SCENE) }));
-	}
-
-	// Every paragraph in the book containing `phrase` — the hat, the date, the
-	// count of contestants — grouped by scene in story order.
-	async search(phrase: string): Promise<{ groups: SceneContextGroup[]; truncated: boolean }> {
-		const groups: SceneContextGroup[] = [];
-		let total = 0;
-		let truncated = false;
-		for (const file of this.host.listSceneFiles()) {
-			const snippets = paragraphsContaining(await this.read(file), phrase);
-			if (snippets.length === 0) continue;
-			const room = MAX_SEARCH_SNIPPETS - total;
-			if (room <= 0) { truncated = true; break; }
-			if (snippets.length > room) truncated = true;
-			const kept = snippets.slice(0, room);
-			total += kept.length;
-			groups.push({ path: file.path, title: file.basename, sceneNumber: sceneNumberFromName(file.basename), snippets: kept });
-		}
-		return { groups, truncated };
 	}
 
 	// Opens a scene in a pane beside the current one without taking focus,

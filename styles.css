@@ -8254,13 +8254,6 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	height: 0.85rem;
 }
 
-.editorialist-scene-context__summary,
-.editorialist-scene-context__empty {
-	margin-top: 0;
-	color: var(--text-muted);
-	font-size: var(--font-ui-small);
-}
-
 .editorialist-project__tabs {
 	display: grid;
 	grid-template-columns: repeat(4, minmax(0, 1fr));

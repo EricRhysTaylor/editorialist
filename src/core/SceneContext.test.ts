@@ -4,7 +4,6 @@ import {
 	extractSceneMentions,
 	paragraphForRef,
 	paragraphsByNames,
-	paragraphsContaining,
 	proseParagraphs,
 	relocateParagraph,
 } from "./SceneContext";
@@ -80,13 +79,6 @@ describe("paragraphsByNames", () => {
 	});
 });
 
-describe("paragraphsContaining", () => {
-	it("finds a phrase case-insensitively across prose only", () => {
-		expect(paragraphsContaining(scene, "grey HAT").map((snippet) => snippet.via)).toEqual(["search"]);
-		expect(paragraphsContaining(scene, "editorialist-review")).toEqual([]);
-	});
-});
-
 describe("paragraphForRef", () => {
 	it("returns the paragraph around a quoted fragment, or null when it is gone", () => {
 		expect(paragraphForRef(scene, { scene: "65", opening: "grey hat", closing: null, note: null })?.text).toContain("Wala3 waits");
@@ -112,15 +104,13 @@ describe("audit regressions — non-prose never passes for manuscript", () => {
 		expect(paragraphForRef(note, ref("Terminus arrival"))?.text).toBe("The Terminus arrival was quiet.");
 	});
 
-	it("excludes multiline comments from search", () => {
+	it("excludes multiline comments from prose", () => {
 		const note = "Visible prose.\n\n%%\nthe reunion at Terminus\n%%\n\nMore prose.";
-		expect(paragraphsContaining(note, "Terminus")).toEqual([]);
 		expect(proseParagraphs(note).map((paragraph) => paragraph.text)).toEqual(["Visible prose.", "More prose."]);
 	});
 
 	it("excludes inline comments but keeps the visible text around them", () => {
 		const note = "She waits %% hidden Terminus note %% by the gate.";
-		expect(paragraphsContaining(note, "Terminus")).toEqual([]);
 		expect(proseParagraphs(note)[0]?.text).toBe("She waits by the gate.");
 	});
 

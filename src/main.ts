@@ -16,7 +16,6 @@ import type { EditorView } from "@codemirror/view";
 import { MarkdownView, Menu, normalizePath, Notice, Plugin, TFile, type App, type WorkspaceLeaf } from "obsidian";
 import { registerCommands } from "./commands/Commands";
 import { SceneContextResolver } from "./orchestrators/SceneContextResolver";
-import { SceneContextModal } from "./ui/modals/SceneContextModal";
 import { EditorialismAnchorNavigator } from "./orchestrators/EditorialismAnchorNavigator";
 import { CutFileController } from "./orchestrators/CutFileController";
 import { ContributorManagementOrchestrator } from "./orchestrators/ContributorManagementOrchestrator";
@@ -427,12 +426,11 @@ export default class EditorialistPlugin extends Plugin {
 		refreshEditorialismPanel: () => this.refreshEditorialismPanel(),
 		chooseAnchorTarget: (choices) => openAnchorTargetModal(this.app, choices),
 	});
-	// Context across scenes: related passages beside a suggestion, a book-wide
-	// phrase search, and the side pane both open into.
+	// Context across scenes: related passages beside a suggestion, and the
+	// side pane they open into.
 	readonly sceneContext = new SceneContextResolver({
 		app: this.app,
 		resolveSceneFileByNumber: (sceneNumber) => this.anchors.resolveSceneFileByNumber(sceneNumber),
-		listSceneFiles: () => this.anchors.listSceneFiles(),
 		resolveOpenNoteText: (path) => this.resolveOpenNoteText(path),
 	});
 	// Cut-file subsystem — backup to the scene cut file, the lower cut pane,
@@ -558,7 +556,6 @@ export default class EditorialistPlugin extends Plugin {
 				const items: Record<EditorMenuEntry, { title: string; icon: string; run: () => void }> = {
 					"author-query": { title: "Ed — insert author query", icon: "message-square-plus", run: () => { void this.insertAuthorQuery(view ?? undefined); } },
 					"backup-selection": { title: "Ed — backup selection to cut file", icon: "archive", run: () => { void this.cutFiles.backupSelectionToCutFile({ view: view ?? undefined }); } },
-					"find-across-scenes": { title: "Ed — find across scenes", icon: "search", run: () => { void this.findSelectionAcrossScenes(selection); } },
 					"anchor-selection": { title: "Ed — anchor selection to editorialism", icon: "corner-down-right", run: () => { void this.anchors.anchorSelectionToEditorialismItem(view ?? undefined); } },
 				};
 				for (const entry of editorMenuEntries({ inScene, hasSelection: selection.trim().length > 0 })) {
@@ -1165,22 +1162,6 @@ export default class EditorialistPlugin extends Plugin {
 		await this.editorialismService.setItemDecision(filePath, item.lineIndex, answer.trim() || null);
 		this.refreshEditorialismPanel();
 		return true;
-	}
-
-	// Every paragraph in the book containing the selected phrase, grouped by
-	// scene, each openable beside the current scene.
-	async findSelectionAcrossScenes(selection?: string): Promise<void> {
-		const phrase = (selection ?? this.app.workspace.getActiveViewOfType(MarkdownView)?.editor.getSelection() ?? "").trim();
-		if (!phrase) {
-			new Notice("Select a word or phrase to find across scenes.");
-			return;
-		}
-		if (phrase.length > 200 || phrase.includes("\n")) {
-			new Notice("Select a short phrase on one line to find across scenes.");
-			return;
-		}
-		const result = await this.sceneContext.search(phrase);
-		new SceneContextModal(this, `“${phrase}” across scenes`, result.groups, result.truncated).open();
 	}
 
 	// Asks for (or edits) the author's question about a directive. Saving marks

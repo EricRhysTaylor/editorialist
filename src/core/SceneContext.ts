@@ -6,14 +6,13 @@
 // module finds those other passages, deterministically and from the prose
 // itself, so the panel can show them beside the work at hand.
 //
-// Three sources, strongest first, each labelled so the author knows why a
+// Two sources, strongest first, each labelled so the author knows why a
 // snippet is shown:
 //   quoted    — an explicit `Context:` reference or an editorialism anchor:
 //               a verbatim fragment located in its scene.
 //   names     — a scene the suggestion's text mentions ("scene 65"); within
 //               it, the paragraphs that share the most distinctive names
 //               with the suggestion (Wala3, Terminus, XO).
-//   search    — every paragraph containing a phrase the author asked for.
 //
 // Nothing here guesses a scene that was not named or quoted. A mentioned
 // scene with no paragraph sharing a name yields no snippet rather than an
@@ -25,12 +24,12 @@ import { maskNonProse } from "./TextMatching";
 
 export { maskNonProse } from "./TextMatching";
 
-export type SceneContextVia = "quoted" | "names" | "search";
+export type SceneContextVia = "quoted" | "names";
 
 export interface SceneContextSnippet extends AnchorRange {
 	text: string;
 	via: SceneContextVia;
-	/** The names or phrase that matched, for "names" and "search" snippets. */
+	/** The names that matched, for "names" snippets. */
 	matched: string[];
 }
 
@@ -40,7 +39,7 @@ export type SceneContextRef = Pick<EditorialismAnchor, "scene" | "opening" | "cl
 // ── Prose regions ──────────────────────────────────────────────────────────
 // Scene notes carry frontmatter, appended review blocks, and hidden %% %%
 // comments. None of it is prose, and a review block quotes the very passages
-// being looked for, so every lookup — quoted references, names, and search —
+// being looked for, so every lookup — quoted references and names —
 // runs against a masked copy of the note in which those regions are blanked.
 // Masking replaces characters with spaces and keeps every newline, so an
 // offset into the mask is an offset into the note.
@@ -153,15 +152,6 @@ export function paragraphsByNames(noteText: string, names: readonly string[], li
 		.slice(0, limit)
 		.sort((left, right) => left.paragraph.start - right.paragraph.start)
 		.map(({ paragraph, matched }) => ({ ...paragraph, via: "names", matched }));
-}
-
-/** Every prose paragraph containing `phrase`, case-insensitively. */
-export function paragraphsContaining(noteText: string, phrase: string): SceneContextSnippet[] {
-	const needle = phrase.trim().toLowerCase();
-	if (!needle) return [];
-	return proseParagraphs(noteText)
-		.filter((paragraph) => paragraph.text.toLowerCase().includes(needle))
-		.map((paragraph) => ({ ...paragraph, via: "search", matched: [phrase.trim()] }));
 }
 
 /**

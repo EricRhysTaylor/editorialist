@@ -6,7 +6,6 @@ describe("editorMenuEntries", () => {
 		expect(editorMenuEntries({ inScene: true, hasSelection: true })).toEqual([
 			"author-query",
 			"backup-selection",
-			"find-across-scenes",
 			"anchor-selection",
 		]);
 	});
@@ -15,8 +14,8 @@ describe("editorMenuEntries", () => {
 		expect(editorMenuEntries({ inScene: true, hasSelection: false })).toEqual(["author-query"]);
 	});
 
-	it("offers only the read-only search outside a scene (cut file, other notes)", () => {
-		expect(editorMenuEntries({ inScene: false, hasSelection: true })).toEqual(["find-across-scenes"]);
+	it("offers nothing outside a scene (cut file, other notes)", () => {
+		expect(editorMenuEntries({ inScene: false, hasSelection: true })).toEqual([]);
 		expect(editorMenuEntries({ inScene: false, hasSelection: false })).toEqual([]);
 	});
 });

@@ -59,7 +59,6 @@ From there, Editorialist runs the workflow: it matches each suggestion to its pa
 
 - `Open review launcher` — opens the launcher modal to import a review batch or start pending-edits review.
 - `Open review panel` — opens the review side panel for the active note.
-- `Find selection across scenes` — lists every paragraph in the active book containing the selected phrase, grouped by scene, each openable beside the current one. Also available from the editor right-click menu when text is selected.
 - `Open editorialism panel` — opens the Editorialisms panel for structural guidance documents.
 - `Open editor engagement` — orders mixed revision work and plans author estimates against daily capacity and a deadline.
 - `Open author planner` — vault-wide writing goals with optional document links, book labels, target dates, hard deadlines, and shared capacity scheduling. Optionally link a goal to an RT book and publishing-stage target for two-way date sync.
