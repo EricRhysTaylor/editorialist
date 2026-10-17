@@ -60,3 +60,33 @@ describe("dash tolerance is the same when finding and when verifying", () => {
 		expect(plan?.text).toBe("She paused, then went on.");
 	});
 });
+
+describe("apostrophe tolerance when applying multilingual edits", () => {
+	it.each(["'", "‘", "’", "ʼ"])("an edit located with %s can be applied to French prose", (apostrophe) => {
+		const prefix = "Un repère 🏮.\n\n";
+		const passage = "L’amie ferme la porte.";
+		const note = `${prefix}${passage}\n\nLa suite reste intacte.`;
+		const block = [
+			"```editorialist-review",
+			"Reviewer: QA Editor",
+			"ReviewerType: developmental-editor",
+			"=== EDIT ===",
+			"SceneId: scn_fr",
+			`Original: L${apostrophe}amie ferme la porte.`,
+			"Revised: L’amie ouvre la porte.",
+			"Why: Controlled punctuation-tolerant edit.",
+			"```",
+		].join("\n");
+		const parsed = new SuggestionParser(new ContributorDirectory()).parse(block).suggestions[0]!;
+		const matched = new MatchEngine().matchSuggestion(note, parsed);
+		expect(matched.location.primary?.matchType).toBe("exact");
+		const plan = createSuggestionApplyPlan(note, matched);
+		expect(plan).not.toBeNull();
+		expect(plan?.from).toBe(prefix.length);
+		expect(plan?.to).toBe(prefix.length + passage.length);
+		if (plan) {
+			expect(note.slice(0, plan.from) + plan.text + note.slice(plan.to))
+				.toBe(`${prefix}L’amie ouvre la porte.\n\nLa suite reste intacte.`);
+		}
+	});
+});

@@ -98,7 +98,7 @@ export function findExactMatches(noteText: string, text: string): number[] {
 export function normalizeMatchText(value: string): string {
 	return value
 		.replace(/[“”]/g, "\"")
-		.replace(/[‘’]/g, "'")
+		.replace(/[‘’ʼ]/g, "'")
 		// A typed `--` / `---` is the same dash as – or —: plain-text manuscripts
 		// (Project Gutenberg, typewriter habit) use hyphen pairs, while Word and
 		// most AI output turn them into dash characters.
