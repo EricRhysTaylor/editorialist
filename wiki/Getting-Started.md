@@ -31,7 +31,6 @@ Editorialist registers these commands in the command palette:
 | **Mark anchor processed and go to next** | Records the current anchor and advances |
 | **Rescan review blocks for cleanup** | Re-scans scene notes for review blocks that are ready to be cleaned up |
 | **Backup selection to cut file** | Copies selected text to the scene's cut file without changing the manuscript |
-| **Find selection across scenes** | Lists every paragraph in the active book containing the selected phrase, grouped by scene, each openable beside the current one |
 | **Insert author query** | Inserts a `%%query: …%%` marker at the cursor so your next review answers it |
 
 Editorialist ships **no default hotkeys** — assign your own under **Settings → Hotkeys** if you want them.

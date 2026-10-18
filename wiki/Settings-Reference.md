@@ -116,7 +116,7 @@ cleaning one removes the block and repairs only the join.
 
 A cut file is a general-purpose archive, reachable wherever you are working:
 
-- **Editor right-click** — select any passage and choose **Ed — backup selection to cut file**. The `Backup selection to cut file` command does the same from the palette.
+- **Editor right-click** — select a passage in a scene note of the active book and choose **Ed — backup selection to cut file**. The `Backup selection to cut file` command does the same from the palette.
 - **Suggestion toolbar** — **Backup to cut file** archives the suggestion's target passage; Shift + click opens the cut file instead.
 - **Side panel actions menu** — **… → Open cut file** opens the active scene's cut file in the split below the panel.
 

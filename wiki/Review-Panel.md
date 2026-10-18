@@ -29,7 +29,7 @@ Between sessions the panel shows:
 | **… → End current round** | End selected batches and remove unfinished feedback without counting it as rejected. Manuscript changes and recorded decisions remain. |
 | **… → Settings** | Open Editorialist settings. |
 
-Use the editor toolbar, right-click menu, or command palette to back up selected prose to a cut file.
+Use the editor toolbar, right-click menu, or command palette to back up selected prose to a cut file. The right-click **Ed —** items appear only in scene notes of the active book, and act on the note and selection you right-clicked.
 
 ## Review sessions
 
@@ -163,9 +163,9 @@ If a scene the Why mentions has no paragraph sharing a name, nothing is shown fo
 
 **Open beside** opens that scene in a side pane without taking focus and selects the paragraph, so you keep your place in both the scene and the review. Every jump reuses the same side pane instead of piling up tabs. If the paragraph has changed since it was found, the scene still opens and a notice tells you, rather than selecting the wrong text.
 
-**Find selection across scenes.** To check a detail yourself, select a word or short phrase on one line and run **Find selection across scenes** from the command palette, or choose **Ed — find across scenes** from the editor's right-click menu. A window lists every paragraph in the active book that contains it, ignoring case, grouped by scene in story order, each with **Open beside**. You don't need an active review for this. A very common phrase shows only the first matches; narrow it to see the rest.
+Across scenes reads only manuscript prose. Frontmatter, comments, headings, code blocks, and review blocks are never matched.
 
-Both features read only manuscript prose. Frontmatter, comments, headings, code blocks, and review blocks are never matched.
+To check a detail yourself across the book, use Obsidian's search scoped to the book folder, for example `path:"Book/" -path:Cut "Terminus"`. Editorialist's own **Find selection across scenes** command was removed in 3.0.3 because Obsidian's search finds the same passages.
 
 ### Cut-file preview
 
