@@ -135,16 +135,13 @@ export class ReviewStateMachine {
 		const scope = new ReviewMutationScope();
 		try {
 			if (session && suggestion) {
+				const restoreDecision = this.host.registry.captureReviewDecisionRollback(session.notePath, suggestion);
 				await this.host.registry.persistReviewDecision(session.notePath, suggestion, "rejected", {
 					persist: false,
 					sessionId,
 					sessionStartedAt,
 				});
-				scope.onRollback(() =>
-					this.host.registry.clearPersistedReviewDecision(session.notePath, suggestion, {
-						persist: false,
-					}),
-				);
+				scope.onRollback(restoreDecision);
 			}
 
 			const nextSuggestionId = this.computeAdjacent("next", id);
@@ -185,16 +182,13 @@ export class ReviewStateMachine {
 		const scope = new ReviewMutationScope();
 		try {
 			if (session && suggestion) {
+				const restoreDecision = this.host.registry.captureReviewDecisionRollback(session.notePath, suggestion);
 				await this.host.registry.persistReviewDecision(session.notePath, suggestion, "rewritten", {
 					persist: false,
 					sessionId,
 					sessionStartedAt,
 				});
-				scope.onRollback(() =>
-					this.host.registry.clearPersistedReviewDecision(session.notePath, suggestion, {
-						persist: false,
-					}),
-				);
+				scope.onRollback(restoreDecision);
 			}
 
 			this.host.store.updateSuggestionStatus(id, "rewritten");
@@ -243,16 +237,13 @@ export class ReviewStateMachine {
 				const suggestion = this.host.getSuggestionById(id);
 				const previousStatus = suggestion?.status ?? null;
 				if (session && suggestion) {
+					const restoreDecision = this.host.registry.captureReviewDecisionRollback(session.notePath, suggestion);
 					await this.host.registry.persistReviewDecision(session.notePath, suggestion, "rewritten", {
 						persist: false,
 						sessionId,
 						sessionStartedAt,
 					});
-					scope.onRollback(() =>
-						this.host.registry.clearPersistedReviewDecision(session.notePath, suggestion, {
-							persist: false,
-						}),
-					);
+					scope.onRollback(restoreDecision);
 				}
 
 				this.host.store.updateSuggestionStatus(id, "rewritten");
@@ -291,16 +282,13 @@ export class ReviewStateMachine {
 		const scope = new ReviewMutationScope();
 		try {
 			if (session && suggestion) {
+				const restoreDecision = this.host.registry.captureReviewDecisionRollback(session.notePath, suggestion);
 				await this.host.registry.persistReviewDecision(session.notePath, suggestion, "deferred", {
 					persist: false,
 					sessionId,
 					sessionStartedAt,
 				});
-				scope.onRollback(() =>
-					this.host.registry.clearPersistedReviewDecision(session.notePath, suggestion, {
-						persist: false,
-					}),
-				);
+				scope.onRollback(restoreDecision);
 			}
 
 			const nextSuggestionId = this.computeAdjacent("next", id, true);

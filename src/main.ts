@@ -1399,6 +1399,8 @@ export default class EditorialistPlugin extends Plugin {
 			getSelectedSuggestionId: () => this.store.getState().selectedSuggestionId,
 			getGuidedSweep: () => this.getGuidedSweep(),
 			registry: {
+				captureReviewDecisionRollback: (notePath, suggestion) =>
+					this.registry.captureReviewDecisionRollback(notePath, suggestion),
 				persistReviewDecision: (notePath, suggestion, status, options) =>
 					this.registry.persistReviewDecision(notePath, suggestion, status, options),
 				clearPersistedReviewDecision: (notePath, suggestion, options) =>

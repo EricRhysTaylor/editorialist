@@ -39,6 +39,7 @@ export interface ReviewStateMachineHost {
 
 	// — registry (persisted indexes; injected, never modified here) —
 	registry: {
+		captureReviewDecisionRollback(notePath: string, suggestion: ReviewSuggestion): () => void | Promise<void>;
 		persistReviewDecision(
 			notePath: string,
 			suggestion: ReviewSuggestion,

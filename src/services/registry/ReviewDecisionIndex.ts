@@ -225,4 +225,16 @@ export class ReviewDecisionIndex {
 		}
 		return removed;
 	}
+
+	/** Capture only this suggestion's records so a failed decision restores its exact prior state. */
+	captureRollback(index: Index, notePath: string, suggestion: ReviewSuggestion): () => void {
+		const keys = this.keysFor(notePath, suggestion);
+		const before = keys.map((key) => ({ key, record: index[key] ? { ...index[key] } : undefined }));
+		return () => {
+			for (const { key, record } of before) {
+				if (record) index[key] = { ...record };
+				else delete index[key];
+			}
+		};
+	}
 }

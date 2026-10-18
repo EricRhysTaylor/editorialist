@@ -70,6 +70,36 @@ describe("ReviewDecisionIndex.keysFor", () => {
 	});
 });
 
+describe("ReviewDecisionIndex.captureRollback", () => {
+	it.each(["canonical", "legacy", "both"] as const)("restores %s records with their original provenance", (shape) => {
+		const index: Record<string, PersistedReviewDecisionRecord> = {};
+		const decisions = makeIndex();
+		const item = suggestion();
+		const keys = decisions.keysFor("n.md", item);
+		const selected = shape === "canonical" ? [keys[0]!] : shape === "legacy" ? [keys[1]!] : keys;
+		for (const key of selected) index[key] = {
+			key, status: "deferred", updatedAt: 10, sessionId: "original-batch", sessionStartedAt: 5,
+		};
+		const before = structuredClone(index);
+		const rollback = decisions.captureRollback(index, "n.md", item);
+		decisions.persist(index, "n.md", item, "rewritten", { sessionId: "new-batch", sessionStartedAt: 20 });
+		const unrelated = { key: "other", status: "rejected" as const, updatedAt: 30 };
+		index.other = unrelated;
+		rollback();
+		expect(index).toEqual({ ...before, other: unrelated });
+	});
+
+	it("removes a newly created decision when there was no prior record", () => {
+		const index: Record<string, PersistedReviewDecisionRecord> = {};
+		const decisions = makeIndex();
+		const item = suggestion();
+		const rollback = decisions.captureRollback(index, "n.md", item);
+		decisions.persist(index, "n.md", item, "rejected");
+		rollback();
+		expect(index).toEqual({});
+	});
+});
+
 describe("ReviewDecisionIndex.persist", () => {
 	it("returns false (no mutation) when no key derives", () => {
 		const i = new ReviewDecisionIndex({ noteIdentitiesOf: () => [] });

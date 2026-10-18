@@ -585,6 +585,10 @@ export class ReviewRegistryService {
 		}
 	}
 
+	captureReviewDecisionRollback(notePath: string, suggestion: ReviewSuggestion): () => void {
+		return this.decisionIndex.captureRollback(this.reviewDecisionIndex, notePath, suggestion);
+	}
+
 	async persistReviewDecision(
 		notePath: string,
 		suggestion: ReviewSuggestion,

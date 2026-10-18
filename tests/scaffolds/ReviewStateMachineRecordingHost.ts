@@ -116,6 +116,8 @@ export class RecordingReviewStateMachineHost implements ReviewStateMachineHost {
 
 	// — registry (recorded only; never mutates anything) —
 	registry = {
+		// Capturing a rollback does not mutate state or add a happy-path effect.
+		captureReviewDecisionRollback: () => () => {},
 		persistReviewDecision: async (): Promise<void> => {
 			this.rec("registry.persistReviewDecision");
 		},

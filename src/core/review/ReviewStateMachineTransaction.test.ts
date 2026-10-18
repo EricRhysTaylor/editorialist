@@ -114,6 +114,13 @@ class StatefulHost implements ReviewStateMachineHost {
 	}
 
 	registry = {
+		captureReviewDecisionRollback: (notePath: string, suggestion: ReviewSuggestion) => {
+			const previous = this.persistedDecisions.get(suggestion.id);
+			return async () => {
+				await this.registry.clearPersistedReviewDecision(notePath, suggestion);
+				if (previous !== undefined) this.persistedDecisions.set(suggestion.id, previous);
+			};
+		},
 		persistReviewDecision: async (
 			_notePath: string,
 			suggestion: ReviewSuggestion,
@@ -341,4 +348,24 @@ describe("native Undo regression — completion follows the restored manuscript"
 		expect(host.persistedDecisions.get("s1")).toBe("accepted");
 		expect(host.getLastAppliedChange()).not.toBeNull();
 	});
+});
+
+
+describe("failed decisions preserve earlier deferrals", () => {
+	it.each(["rejectSuggestion", "markSuggestionRewritten", "deferSuggestion", "markSuggestionsRewritten"] as const)(
+		"%s restores the stored deferral after inventory failure",
+		async (action) => {
+			const host = new StatefulHost({ failOnceAt: "registry.syncSceneInventoryForSession" });
+			host.storeStatuses.set("s1", "deferred");
+			host.persistedDecisions.set("s1", "deferred");
+			const machine = new ReviewStateMachine(host);
+			if (action === "markSuggestionsRewritten") await machine[action](["s1"]);
+			else await machine[action]("s1");
+			expect(host.storeStatuses.get("s1")).toBe("deferred");
+			expect(host.persistedDecisions.get("s1")).toBe("deferred");
+			expect(host.signalsReflect).toEqual({ s1: "deferred" });
+			expect(host.inventoryReflect).toEqual({ s1: "deferred" });
+			expect(host.notices.at(-1)).toContain("your changes were rolled back");
+		},
+	);
 });
