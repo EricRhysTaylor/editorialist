@@ -78,3 +78,18 @@ This is bounded acceptance, not all-format release certification. Not tested her
 every PDF layout, split exports, outline output, Word import round trip, mobile,
 concurrent file mutation fault injection or every modifier/theme/sidebar state.
 No author manuscript was changed, no live AI calls made and no public release run.
+
+## Native Word follow-up and delivery
+
+The editor-round file opens in Microsoft Word as a two-page document; the first
+page was inspected natively. Comment navigation could not be certified: the
+automation lost the Word window during interaction (`windowNotFoundAtPosition`),
+so the comment-content/range checks above are structural acceptance, not proof
+of a visible Word comment balloon. All four rendered Word pages were inspected
+with the document renderer. Do not label that limitation a reproduced plugin bug.
+
+Editorialist fix committed as `ca3fc26`. The required precommit `npm run check`
+and postcommit `npm run build:dev` passed. SHA-256 comparisons of main.js,
+styles.css and manifest.json match the repository in Author, Capture and Output
+QA vaults. The Output QA vault loaded and natively tested the matching fix.
+This records installed files, not a claim that every open vault session reloaded.
