@@ -46,8 +46,14 @@ export class ReviewEngine {
 		);
 
 		return parsedSuggestions.map((suggestion) => {
+			// Parser IDs are block positions. Removing an earlier batch reuses
+			// those positions, so an ID alone cannot identify an author's decision.
+			const signature = this.getSuggestionSignature(suggestion);
+			const samePosition = previousById.get(suggestion.id);
 			const previousSuggestion =
-				previousById.get(suggestion.id) ?? previousBySignature.get(this.getSuggestionSignature(suggestion));
+				samePosition && this.getSuggestionSignature(samePosition) === signature
+					? samePosition
+					: previousBySignature.get(signature);
 
 			if (!previousSuggestion) {
 				return suggestion;

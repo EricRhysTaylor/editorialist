@@ -150,3 +150,13 @@ async interleaving. No public release is performed by this audit.
 - Next focused pass: end-round cleanup with mixed batches, cut-file preservation,
   then exports; use synthetic content and inspect the actual outputs.
 - Recheck after meaningful changes or at the next weekly cycle, October 24.
+
+## Focused continuation — mixed cleanup, cut archives and exports
+
+See `2026-10-17-mixed-cleanup-cut-export-acceptance.md`. Native mixed-batch cleanup
+confirmed a positional-ID decision leak; the small ReviewEngine fix passes five
+new regressions and the native replay. Full CI now passes 100 files / 1,252 tests.
+Cut creation/append/open, cancel/current/all-batch cleanup and four actual export
+outputs passed their recorded checks. Recovered mixed-batch history totals still
+overcount shared-scene suggestions; a separate batch-scoped accounting fix is
+needed. Do not treat the output checks as exhaustive release certification.
