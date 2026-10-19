@@ -86,5 +86,6 @@ export class ManuscriptReconnectModal extends Modal {
 				if (preview) { this.onSaved?.(); this.close(); }
 			}).catch((error: unknown) => { this.preview = null; this.error = error instanceof Error ? error.message : "Reconnect failed. Saved records have been retained."; }).finally(() => { this.busy = false; if (this.contentEl.isConnected) this.render(); });
 		});
+		if (this.busy) for (const control of Array.from(this.contentEl.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLButtonElement>("input, select, button"))) control.disabled = true;
 	}
 }

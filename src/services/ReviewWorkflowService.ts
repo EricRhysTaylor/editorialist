@@ -3,6 +3,7 @@ import type { ReviewStore } from "../state/ReviewStore";
 import type { ReviewRegistryService } from "./ReviewRegistryService";
 
 interface ReviewWorkflowHost {
+	isReviewTargetPath?(path: string): boolean;
 	clearReviewSelection: () => Promise<void>;
 	enterCompletedSweepAudit: () => Promise<void>;
 	notify: (message: string) => void;
@@ -50,6 +51,7 @@ export class ReviewWorkflowService {
 
 	async openExistingSweep(entry: ReviewSweepRegistryEntry): Promise<void> {
 		const notePaths = entry.sceneOrder.length > 0 ? entry.sceneOrder : entry.importedNotePaths;
+		if (!this.checkTarget(notePaths)) return;
 		const targetPath = entry.currentNotePath ?? notePaths[0];
 		if (!targetPath) {
 			return;
@@ -66,6 +68,7 @@ export class ReviewWorkflowService {
 	}
 
 	async startGuidedSweep(batchId: string, importedAt: number, notePaths: string[]): Promise<void> {
+		if (!this.checkTarget(notePaths)) return;
 		const [firstNotePath] = notePaths;
 		if (!firstNotePath) {
 			return;
@@ -92,6 +95,7 @@ export class ReviewWorkflowService {
 			return;
 		}
 
+		if (!this.checkTarget(guidedSweep.notePaths)) return;
 		const nextNotePath = guidedSweep.notePaths[guidedSweep.currentNoteIndex + 1];
 		if (!nextNotePath) {
 			await this.finishGuidedSweep();
@@ -123,6 +127,7 @@ export class ReviewWorkflowService {
 			return;
 		}
 
+		if (!this.checkTarget(guidedSweep.notePaths)) return;
 		// A sweep can only complete when no pending/deferred/unresolved items
 		// remain (centralized rule in SweepCompletion). If the user reaches the
 		// end of the guided navigation with work still open, stop the guided
@@ -166,7 +171,16 @@ export class ReviewWorkflowService {
 		this.host.notify("Guided sweep complete.");
 	}
 
+	private checkTarget(paths: readonly string[]): boolean {
+		if (this.host.isReviewTargetPath && paths.some((path) => !this.host.isReviewTargetPath!(path))) {
+			this.host.notify("This review round includes notes outside the manuscript target. Choose its manuscript before continuing.");
+			return false;
+		}
+		return true;
+	}
+
 	private async openSweepNote(filePath: string): Promise<void> {
+		if (!this.checkTarget([filePath])) return;
 		this.transitionInProgress = true;
 		try {
 			await this.host.openNoteForReview(filePath);

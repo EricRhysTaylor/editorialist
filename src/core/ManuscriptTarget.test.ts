@@ -128,6 +128,19 @@ describe("imports share the selected manuscript", () => {
 			expect(await app.vault.cachedRead(app.vault.getAbstractFileByPath(path) as TFile)).toBe("The lantern glows.");
 		}
 	});
+	it("rolls back when the target changes during the final import write", async () => {
+		const { app, engine, setTarget } = fixture();
+		const batch = await engine.inspectBatch(review);
+		const process = app.vault.process.bind(app.vault);
+		let wrote = false;
+		app.vault.process = async (file, mutate) => {
+			const result = await process(file, mutate);
+			if (!wrote) { wrote = true; setTarget(createManuscriptTarget("none")); }
+			return result;
+		};
+		await expect(engine.importBatch(batch)).rejects.toThrow("target or its notes changed");
+		expect(await app.vault.cachedRead(app.vault.getAbstractFileByPath("Book/Chapter.md") as TFile)).toBe("The lantern glows.");
+	});
 	it("rejects a stale preview when a new eligible note appears", async () => {
 		const { app, engine } = fixture();
 		const batch = await engine.inspectBatch(review);

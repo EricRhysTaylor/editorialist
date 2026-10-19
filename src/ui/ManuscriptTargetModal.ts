@@ -70,7 +70,7 @@ export class ManuscriptTargetModal extends Modal {
 		if (["folder", "radial", "vault"].includes(this.target.kind)) {
 			const exclusions = this.setting().setName("Exclude folders").setDesc("Vault-relative paths, one per line. Cut archives are always excluded.");
 			exclusions.settingEl.addClass("editorialist-target__exclusions");
-			exclusions.addTextArea((input) => input.setPlaceholder("Book/research\nBook/outline").setValue(this.target.excludedFolders.join("\n")).onChange((value) => {
+			exclusions.addTextArea((input) => input.setPlaceholder("Book/research").setValue(this.target.excludedFolders.join("\n")).onChange((value) => {
 				this.target.excludedFolders = value.split("\n");
 				void updatePreview();
 			}));
@@ -95,11 +95,11 @@ export class ManuscriptTargetModal extends Modal {
 		save.addEventListener("click", () => {
 			if (this.saving) return;
 			this.saving = true;
-			save.disabled = true;
+			for (const control of Array.from(contentEl.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement>("input, select, textarea, button"))) control.disabled = true;
 			void this.plugin.setManuscriptTarget(this.target).then(() => { this.onSaved?.(); this.close(); }).catch((error: unknown) => {
 				this.saving = false;
 				new Notice(error instanceof Error ? error.message : "Could not save the manuscript target.");
-				void updatePreview();
+				this.render();
 			});
 		});
 		void updatePreview();

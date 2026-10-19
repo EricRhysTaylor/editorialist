@@ -1,3 +1,4 @@
+import { loadedRadialTimelineBookTitle } from "../core/VaultScope";
 import { TFile, TFolder, type App } from "obsidian";
 import { knownManuscriptFolders, manuscriptName, moveFolderPath, reassociateManuscript, type ManuscriptReassociation } from "../core/ManuscriptReassociation";
 import { parseEditorialism } from "../core/EditorialismParser";
@@ -27,7 +28,7 @@ export function rewriteEditorialismBook(path: string, text: string, oldName: str
 	const fields = [...frontmatter[1]!.matchAll(/^book\s*:[^\r\n]*$/gim)];
 	if (fields.length !== 1) throw new Error(`Check the book field in “${path}” before reconnecting.`);
 	const field = fields[0]!;
-	const start = frontmatter[0].indexOf(frontmatter[1]!) + field.index!;
+	const start = frontmatter[0].indexOf(frontmatter[1]!) + field.index;
 	return text.slice(0, start) + `book: ${JSON.stringify(newName)}` + text.slice(start + field[0].length);
 }
 
@@ -46,11 +47,15 @@ export class ManuscriptReassociationService {
 	}
 
 	async preview(change: ManuscriptReassociation, selected?: string[], automatic = false): Promise<ReassociationPreview> {
+		change = { ...change };
 		this.validateFolder(change, automatic);
 		const scope = this.registry.getActiveBookScopeInfo();
-		if (!automatic && scope.structured && scope.sourceFolder === change.oldFolder && change.newName !== scope.label) throw new Error("Change the book title in Radial Timeline first, then reconnect its saved work using that title.");
+		const rtTitle = scope.structured || scope.target?.kind === "radial"
+			? loadedRadialTimelineBookTitle(this.app, [change.oldFolder, change.newFolder]) ?? (scope.sourceFolder === change.oldFolder ? scope.label : null)
+			: null;
+		if (!automatic && rtTitle && change.newName !== rtTitle) throw new Error("Change the book title in Radial Timeline first, then reconnect its saved work using that title.");
 		const before = this.registry.associationSnapshot();
-		if (!knownManuscriptFolders(before).includes(change.oldFolder) && !(automatic && knownManuscriptFolders(before).some((folder) => folder.startsWith(`${change.oldFolder}/`)))) throw new Error("The saved manuscript association changed. Reopen reconnect.");
+		if (!knownManuscriptFolders(before).includes(change.oldFolder) && !(automatic && (knownManuscriptFolders(before).some((folder) => folder.startsWith(`${change.oldFolder}/`)) || before.settings.manuscriptTarget?.kind === "note" && moveFolderPath(before.settings.manuscriptTarget.path, change.oldFolder, change.newFolder) !== before.settings.manuscriptTarget.path))) throw new Error("The saved manuscript association changed. Reopen reconnect.");
 		const sharedName = knownManuscriptFolders(before).some((folder) => folder !== change.oldFolder && manuscriptName(before, folder) === change.oldName);
 		const after = reassociateManuscript(before, change);
 		const documents: ReassociationPreview["documents"] = [];
@@ -77,6 +82,7 @@ export class ManuscriptReassociationService {
 		this.busy = true;
 		const transaction = new ReviewMutationScope();
 		try {
+			preview = structuredClone(preview);
 			this.validateFolder(preview.change, preview.automatic);
 			const fresh = await this.preview(preview.change, preview.documents.filter((item) => item.selected).map((item) => item.path), preview.automatic);
 			if (JSON.stringify(fresh) !== JSON.stringify(preview)) throw new Error("The manuscript or its saved work changed. Refresh the preview before reconnecting.");
@@ -89,6 +95,7 @@ export class ManuscriptReassociationService {
 					return document.after;
 				});
 				transaction.onRollback(async () => {
+					await saveOpenEditors(this.app, file.path);
 					await this.app.vault.process(file, (current) => {
 						if (current !== document.after) throw new Error("The Editorialism changed during rollback.");
 						return document.before;
@@ -103,12 +110,18 @@ export class ManuscriptReassociationService {
 	}
 
 	async followRename(oldFolder: string, newFolder: string): Promise<boolean> {
-		const affected = this.folders().filter((folder) => moveFolderPath(folder.path, oldFolder, newFolder) !== folder.path);
-		if (!affected.length) return false;
-		// One root transaction also moves nested manuscript plans and references.
 		const data = this.registry.associationSnapshot();
+		const affected = knownManuscriptFolders(data).filter((folder) => moveFolderPath(folder, oldFolder, newFolder) !== folder);
+		const target = data.settings.manuscriptTarget;
+		const pinnedNoteMoved = target?.kind === "note" && moveFolderPath(target.path, oldFolder, newFolder) !== target.path;
+		if (!affected.length && !pinnedNoteMoved) return false;
+		// One root transaction also moves nested manuscript plans and references.
 		const oldName = manuscriptName(data, oldFolder);
-		const newName = oldName === oldFolder.split("/").pop() ? newFolder.split("/").pop()! : oldName;
+		const scope = this.registry.getActiveBookScopeInfo();
+		const rtTitle = scope.structured || scope.target?.kind === "radial"
+			? loadedRadialTimelineBookTitle(this.app, [oldFolder, newFolder]) ?? ((scope.sourceFolder === oldFolder || scope.sourceFolder === newFolder) ? scope.label : null)
+			: null;
+		const newName = rtTitle ?? (oldName === oldFolder.split("/").pop() ? newFolder.split("/").pop()! : oldName);
 		const sharedName = this.folders().some((folder) => folder.path !== oldFolder && folder.name === oldName);
 		await this.apply(await this.preview({ oldFolder, newFolder, oldName, newName: sharedName || !knownManuscriptFolders(data).includes(oldFolder) ? oldName : newName }, undefined, true));
 		return true;

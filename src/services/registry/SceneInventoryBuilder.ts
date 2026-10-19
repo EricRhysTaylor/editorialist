@@ -152,6 +152,13 @@ export class SceneInventoryBuilder {
 			// block may still be on disk; we just didn't look at it this round.
 			if (!scannedPaths.has(existing.notePath)) {
 				nextIndex[existing.notePath] = existing;
+				// Unscanned sources retain their last known batch membership too.
+				// Otherwise narrowing a target falsely cleans the rest of a round.
+				for (const batchId of existing.batchIds) {
+					const paths = batchPresence.get(batchId) ?? new Set<string>();
+					paths.add(existing.notePath);
+					batchPresence.set(batchId, paths);
+				}
 				continue;
 			}
 

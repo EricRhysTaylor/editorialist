@@ -79,6 +79,18 @@ describe("ReviewBatchProcessor.importReviewBatch", () => {
 		expect(calls).not.toContain("recordImportedBatch");
 	});
 
+	it("does not import into a view that opened another note during validation", async () => {
+		const setValue = vi.fn();
+		const view = { file: { path: "Book/Chapter.md" }, editor: { getValue: () => "Other prose.", setValue } };
+		const context = { filePath: "Book/Chapter.md", text: "Author prose.", view };
+		const { host, importEngine, calls } = makeHost({ getActiveNoteContext: () => context as never });
+		importEngine.inspectBatch.mockResolvedValue({ ...batch, targetSnapshot: { key: "book", label: "Book", paths: [context.filePath] } });
+		importEngine.validateImportTarget.mockImplementation(async () => { view.file.path = "Other/Note.md"; });
+		await new ReviewBatchProcessor(host).importReviewBatchToActiveNote("```editorialist-review\nReviewer: Editor\n=== EDIT ===\nOriginal: Before\nRevised: After\n```", false);
+		expect(setValue).not.toHaveBeenCalled();
+		expect(calls).not.toContain("recordImportedBatch");
+	});
+
 	it.each([null, "open"])("does not append a duplicate when the author chooses %s", async (choice) => {
 		const { host, calls, importEngine } = makeHost({
 			findDuplicateSweep: () => ({
@@ -164,7 +176,7 @@ describe("ReviewBatchProcessor.formalizeAuthoredReviewBlockInActiveNote", () => 
 					filePath: "n.md",
 					text: note,
 					view: {
-						file: { basename: "n" },
+						file: { basename: "n", path: "n.md" },
 						editor: {
 							getValue: () => note,
 							setValue: (value: string) => {
@@ -176,6 +188,18 @@ describe("ReviewBatchProcessor.formalizeAuthoredReviewBlockInActiveNote", () => 
 			...overrides,
 		});
 	}
+
+	it("does not stamp an identical block in a different note opened during validation", async () => {
+		const capture = { written: null as string | null };
+		const { host, calls, importEngine } = activeNoteHost(rawNote, capture);
+		const context = host.getActiveNoteContext()!;
+		host.getActiveNoteContext = () => context;
+		importEngine.inspectBatch.mockResolvedValue({ ...formalizeBatch(), targetSnapshot: { key: "note", label: "n", paths: ["n.md"] } });
+		importEngine.validateImportTarget.mockImplementation(async () => { context.view.file = { path: "other.md" } as never; });
+		await new ReviewBatchProcessor(host).formalizeAuthoredReviewBlockInActiveNote(true);
+		expect(capture.written).toBeNull();
+		expect(calls).not.toContain("recordImportedBatch");
+	});
 
 	it("stamps the existing block in place — no duplicate append — then records and starts review", async () => {
 		const capture = { written: null as string | null };
@@ -286,6 +310,20 @@ describe("ReviewBatchProcessor.cleanupReviewBatch", () => {
 		expect(calls).toEqual([]);
 	});
 
+	it("stops cleanup if a later note leaves the target during the operation", async () => {
+		const note = "Prose.\n```editorialist-review\nImportedBy: Editorialist\nBatchId: b1\n=== EDIT ===\nReviewer: Editor\n```";
+		let targetChanged = false;
+		const writeSecond = vi.fn();
+		const { host, calls } = makeHost({
+			getSweepRegistryEntry: () => ({ importedNotePaths: ["A.md", "B.md"] }) as never,
+			isReviewTargetPath: () => !targetChanged,
+			getNoteContextByPath: (path) => ({ filePath: path, view: { editor: { getValue: () => note, setValue: path === "A.md" ? () => { targetChanged = true; } : writeSecond } } }) as never,
+		});
+		const outcome = await new ReviewBatchProcessor(host).cleanupReviewBatch("b1");
+		expect(writeSecond).not.toHaveBeenCalled();
+		expect(outcome).toMatchObject({ removedCount: 1, skipped: true });
+		expect(calls).not.toContain("updateSweepRegistry");
+	});
 	it("marks cleaned, clears the matching guided sweep, syncs and resyncs", async () => {
 		const { host, calls } = makeHost({
 			getSweepRegistryEntry: () => ({ importedNotePaths: [] }) as never,
@@ -326,7 +364,7 @@ describe("ReviewBatchProcessor.removeImportedReviewBlocksInCurrentNote", () => {
 				({
 					filePath: "n.md",
 					text: note,
-					view: { editor: { getValue: () => note, setValue: (v: string) => { written = v; } } },
+					view: { file: { path: "n.md" }, editor: { getValue: () => note, setValue: (v: string) => { written = v; } } },
 				}) as never,
 		});
 		await new ReviewBatchProcessor(host).removeImportedReviewBlocksInCurrentNote();

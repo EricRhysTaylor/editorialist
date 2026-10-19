@@ -102,6 +102,7 @@ interface TrackingIdentitySummary {
 
 export class ReviewRegistryService {
 	private scopeResolution = 0;
+	private inventoryResolution = 0;
 	private disconnectedManuscriptFolders: string[] = [];
 	private activeBookScope: ActiveBookScopeInfo = {
 		label: null,
@@ -170,6 +171,25 @@ export class ReviewRegistryService {
 		}
 
 		let changed = false;
+		const moveIndex = <T extends { key: string }>(index: Record<string, T>): Record<string, T> => {
+			const next = { ...index };
+			for (const [key, record] of Object.entries(index)) {
+				if (!key.startsWith(`${oldPath}::`)) continue;
+				const mapped = newPath + key.slice(oldPath.length);
+				const moved = { ...record, key: mapped };
+				if (next[mapped] && JSON.stringify(next[mapped]) !== JSON.stringify(moved)) throw new Error("Review history already exists at the renamed note. Both sets were retained; resolve the overlapping history before continuing.");
+				delete next[key]; next[mapped] = moved; changed = true;
+			}
+			return next;
+		};
+		// Validate every index before moving any live state.
+		const decisions = moveIndex(this.reviewDecisionIndex), signals = moveIndex(this.reviewerSignalIndex), queries = moveIndex(this.authorQueryDecisions);
+		this.reviewDecisionIndex = decisions; this.reviewerSignalIndex = signals; this.authorQueryDecisions = queries;
+		const target = this.settings.manuscriptTarget;
+		if (target?.kind === "note" && target.path === oldPath) {
+			this.setManuscriptTarget({ ...target, path: newPath });
+			changed = true;
+		}
 		const existing = this.sceneReviewIndex[oldPath];
 		if (existing) {
 			const { [oldPath]: _moved, ...rest } = this.sceneReviewIndex;
@@ -190,6 +210,9 @@ export class ReviewRegistryService {
 			if (delivery.source === oldPath) { delivery.source = newPath; changed = true; }
 		}
 		for (const plan of Object.values(this.revisionPlans.books)) {
+			for (const work of [...plan.progress?.open ?? [], ...plan.progress?.done ?? []]) {
+				try { const parts: unknown = JSON.parse(work.key); if (Array.isArray(parts) && parts[1] === oldPath) { parts[1] = newPath; work.key = JSON.stringify(parts); changed = true; } } catch { /* Preserve unknown historical key formats. */ }
+			}
 			for (const target of plan.targets ?? []) {
 				if (target.file === oldPath) { target.file = newPath; changed = true; }
 			}
@@ -213,12 +236,15 @@ export class ReviewRegistryService {
 		}
 
 		if (changed) {
+			this.rebuildReviewerStatsFromSignals();
 			await this.persistData();
 		}
 		return changed;
 	}
 
 	load(savedData: PersistedEditorialistData | null): void {
+		this.scopeResolution++;
+		this.inventoryResolution++;
 		this.reviewDecisionIndex = normalizeReviewDecisionIndex(savedData?.reviewDecisionIndex);
 		this.authorQueryDecisions = normalizeAuthorQueryDecisions(savedData?.authorQueryDecisions);
 		this.reviewerSignalIndex = normalizeReviewerSignalIndex(savedData?.reviewerSignalIndex);
@@ -774,17 +800,22 @@ export class ReviewRegistryService {
 	}
 
 	restoreManuscriptTarget(target: ManuscriptTarget | undefined): void {
+		this.scopeResolution++;
+		this.inventoryResolution++;
 		this.settings = { ...this.settings, manuscriptTarget: target };
 	}
 
 	setManuscriptTarget(target: ManuscriptTarget): void {
+		this.scopeResolution++;
+		this.inventoryResolution++;
 		this.settings = { ...this.settings, manuscriptTarget: structuredClone(target) };
 	}
 
 	async refreshActiveBookScope(): Promise<void> {
 		const run = ++this.scopeResolution;
 		const scope = await resolveManuscriptTarget(this.app, this.settings.manuscriptTarget, this.settings.bookFolderOverride);
-		if (!scope.structured && scope.sourceFolder) scope.label = this.settings.manuscriptNames?.folders[scope.sourceFolder] ?? scope.label;
+		const names = this.settings.manuscriptNames?.folders;
+		if (!scope.structured && scope.sourceFolder && names && Object.prototype.hasOwnProperty.call(names, scope.sourceFolder)) scope.label = names[scope.sourceFolder] ?? scope.label;
 		if (run === this.scopeResolution) this.activeBookScope = scope;
 	}
 
@@ -793,11 +824,14 @@ export class ReviewRegistryService {
 	}
 
 	async syncSceneInventory(options?: { persist?: boolean }): Promise<void> {
+		const run = ++this.inventoryResolution;
 		// RT can switch books while this plugin stays loaded. Resolve the scope
 		// before scanning so inventory and book-dependent UI share one identity.
 		await this.refreshActiveBookScope();
+		const scope = JSON.stringify(this.activeBookScope);
 		this.disconnectedManuscriptFolders = knownManuscriptFolders(this.buildPluginData([])).filter((folder) => !(this.app.vault.getAbstractFileByPath(folder) instanceof TFolder));
 		const { nextIndex, batchPresence, now } = await this.inventoryBuilder.buildFullInventory();
+		if (run !== this.inventoryResolution || scope !== JSON.stringify(this.activeBookScope)) return;
 
 		const nextRegistry = this.sweepManager.buildFromSceneInventory(this.sweepRegistry, batchPresence, nextIndex, now);
 		const inventoryChanged = !this.sameJsonValue(this.sceneReviewIndex, nextIndex);

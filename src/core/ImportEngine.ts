@@ -166,6 +166,7 @@ export class ImportEngine {
 				});
 				importedGroups.push(group);
 			}
+			await this.validateImportTarget(batch);
 		} catch (error) {
 			if (!await transaction.rollback()) throw new Error("Import stopped and some review blocks could not be rolled back because their notes changed. Inspect the import destinations before retrying.");
 			throw error;

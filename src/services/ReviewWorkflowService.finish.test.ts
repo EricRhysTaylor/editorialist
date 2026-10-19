@@ -10,7 +10,7 @@ const GUIDED_SWEEP = {
 	startedAt: 1,
 };
 
-function makeService(isComplete: boolean) {
+function makeService(isComplete: boolean, isReviewTargetPath?: (path: string) => boolean) {
 	const setGuidedSweep = vi.fn();
 	const setCompletedSweep = vi.fn();
 	const updateSweepRegistry = vi.fn().mockResolvedValue(undefined);
@@ -32,6 +32,7 @@ function makeService(isComplete: boolean) {
 	} as unknown as ReviewRegistryService;
 
 	const host = {
+		isReviewTargetPath,
 		clearReviewSelection,
 		cleanupBatchById: vi.fn().mockResolvedValue(undefined),
 		enterCompletedSweepAudit,
@@ -67,4 +68,20 @@ describe("ReviewWorkflowService.finishGuidedSweep — completion guard", () => {
 		expect(setCompletedSweep).toHaveBeenCalledTimes(1);
 		expect(enterCompletedSweepAudit).toHaveBeenCalledTimes(1);
 	});
+});
+
+
+it("does not complete or revise notes after a sweep leaves the manuscript target", async () => {
+	const { service, setCompletedSweep, updateSweepRegistry, notify } = makeService(true, () => false);
+	await service.finishGuidedSweep();
+	expect(setCompletedSweep).not.toHaveBeenCalled();
+	expect(updateSweepRegistry).not.toHaveBeenCalled();
+	expect(notify).toHaveBeenCalledWith(expect.stringContaining("manuscript target"));
+});
+
+it("does not start a sweep that includes notes outside the selected manuscript", async () => {
+	const { service, setGuidedSweep, updateSweepRegistry } = makeService(false, (path) => path === "A.md");
+	await service.startGuidedSweep("batch", 1, ["A.md", "B.md"]);
+	expect(setGuidedSweep).not.toHaveBeenCalled();
+	expect(updateSweepRegistry).not.toHaveBeenCalled();
 });

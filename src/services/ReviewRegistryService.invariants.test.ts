@@ -1039,3 +1039,73 @@ describe("Editorial delivery persistence", () => {
 		expect(service.getEditorialDeliveries()).toEqual([]);
 	});
 });
+
+
+it("keeps an untracked pinned note selected after its observed rename", async () => {
+	const { service, persistCalls } = makeService();
+	service.setManuscriptTarget(createManuscriptTarget("note", "Draft.md"));
+	expect(await service.renameNotePath("Draft.md", "Renamed.md")).toBe(true);
+	expect(service.getManuscriptTarget()?.path).toBe("Renamed.md");
+	expect(persistCalls()).toBe(1);
+});
+
+
+it("discards an older inventory scan after a newer target scan completes", async () => {
+	const app = makeApp([{ path: "Book/Scene.md", text: reviewNote("batch") }]);
+	const { service } = makeService({ app, engine: makeEngine({ "Book/Scene.md": [suggestion("r1", "pending")] }) });
+	service.setManuscriptTarget(createManuscriptTarget("vault"));
+	const builder = Reflect.get(service, "inventoryBuilder") as { buildFullInventory(): Promise<import("./registry/SceneInventoryBuilder").FullInventoryResult> };
+	const original = builder.buildFullInventory.bind(builder);
+	let started!: () => void, release!: () => void;
+	const startedRead = new Promise<void>((resolve) => { started = resolve; });
+	const pendingRead = new Promise<void>((resolve) => { release = resolve; });
+	vi.spyOn(builder, "buildFullInventory").mockImplementationOnce(async () => { const result = await original(); started(); await pendingRead; return result; });
+	const oldScan = service.syncSceneInventory({ persist: false });
+	await startedRead;
+	service.setManuscriptTarget(createManuscriptTarget("none"));
+	await service.syncSceneInventory({ persist: false });
+	release(); await oldScan;
+	expect(service.buildPluginData([]).sceneReviewIndex).toEqual({});
+	expect(service.buildPluginData([]).sweepRegistry).toEqual({});
+});
+
+
+it("retains a batch's unscanned notes when the target narrows", async () => {
+	const app = makeApp([{ path: "A.md", text: reviewNote("shared") }, { path: "B.md", text: reviewNote("shared") }]);
+	const { service } = makeService({ app, engine: makeEngine({ "A.md": [suggestion("r1", "pending")], "B.md": [suggestion("r1", "pending")] }) });
+	service.setManuscriptTarget(createManuscriptTarget("vault")); await service.syncSceneInventory({ persist: false });
+	service.setManuscriptTarget(createManuscriptTarget("note", "A.md")); await service.syncSceneInventory({ persist: false });
+	expect(service.getSweepRegistryEntry("shared")?.importedNotePaths).toEqual(["A.md", "B.md"]);
+	service.setManuscriptTarget(createManuscriptTarget("none")); await service.syncSceneInventory({ persist: false });
+	expect(service.getSweepRegistryEntry("shared")?.status).toBe("in_progress");
+	expect(service.getSweepRegistryEntry("shared")?.importedNotePaths).toEqual(["A.md", "B.md"]);
+});
+
+
+it("keeps path-keyed decisions and progress attached to a renamed plain note", async () => {
+	const { service } = makeService();
+	const item = suggestion("r1", "rejected");
+	await service.persistReviewDecision("Old.md", item, "rejected");
+	const data = service.buildPluginData([]);
+	data.authorQueryDecisions["Old.md::question"] = { key: "Old.md::question", status: "resolved", updatedAt: 1 };
+	const plan = service.getRevisionPlan("book");
+	plan.progress = { since: "2026-10-19", open: [], done: [{ key: JSON.stringify(["batch", "Old.md", "batch"]), kind: "batch", day: "2026-10-19" }] };
+	data.revisionPlans!.books.book = plan;
+	service.load(data);
+	await service.renameNotePath("Old.md", "New.md");
+	expect(service.applyPersistedReviewState(session("New.md", [{ ...item, status: "pending" }])).suggestions[0]?.status).toBe("rejected");
+	expect(service.buildPluginData([]).authorQueryDecisions["New.md::question"]?.status).toBe("resolved");
+	expect(Object.keys(service.buildPluginData([]).reviewDecisionIndex).some((key) => key.startsWith("Old.md::"))).toBe(false);
+	expect(service.getRevisionPlan("book").progress?.done[0]?.key).toBe(JSON.stringify(["batch", "New.md", "batch"]));
+});
+
+it("retains both histories and the previous target when note rename keys collide", async () => {
+	const { service } = makeService();
+	const item = suggestion("r1", "rejected");
+	await service.persistReviewDecision("Old.md", item, "rejected");
+	await service.persistReviewDecision("New.md", item, "deferred");
+	service.setManuscriptTarget(createManuscriptTarget("note", "Old.md"));
+	const before = service.buildPluginData([]);
+	await expect(service.renameNotePath("Old.md", "New.md")).rejects.toThrow("Both sets were retained");
+	expect(service.buildPluginData([])).toEqual(before);
+});

@@ -135,8 +135,8 @@ export class RevisionPlanPanel extends ItemView {
 		if (this.refreshTimer !== null) window.clearTimeout(this.refreshTimer);
 		this.refreshTimer = window.setTimeout(() => {
 			this.refreshTimer = null;
-			const focused = document.activeElement;
-			if (this.busy || (focused instanceof HTMLElement && this.contentEl.contains(focused) && focused.matches("input, select, textarea"))) {
+			const focused = this.contentEl.ownerDocument.activeElement;
+			if (this.busy || (focused && this.contentEl.contains(focused) && focused.matches("input, select, textarea"))) {
 				this.scheduleRefresh();
 				return;
 			}
@@ -150,7 +150,7 @@ export class RevisionPlanPanel extends ItemView {
 		return folder ? JSON.stringify(["folder", folder]) : null;
 	}
 	async refresh(): Promise<void> {
-		if (this.busy) return;
+		if (this.busy) { this.scheduleRefresh(); return; }
 		this.busy = true;
 		this.contentEl.setAttribute("aria-busy", "true");
 		// Keep the existing page in place during background reads.
@@ -175,7 +175,16 @@ export class RevisionPlanPanel extends ItemView {
 			if (this.author) this.rtSignature = JSON.stringify(this.plugin.radialBookGoals.status());
 			this.stale = revision !== this.sourceRevision;
 		} catch { this.stale = true; this.warnings = ["Could not load the revision plan. Refresh to try again."]; }
-		finally { this.busy = false; this.contentEl.setAttribute("aria-busy", "false"); this.render(); }
+		finally {
+			this.busy = false;
+			if (this.book !== this.scopeKey()) {
+				// Never display the previous engagement under a newly selected manuscript.
+				this.book = null; this.plan = emptyRevisionPlan(); this.candidates = []; this.warnings = []; this.loaded = false;
+				this.scheduleRefresh();
+			}
+			this.contentEl.setAttribute("aria-busy", "false");
+			this.render();
+		}
 	}
 	private async recordProgress(book: string, candidates: readonly WorkCandidate[]): Promise<void> {
 		const plan = this.plugin.getRevisionPlan(book);

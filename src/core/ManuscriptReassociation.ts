@@ -27,7 +27,8 @@ export function knownManuscriptFolders(data: EditorialistPluginData): string[] {
 }
 
 export function manuscriptName(data: EditorialistPluginData, folder: string): string {
-	return data.settings.manuscriptNames?.folders[folder] ?? Object.values(data.sweepRegistry).find((entry) => entry.activeBookSourceFolder === folder && entry.activeBookLabel)?.activeBookLabel ?? folder.split("/").pop() ?? folder;
+	const names = data.settings.manuscriptNames?.folders;
+	return (names && Object.prototype.hasOwnProperty.call(names, folder) ? names[folder] : undefined) ?? Object.values(data.sweepRegistry).find((entry) => entry.activeBookSourceFolder === folder && entry.activeBookLabel)?.activeBookLabel ?? folder.split("/").pop() ?? folder;
 }
 
 /** Build a replacement without mutating the source. Existing destination records are never merged. */
@@ -55,7 +56,7 @@ export function reassociateManuscript(data: EditorialistPluginData, change: Manu
 		return boundary < 0 ? move(key) : move(key.slice(0, boundary)) + key.slice(boundary);
 	};
 	function remapIndex<T>(index: Record<string, T>, keyFor: (key: string) => string, update: (record: T, key: string) => void): Record<string, T> {
-		const result: Record<string, T> = {};
+		const result = Object.create(null) as Record<string, T>;
 		for (const [key, record] of Object.entries(index)) {
 			const mapped = keyFor(key);
 			if (Object.prototype.hasOwnProperty.call(result, mapped)) throw new Error(`Saved records overlap at “${mapped}”. Both sets are retained.`);

@@ -241,3 +241,19 @@ export function isPathInManuscriptScope(path: string, scope: Pick<ActiveBookScop
 	if (target?.kind === "folder" && !target.includeSubfolders && path.slice(0, path.lastIndexOf("/")) !== scope.sourceFolder) return false;
 	return !target?.excludedFolders.some((folder) => isPathInFolderScope(path, folder));
 }
+
+
+/** RT owns its book titles even when the renamed folder belongs to an inactive book. */
+export function loadedRadialTimelineBookTitle(app: App, folders: readonly string[]): string | null {
+	// SAFE: RT's loaded settings are outside the public Obsidian App typings.
+	const plugin = (app as App & { plugins?: { plugins?: Record<string, { settings?: { books?: unknown } }> } }).plugins?.plugins?.["radial-timeline"];
+	const books = plugin?.settings?.books;
+	if (!Array.isArray(books)) return null;
+	for (const raw of books) {
+		if (!raw || typeof raw !== "object") continue;
+		const book = raw as Record<string, unknown>;
+		if (typeof book.sourceFolder !== "string" || !folders.includes(normalizePath(book.sourceFolder.trim()))) continue;
+		for (const title of [book.title, book.name]) if (typeof title === "string" && title.trim()) return title.trim();
+	}
+	return null;
+}

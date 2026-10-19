@@ -1,3 +1,4 @@
+import * as saveEditors from "./SaveOpenEditors";
 import { describe, it, expect, vi } from "vitest";
 import { TFolder, type App } from "obsidian";
 import { createMockApp } from "../../tests/mocks/vault";
@@ -100,6 +101,21 @@ describe("folder-based manuscript recovery", () => {
 		expect(mock.peek("Editorialist/Old/Letter.md")).toBe(agenda());
 		expect(registry.associationSnapshot()).toEqual(preview.before);
 	});
+	it("flushes unsaved author edits before attempting a failed reconnect rollback", async () => {
+		const { service, persist, app, mock } = fixture();
+		const preview = await service.preview(change);
+		let rollingBack = false;
+		persist.mockImplementationOnce(async () => { rollingBack = true; throw new Error("Disk full"); });
+		const save = vi.spyOn(saveEditors, "saveOpenEditors").mockImplementation(async (_app, path) => {
+			if (rollingBack && path.endsWith("Letter.md")) {
+				await app.vault.process(app.vault.getAbstractFileByPath(path) as import("obsidian").TFile, (text) => text + "Unsaved author addition.\n");
+			}
+		});
+		try {
+			await expect(service.apply(preview)).rejects.toThrow("could not be restored");
+			expect(mock.peek("Editorialist/Old/Letter.md")).toContain("Unsaved author addition.");
+		} finally { save.mockRestore(); }
+	});
 	it("restores names and associations if persistence fails", async () => {
 		const { registry, service, persist, mock } = fixture();
 		const preview = await service.preview(change);
@@ -115,6 +131,27 @@ describe("folder-based manuscript recovery", () => {
 		await app.vault.process(app.vault.getMarkdownFiles().find((file) => file.path.endsWith("Letter.md"))!, (text) => text + "Author addition.\n");
 		await expect(service.apply(preview)).rejects.toThrow("changed");
 		expect(mock.peek("Editorialist/Old/Letter.md")).toContain("Author addition.");
+	});
+	it("retains names for an inactive RT book when another RT book is selected", async () => {
+		const { service, registry, app } = fixture();
+		vi.spyOn(registry, "getActiveBookScopeInfo").mockReturnValue({ sourceFolder: "Other", label: "Other book", structured: true });
+		Object.assign(app, { plugins: { plugins: { "radial-timeline": { settings: { books: [{ id: "old", sourceFolder: "Old", title: "Old" }, { id: "other", sourceFolder: "Other", title: "Other book" }] } } } } });
+		expect(await service.followRename("Old", "New")).toBe(true);
+		expect(registry.associationSnapshot().sweepRegistry.batch?.activeBookLabel).toBe("Old");
+	});
+	it("preserves an RT-owned title when its folder is renamed automatically", async () => {
+		const { service, registry } = fixture();
+		vi.spyOn(registry, "getActiveBookScopeInfo").mockReturnValue({ sourceFolder: "Old", label: "Old", structured: true });
+		expect(await service.followRename("Old", "New")).toBe(true);
+		expect(registry.associationSnapshot().sweepRegistry.batch?.activeBookLabel).toBe("Old");
+		expect(service.folders().find((folder) => folder.path === "New")?.name).toBe("Old");
+	});
+	it("follows a parent-folder rename for a pinned note without saved manuscript history", async () => {
+		const { service, registry } = fixture();
+		const data = emptyPluginData(); data.settings.manuscriptTarget = createManuscriptTarget("note", "Old/Chapter.md");
+		registry.load(data);
+		expect(await service.followRename("Old", "New")).toBe(true);
+		expect(registry.getManuscriptTarget()?.path).toBe("New/Chapter.md");
 	});
 	it("keeps RT authoritative for the displayed book title", async () => {
 		const { registry, service, folders } = fixture();
@@ -193,6 +230,12 @@ describe("reassociation data safety", () => {
 		data.reviewDecisionIndex["New/Chapter.md::signature"] = { key: "New/Chapter.md::signature", status: "rejected", updatedAt: 20 };
 		expect(() => reassociateManuscript(data, change)).toThrow("review history");
 		expect(data.reviewDecisionIndex["Old/Chapter.md::signature"]?.status).toBe("accepted");
+	});
+	it("preserves associations for folder names that match object prototype properties", () => {
+		const data = fixture().registry.associationSnapshot();
+		const after = reassociateManuscript(data, { ...change, newFolder: "__proto__", newName: "Named manuscript" });
+		expect(Object.keys(after.settings.manuscriptNames!.folders)).toContain("__proto__");
+		expect(after.settings.manuscriptNames!.folders["__proto__"]).toBe("Named manuscript");
 	});
 	it("preserves the body and handles punctuation in manuscript names", () => {
 		const title = 'A "strange" title: \\ elsewhere';

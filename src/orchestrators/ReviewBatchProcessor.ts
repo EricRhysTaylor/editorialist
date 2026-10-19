@@ -91,6 +91,8 @@ export interface ReviewBatchProcessorHost {
 }
 
 export interface CleanupOutcome {
+	/** A target change or missing registry entry left this batch uncleaned. */
+	skipped?: boolean;
 	removedCount: number;
 	/** Stamped blocks left in place because they carry no fence. See ReviewBlockFormat. */
 	skippedUnfencedCount: number;
@@ -211,6 +213,10 @@ export class ReviewBatchProcessor {
 		const batchText = this.addImportedBlockMetadata(removeEditorialismFromText(normalizedText), batch.batchId);
 
 		if (batch.targetSnapshot) await this.host.getImportEngine().validateImportTarget(batch, context.filePath);
+		if (context.view.file?.path !== context.filePath) {
+			new Notice("The destination note changed. Open the intended note and import again.");
+			return;
+		}
 		const currentText = context.view.editor.getValue();
 		context.view.editor.setValue(appendBlockToNote(currentText, batchText.trim()));
 		await this.host.recordImportedBatch(
@@ -280,6 +286,10 @@ export class ReviewBatchProcessor {
 		}
 
 		if (batch.targetSnapshot) await this.host.getImportEngine().validateImportTarget(batch, context.filePath);
+		if (context.view.file?.path !== context.filePath) {
+			new Notice("The destination note changed. Open the intended note and import again.");
+			return;
+		}
 
 		// Re-locate against the LIVE buffer: inspectReviewBatch and the duplicate
 		// modal above both yield, so the author (or a sync) may have edited the
@@ -529,17 +539,20 @@ export class ReviewBatchProcessor {
 			if (notify) {
 				new Notice("Review batch registry entry not found.");
 			}
-			return { removedCount: 0, skippedUnfencedCount: 0 };
+			return { removedCount: 0, skippedUnfencedCount: 0, skipped: true };
 		}
 
 		if (this.host.isReviewTargetPath && entry.importedNotePaths.some((path) => !this.host.isReviewTargetPath!(path))) {
 			new Notice("This batch includes notes outside the manuscript target. Choose its manuscript before cleaning it.");
-			return { removedCount: 0, skippedUnfencedCount: 0 };
+			return { removedCount: 0, skippedUnfencedCount: 0, skipped: true };
 		}
 
 		let removedCount = 0;
 		let skippedUnfencedCount = 0;
+		let skipped = false;
+		const targetChanged = (): boolean => Boolean(this.host.isReviewTargetPath && entry.importedNotePaths.some((path) => !this.host.isReviewTargetPath!(path)));
 		for (const notePath of entry.importedNotePaths) {
+			if (targetChanged()) { skipped = true; break; }
 			const context = this.host.getNoteContextByPath(notePath);
 			if (context) {
 				const removed = removeImportedReviewBlocks(context.view.editor.getValue(), batchId);
@@ -559,6 +572,7 @@ export class ReviewBatchProcessor {
 			let currentRemovedCount = 0;
 			await saveOpenEditors(this.host.app, file.path);
 			await this.host.app.vault.process(file, (currentText) => {
+				if (targetChanged()) { skipped = true; return currentText; }
 				const removed = removeImportedReviewBlocks(currentText, batchId);
 				currentRemovedCount = removed.removedCount;
 				skippedUnfencedCount += removed.skippedUnfencedCount;
@@ -567,6 +581,12 @@ export class ReviewBatchProcessor {
 			removedCount += currentRemovedCount;
 		}
 
+		if (skipped || targetChanged()) {
+			await this.host.syncSceneInventory();
+			this.host.resyncSessionForActiveNote();
+			if (notify) new Notice(`Cleanup stopped because the manuscript target changed. ${removedCount} review block${removedCount === 1 ? " was" : "s were"} removed before it changed; remaining blocks were retained.`);
+			return { removedCount, skippedUnfencedCount, skipped: true };
+		}
 		await this.host.updateSweepRegistry(
 			batchId,
 			{

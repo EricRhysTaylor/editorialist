@@ -277,6 +277,7 @@ export default class EditorialistPlugin extends Plugin {
 	private readonly manuscriptAssociations = new ManuscriptReassociationService(this.app, this.registry, this.editorialismService);
 	private manuscriptRenameQueue: Promise<void> = Promise.resolve();
 	private readonly workflow = new ReviewWorkflowService(this.store, this.registry, {
+		isReviewTargetPath: (path) => this.isManuscriptTargetPath(path),
 		clearReviewSelection: async () => {
 			this.store.selectSuggestion(null);
 			await this.revealSelectedSuggestion();
@@ -644,7 +645,10 @@ export default class EditorialistPlugin extends Plugin {
 						});
 					} else if (file instanceof TFile && file.extension === "md") {
 						const newPath = file.path;
-						this.manuscriptRenameQueue = this.manuscriptRenameQueue.then(() => this.handleNoteRenamed(oldPath, newPath)).catch((error: unknown) => console.error("Editorialist: note rename tracking failed", error));
+						this.manuscriptRenameQueue = this.manuscriptRenameQueue.then(() => this.handleNoteRenamed(oldPath, newPath)).catch((error: unknown) => {
+							console.error("Editorialist: note rename tracking failed", error);
+							new Notice(error instanceof Error ? `Note moved. ${error.message}` : "Note moved, but its saved review references could not be updated. Check the manuscript target before continuing.", 12000);
+						});
 					} else {
 						this.inventoryRescanDebouncer.schedule();
 					}
@@ -1674,18 +1678,21 @@ export default class EditorialistPlugin extends Plugin {
 			return 0;
 		}
 		let blocksRemoved = 0;
+		let cleaned = 0;
 		let skippedUnfencedCount = 0;
 		for (const batchId of batchIds) {
 			const outcome = await this.batchProcessor.cleanupReviewBatch(batchId, { notify: false });
 			blocksRemoved += outcome.removedCount;
+			if (!outcome.skipped) cleaned++;
 			skippedUnfencedCount += outcome.skippedUnfencedCount;
 		}
 		this.refreshReviewPanel();
 		new Notice(
-			`Cleaned ${batchIds.length} batch${batchIds.length === 1 ? "" : "es"} (${blocksRemoved} review block${blocksRemoved === 1 ? "" : "s"}) from their scenes.` +
+			`Cleaned ${cleaned} batch${cleaned === 1 ? "" : "es"} (${blocksRemoved} review block${blocksRemoved === 1 ? "" : "s"}) from their scenes.` +
+				(cleaned < batchIds.length ? ` ${batchIds.length - cleaned} batch${batchIds.length - cleaned === 1 ? " was" : "es were"} left uncleaned because the manuscript target or saved registry changed.` : "") +
 				describeUnremovedBlocksSuffix(skippedUnfencedCount),
 		);
-		return batchIds.length;
+		return cleaned;
 	}
 
 	// Aggregates per-suggestion decisions across scenes that participated in a
@@ -3134,8 +3141,10 @@ export default class EditorialistPlugin extends Plugin {
 		if (!changed) {
 			return;
 		}
+		await this.registry.refreshActiveBookScope();
 		this.resyncSessionForActiveNote();
 		this.refreshReviewPanel();
+		this.refreshEditorialismPanel();
 	}
 
 	async openSceneNote(notePath: string): Promise<void> {

@@ -144,3 +144,37 @@ describe("engagement source refreshes", () => {
 		expect(render).toHaveBeenCalledTimes(1);
 	});
 });
+
+
+it("queues a refresh requested while a previous read is busy", async () => {
+	const scheduleRefresh = vi.fn();
+	const panel = Object.assign(Object.create(RevisionPlanPanel.prototype) as object, { busy: true, scheduleRefresh }) as unknown as RevisionPlanPanel;
+	await panel.refresh();
+	expect(scheduleRefresh).toHaveBeenCalledOnce();
+});
+
+it("clears the previous engagement if the manuscript switches during a read", async () => {
+	const { host } = planningHost();
+	let folder = "Book B";
+	host.getActiveBookScopeInfo = () => ({ sourceFolder: folder, label: folder, structured: true });
+	host.collectRevisionWork = async () => { folder = "Book C"; return { candidates: [], warnings: [] }; };
+	const scheduleRefresh = vi.fn();
+	const panel = Object.assign(Object.create(RevisionPlanPanel.prototype) as object, {
+		plugin: host, plan: { ...emptyRevisionPlan(), deadline: "2026-11-30" }, book: key("Book B"), loaded: true,
+		sourceRevision: 0, contentEl: { setAttribute: vi.fn() }, render: vi.fn(), recordProgress: vi.fn(), scheduleRefresh,
+	}) as unknown as RevisionPlanPanel;
+	await panel.refresh();
+	expect(Reflect.get(panel, "plan")).toEqual(emptyRevisionPlan());
+	expect(Reflect.get(panel, "loaded")).toBe(false);
+	expect(scheduleRefresh).toHaveBeenCalled();
+});
+
+
+it("does not report a blocked batch as cleaned after the target changes", async () => {
+	const host = {
+		getCleanableBatchIds: () => ["batch"], confirmReviewBlockRemoval: async () => true,
+		batchProcessor: { cleanupReviewBatch: async () => ({ removedCount: 0, skippedUnfencedCount: 0, skipped: true }) },
+		refreshReviewPanel: vi.fn(),
+	};
+	expect(await EditorialistPlugin.prototype.cleanReadyBatches.call(host as unknown as EditorialistPlugin)).toBe(0);
+});
