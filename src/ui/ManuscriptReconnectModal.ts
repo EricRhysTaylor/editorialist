@@ -1,5 +1,6 @@
 import { Modal, Setting } from "obsidian";
 import type EditorialistPlugin from "../main";
+import { buildManuscriptModalShell } from "./primitives/ManuscriptModalShell";
 import { FolderPicker } from "./ManuscriptTargetModal";
 import type { ManuscriptReassociation } from "../core/ManuscriptReassociation";
 import type { ReassociationPreview } from "../services/ManuscriptReassociationService";
@@ -9,6 +10,7 @@ export class ManuscriptReconnectModal extends Modal {
 	private preview: ReassociationPreview | null = null;
 	private busy = false;
 	private error = "";
+	private panel!: HTMLElement;
 	constructor(private readonly plugin: EditorialistPlugin, private readonly onSaved?: () => void) {
 		super(plugin.app);
 		const folders = plugin.getManuscriptAssociations();
@@ -19,19 +21,21 @@ export class ManuscriptReconnectModal extends Modal {
 	onOpen(): void { this.render(); }
 	onClose(): void { this.contentEl.empty(); }
 	private setting(): Setting {
-		const row = new Setting(this.contentEl);
+		const row = new Setting(this.panel);
 		row.settingEl.addClass("editorialist-target__setting");
 		row.controlEl.addClass("editorialist-target__control");
 		return row;
 	}
 	private render(): void {
-		this.contentEl.empty();
 		this.contentEl.addClass("editorialist-target", "editorialist-reconnect");
-		this.setTitle(this.preview ? "Review manuscript reconnect" : "Reconnect manuscript");
+		this.panel = buildManuscriptModalShell(this, this.preview ? "Review manuscript reconnect" : "Reconnect manuscript", this.preview ? "Review the folder association and saved references before reconnecting." : "Choose where this manuscript lives now. Saved plans, deliveries and review history will follow the folder association. The files themselves stay where you put them.");
 		const folders = this.plugin.getManuscriptAssociations();
-		if (!folders.length) { this.contentEl.createEl("p", { text: "No saved manuscript folders to reconnect. Choose a manuscript folder first." }); return; }
+		if (!folders.length) {
+			this.panel.createEl("p", { text: "No saved manuscript folders to reconnect. Choose a manuscript folder first." });
+			this.contentEl.createDiv({ cls: "editorialist-target__actions" }).createEl("button", { text: "Close", attr: { type: "button" } }).addEventListener("click", () => this.close());
+			return;
+		}
 		if (!this.preview) {
-			this.contentEl.createEl("p", { cls: "editorialist-target__intro", text: "Choose where this manuscript lives now. Saved plans, deliveries and review history will follow the folder association. The files themselves stay where you put them." });
 			const manuscript = this.setting().setName("Saved manuscript");
 			manuscript.settingEl.addClass("editorialist-reconnect__field");
 			manuscript.addDropdown((dropdown) => {
@@ -55,17 +59,17 @@ export class ManuscriptReconnectModal extends Modal {
 			});
 		} else {
 			const { change, documents } = this.preview;
-			const summary = this.contentEl.createDiv({ cls: "editorialist-target__preview" });
+			const summary = this.panel.createDiv({ cls: "editorialist-target__preview" });
 			summary.createEl("p", { text: `Folder: ${change.oldFolder} → ${change.newFolder}` });
 			summary.createEl("p", { text: `Name: ${change.oldName} → ${change.newName}` });
 			summary.createEl("p", { text: `${this.preview.plans} revision plan${this.preview.plans === 1 ? "" : "s"} · ${this.preview.deliveries} deliver${this.preview.deliveries === 1 ? "y" : "ies"} · ${this.preview.notes} tracked note${this.preview.notes === 1 ? "" : "s"}` });
-			this.contentEl.createEl("p", { text: "Saved references will be updated. Your manuscript prose and Editorialism decisions stay intact." });
-			if (documents.length) this.contentEl.createEl("h3", { text: "Update Editorialism names" });
-			if (this.preview.sharedName && documents.length) this.contentEl.createEl("p", { text: "The old name is shared by another manuscript. Select only the Editorialisms that belong to this manuscript." });
+			this.panel.createEl("p", { text: "Saved references will be updated. Your manuscript prose and Editorialism decisions stay intact." });
+			if (documents.length) this.panel.createEl("h3", { text: "Update Editorialism names" });
+			if (this.preview.sharedName && documents.length) this.panel.createEl("p", { text: "The old name is shared by another manuscript. Select only the Editorialisms that belong to this manuscript." });
 			for (const document of documents) this.setting().setName(document.title).setDesc(document.path).addToggle((toggle) => toggle.setValue(document.selected).onChange((selected) => { document.selected = selected; }));
-			if (!documents.length) this.contentEl.createEl("p", { text: "No Editorialism name changes." });
+			if (!documents.length) this.panel.createEl("p", { text: "No Editorialism name changes." });
 		}
-		if (this.error) this.contentEl.createEl("p", { cls: "editorialist-target__error", text: this.error, attr: { role: "alert" } });
+		if (this.error) this.panel.createEl("p", { cls: "editorialist-target__error", text: this.error, attr: { role: "alert" } });
 		const actions = this.contentEl.createDiv({ cls: "editorialist-target__actions" });
 		const cancel = actions.createEl("button", { text: this.preview ? "Back" : "Cancel" });
 		cancel.disabled = this.busy;

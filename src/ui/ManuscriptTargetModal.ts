@@ -1,6 +1,7 @@
 import { FuzzySuggestModal, Modal, Notice, Setting, TFolder, type App } from "obsidian";
 import { createManuscriptTarget, normalizeManuscriptTarget, resolveManuscriptTarget, type ManuscriptTarget } from "../core/ManuscriptTarget";
 import { isSceneNoteForScope } from "../core/VaultScope";
+import { buildManuscriptModalShell } from "./primitives/ManuscriptModalShell";
 import type EditorialistPlugin from "../main";
 
 export class FolderPicker extends FuzzySuggestModal<TFolder> {
@@ -19,6 +20,7 @@ export class ManuscriptTargetModal extends Modal {
 	private folderPath: string;
 	private previewRun = 0;
 	private saving = false;
+	private panel!: HTMLElement;
 
 	constructor(private readonly plugin: EditorialistPlugin, private readonly onSaved?: () => void) {
 		super(plugin.app);
@@ -32,7 +34,7 @@ export class ManuscriptTargetModal extends Modal {
 	onClose(): void { this.previewRun++; this.contentEl.empty(); }
 
 	private setting(): Setting {
-		const setting = new Setting(this.contentEl);
+		const setting = new Setting(this.panel);
 		setting.settingEl.addClass("editorialist-target__setting");
 		setting.controlEl.addClass("editorialist-target__control");
 		return setting;
@@ -40,10 +42,8 @@ export class ManuscriptTargetModal extends Modal {
 
 	private render(): void {
 		const { contentEl } = this;
-		contentEl.empty();
 		contentEl.addClass("editorialist-target");
-		this.setTitle("Manuscript target");
-		contentEl.createEl("p", { cls: "editorialist-target__intro", text: "Choose the writing to review. This selection stays in place when you open other notes." });
+		this.panel = buildManuscriptModalShell(this, "Manuscript target", "Choose the writing to review. This selection stays in place when you open other notes.");
 		if (this.plugin.getManuscriptAssociations().length) {
 			this.setting().setName(this.plugin.getActiveBookScopeInfo().unavailableReason ? "Manuscript folder unavailable" : "Moved or renamed manuscript").setDesc("Reconnect saved work to its folder, or update the manuscript name.").addButton((button) => button.setButtonText("Reconnect…").onClick(() => { this.close(); this.plugin.openManuscriptReconnection(this.onSaved); }));
 		}
@@ -69,15 +69,16 @@ export class ManuscriptTargetModal extends Modal {
 		}
 		if (["folder", "radial", "vault"].includes(this.target.kind)) {
 			const exclusions = this.setting().setName("Exclude folders").setDesc("Vault-relative paths, one per line. Cut archives are always excluded.");
+			exclusions.settingEl.addClass("editorialist-target__exclusions");
 			exclusions.addTextArea((input) => input.setPlaceholder("Book/research\nBook/outline").setValue(this.target.excludedFolders.join("\n")).onChange((value) => {
 				this.target.excludedFolders = value.split("\n");
 				void updatePreview();
 			}));
-			contentEl.createEl("button", { text: "Add excluded folder…", attr: { type: "button" } }).addEventListener("click", () => {
+			this.panel.createEl("button", { text: "Add excluded folder…", attr: { type: "button" } }).addEventListener("click", () => {
 				new FolderPicker(this.app, (folder) => { this.target.excludedFolders.push(folder.path); this.render(); }).open();
 			});
 		}
-		const preview = contentEl.createDiv({ cls: "editorialist-target__preview", attr: { "aria-live": "polite" } });
+		const preview = this.panel.createDiv({ cls: "editorialist-target__preview", attr: { "aria-live": "polite" } });
 		const actions = contentEl.createDiv({ cls: "editorialist-target__actions" });
 		const cancel = actions.createEl("button", { text: "Cancel", attr: { type: "button" } });
 		cancel.addEventListener("click", () => this.close());
