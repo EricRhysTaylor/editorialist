@@ -145,7 +145,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		singularLabel: string;
 		singularLabelLower: string;
 	} {
-		const hasStructuredRtContext = Boolean(activeBook.sourceFolder && activeBook.label);
+		const hasStructuredRtContext = this.plugin.getActiveBookScopeInfo().structured;
 		if (hasStructuredRtContext) {
 			return {
 				hasStructuredRtContext,
@@ -163,7 +163,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			singularLabelLower: "note",
 			pluralLabel: "Notes",
 			pluralLabelLower: "notes",
-			scopeLabel: "vault",
+			scopeLabel: activeBook.sourceFolder ? "manuscript" : this.plugin.getManuscriptTarget()?.kind === "note" ? "note" : "vault",
 		};
 	}
 
@@ -286,7 +286,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		});
 		hero.createDiv({
 			cls: "editorialist-settings__hero-intro-subtitle",
-			text: "Configuration is where you set the boundaries Editorialist works within. Point it at your manuscript folder so review tracking and imported edits stay bounded to the book — not the rest of your vault. From here you also manage stable note identity, choose where cut files are kept, and run maintenance to clean review blocks or reset history. Radial Timeline supplies the manuscript scope automatically when it is active; otherwise you set it yourself below.",
+			text: "Choose the writing Editorialist reviews: a manuscript folder, one pinned note, or the entire vault. You can also follow the active Radial Timeline book. From here you manage stable note identity, choose where cut files are kept, and clean review blocks or reset saved history.",
 		});
 
 		const features = hero.createDiv({ cls: "editorialist-settings__hero-features" });
@@ -295,7 +295,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			text: "What you configure here:",
 		});
 		const featureList = features.createDiv({ cls: "editorialist-settings__hero-features-list" });
-		this.createHeroFeature(featureList, "folder", "Manuscript folder — bound review tracking and imports to your book so other notes are never picked up.");
+		this.createHeroFeature(featureList, "folder", "Manuscript target — choose the writing to review, independently or by following Radial Timeline.");
 		this.createHeroFeature(featureList, "fingerprint", "Stable identity — keep revision history attached to the right note even as titles and order change.");
 		this.createHeroFeature(featureList, "archive", "Cut files — preserve strong prose before you reduce, in a location you choose.");
 		this.createHeroFeature(featureList, "wrench", "Maintenance — clean review blocks or reset saved history without touching your writing.");
@@ -307,7 +307,8 @@ export class EditorialistSettingTab extends PluginSettingTab {
 	): void {
 		const body = this.createSection(parent, "Manuscript target", "Choose a folder, one note, the entire vault, or follow the active Radial Timeline book. Folder targets can exclude supporting material and include or skip subfolders.", "folder");
 		body.parentElement?.addClass("editorialist-settings__section--utility");
-		body.createDiv({ cls: "editorialist-settings__maintenance-note", text: activeBook.unavailableReason ?? `${activeBook.label ?? "Entire vault (legacy)"} · ${this.plugin.getManuscriptFiles().length} eligible notes` });
+		const count = this.plugin.getManuscriptFiles().length;
+		body.createDiv({ cls: "editorialist-settings__maintenance-note", text: activeBook.unavailableReason ?? `${activeBook.label ?? "Entire vault (legacy)"} · ${count} eligible note${count === 1 ? "" : "s"}` });
 		this.createActionButton(body, "folder", "Change target…", async () => { this.plugin.openManuscriptTargetSelector(() => { void this.displayAsync(false); }); });
 	}
 
@@ -534,7 +535,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 	): void {
 		const summary = this.plugin.getTrackingIdentitySummary({ activeBookOnly: this.activeBookOnly });
 		const vocabulary = this.getInventoryVocabulary(activeBook);
-		const hasRtTrackingContext = this.isRadialTimelineInstalled() && Boolean(activeBook.label && activeBook.sourceFolder);
+		const hasRtTrackingContext = this.shouldRenderRtSceneGlyphs(activeBook);
 		const body = this.createSection(
 			parent,
 			vocabulary.hasStructuredRtContext ? "Tracking scenes" : "Tracking notes",
@@ -1010,7 +1011,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 	}
 
 	private shouldRenderRtSceneGlyphs(activeBook: { label: string | null; sourceFolder: string | null }): boolean {
-		return this.isRadialTimelineInstalled() && Boolean(activeBook.label && activeBook.sourceFolder);
+		return this.isRadialTimelineInstalled() && this.plugin.getActiveBookScopeInfo().structured && Boolean(activeBook.label && activeBook.sourceFolder);
 	}
 
 	private getRtSceneGlyphState(notePath: string):
