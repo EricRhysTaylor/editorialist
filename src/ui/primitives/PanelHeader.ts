@@ -1,4 +1,4 @@
-import { t } from "../../i18n";
+import { t, tCount } from "../../i18n";
 import { EDITORIALIST_ICON_ID } from "../EditorialistLogoIcon";
 import { Menu, setIcon } from "obsidian";
 import type EditorialistPlugin from "../../main";
@@ -39,6 +39,23 @@ export function renderPanelHeader(parent: HTMLElement, plugin: EditorialistPlugi
 	});
 	const book = header.createDiv({ cls: "editorialist-panel__book" });
 	setIcon(book.createSpan({ cls: "editorialist-panel__book-icon" }), "book-open");
-	book.createSpan({ text: scopeLabel ?? plugin.getActiveBookScopeInfo().label ?? t("panel.noActiveBook") });
+	if (scopeLabel) book.createSpan({ text: scopeLabel });
+	else {
+		const scope = plugin.getActiveBookScopeInfo();
+		const target = book.createEl("button", { cls: "editorialist-panel__target", attr: { type: "button", "aria-label": t("target.change") } });
+		const count = plugin.getManuscriptFiles().length;
+		target.createSpan({ text: scope.unavailableReason ? t("panel.noActiveBook") : t("target.summary", { label: scope.label ?? t("target.legacyVault"), notes: tCount("target.notes", count) }) });
+		setIcon(target.createSpan(), "chevron-down");
+		// Open before Obsidian focuses/rerenders the sidebar. Waiting for click
+		// loses the pressed element when the active editor is in another leaf.
+		target.addEventListener("pointerdown", (event) => {
+			if (event.button !== 0) return;
+			event.preventDefault();
+			event.stopPropagation();
+			plugin.openManuscriptTargetSelector();
+		});
+		// Keyboard and accessibility activation still use the native button.
+		target.addEventListener("click", (event) => { if (event.detail === 0) plugin.openManuscriptTargetSelector(); });
+	}
 	return header;
 }

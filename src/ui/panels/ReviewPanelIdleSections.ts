@@ -525,7 +525,8 @@ export function renderRecentActivityBlock(
 	plugin: EditorialistPlugin,
 	parent: HTMLElement,
 ): void {
-	const allEntries = plugin.getSweepRegistryEntries();
+	const eligible = new Set(plugin.getManuscriptFiles().map((file) => file.path));
+	const allEntries = plugin.getSweepRegistryEntries().filter((entry) => entry.importedNotePaths.some((path) => eligible.has(path)));
 	const scopeFolder = plugin.getActiveBookScopeInfo().sourceFolder;
 	const allGroups = groupRecentReviews(allEntries, scopeFolder);
 	renderLibraryHeading(parent, "Recent review rounds", "history", allGroups.length);

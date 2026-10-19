@@ -1,3 +1,4 @@
+import { createManuscriptTarget, normalizeManuscriptTarget } from "../core/ManuscriptTarget";
 import { normalizeEditorialDeliveries } from "../core/EditorialDeliveries";
 import { normalizeRevisionPlans } from "../core/planning/RevisionPlan";
 // Versioning + migration shim for Editorialist persisted plugin data.
@@ -106,6 +107,7 @@ export function normalizeEditorialistSettings(raw: unknown): EditorialistSetting
 	return {
 		cutFolderOverride,
 		bookFolderOverride,
+		...(candidate.manuscriptTarget !== undefined ? { manuscriptTarget: normalizeManuscriptTarget(candidate.manuscriptTarget) } : {}),
 		detectFileWrittenReviewBlocks,
 		effort,
 	};
@@ -123,7 +125,7 @@ export function emptyPluginData(): EditorialistPluginData {
 		authorQueryDecisions: {},
 		sceneReviewIndex: {},
 		sweepRegistry: {},
-		settings: defaultEditorialistSettings(),
+		settings: { ...defaultEditorialistSettings(), manuscriptTarget: createManuscriptTarget("none") },
 	};
 }
 

@@ -1,3 +1,4 @@
+import { resolveManuscriptTarget, type ManuscriptTarget } from "../core/ManuscriptTarget";
 import { saveOpenEditors } from "./SaveOpenEditors";
 import { normalizeEditorialDeliveries, updateDelivery, type EditorialDelivery } from "../core/EditorialDeliveries";
 import { normalizeRevisionPlans, emptyRevisionPlan, type RevisionPlan, type RevisionPlanStore } from "../core/planning/RevisionPlan";
@@ -5,11 +6,10 @@ import { TFile, type App } from "obsidian";
 import { findImportedReviewBlocks } from "../core/ReviewBlockFormat";
 import type { ReviewEngine } from "../core/ReviewEngine";
 import {
-	buildConfiguredBookScope,
+	isSceneNoteForScope,
 	getBookHintForPath,
 	getSceneIdForFile,
 	isPathInFolderScope,
-	readRadialTimelineActiveBookScope,
 	type ActiveBookScopeInfo,
 	getFrontmatterStringValues,
 } from "../core/VaultScope";
@@ -100,6 +100,7 @@ interface TrackingIdentitySummary {
 }
 
 export class ReviewRegistryService {
+	private scopeResolution = 0;
 	private activeBookScope: ActiveBookScopeInfo = {
 		label: null,
 		sourceFolder: null,
@@ -331,9 +332,7 @@ export class ReviewRegistryService {
 	}
 
 	getActiveBookScopeInfo(): ActiveBookScopeInfo {
-		return {
-			...this.activeBookScope,
-		};
+		return structuredClone(this.activeBookScope);
 	}
 
 	usesSceneTerminology(notePath?: string): boolean {
@@ -369,8 +368,11 @@ export class ReviewRegistryService {
 			return right.lastUpdated - left.lastUpdated;
 		});
 
-		if (options?.activeBookOnly && this.activeBookScope.sourceFolder) {
-			return records.filter((record) => isPathInFolderScope(record.notePath, this.activeBookScope.sourceFolder as string));
+		if (options?.activeBookOnly && (this.activeBookScope.sourceFolder || this.activeBookScope.target)) {
+			return records.filter((record) => {
+				const file = this.app.vault.getAbstractFileByPath(record.notePath);
+				return file instanceof TFile && isSceneNoteForScope(this.app, file, this.activeBookScope, this.settings.cutFolderOverride);
+			});
 		}
 
 		return records;
@@ -749,14 +751,22 @@ export class ReviewRegistryService {
 		}
 	}
 
+	getManuscriptTarget(): ManuscriptTarget | undefined {
+		return this.settings.manuscriptTarget ? structuredClone(this.settings.manuscriptTarget) : undefined;
+	}
+
+	restoreManuscriptTarget(target: ManuscriptTarget | undefined): void {
+		this.settings = { ...this.settings, manuscriptTarget: target };
+	}
+
+	setManuscriptTarget(target: ManuscriptTarget): void {
+		this.settings = { ...this.settings, manuscriptTarget: structuredClone(target) };
+	}
+
 	async refreshActiveBookScope(): Promise<void> {
-		const radialScope = await readRadialTimelineActiveBookScope(this.app);
-		// Radial Timeline wins when it supplies a book folder. Otherwise fall back
-		// to the configured manuscript folder so non-RT authors still get a
-		// bounded scope for the inventory and import routing.
-		this.activeBookScope = radialScope.sourceFolder
-			? radialScope
-			: buildConfiguredBookScope(this.settings.bookFolderOverride);
+		const run = ++this.scopeResolution;
+		const scope = await resolveManuscriptTarget(this.app, this.settings.manuscriptTarget, this.settings.bookFolderOverride);
+		if (run === this.scopeResolution) this.activeBookScope = scope;
 	}
 
 	async syncOperationalMetadata(): Promise<void> {
@@ -1209,19 +1219,11 @@ export class ReviewRegistryService {
 		return getSceneIdForFile(this.app, file)?.trim() || undefined;
 	}
 
-	// Markdown files the inventory is allowed to track. When the active book has
-	// a known scope folder (Radial Timeline OR the configured manuscript folder),
-	// the inventory is confined to notes inside it, so notes elsewhere in the
-	// vault — content logs, briefs, scratch — never become review targets. With
-	// no scope folder the whole vault is scanned, preserving prior behavior for
-	// authors who have configured neither.
+	// Tracking uses the same target, exclusions and cut-archive rules as import.
 	private getScopedMarkdownFiles(): TFile[] {
-		const files = this.app.vault.getMarkdownFiles();
-		const scopeFolder = this.activeBookScope.sourceFolder;
-		if (!scopeFolder) {
-			return files;
-		}
-		return files.filter((file) => isPathInFolderScope(file.path, scopeFolder));
+		return this.app.vault.getMarkdownFiles().filter((file) =>
+			isSceneNoteForScope(this.app, file, this.activeBookScope, this.settings.cutFolderOverride),
+		);
 	}
 
 	private isSceneClassNote(notePath: string): boolean {

@@ -8848,3 +8848,67 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	font-weight: var(--font-semibold);
 	cursor: pointer;
 }
+
+/* Manuscript selection follows the host theme and remains usable in a narrow panel. */
+.editorialist-panel__target {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+	height: auto;
+	padding: 4px 6px;
+	color: var(--text-muted);
+	background: transparent;
+	box-shadow: none;
+	text-align: left;
+	white-space: normal;
+}
+
+.editorialist-panel__target:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+.editorialist-panel__target:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}
+
+.editorialist-panel__target > span:last-child {
+	display: inline-flex;
+	flex-shrink: 0;
+}
+
+.editorialist-target__intro,
+.editorialist-target__path,
+.editorialist-target__preview {
+	color: var(--text-muted);
+	overflow-wrap: anywhere;
+}
+
+.editorialist-target__setting {
+	flex-wrap: wrap;
+	gap: 12px;
+}
+
+.editorialist-target__control {
+	flex-wrap: wrap;
+}
+
+.editorialist-target textarea {
+	width: 100%;
+	min-height: 72px;
+}
+
+.editorialist-target__preview {
+	margin-top: 20px;
+	padding: 12px 0;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.editorialist-target__actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-top: 12px;
+}

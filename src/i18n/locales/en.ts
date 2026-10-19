@@ -3,6 +3,11 @@
  * review-format markers, manuscript text or author-defined names.
  */
 export const en = {
+	"target.change": "Change manuscript target",
+	"target.summary": "{{label}} · {{notes}}",
+	"target.notes.one": "{{count}} note",
+	"target.notes.other": "{{count}} notes",
+	"target.legacyVault": "Entire vault (legacy)",
 	"commands.openAuthorPlanner": "Open author planner",
 	"commands.openEditorEngagement": "Open editor engagement",
 	"commands.openEditorialProject": "Open editorial project in workspace",
@@ -38,7 +43,7 @@ export const en = {
 	"panel.noCleanableBatches": "No resolved batches to clean",
 	"panel.endRound": "End current round…",
 	"panel.settings": "Settings",
-	"panel.noActiveBook": "No active book selected",
+	"panel.noActiveBook": "Choose manuscript target",
 	"toolbar.cancelBulk": "Cancel bulk apply",
 	"toolbar.cancel": "Cancel",
 	"toolbar.confirm": "Confirm",

@@ -1,3 +1,4 @@
+import { createManuscriptTarget } from "../core/ManuscriptTarget";
 // Invariant tests for ReviewRegistryService — corruption-prevention before
 // any decomposition. These do NOT snapshot internal shapes; they assert the
 // CONSISTENCY properties the service must never violate:
@@ -460,6 +461,28 @@ describe("invariant: scene-inventory rebuild is deterministic and idempotent", (
 		"BookA/s2.md": [suggestion("r2", "rejected")],
 	};
 
+	it("does not let a slow RT lookup overwrite a newer target selection", async () => {
+		const app = makeApp([]);
+		Object.assign(app, { plugins: { plugins: { "radial-timeline": {} } } });
+		let finishRead!: (value: string) => void;
+		let didStart!: () => void;
+		const started = new Promise<void>((resolve) => { didStart = resolve; });
+		vi.spyOn(app.vault.adapter, "exists").mockResolvedValue(true);
+		vi.spyOn(app.vault.adapter, "read").mockImplementation(() => {
+			didStart();
+			return new Promise<string>((resolve) => { finishRead = resolve; });
+		});
+		const { service } = makeService({ app });
+		const oldLookup = service.refreshActiveBookScope();
+		await started;
+		service.setManuscriptTarget(createManuscriptTarget("none"));
+		await service.refreshActiveBookScope();
+		finishRead(JSON.stringify({ activeBookId: "old", books: [{ id: "old", sourceFolder: "Old" }] }));
+		await oldLookup;
+		expect(service.getActiveBookScopeInfo().target?.kind).toBe("none");
+		expect(service.getActiveBookScopeInfo().sourceFolder).toBeNull();
+	});
+
 	it("refreshes book identity and inventory together after a Radial Timeline book switch", async () => {
 		const bookFiles: MockFile[] = [
 			{ path: "BookA/s1.md", text: reviewNote("batch-a"), frontmatter: { Class: "Scene" } },
@@ -468,6 +491,7 @@ describe("invariant: scene-inventory rebuild is deterministic and idempotent", (
 		const app = makeApp(bookFiles);
 		let activeBookId = "book-b";
 		vi.spyOn(app.vault.adapter, "exists").mockResolvedValue(true);
+		Object.assign(app, { plugins: { plugins: { "radial-timeline": {} } } });
 		vi.spyOn(app.vault.adapter, "read").mockImplementation(async () => JSON.stringify({
 			activeBookId,
 			books: [

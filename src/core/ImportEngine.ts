@@ -1,3 +1,5 @@
+import { ReviewMutationScope } from "./review/ReviewMutationScope";
+import { manuscriptScopeKey, resolveManuscriptTarget } from "./ManuscriptTarget";
 import { saveOpenEditors } from "../services/SaveOpenEditors";
 import { normalizePath, TFile, type App } from "obsidian";
 import {
@@ -16,7 +18,8 @@ import {
 	isPathInFolderScope,
 	isSceneClassFile,
 	matchesSceneId,
-	readRadialTimelineActiveBookScope,
+	isSceneNoteForScope,
+	type ActiveBookScopeInfo,
 } from "./VaultScope";
 import { countNormalizedMatches, findExactMatches } from "./TextMatching";
 import { formatAnchorBody } from "./EditorialismParser";
@@ -76,6 +79,8 @@ export class ImportEngine {
 		// non-RT authors get the same book-bounded routing. Defaults to unset so
 		// existing call sites and tests need no change.
 		private readonly getConfiguredBookFolder: () => string = () => "",
+		private readonly getSelectedScope?: () => Promise<ActiveBookScopeInfo>,
+		private readonly getCutFolderOverride: () => string = () => "",
 	) {}
 
 	parseBatch(rawText: string): ParsedReviewDocument {
@@ -89,8 +94,8 @@ export class ImportEngine {
 		const createdAt = Date.now();
 		const parsedDocument = this.parseBatch(rawText);
 		const results: ReviewImportSuggestionResult[] = [];
-		const markdownFiles = this.app.vault.getMarkdownFiles();
 		const bookScope = await this.resolveBookScope();
+		const markdownFiles = this.app.vault.getMarkdownFiles().filter((file) => isSceneNoteForScope(this.app, file, bookScope, this.getCutFolderOverride()));
 		const scopeFiles = this.getActiveBookScopeFiles(options?.activeNotePath, markdownFiles, bookScope);
 		const noteTextCache = new Map<string, string>();
 
@@ -103,7 +108,7 @@ export class ImportEngine {
 					markdownFiles,
 					scopeFiles,
 					noteTextCache,
-					bookScope.declaredFolder,
+					bookScope.sourceFolder,
 					activeNotePath,
 					correctedTargets,
 				),
@@ -116,12 +121,13 @@ export class ImportEngine {
 			groups,
 			markdownFiles,
 			scopeFiles,
-			bookScope.declaredFolder,
+			bookScope.sourceFolder,
 			activeNotePath,
 		);
 		const summary = this.buildSummary(results, groups, parsedDocument.memos.length, unroutedMemos.length);
 
 		return {
+			targetSnapshot: { key: manuscriptScopeKey(bookScope), label: bookScope.label, paths: markdownFiles.map((file) => file.path).sort(), unavailableReason: bookScope.unavailableReason },
 			batchId: `batch-${createdAt.toString(36)}-${contentHash.slice(0, 8)}`,
 			contentHash,
 			createdAt,
@@ -134,24 +140,36 @@ export class ImportEngine {
 	}
 
 	async importBatch(batch: ReviewImportBatch): Promise<ReviewImportNoteGroup[]> {
+		await this.validateImportTarget(batch);
 		const importedGroups: ReviewImportNoteGroup[] = [];
-
-		for (const group of batch.groups) {
-			if (!group.isReady) {
-				continue;
+		const transaction = new ReviewMutationScope();
+		try {
+			for (const group of batch.groups) {
+				if (!group.isReady) continue;
+				const file = this.app.vault.getAbstractFileByPath(group.filePath);
+				if (!(file instanceof TFile)) throw new Error("An import destination is unavailable. Preview the import again.");
+				const block = this.serializeGroup(batch.batchId, batch.createdAt, group);
+				await saveOpenEditors(this.app, file.path);
+				await this.validateImportTarget(batch);
+				let before = "", after = "";
+				await this.app.vault.process(file, (currentText) => {
+					before = currentText;
+					after = appendBlockToNote(currentText, block);
+					return after;
+				});
+				transaction.onRollback(async () => {
+					await saveOpenEditors(this.app, file.path);
+					await this.app.vault.process(file, (currentText) => {
+						if (currentText !== after) throw new Error("The note changed during import.");
+						return before;
+					});
+				});
+				importedGroups.push(group);
 			}
-
-			const file = this.app.vault.getAbstractFileByPath(group.filePath);
-			if (!(file instanceof TFile)) {
-				continue;
-			}
-
-			const block = this.serializeGroup(batch.batchId, batch.createdAt, group);
-			await saveOpenEditors(this.app, file.path);
-			await this.app.vault.process(file, (currentText) => appendBlockToNote(currentText, block));
-			importedGroups.push(group);
+		} catch (error) {
+			if (!await transaction.rollback()) throw new Error("Import stopped and some review blocks could not be rolled back because their notes changed. Inspect the import destinations before retrying.");
+			throw error;
 		}
-
 		return importedGroups;
 	}
 
@@ -252,9 +270,12 @@ export class ImportEngine {
 		correctedTargets?: ReadonlyMap<string, string>,
 	): Promise<ResolvedFileMatch> {
 		const correctedPath = correctedTargets?.get(suggestion.id);
+		if (correctedPath && !markdownFiles.some((file) => file.path === correctedPath)) {
+			return { status: "unresolved", strategy: "unresolved", reason: "The corrected destination is outside the manuscript target." };
+		}
 		if (correctedPath) {
 			const correctedFile = this.app.vault.getAbstractFileByPath(correctedPath);
-			if (correctedFile instanceof TFile) {
+			if (correctedFile instanceof TFile && markdownFiles.some((file) => file.path === correctedFile.path)) {
 				return {
 					file: correctedFile,
 					status: "resolved",
@@ -378,7 +399,7 @@ export class ImportEngine {
 		// review block into an unrelated note. With no declared scope, behavior is
 		// unchanged (vault-wide).
 		const pathMatch = this.resolvePathHint(routing?.path);
-		if (pathMatch && this.isWithinDeclaredScope(pathMatch, declaredScopeFolder)) {
+		if (pathMatch && markdownFiles.some((file) => file.path === pathMatch.path) && this.isWithinDeclaredScope(pathMatch, declaredScopeFolder)) {
 			return {
 				match: {
 					file: pathMatch,
@@ -431,7 +452,7 @@ export class ImportEngine {
 		if (scopeFiles.length > 0 && !scopeFiles.some((scope) => scope.path === file.path)) {
 			return null;
 		}
-		if (scopeFiles.length === 0 && !isSceneClassFile(this.app, file)) {
+		if (scopeFiles.length === 0) {
 			return null;
 		}
 		return file;
@@ -445,42 +466,31 @@ export class ImportEngine {
 		return `${primary} ${fallback}`;
 	}
 
-	// The active book scope for this import: Radial Timeline's source folder wins
-	// (structured — guarantees Class: Scene notes); otherwise the configured
-	// manuscript folder (unstructured — folder membership only). `declaredFolder`
-	// is null when neither is set, leaving routing vault-wide as before.
-	private async resolveBookScope(): Promise<{ declaredFolder: string | null; structured: boolean }> {
-		const rtFolder = (await readRadialTimelineActiveBookScope(this.app)).sourceFolder;
-		if (rtFolder) {
-			return { declaredFolder: rtFolder, structured: true };
-		}
-		const configured = this.getConfiguredBookFolder().trim();
-		if (configured) {
-			return { declaredFolder: normalizePath(configured), structured: false };
-		}
-		return { declaredFolder: null, structured: false };
+	// The same resolved selection used by tracking, anchors and the panel.
+	// Standalone callers without a scope provider retain legacy settings.
+	private async resolveBookScope(): Promise<ActiveBookScopeInfo> {
+		return this.getSelectedScope ? this.getSelectedScope() : resolveManuscriptTarget(this.app, undefined, this.getConfiguredBookFolder());
 	}
 
-	private getActiveBookScopeFiles(
-		activeNotePath: string | undefined,
-		markdownFiles: TFile[],
-		bookScope: { declaredFolder: string | null; structured: boolean },
-	): TFile[] {
-		const scopeRoot = bookScope.declaredFolder ?? getActiveNoteScopeRoot(activeNotePath);
-		if (!scopeRoot) {
-			return [];
+	async validateImportTarget(batch: ReviewImportBatch, destinationPath?: string): Promise<void> {
+		if (!batch.targetSnapshot) return; // Legacy saved/test batches predate target snapshots.
+		const scope = await this.resolveBookScope();
+		const files = this.app.vault.getMarkdownFiles().filter((file) => isSceneNoteForScope(this.app, file, scope, this.getCutFolderOverride()));
+		const paths = files.map((file) => file.path).sort();
+		if (scope.unavailableReason || manuscriptScopeKey(scope) !== batch.targetSnapshot.key || JSON.stringify(paths) !== JSON.stringify(batch.targetSnapshot.paths)) {
+			throw new Error("The manuscript target or its notes changed. Preview the import again before importing.");
 		}
+		if ((destinationPath && !paths.includes(destinationPath)) || batch.groups.some((group) => group.isReady && !paths.includes(group.filePath))) {
+			throw new Error("An import destination is outside the manuscript target. Preview the import again.");
+		}
+	}
 
-		// Scene-class is a hard filter for a structured (Radial Timeline) book and
-		// for the active-note fallback (preserving prior behavior). A configured
-		// manuscript folder is folder-only, so non-RT notes without Class: Scene
-		// still populate the scope used for inference and the active-note fallback.
-		const requireSceneClass = bookScope.declaredFolder ? bookScope.structured : true;
-		return markdownFiles.filter(
-			(file) =>
-				isPathInFolderScope(file.path, scopeRoot) &&
-				(!requireSceneClass || isSceneClassFile(this.app, file)),
-		);
+	private getActiveBookScopeFiles(activeNotePath: string | undefined, markdownFiles: TFile[], scope: ActiveBookScopeInfo): TFile[] {
+		if (scope.target || scope.sourceFolder) return markdownFiles;
+		// Preserve the old active-folder inference for migrated installations
+		// until an explicit target is selected.
+		const root = getActiveNoteScopeRoot(activeNotePath);
+		return root ? markdownFiles.filter((file) => isPathInFolderScope(file.path, root) && isSceneClassFile(this.app, file)) : [];
 	}
 
 	private isWithinDeclaredScope(file: TFile, declaredScopeFolder: string | null): boolean {

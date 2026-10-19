@@ -12,6 +12,7 @@ function makeHost(overrides: Partial<ReviewBatchProcessorHost> = {}) {
 	const calls: string[] = [];
 	const importEngine = {
 		inspectBatch: vi.fn(),
+		validateImportTarget: vi.fn(),
 		importBatch: vi.fn(),
 	};
 	const host: ReviewBatchProcessorHost = {
@@ -66,6 +67,18 @@ describe("ReviewBatchProcessor.resetBatchHistory", () => {
 });
 
 describe("ReviewBatchProcessor.importReviewBatch", () => {
+	it("does not write an active-note import after target validation fails", async () => {
+		const setValue = vi.fn();
+		const context = { filePath: "Other/Note.md", text: "Author prose.", view: { editor: { getValue: () => "Author prose.", setValue } } };
+		const { host, importEngine, calls } = makeHost({ getActiveNoteContext: () => context as never });
+		const snapshot = { key: "selected-book", label: "Book", paths: ["Book/Scene.md"] };
+		importEngine.inspectBatch.mockResolvedValue({ ...batch, targetSnapshot: snapshot });
+		importEngine.validateImportTarget.mockRejectedValue(new Error("The manuscript target changed."));
+		await expect(new ReviewBatchProcessor(host).importReviewBatchToActiveNote("```editorialist-review\nReviewer: Editor\n=== EDIT ===\nOriginal: Before\nRevised: After\n```", false)).rejects.toThrow("target changed");
+		expect(setValue).not.toHaveBeenCalled();
+		expect(calls).not.toContain("recordImportedBatch");
+	});
+
 	it.each([null, "open"])("does not append a duplicate when the author chooses %s", async (choice) => {
 		const { host, calls, importEngine } = makeHost({
 			findDuplicateSweep: () => ({

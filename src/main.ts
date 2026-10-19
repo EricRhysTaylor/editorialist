@@ -1,3 +1,5 @@
+import { manuscriptScopeKey, createManuscriptTarget, normalizeManuscriptTarget, type ManuscriptTarget } from "./core/ManuscriptTarget";
+import { ManuscriptTargetModal } from "./ui/ManuscriptTargetModal";
 import { t } from "./i18n";
 import { editorMenuEntries, type EditorMenuEntry } from "./core/EditorMenuEntries";
 import { saveOpenEditors } from "./services/SaveOpenEditors";
@@ -53,9 +55,8 @@ import { buildReviewTemplate, type ReviewTemplateContext } from "./core/ReviewTe
 import {
 	getFrontmatterStringValues,
 	getSceneIdForFile,
-	isPathInFolderScope,
-	isSceneClassFile,
 	isSceneNoteForScope,
+	type ActiveBookScopeInfo,
 } from "./core/VaultScope";
 import { buildSceneTokens, sceneNumberFromName, type SceneRelevanceContext } from "./core/SceneRelevance";
 import { SuggestionParser } from "./core/SuggestionParser";
@@ -308,6 +309,7 @@ export default class EditorialistPlugin extends Plugin {
 	private readonly batchProcessor = new ReviewBatchProcessor({
 		app: this.app,
 		getImportEngine: () => this.importEngine,
+		isReviewTargetPath: (path) => this.isManuscriptTargetPath(path),
 		getActiveNoteContext: () => this.getActiveNoteContext(),
 		getReviewNoteContext: () => this.getReviewNoteContext(),
 		getNoteContextByPath: (filePath) => this.getNoteContextByPath(filePath),
@@ -477,6 +479,8 @@ export default class EditorialistPlugin extends Plugin {
 			this.parser,
 			this.matchEngine,
 			() => this.registry.getBookFolderOverride(),
+			async () => { await this.registry.refreshActiveBookScope(); return this.registry.getActiveBookScopeInfo(); },
+			() => this.getCutFolderOverride(),
 		);
 		this.pendingEdits.initialize();
 		this.registerEditorExtension(createReviewDecorationsExtension());
@@ -586,6 +590,12 @@ export default class EditorialistPlugin extends Plugin {
 		// file the button points at. Deferred to layout-ready because `create`
 		// fires once per file while the vault index is warming up.
 		this.app.workspace.onLayoutReady(() => {
+			// Folder/note membership cannot be validated before the vault index
+			// is ready. Resolve the persisted target again at the actual boundary.
+			void this.registry.syncOperationalMetadata().then(() => {
+				this.refreshReviewPanel();
+				this.refreshEditorialismPanel();
+			}).catch((error: unknown) => console.error("Editorialist: manuscript target refresh failed", error));
 			// One-time repair of per-batch attribution — reviewer signals and
 			// review decisions alike — for vaults whose data.json predates
 			// per-suggestion batch ids. Deferred to layout-ready because it reads
@@ -599,6 +609,7 @@ export default class EditorialistPlugin extends Plugin {
 			this.registerEvent(
 				this.app.vault.on("create", (file) => {
 					this.cutFiles.refreshReviewPanelIfActiveSceneCutFile(file.path);
+					if (!(file instanceof TFile) || file.extension === "md") this.inventoryRescanDebouncer.schedule();
 				}),
 			);
 			this.registerEvent(
@@ -620,6 +631,8 @@ export default class EditorialistPlugin extends Plugin {
 					this.cutFiles.refreshReviewPanelIfActiveSceneCutFile(oldPath);
 					if (file instanceof TFile && file.extension === "md") {
 						void this.handleNoteRenamed(oldPath, file.path);
+					} else {
+						this.inventoryRescanDebouncer.schedule();
 					}
 				}),
 			);
@@ -966,7 +979,10 @@ export default class EditorialistPlugin extends Plugin {
 		if (project) candidates.push(...preparationWork(project));
 		try {
 			const pending = await collectPendingEdits(this.app);
-			if (pending.ok && pending.session.sourceFolder.replace(/\/$/, "") === folder) candidates.push(...pendingWork(pending.session));
+			if (pending.ok && pending.session.sourceFolder.replace(/\/$/, "") === folder) {
+				const eligible = new Set(this.getManuscriptFiles().map((file) => file.path));
+				candidates.push(...pendingWork(pending.session).filter((item) => eligible.has(item.path)));
+			}
 			else if (pending.ok) warnings.push("Pending edits belong to a different active book. Refresh after selecting the intended book.");
 			else if (pending.reason !== "no_scenes_with_pending_edits" && !(project && pending.reason === "radial_timeline_missing")) warnings.push(describeCollectFailure(pending.reason));
 		} catch { warnings.push("Pending edits could not be loaded. Their absence is not a completed backlog."); }
@@ -980,7 +996,8 @@ export default class EditorialistPlugin extends Plugin {
 			}
 		} catch { warnings.push("Some editorial agendas could not be loaded. Refresh before relying on the backlog."); }
 		const activeBatches = this.getSweepRegistryEntries().filter((batch) => batch.status !== "cleaned" && batch.status !== "ended_early");
-		const paths = new Set(activeBatches.flatMap((batch) => batch.importedNotePaths).filter((path) => path.startsWith(folder + "/")));
+		const eligible = new Set(this.getManuscriptFiles().map((file) => file.path));
+		const paths = new Set(activeBatches.flatMap((batch) => batch.importedNotePaths).filter((path) => eligible.has(path)));
 		for (const path of paths) {
 			try {
 				const file = this.app.vault.getAbstractFileByPath(path);
@@ -1264,6 +1281,44 @@ export default class EditorialistPlugin extends Plugin {
 		await this.savePluginData();
 	}
 
+	getManuscriptFiles(): TFile[] {
+		const scope = this.getActiveBookScopeInfo();
+		const cutFolder = this.getCutFolderOverride();
+		return this.app.vault.getMarkdownFiles().filter((file) => isSceneNoteForScope(this.app, file, scope, cutFolder));
+	}
+
+	isManuscriptTargetPath(path: string): boolean {
+		const file = this.app.vault.getAbstractFileByPath(path);
+		return file instanceof TFile && isSceneNoteForScope(this.app, file, this.getActiveBookScopeInfo(), this.getCutFolderOverride());
+	}
+
+	getManuscriptTarget(): ManuscriptTarget | undefined { return this.registry.getManuscriptTarget(); }
+
+	openManuscriptTargetSelector(onSaved?: () => void): void { new ManuscriptTargetModal(this, onSaved).open(); }
+
+	async setManuscriptTarget(target: ManuscriptTarget): Promise<void> {
+		const previous = this.registry.getManuscriptTarget();
+		const normalized = normalizeManuscriptTarget(target);
+		this.registry.setManuscriptTarget(normalized);
+		try { await this.savePluginData(); }
+		catch (error) { this.registry.restoreManuscriptTarget(previous); throw error; }
+		await this.registry.syncOperationalMetadata();
+		const eligible = new Set(this.getManuscriptFiles().map((file) => file.path));
+		if (this.store.getSession() && !eligible.has(this.store.getSession()!.notePath)) {
+			this.store.clearSession();
+			this.store.setAppliedReview(null);
+			this.clearActiveHighlights();
+		}
+		if (this.getGuidedSweep()?.notePaths.some((path) => !eligible.has(path))) this.store.setGuidedSweep(null);
+		if (this.store.getCompletedSweep()?.notePaths.some((path) => !eligible.has(path))) this.store.setCompletedSweep(null);
+		this.syncActiveEditorDecorations();
+		this.refreshReviewPanel();
+		this.refreshEditorialismPanel();
+		for (const type of [REVISION_PLAN_VIEW_TYPE, AUTHOR_PLAN_VIEW_TYPE]) {
+			for (const leaf of this.app.workspace.getLeavesOfType(type)) if (leaf.view instanceof RevisionPlanPanel) await leaf.view.refresh();
+		}
+	}
+
 	getBookFolderOverride(): string {
 		return this.registry.getBookFolderOverride();
 	}
@@ -1273,9 +1328,7 @@ export default class EditorialistPlugin extends Plugin {
 	// book" takes effect immediately (registry, panel, and import routing).
 	async setBookFolderOverride(value: string): Promise<void> {
 		this.registry.setBookFolderOverride(value);
-		await this.savePluginData();
-		await this.registry.syncOperationalMetadata();
-		this.refreshReviewPanel();
+		await this.setManuscriptTarget(createManuscriptTarget(value.trim() ? "folder" : "none", value));
 	}
 
 	// Shared author-query insertion flow behind all three entry points (command,
@@ -1480,10 +1533,11 @@ export default class EditorialistPlugin extends Plugin {
 	private endingReviewRound = false;
 
 	getEndableRoundBatches(): ReviewSweepRegistryEntry[] {
+		const eligible = new Set(this.getManuscriptFiles().map((file) => file.path));
 		return getEndableRoundBatches(
 			this.getSweepRegistryEntries(), this.getActiveBookScopeInfo().sourceFolder,
 			(this.getGuidedSweep()?.batchId ?? this.getCurrentBatchId()),
-		);
+		).filter((entry) => entry.importedNotePaths.every((path) => eligible.has(path)));
 	}
 
 	async endCurrentReviewRound(): Promise<void> {
@@ -1528,10 +1582,12 @@ export default class EditorialistPlugin extends Plugin {
 			if (selected.some((entry) => JSON.stringify(entry.importedNotePaths) !== JSON.stringify(this.getSweepRegistryEntry(entry.batchId)?.importedNotePaths))) {
 				throw new Error("The selected scenes changed. Open End current round again.");
 			}
+			if (manuscriptScopeKey(scope) !== manuscriptScopeKey(this.getActiveBookScopeInfo())) throw new Error("The manuscript target changed. Open End current round again.");
 			await endReviewRound({
 				app: this.app,
 				getNoteContextByPath: (path) => this.getNoteContextByPath(path),
 				getScopeFolder: () => this.getActiveBookScopeInfo().sourceFolder,
+				getScopeKey: () => manuscriptScopeKey(this.getActiveBookScopeInfo()),
 				getEntry: (id) => this.getSweepRegistryEntry(id),
 				getDecisionStats: (id) => this.getBatchDecisionStats(id),
 				updateEntry: (id, updates) => this.registry.updateSweepRegistry(id, updates, { persist: false }),
@@ -1556,13 +1612,10 @@ export default class EditorialistPlugin extends Plugin {
 	// review block — i.e. cleanable right now. Powers the panel header's Clean
 	// action so the user never has to hunt for per-card clean links.
 	getCleanableBatchIds(): string[] {
-		const scopeFolder = this.registry.getActiveBookScopeInfo().sourceFolder;
+		const eligible = new Set(this.getManuscriptFiles().map((file) => file.path));
 		const inActiveBook = (entry: ReviewSweepRegistryEntry): boolean => {
-			if (!scopeFolder) {
-				return true;
-			}
-			const paths = entry.sceneOrder.length > 0 ? entry.sceneOrder : entry.importedNotePaths;
-			return paths.length === 0 || paths.some((path) => isPathInFolderScope(path, scopeFolder));
+			const paths = entry.importedNotePaths;
+			return paths.length > 0 && paths.every((path) => eligible.has(path));
 		};
 		return this.registry
 			.getSweepRegistryEntries()
@@ -1629,7 +1682,7 @@ export default class EditorialistPlugin extends Plugin {
 		return this.registry.getTrackingIdentitySummary(options);
 	}
 
-	getActiveBookScopeInfo(): { label: string | null; sourceFolder: string | null; structured: boolean } {
+	getActiveBookScopeInfo(): ActiveBookScopeInfo {
 		return this.registry.getActiveBookScopeInfo();
 	}
 
@@ -2170,7 +2223,7 @@ export default class EditorialistPlugin extends Plugin {
 
 	private getReviewNoteContext(): ActiveNoteContext | null {
 		const session = this.store.getSession();
-		if (!session) {
+		if (!session || !this.isManuscriptTargetPath(session.notePath)) {
 			return null;
 		}
 
@@ -2200,7 +2253,7 @@ export default class EditorialistPlugin extends Plugin {
 
 	private getEditorialistLaunchState(context: ActiveNoteContext | null): EditorialistLaunchState {
 		const noteUnitLabel = context && this.registry.usesSceneTerminology(context.filePath) ? "scene" : "note";
-		if (!context) {
+		if (!context || !this.isManuscriptTargetPath(context.filePath)) {
 			return {
 				currentNoteHasReviewBlock: false,
 				currentNoteReviewBlockState: "none",
@@ -3264,13 +3317,10 @@ export default class EditorialistPlugin extends Plugin {
 		const sceneIds: { id: string; title: string }[] = [];
 		let activeSceneId: string | null = null;
 
-		if (scope.sourceFolder) {
+		if (scope.sourceFolder || scope.target) {
 			const seenIds = new Set<string>();
 			for (const file of this.app.vault.getMarkdownFiles()) {
-				if (!isPathInFolderScope(file.path, scope.sourceFolder)) {
-					continue;
-				}
-				if (!isSceneClassFile(this.app, file)) {
+				if (!isSceneNoteForScope(this.app, file, scope, this.getCutFolderOverride())) {
 					continue;
 				}
 				const sceneId = getSceneIdForFile(this.app, file);
@@ -3283,7 +3333,7 @@ export default class EditorialistPlugin extends Plugin {
 			sceneIds.sort((left, right) => left.title.localeCompare(right.title, undefined, { numeric: true }));
 		}
 
-		if (activeFile) {
+		if (activeFile && isSceneNoteForScope(this.app, activeFile, scope, this.getCutFolderOverride())) {
 			activeSceneId = getSceneIdForFile(this.app, activeFile) ?? null;
 		}
 

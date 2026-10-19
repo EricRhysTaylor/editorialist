@@ -73,11 +73,20 @@ A card grid, one per contributor:
 
 <p align="center"><img src="images/settings-configuration.png" alt="Configuration settings tab: how cut files work, and the cut location override" width="620"></p>
 
-### Manuscript folder
+### Manuscript target
 
-- **Book folder override** — points Editorialist at the folder that holds the manuscript. Review tracking and imports are confined to that folder.
-- **Save** / **Clear** buttons apply or remove the override.
-- If Radial Timeline supplies an active book source folder, that scope drives Editorialist and the override stays inactive until Radial Timeline is not driving the active book.
+Use **Change target…** here, or click the manuscript line beneath a panel header.
+
+- **Follow Radial Timeline** — use its active book while the plugin is enabled. An unavailable book or folder asks you to choose a target; it does not select another book.
+- **A folder** — choose an existing vault folder. Include or skip subfolders and exclude supporting folders by their vault-relative paths. Plain Markdown notes need no `Class: Scene` property.
+- **Current note** — pins the note open when you choose this option. Opening another note does not move the target.
+- **Entire vault** — explicitly includes Markdown notes across the vault, subject to exclusions.
+
+Cut archives are excluded from review targets. The selector previews the number of eligible notes. Import previews name the target and list destinations; a change to the target or eligible note set requires a new preview before importing.
+
+New installations ask you to choose a target. Existing installations retain their previous selection until you choose one; the unbounded legacy mode is labeled **Entire vault (legacy)**. Choosing a folder works even while Radial Timeline is enabled.
+
+Revision plans and deliveries still require a folder target (or an RT book with a folder). The active-book pending-edits sweep still requires Radial Timeline. Saved named manuscript profiles and stable manuscript identities are not part of this selector.
 
 ### Tracking
 

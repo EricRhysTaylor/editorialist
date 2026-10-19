@@ -1,14 +1,14 @@
-[Radial Timeline](https://community.obsidian.md/plugins/radial-timeline) is a companion plugin for manuscript structure. When it is installed and an active book is set, Editorialist uses that book context for scene inventory, pending-edits review, and scene ID guidance.
+[Radial Timeline](https://community.obsidian.md/plugins/radial-timeline) is a companion plugin for manuscript structure. Choose **Follow Radial Timeline** in the manuscript target selector to use its active book for review targeting. You can choose an independent folder or note while Radial Timeline remains enabled. Pending-edits review continues to use its active book.
 
 <p align="center"><img src="images/settings-radial-timeline-rounded.png" alt="Radial Timeline based tracking placard in Editorialist settings" width="620"></p>
 
-The integration is optional. Editorialist works without Radial Timeline by using a configured manuscript folder, its own note IDs, or path-based tracking when needed.
+The integration is optional. Editorialist works without Radial Timeline using its manuscript target selector, its own note IDs, or path-based tracking when needed. Folder targets can include subfolders and exclude supporting material.
 
 ## What Radial Timeline adds
 
 | Capability | Without RT | With RT |
 |---|---|---|
-| Book scope | Configured manuscript folder, active-note folder, or whole vault | Active-book scope for panels, inventory, and stats |
+| Book scope | Selected folder, pinned note, or explicitly selected whole vault | Optional active-book scope for panels, inventory, and stats |
 | Scene tracking | Editorialist stable note IDs, or path-based fallback | Radial Timeline scene IDs shared with manuscript exports |
 | Pending edits | Active-book pending-edits sweep is not available | Revision notes collected across the active book |
 | Scene inventory | Plain scene list | Scene status and stage glyphs when matching frontmatter exists |

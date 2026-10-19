@@ -630,6 +630,7 @@ export class EditorialistModal extends Modal {
 	private renderAssignments(parent: HTMLElement, batch: ReviewImportBatch, withActions: boolean): void {
 		const destinationPlural = this.getDestinationNounPlural(batch);
 		const summary = parent.createDiv({ cls: "editorialist-control-modal__summary" });
+		if (batch.targetSnapshot) summary.createDiv({ text: batch.targetSnapshot.unavailableReason ?? `Manuscript: ${batch.targetSnapshot.label ?? "Entire vault (legacy)"} · ${batch.targetSnapshot.paths.length} eligible notes` });
 		summary.createDiv({
 			text: `${batch.summary.totalMatchedScenes} matched ${destinationPlural} • ${this.describeBatchEntries(batch)} • ${batch.summary.totalUnresolvedScenes} unresolved ${destinationPlural} • ${batch.summary.totalMismatches} mismatches`,
 		});

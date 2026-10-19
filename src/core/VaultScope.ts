@@ -1,4 +1,5 @@
 import { normalizePath, type App, type TFile } from "obsidian";
+import type { ManuscriptTarget } from "./ManuscriptTarget";
 
 export interface ActiveBookScopeInfo {
 	label: string | null;
@@ -9,6 +10,8 @@ export interface ActiveBookScopeInfo {
 	// and notes are not required to carry Class: Scene. Consumers use this to
 	// decide whether scene-class is a hard filter or just a hint.
 	structured: boolean;
+	target?: ManuscriptTarget;
+	unavailableReason?: string;
 }
 
 // Scope derived from the configured manuscript/book folder. Used as the
@@ -108,13 +111,13 @@ export function isCutArchivePath(filePath: string, cutFolderOverride: string): b
 export function isSceneNoteForScope(
 	app: App,
 	file: TFile,
-	scope: { sourceFolder: string | null; structured: boolean },
+	scope: Pick<ActiveBookScopeInfo, "sourceFolder" | "structured" | "target" | "unavailableReason">,
 	cutFolderOverride: string,
 ): boolean {
 	if (isCutArchivePath(file.path, cutFolderOverride) || isCutClassFile(app, file)) {
 		return false;
 	}
-	if (scope.sourceFolder && !isPathInFolderScope(file.path, scope.sourceFolder)) {
+	if (!isPathInManuscriptScope(file.path, scope)) {
 		return false;
 	}
 	if (scope.structured) {
@@ -172,6 +175,9 @@ export function getActiveNoteScopeRoot(activeNotePath: string | undefined): stri
 
 export async function readRadialTimelineActiveBookScope(app: App): Promise<ActiveBookScopeInfo> {
 	try {
+		// SAFE: Obsidian exposes loaded plugins outside the public App typings.
+		const plugins = (app as App & { plugins?: { plugins?: Record<string, unknown> } }).plugins;
+		if (!plugins?.plugins?.["radial-timeline"]) return { label: null, sourceFolder: null, structured: false };
 		const radialDataPath = normalizePath(`${app.vault.configDir}/plugins/radial-timeline/data.json`);
 		// vault.adapter is required here: the file lives under .obsidian/plugins, which is
 		// outside the Markdown file index that Vault API methods operate on.
@@ -191,7 +197,7 @@ export async function readRadialTimelineActiveBookScope(app: App): Promise<Activ
 		};
 		const books = Array.isArray(parsed.books) ? parsed.books : [];
 		const activeBookId = typeof parsed.activeBookId === "string" ? parsed.activeBookId : "";
-		const activeBook = books.find((book) => book.id === activeBookId) ?? books[0];
+		const activeBook = books.find((book) => book.id === activeBookId);
 		const sourceFolder = activeBook?.sourceFolder?.trim();
 		const label =
 			activeBook?.title?.trim() || activeBook?.name?.trim() || activeBook?.id?.trim() || null;
@@ -224,4 +230,14 @@ export function getBookHintForPath(notePath: string, activeBookScope: ActiveBook
 	const normalizedPath = normalizePath(notePath);
 	const segments = normalizedPath.split("/");
 	return segments.length > 1 ? segments.slice(0, -1).join("/") : undefined;
+}
+
+export function isPathInManuscriptScope(path: string, scope: Pick<ActiveBookScopeInfo, "sourceFolder" | "target" | "unavailableReason">): boolean {
+	if (scope.unavailableReason) return false;
+	const target = scope.target;
+	if (target?.kind === "none") return false;
+	if (target?.kind === "note" && path !== target.path) return false;
+	if (scope.sourceFolder && !isPathInFolderScope(path, scope.sourceFolder)) return false;
+	if (target?.kind === "folder" && !target.includeSubfolders && path.slice(0, path.lastIndexOf("/")) !== scope.sourceFolder) return false;
+	return !target?.excludedFolders.some((folder) => isPathInFolderScope(path, folder));
 }

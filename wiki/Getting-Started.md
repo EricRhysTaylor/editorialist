@@ -9,7 +9,7 @@ Install from the Obsidian Community Plugins directory:
 
 (To install a specific version manually, grab `manifest.json`, `main.js`, and `styles.css` from the [latest release](https://github.com/EricRhysTaylor/Editorialist/releases) and place them in `<your-vault>/.obsidian/plugins/editorialist/`.)
 
-If you also use [Radial Timeline](Radial-Timeline-Integration), Editorialist detects it automatically and scopes review tools to the active book. The regular review-batch workflow works without it; the active-book pending-edits review depends on Radial Timeline.
+Choose a manuscript target from the line beneath the panel header: a folder, the current note, the entire vault, or **Follow Radial Timeline**. Folder targets can exclude supporting notes and include or skip subfolders. If you also use [Radial Timeline](Radial-Timeline-Integration), following its active book is optional. The regular review-batch workflow works without it; the active-book pending-edits review depends on Radial Timeline.
 
 ## Commands
 

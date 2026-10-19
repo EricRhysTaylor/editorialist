@@ -10,6 +10,7 @@ export interface EndReviewRoundHost {
 	app: App;
 	getNoteContextByPath(path: string): BatchNoteContext | null;
 	getScopeFolder(): string | null;
+	getScopeKey?(): string;
 	getEntry(batchId: string): ReviewSweepRegistryEntry | null;
 	getDecisionStats(batchId: string): { accepted: number; rejected: number; rewritten: number; deferred: number };
 	updateEntry(batchId: string, updates: Partial<ReviewSweepRegistryEntry>): Promise<void>;
@@ -39,7 +40,9 @@ export async function endReviewRound(
 ): Promise<void> {
 	const ids = [...new Set(batchIds)];
 	if (ids.length === 0) throw new Error("No batches were selected.");
+	const scopeKey = host.getScopeKey?.();
 	const assertScope = () => {
+		if (host.getScopeKey?.() !== scopeKey) throw new Error("The manuscript target changed. Open End current round again.");
 		if (host.getScopeFolder() !== expectedScope) throw new Error("The active book changed. Open End current round again.");
 	};
 	assertScope();

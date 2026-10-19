@@ -48,6 +48,7 @@ export interface BatchNoteContext {
 export interface ReviewBatchProcessorHost {
 	readonly app: App;
 	getImportEngine(): ImportEngine;
+	isReviewTargetPath?(path: string): boolean;
 	getActiveNoteContext(): BatchNoteContext | null;
 	getReviewNoteContext(): BatchNoteContext | null;
 	getNoteContextByPath(filePath: string): BatchNoteContext | null;
@@ -209,6 +210,7 @@ export class ReviewBatchProcessor {
 		// saved to the library on its own, never written into the note.
 		const batchText = this.addImportedBlockMetadata(removeEditorialismFromText(normalizedText), batch.batchId);
 
+		if (batch.targetSnapshot) await this.host.getImportEngine().validateImportTarget(batch, context.filePath);
 		const currentText = context.view.editor.getValue();
 		context.view.editor.setValue(appendBlockToNote(currentText, batchText.trim()));
 		await this.host.recordImportedBatch(
@@ -276,6 +278,8 @@ export class ReviewBatchProcessor {
 		if (!(await this.confirmDuplicateImport(batch))) {
 			return;
 		}
+
+		if (batch.targetSnapshot) await this.host.getImportEngine().validateImportTarget(batch, context.filePath);
 
 		// Re-locate against the LIVE buffer: inspectReviewBatch and the duplicate
 		// modal above both yield, so the author (or a sync) may have edited the
@@ -525,6 +529,11 @@ export class ReviewBatchProcessor {
 			if (notify) {
 				new Notice("Review batch registry entry not found.");
 			}
+			return { removedCount: 0, skippedUnfencedCount: 0 };
+		}
+
+		if (this.host.isReviewTargetPath && entry.importedNotePaths.some((path) => !this.host.isReviewTargetPath!(path))) {
+			new Notice("This batch includes notes outside the manuscript target. Choose its manuscript before cleaning it.");
 			return { removedCount: 0, skippedUnfencedCount: 0 };
 		}
 

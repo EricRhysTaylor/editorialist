@@ -303,70 +303,12 @@ export class EditorialistSettingTab extends PluginSettingTab {
 
 	private renderBookFolderSection(
 		parent: HTMLElement,
-		activeBook: { label: string | null; sourceFolder: string | null; structured: boolean },
+		activeBook: { label: string | null; sourceFolder: string | null; structured: boolean; unavailableReason?: string },
 	): void {
-		const body = this.createSection(
-			parent,
-			"Manuscript folder",
-			"Point Editorialist at the folder that holds your book. Review tracking and imported edits are confined to notes inside it, so content logs, briefs, and other vault notes are never picked up as review targets.",
-			"folder",
-		);
+		const body = this.createSection(parent, "Manuscript target", "Choose a folder, one note, the entire vault, or follow the active Radial Timeline book. Folder targets can exclude supporting material and include or skip subfolders.", "folder");
 		body.parentElement?.addClass("editorialist-settings__section--utility");
-
-		// Radial Timeline owns the scope whenever it has an active book. In that
-		// case the override is inert — surface that plainly instead of letting the
-		// author think their input is doing nothing.
-		const radialDriven = activeBook.structured && Boolean(activeBook.sourceFolder);
-
-		const fieldRow = body.createDiv({ cls: "editorialist-settings__cut-row" });
-		fieldRow.createDiv({
-			cls: "editorialist-settings__cut-label",
-			text: "Book folder override",
-		});
-
-		const input = fieldRow.createEl("input", {
-			cls: "editorialist-settings__cut-input",
-			attr: {
-				type: "text",
-				spellcheck: "false",
-				placeholder: "Manuscripts/my book",
-			},
-		});
-		input.value = this.plugin.getBookFolderOverride();
-		if (radialDriven) {
-			input.disabled = true;
-		}
-
-		const actions = fieldRow.createDiv({ cls: "editorialist-settings__cut-actions" });
-		this.createActionButton(actions, "save", "Save", async () => {
-			await this.plugin.setBookFolderOverride(input.value);
-			new Notice(
-				input.value.trim()
-					? `Manuscript folder set to ${input.value.trim()}.`
-					: "Manuscript folder cleared — tracking spans the whole vault.",
-			);
-			void this.displayAsync(false);
-		});
-		this.createActionButton(actions, "rotate-ccw", "Clear", async () => {
-			await this.plugin.setBookFolderOverride("");
-			new Notice("Manuscript folder cleared — tracking spans the whole vault.");
-			void this.displayAsync(false);
-		});
-
-		const note = body.createDiv({ cls: "editorialist-settings__cut-note" });
-		const override = this.plugin.getBookFolderOverride();
-		let noteText: string;
-		if (radialDriven) {
-			noteText = `Radial Timeline is supplying the manuscript scope (${activeBook.sourceFolder}). This override is saved but stays inactive until Radial Timeline is not driving the active book.`;
-		} else if (override) {
-			noteText = `Scope active: review tracking and imports are confined to ${override}/.`;
-		} else {
-			noteText = "No manuscript folder set. Review tracking and imports span the whole vault. Set a folder to keep them bounded to your book.";
-		}
-		note.createDiv({
-			cls: "editorialist-settings__maintenance-note",
-			text: noteText,
-		});
+		body.createDiv({ cls: "editorialist-settings__maintenance-note", text: activeBook.unavailableReason ?? `${activeBook.label ?? "Entire vault (legacy)"} · ${this.plugin.getManuscriptFiles().length} eligible notes` });
+		this.createActionButton(body, "folder", "Change target…", async () => { this.plugin.openManuscriptTargetSelector(() => { void this.displayAsync(false); }); });
 	}
 
 	private renderCutLocationSection(

@@ -145,6 +145,7 @@ export interface ReviewImportSummary {
 }
 
 export interface ReviewImportBatch {
+	targetSnapshot?: { key: string; label: string | null; paths: string[]; unavailableReason?: string };
 	batchId: string;
 	contentHash: string;
 	createdAt: number;

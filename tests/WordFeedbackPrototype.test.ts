@@ -22,6 +22,7 @@ function setup(body = "The door opened.", activeBook = "working") {
 		{ path: "Working/Scene.md", body, frontmatter: { Class: "Scene", id: "scn_fixture" } },
 		{ path: "Submission/Scene.md", body: "The door opened.", frontmatter: { Class: "Scene", id: "scn_fixture" } },
 	]);
+	app.plugins = { getPlugin: () => ({}), plugins: { "radial-timeline": {} } };
 	app.vault.adapter.exists = async () => true;
 	app.vault.adapter.read = async () => JSON.stringify({ activeBookId: activeBook, books: [
 		{ id: "working", title: "Working", sourceFolder: "Working" },

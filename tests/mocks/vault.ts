@@ -36,7 +36,7 @@ export interface MockApp {
 		getFileCache(file: TFile): { frontmatter?: Record<string, unknown> } | null;
 		getFirstLinkpathDest(linkpath: string, sourcePath: string): TFile | null;
 	};
-	plugins?: { getPlugin(id: string): unknown };
+	plugins?: { getPlugin(id: string): unknown; plugins?: Record<string, unknown> };
 	workspace: {
 		getActiveFile(): TFile | null;
 		// No editors are open in tests; writes have no buffer to save first.

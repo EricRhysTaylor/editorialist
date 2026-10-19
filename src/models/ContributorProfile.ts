@@ -1,3 +1,4 @@
+import type { ManuscriptTarget } from "../core/ManuscriptTarget";
 import type { EditorialDeliveryStore } from "../core/EditorialDeliveries";
 import type { RevisionPlanStore } from "../core/planning/RevisionPlan";
 import type { ReviewSweepRegistryEntry } from "./ReviewImport";
@@ -126,6 +127,8 @@ export interface EditorialistEffortSettings {
 }
 
 export interface EditorialistSettings {
+	// Absent only for migrated installations retaining their prior selection.
+	manuscriptTarget?: ManuscriptTarget;
 	// Optional explicit cut-folder path. Empty string means "unset" — cut-file
 	// resolution then falls back to the active book's source folder, or the
 	// scene's own folder. Stored verbatim; normalized at use time.
