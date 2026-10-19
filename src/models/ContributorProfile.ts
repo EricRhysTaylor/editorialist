@@ -127,6 +127,7 @@ export interface EditorialistEffortSettings {
 }
 
 export interface EditorialistSettings {
+	manuscriptNames?: { version: 1; folders: Record<string, string> };
 	// Absent only for migrated installations retaining their prior selection.
 	manuscriptTarget?: ManuscriptTarget;
 	// Optional explicit cut-folder path. Empty string means "unset" — cut-file

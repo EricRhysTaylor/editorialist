@@ -3,7 +3,7 @@ import { createManuscriptTarget, normalizeManuscriptTarget, resolveManuscriptTar
 import { isSceneNoteForScope } from "../core/VaultScope";
 import type EditorialistPlugin from "../main";
 
-class FolderPicker extends FuzzySuggestModal<TFolder> {
+export class FolderPicker extends FuzzySuggestModal<TFolder> {
 	constructor(app: App, private readonly choose: (folder: TFolder) => void) {
 		super(app);
 		this.setPlaceholder("Choose a vault folder…");
@@ -44,6 +44,9 @@ export class ManuscriptTargetModal extends Modal {
 		contentEl.addClass("editorialist-target");
 		this.setTitle("Manuscript target");
 		contentEl.createEl("p", { cls: "editorialist-target__intro", text: "Choose the writing to review. This selection stays in place when you open other notes." });
+		if (this.plugin.getManuscriptAssociations().length) {
+			this.setting().setName(this.plugin.getActiveBookScopeInfo().unavailableReason ? "Manuscript folder unavailable" : "Moved or renamed manuscript").setDesc("Reconnect saved work to its folder, or update the manuscript name.").addButton((button) => button.setButtonText("Reconnect…").onClick(() => { this.close(); this.plugin.openManuscriptReconnection(this.onSaved); }));
+		}
 		this.setting().setName("Review").addDropdown((dropdown) => {
 			dropdown.addOptions({ none: "Choose a target…", radial: "Follow Radial Timeline", folder: "A folder", note: "Current note", vault: "Entire vault" }).setValue(this.target.kind).onChange((kind) => {
 				if (this.target.kind === "folder") this.folderPath = this.target.path;
@@ -83,6 +86,7 @@ export class ManuscriptTargetModal extends Modal {
 			const run = ++this.previewRun;
 			const scope = await resolveManuscriptTarget(this.app, normalizeManuscriptTarget(this.target));
 			if (run !== this.previewRun) return;
+			if (this.target.kind === "folder" && !scope.unavailableReason) scope.label = this.plugin.getManuscriptAssociations().find((folder) => folder.path === this.target.path)?.name ?? scope.label;
 			const files = this.app.vault.getMarkdownFiles().filter((file) => isSceneNoteForScope(this.app, file, scope, this.plugin.getCutFolderOverride()));
 			preview.setText(scope.unavailableReason ?? `${scope.label} · ${files.length} eligible note${files.length === 1 ? "" : "s"}`);
 			save.disabled = Boolean(scope.unavailableReason) || this.saving;

@@ -385,7 +385,10 @@ function parseFrontmatter(lines: ReadonlyArray<string>): FrontmatterParseResult 
 		}
 		const match = line.match(/^([A-Za-z_][A-Za-z0-9_-]*)\s*:\s*(.*)$/);
 		if (match && match[1] !== undefined && match[2] !== undefined) {
-			const value = match[2].trim().replace(/^["']|["']$/g, "");
+			let value = match[2].trim().replace(/^["']|["']$/g, "");
+			if (match[2].trim().startsWith('"')) {
+				try { const decoded: unknown = JSON.parse(match[2].trim()); if (typeof decoded === "string") value = decoded; } catch { /* Retain legacy YAML scalar handling. */ }
+			}
 			frontmatter[match[1].toLowerCase()] = value;
 		}
 	}

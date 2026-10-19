@@ -1,8 +1,9 @@
+import { knownManuscriptFolders } from "../core/ManuscriptReassociation";
 import { resolveManuscriptTarget, type ManuscriptTarget } from "../core/ManuscriptTarget";
 import { saveOpenEditors } from "./SaveOpenEditors";
 import { normalizeEditorialDeliveries, updateDelivery, type EditorialDelivery } from "../core/EditorialDeliveries";
 import { normalizeRevisionPlans, emptyRevisionPlan, type RevisionPlan, type RevisionPlanStore } from "../core/planning/RevisionPlan";
-import { TFile, type App } from "obsidian";
+import { TFile, TFolder, type App } from "obsidian";
 import { findImportedReviewBlocks } from "../core/ReviewBlockFormat";
 import type { ReviewEngine } from "../core/ReviewEngine";
 import {
@@ -101,6 +102,7 @@ interface TrackingIdentitySummary {
 
 export class ReviewRegistryService {
 	private scopeResolution = 0;
+	private disconnectedManuscriptFolders: string[] = [];
 	private activeBookScope: ActiveBookScopeInfo = {
 		label: null,
 		sourceFolder: null,
@@ -153,6 +155,7 @@ export class ReviewRegistryService {
 			getBookHint: (notePath) => getBookHintForPath(notePath, this.activeBookScope),
 			getSceneReviewIndex: () => this.sceneReviewIndex,
 			fileExists: (notePath) => this.app.vault.getAbstractFileByPath(notePath) instanceof TFile,
+			preserveMissingRecord: (notePath) => this.disconnectedManuscriptFolders.some((folder) => notePath.startsWith(`${folder}/`)),
 		});
 	}
 
@@ -225,6 +228,21 @@ export class ReviewRegistryService {
 		this.settings = normalizeEditorialistSettings(savedData?.settings);
 		this.revisionPlans = normalizeRevisionPlans(savedData?.revisionPlans);
 		this.editorialDeliveries = normalizeEditorialDeliveries(savedData?.editorialDeliveries);
+	}
+
+	associationSnapshot(): EditorialistPluginData { return structuredClone(this.buildPluginData([])); }
+
+	async applyAssociationSnapshot(expected: EditorialistPluginData, next: EditorialistPluginData): Promise<void> {
+		if (JSON.stringify(this.associationSnapshot()) !== JSON.stringify(expected)) throw new Error("Saved manuscript work changed. Refresh the reconnect preview before applying.");
+		this.load(next);
+		const applied = JSON.stringify(this.associationSnapshot());
+		try { await this.persistData(); }
+		catch (error) {
+			if (JSON.stringify(this.associationSnapshot()) !== applied) throw new Error("Reconnect could not be saved and other work changed during recovery. Inspect the saved manuscript associations before retrying.");
+			this.load(expected);
+			try { await this.persistData(); } catch { throw new Error("Reconnect could not be saved. Prior associations are retained in memory, but could not be written to disk. Retry before closing the vault."); }
+			throw error;
+		}
 	}
 
 	getEditorialDeliveries(): EditorialDelivery[] { return structuredClone(this.editorialDeliveries.deliveries); }
@@ -766,6 +784,7 @@ export class ReviewRegistryService {
 	async refreshActiveBookScope(): Promise<void> {
 		const run = ++this.scopeResolution;
 		const scope = await resolveManuscriptTarget(this.app, this.settings.manuscriptTarget, this.settings.bookFolderOverride);
+		if (!scope.structured && scope.sourceFolder) scope.label = this.settings.manuscriptNames?.folders[scope.sourceFolder] ?? scope.label;
 		if (run === this.scopeResolution) this.activeBookScope = scope;
 	}
 
@@ -777,6 +796,7 @@ export class ReviewRegistryService {
 		// RT can switch books while this plugin stays loaded. Resolve the scope
 		// before scanning so inventory and book-dependent UI share one identity.
 		await this.refreshActiveBookScope();
+		this.disconnectedManuscriptFolders = knownManuscriptFolders(this.buildPluginData([])).filter((folder) => !(this.app.vault.getAbstractFileByPath(folder) instanceof TFolder));
 		const { nextIndex, batchPresence, now } = await this.inventoryBuilder.buildFullInventory();
 
 		const nextRegistry = this.sweepManager.buildFromSceneInventory(this.sweepRegistry, batchPresence, nextIndex, now);

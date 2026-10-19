@@ -234,6 +234,18 @@ export class EditorialismService {
 		const titlePath = normalizePath(`${folderPath}/${titleSegment}.md`);
 		const atTitle = this.app.vault.getAbstractFileByPath(titlePath);
 		const existing = atTitle instanceof TFile ? atTitle : null;
+		// Reconnecting changes the book field while retaining the author's file location.
+		// Find that agenda again on a later import instead of creating a second copy.
+		if (!existing && file.book) {
+			const matches: TFile[] = [];
+			for (const candidate of this.collectCandidateFiles()) {
+				const agenda = await this.tryLoad(candidate);
+				if (agenda?.book === file.book.trim() && agenda.title === file.title.trim() && (agenda.reviewer ?? "").trim().toLowerCase() === (incomingReviewer ?? "").toLowerCase()) matches.push(candidate);
+			}
+			if (matches.length > 1) throw new Error("More than one matching Editorialism exists. Open the intended agenda and resolve the duplicate before importing an update.");
+			const match = matches[0];
+			if (match) return { folderPath: match.parent?.path ?? match.path.slice(0, match.path.lastIndexOf("/")), filePath: match.path, existing: match, keptApart: false, conflict: false };
+		}
 		if (!existing || !(await this.isDifferentReviewersAgenda(existing, incomingReviewer))) {
 			return { folderPath, filePath: titlePath, existing, keptApart: false, conflict: false };
 		}

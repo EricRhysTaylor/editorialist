@@ -86,7 +86,7 @@ Cut archives are excluded from review targets. The selector previews the number 
 
 New installations ask you to choose a target. Existing installations retain their previous selection until you choose one; the unbounded legacy mode is labeled **Entire vault (legacy)**. Choosing a folder works even while Radial Timeline is enabled.
 
-Revision plans and deliveries still require a folder target (or an RT book with a folder). The active-book pending-edits sweep still requires Radial Timeline. Saved named manuscript profiles and stable manuscript identities are not part of this selector.
+Revision plans and deliveries still require a folder target (or an RT book with a folder). The active-book pending-edits sweep still requires Radial Timeline. Manuscripts remain associated by folder; saved target presets are separate work.
 
 ### Tracking
 
@@ -161,3 +161,11 @@ That count reaches every cleanup route, including **Clean all scenes**, so a swe
 - Importing a batch appends review blocks to scene notes; accepting suggestions is what changes manuscript prose.
 - Cleaning review blocks removes imported blocks from notes but keeps accepted edits and saved history.
 - Resetting saved history clears Editorialist's saved decisions and batch tracking, not review blocks still written into notes.
+
+### Reconnect a moved or renamed manuscript
+
+Open the manuscript target selector and choose **Reconnect…**. Select its saved association, choose the replacement folder, and review the manuscript name, revision plans, deliveries, tracked notes, and affected Editorialisms before applying. The original folder must be unavailable when reconnecting to a different folder. To change only a standalone manuscript name, keep the existing folder selected.
+
+Folder renames observed inside Obsidian update saved references automatically, including moves of a parent folder. If the destination already has manuscript records or review history, both sets are retained and reconnection is blocked until a different destination is chosen. Editorialisms sharing the old name with another manuscript require explicit selection. Their file locations and agenda bodies stay intact; only the selected book fields change. RT book titles remain managed in Radial Timeline.
+
+No manuscript metadata note or manuscript ID is required. The name-to-folder association is stored in Editorialist’s plugin data. Saved records for unavailable manuscript folders remain recoverable while other manuscripts are in use.

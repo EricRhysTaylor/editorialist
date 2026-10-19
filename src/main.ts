@@ -1,3 +1,6 @@
+import { ManuscriptReconnectModal } from "./ui/ManuscriptReconnectModal";
+import { ManuscriptReassociationService, type ReassociationPreview } from "./services/ManuscriptReassociationService";
+import type { ManuscriptReassociation } from "./core/ManuscriptReassociation";
 import { manuscriptScopeKey, createManuscriptTarget, normalizeManuscriptTarget, type ManuscriptTarget } from "./core/ManuscriptTarget";
 import { ManuscriptTargetModal } from "./ui/ManuscriptTargetModal";
 import { t } from "./i18n";
@@ -16,7 +19,7 @@ import { preparationWork } from "./core/planning/EditorialProject";
 import { collectPendingEdits, describeCollectFailure } from "./core/PendingEditsCollector";
 import { endReviewRound, getEndableRoundBatches } from "./orchestrators/EndReviewRound";
 import type { EditorView } from "@codemirror/view";
-import { MarkdownView, Menu, normalizePath, Notice, Plugin, TFile, type App, type WorkspaceLeaf } from "obsidian";
+import { MarkdownView, Menu, normalizePath, Notice, Plugin, TFile, TFolder, type App, type WorkspaceLeaf } from "obsidian";
 import { registerCommands } from "./commands/Commands";
 import { SceneContextResolver } from "./orchestrators/SceneContextResolver";
 import { EditorialismAnchorNavigator } from "./orchestrators/EditorialismAnchorNavigator";
@@ -271,6 +274,8 @@ export default class EditorialistPlugin extends Plugin {
 		(notePath) => this.resolveOpenNoteText(notePath),
 	);
 	private readonly editorialismService = new EditorialismService(this.app);
+	private readonly manuscriptAssociations = new ManuscriptReassociationService(this.app, this.registry, this.editorialismService);
+	private manuscriptRenameQueue: Promise<void> = Promise.resolve();
 	private readonly workflow = new ReviewWorkflowService(this.store, this.registry, {
 		clearReviewSelection: async () => {
 			this.store.selectSuggestion(null);
@@ -629,8 +634,17 @@ export default class EditorialistPlugin extends Plugin {
 					// creates the button's target, renaming it away removes it.
 					this.cutFiles.refreshReviewPanelIfActiveSceneCutFile(file.path);
 					this.cutFiles.refreshReviewPanelIfActiveSceneCutFile(oldPath);
-					if (file instanceof TFile && file.extension === "md") {
-						void this.handleNoteRenamed(oldPath, file.path);
+					if (file instanceof TFolder) {
+						const newPath = file.path;
+						this.manuscriptRenameQueue = this.manuscriptRenameQueue.then(async () => {
+							if (await this.manuscriptAssociations.followRename(oldPath, newPath)) await this.refreshAfterManuscriptReconnection();
+						}).catch((error: unknown) => {
+							new Notice(error instanceof Error ? `Manuscript folder moved. ${error.message} Open the manuscript target and choose Reconnect.` : "Manuscript folder moved. Reconnect its saved work from the manuscript target.", 12000);
+							this.inventoryRescanDebouncer.schedule();
+						});
+					} else if (file instanceof TFile && file.extension === "md") {
+						const newPath = file.path;
+						this.manuscriptRenameQueue = this.manuscriptRenameQueue.then(() => this.handleNoteRenamed(oldPath, newPath)).catch((error: unknown) => console.error("Editorialist: note rename tracking failed", error));
 					} else {
 						this.inventoryRescanDebouncer.schedule();
 					}
@@ -1290,6 +1304,27 @@ export default class EditorialistPlugin extends Plugin {
 	isManuscriptTargetPath(path: string): boolean {
 		const file = this.app.vault.getAbstractFileByPath(path);
 		return file instanceof TFile && isSceneNoteForScope(this.app, file, this.getActiveBookScopeInfo(), this.getCutFolderOverride());
+	}
+
+	getManuscriptAssociations(): { path: string; name: string; missing: boolean }[] { return this.manuscriptAssociations.folders(); }
+	openManuscriptReconnection(onSaved?: () => void): void { new ManuscriptReconnectModal(this, onSaved).open(); }
+	previewManuscriptReconnection(change: ManuscriptReassociation): Promise<ReassociationPreview> { return this.manuscriptAssociations.preview(change); }
+	async applyManuscriptReconnection(preview: ReassociationPreview): Promise<void> {
+		await this.manuscriptAssociations.apply(preview);
+		await this.refreshAfterManuscriptReconnection();
+		new Notice("Manuscript reconnected. Saved work now follows its folder.");
+	}
+	private async refreshAfterManuscriptReconnection(): Promise<void> {
+		this.store.clearSession();
+		this.store.setAppliedReview(null);
+		this.store.setGuidedSweep(null);
+		this.store.setCompletedSweep(null);
+		this.clearActiveHighlights();
+		await this.registry.syncOperationalMetadata();
+		this.resyncSessionForActiveNote();
+		this.refreshReviewPanel();
+		this.refreshEditorialismPanel();
+		for (const type of [REVISION_PLAN_VIEW_TYPE, AUTHOR_PLAN_VIEW_TYPE]) for (const leaf of this.app.workspace.getLeavesOfType(type)) if (leaf.view instanceof RevisionPlanPanel) await leaf.view.refresh();
 	}
 
 	getManuscriptTarget(): ManuscriptTarget | undefined { return this.registry.getManuscriptTarget(); }
@@ -3072,6 +3107,7 @@ export default class EditorialistPlugin extends Plugin {
 	// and a folder delete coalesces into one scan.
 	private readonly inventoryRescanDebouncer = new TrailingDebouncer(
 		() => {
+			if (this.manuscriptAssociations.busy) { this.inventoryRescanDebouncer.schedule(); return; }
 			void this.registry.syncSceneInventory().then(() => this.refreshReviewPanel());
 		},
 		500,

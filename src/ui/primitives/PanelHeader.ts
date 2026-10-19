@@ -44,7 +44,10 @@ export function renderPanelHeader(parent: HTMLElement, plugin: EditorialistPlugi
 		const scope = plugin.getActiveBookScopeInfo();
 		const target = book.createEl("button", { cls: "editorialist-panel__target", attr: { type: "button", "aria-label": t("target.change") } });
 		const count = plugin.getManuscriptFiles().length;
-		target.createSpan({ text: scope.unavailableReason ? t("panel.noActiveBook") : t("target.summary", { label: scope.label ?? t("target.legacyVault"), notes: tCount("target.notes", count) }) });
+		const reconnect = Boolean(scope.unavailableReason && scope.target?.kind === "folder" && scope.target.path);
+		if (reconnect) target.setAttribute("aria-label", t("target.reconnect"));
+		const open = (): void => { if (reconnect) plugin.openManuscriptReconnection(); else plugin.openManuscriptTargetSelector(); };
+		target.createSpan({ text: reconnect ? t("target.reconnect") : scope.unavailableReason ? t("panel.noActiveBook") : t("target.summary", { label: scope.label ?? t("target.legacyVault"), notes: tCount("target.notes", count) }) });
 		setIcon(target.createSpan(), "chevron-down");
 		// Open before Obsidian focuses/rerenders the sidebar. Waiting for click
 		// loses the pressed element when the active editor is in another leaf.
@@ -52,10 +55,10 @@ export function renderPanelHeader(parent: HTMLElement, plugin: EditorialistPlugi
 			if (event.button !== 0) return;
 			event.preventDefault();
 			event.stopPropagation();
-			plugin.openManuscriptTargetSelector();
+			open();
 		});
 		// Keyboard and accessibility activation still use the native button.
-		target.addEventListener("click", (event) => { if (event.detail === 0) plugin.openManuscriptTargetSelector(); });
+		target.addEventListener("click", (event) => { if (event.detail === 0) open(); });
 	}
 	return header;
 }

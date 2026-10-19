@@ -3,6 +3,7 @@
  * review-format markers, manuscript text or author-defined names.
  */
 export const en = {
+	"target.reconnect": "Folder unavailable · Reconnect…",
 	"target.change": "Change manuscript target",
 	"target.summary": "{{label}} · {{notes}}",
 	"target.notes.one": "{{count}} note",

@@ -107,6 +107,7 @@ export function normalizeEditorialistSettings(raw: unknown): EditorialistSetting
 	return {
 		cutFolderOverride,
 		bookFolderOverride,
+		...(typeof candidate.manuscriptNames === "object" && candidate.manuscriptNames !== null && "version" in candidate.manuscriptNames && candidate.manuscriptNames.version === 1 && "folders" in candidate.manuscriptNames && typeof candidate.manuscriptNames.folders === "object" && candidate.manuscriptNames.folders !== null ? { manuscriptNames: { version: 1 as const, folders: Object.fromEntries(Object.entries(candidate.manuscriptNames.folders).filter(([path, name]) => Boolean(path) && typeof name === "string" && Boolean(name.trim()))) as Record<string, string> } } : {}),
 		...(candidate.manuscriptTarget !== undefined ? { manuscriptTarget: normalizeManuscriptTarget(candidate.manuscriptTarget) } : {}),
 		detectFileWrittenReviewBlocks,
 		effort,

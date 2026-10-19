@@ -34,6 +34,7 @@ export interface SceneInventoryBuilderDeps {
 	getBookHint(notePath: string): string | undefined;
 	getSceneReviewIndex(): Record<string, SceneReviewRecord>;
 	fileExists(notePath: string): boolean;
+	preserveMissingRecord?(notePath: string): boolean;
 	now?: () => number;
 }
 
@@ -143,7 +144,7 @@ export class SceneInventoryBuilder {
 			// a rename without a matching index move left behind. Only drop when
 			// the scan actually saw files, so an empty vault listing can never
 			// wipe the index wholesale.
-			if (scannedPaths.size > 0 && !this.deps.fileExists(existing.notePath)) {
+			if (scannedPaths.size > 0 && !this.deps.fileExists(existing.notePath) && !this.deps.preserveMissingRecord?.(existing.notePath)) {
 				continue;
 			}
 
