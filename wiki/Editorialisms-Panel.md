@@ -42,7 +42,7 @@ Files without `type: editorialism` are ignored. The full file format — section
 - **Document list** — files for the active book, filtered by activity, delivery, and reviewer; each shows remaining work, attribution, dates, and completion.
 - **Detail view** — select a document to see its items grouped by section. A dropdown above the items shows **Open items** (the default), **This scene** (open items scoped to the scene you are in), or **All items**, including finished ones.
 
-<p align="center"><img src="images/panel-editorialism-detail.png" alt="Editorialism detail with delivery deadline, effort estimate, AI hand-off, and directive status controls" width="460"></p>
+<p align="center"><img src="images/panel-editorialism-detail.png" alt="Editorialism detail with the delivery's received and due dates, reviewer attribution, the original letter, an effort estimate, and the Hand off to AI card" width="460"></p>
 
 ### Working items
 

@@ -11,6 +11,8 @@ Install from the Obsidian Community Plugins directory:
 
 Choose a manuscript target from the line beneath the panel header: a folder, the current note, the entire vault, or **Follow Radial Timeline**. Folder targets can exclude supporting notes and include or skip subfolders. If you also use [Radial Timeline](Radial-Timeline-Integration), following its active book is optional. The regular review-batch workflow works without it; the active-book pending-edits review depends on Radial Timeline.
 
+<p align="center"><img src="images/manuscript-target.png" alt="Manuscript target dialog with A folder selected: the Book folder, Include subfolders on, Book/Research excluded, and a preview of 6 eligible notes" width="520"></p>
+
 ## Commands
 
 Editorialist registers these commands in the command palette:

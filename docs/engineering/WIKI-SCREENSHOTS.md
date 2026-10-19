@@ -87,3 +87,43 @@ have no Open source icon, which the page now says.
 
 Capture scripts and evidence are kept outside the public repository in the
 session scratchpad.
+
+## 3.0.4 manuscript-target refresh — October 19, 2026
+
+Captured the 3.0.4 build (tag `3.0.4`) in desktop Obsidian 1.14.4, dark theme,
+2x device scale, pointer off the captured area. Every panel header now carries
+the manuscript selector ("Book · 6 notes", "Pride & Prejudice · 61 notes"), so
+each image showing a panel header was retaken. No Author-vault content was used.
+
+Demo vault, rebuilt from scratch with the 3.0.0 fixture as in the 3.0.2 refresh,
+plus a `Book/Research` folder with two notes. The target was set through the
+selector itself as a folder target on `Book` with subfolders and `Book/Research`
+excluded. Queue dates moved to Oct 21, 22 and 27 to stay in the future.
+
+- `manuscript-target.png` (new) — the selector dialog at its 640 CSS-pixel
+  modal width, showing 6 eligible notes; shown at 520 px on Getting Started and
+  the settings reference.
+- `panel-editor-engagement.png`, `engagement-history.png`,
+  `panel-revision-plan.png`, `plan-queue-cards.png` — same crops as the 3.0.2
+  refresh, 460 CSS-pixel sidebar.
+
+A throwaway copy of the Editorialist Capture Vault (Pride & Prejudice with
+Radial Timeline), with the target set to Follow Radial Timeline. These replace
+the September 25 images, which predated the current ED mark as well as the
+selector, and are now captured at a 460 CSS-pixel sidebar instead of 560. One
+leftover placeholder pending edit ("Something", scene 14) was replaced in the
+copy with a realistic note.
+
+- `panel-review.png` — idle, through the Reviewed list.
+- `panel-review-active.png` — scene 1's pending edit, through the suggestion card.
+- `panel-pending-edits.png` — summary and both pending items.
+- `panel-editorialisms.png` — library through the second agenda card.
+- `panel-editorialism-detail.png` — Character and consequence, through the
+  Hand off to AI card.
+- `settings-configuration.png` — 780 CSS-pixel content area, tab bar through
+  Cut location; the Manuscript target section replaces the book folder override.
+
+Kept: `panel-author-planner.png` (its header label is unchanged), the schedule
+previews, `panel-import.png` (the launcher's opening screen is unchanged; only
+its paste preview names the manuscript), the Core and Contributors settings tabs,
+and the toolbar and cut-file close-ups.

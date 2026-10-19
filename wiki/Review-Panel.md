@@ -4,7 +4,7 @@ The Review mode is traditional Editorialist: scene-level review batches with lin
 
 ## Idle state
 
-<p align="center"><img src="images/panel-review.png" alt="Review panel with the next scene in a sweep and disclosures for recent review rounds, contributors, and help" width="460"></p>
+<p align="center"><img src="images/panel-review.png" alt="Review panel with the manuscript target, the scene to continue, the other scenes waiting for review, and the reviewed scenes" width="460"></p>
 
 Between sessions the panel shows:
 

@@ -71,11 +71,13 @@ A card grid, one per contributor:
 
 **Configuration · Scope & data** — where review scope, tracking identity, cut-file location, and maintenance actions live.
 
-<p align="center"><img src="images/settings-configuration.png" alt="Configuration settings tab: how cut files work, and the cut location override" width="620"></p>
+<p align="center"><img src="images/settings-configuration.png" alt="Configuration settings tab with the manuscript target, scene tracking, and the cut location override" width="620"></p>
 
 ### Manuscript target
 
 Use **Change target…** here, or click the manuscript line beneath a panel header.
+
+<p align="center"><img src="images/manuscript-target.png" alt="Manuscript target dialog with A folder selected: the Book folder, Include subfolders on, Book/Research excluded, and a preview of 6 eligible notes" width="520"></p>
 
 - **Follow Radial Timeline** — use its active book while the plugin is enabled. An unavailable book or folder asks you to choose a target; it does not select another book.
 - **A folder** — choose an existing vault folder. Include or skip subfolders and exclude supporting folders by their vault-relative paths. Plain Markdown notes need no `Class: Scene` property.
