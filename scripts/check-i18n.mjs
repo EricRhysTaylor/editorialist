@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import ts from "typescript";
 
 const TEXT_PROPERTIES = new Set(["text", "title", "label", "name", "desc", "description", "placeholder", "aria-label", "completionLabel", "selectedIndexLabel", "remainingLabel", "currentIndexLabel", "countLabel", "keys"]);
-const TEXT_ARGUMENTS = new Map([["setText", 0], ["setName", 0], ["setDesc", 0], ["setTitle", 0], ["setTooltip", 0], ["setPlaceholder", 0], ["setButtonText", 0], ["buildButton", 2], ["buildActionButton", 1], ["buildFlatIconButton", 1], ["renderMetaSegment", 1], ["addRibbonIcon", 1]]);
+const TEXT_ARGUMENTS = new Map([["setText", 0], ["setName", 0], ["setDesc", 0], ["setTitle", 0], ["setTooltip", 0], ["setAccessibleLabel", 1], ["setPlaceholder", 0], ["setButtonText", 0], ["buildButton", 2], ["buildActionButton", 1], ["buildFlatIconButton", 1], ["renderMetaSegment", 1], ["addRibbonIcon", 1]]);
 const parse = (file, text) => ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
 const walk = (node, visit) => { visit(node); ts.forEachChild(node, child => walk(child, visit)); };
 const literal = node => ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node);
@@ -103,7 +103,7 @@ export function checkI18n(root, release = false) {
 	for (const key of english.keys()) if (!used.has(key)) errors.push(`Unused English message key: ${key}`);
 	if (release) {
 		const bundle = fs.readFileSync(path.join(root, "main.js"), "utf8");
-		for (const sentinel of ["commands.openAuthorPlanner", "toolbar.applyOperation", "panel.view"]) {
+		for (const sentinel of ["commands.openAuthorPlanner", "toolbar.applyOperation", "panel.actions"]) {
 			if (!bundle.includes(sentinel)) errors.push(`Built main.js is missing catalog sentinel ${sentinel}`);
 		}
 	}

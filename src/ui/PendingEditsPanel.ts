@@ -1,3 +1,4 @@
+import { setAccessibleLabel } from "./primitives/AccessibleLabel";
 import { renderPanelHeader } from "./primitives/PanelHeader";
 import { ItemView, TFile, debounce, setIcon, type Debouncer, type WorkspaceLeaf } from "obsidian";
 import type EditorialistPlugin from "../main";
@@ -121,8 +122,9 @@ export class PendingEditsPanel extends ItemView {
 		for (const scene of summary.scenes) {
 			const row = list.createEl("button", {
 				cls: "editorialist-pending-panel__row",
-				attr: { type: "button", "aria-label": `Review pending edits in ${scene.title}` },
+				attr: { type: "button" },
 			});
+			setAccessibleLabel(row, `Review pending edits in ${scene.title}`);
 			const head = row.createDiv({ cls: "editorialist-pending-panel__row-head" });
 			head.createDiv({ cls: "editorialist-pending-panel__row-title", text: scene.title });
 			head.createSpan({ cls: "editorialist-pending-panel__row-count", text: `${scene.count}` });

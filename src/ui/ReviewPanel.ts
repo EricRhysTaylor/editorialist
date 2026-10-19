@@ -1,3 +1,4 @@
+import { setAccessibleLabel } from "./primitives/AccessibleLabel";
 import { formatRelativeTime } from "../core/RelativeTime";
 import { renderPanelHeader } from "./primitives/PanelHeader";
 import { ButtonComponent, DropdownComponent, ItemView, Menu, Notice, setIcon, type WorkspaceLeaf } from "obsidian";
@@ -609,9 +610,9 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			cls: "editorialist-panel__review-state-row-link",
 			attr: {
 				href: "#",
-				"aria-label": `Open ${entry.noteTitle}`,
 			},
 		});
+		setAccessibleLabel(link, `Open ${entry.noteTitle}`);
 		link.createSpan({
 			cls: "editorialist-panel__review-state-row-title",
 			text: entry.noteTitle,
@@ -786,10 +787,11 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			cls: "editorialist-panel__directives-toggle",
 			attr: {
 				type: "button",
-				"aria-label": this.sceneDirectivesCollapsed ? "Show editorialisms" : "Hide editorialisms",
+
 				"aria-expanded": this.sceneDirectivesCollapsed ? "false" : "true",
 			},
 		});
+		setAccessibleLabel(toggle, this.sceneDirectivesCollapsed ? "Show editorialisms" : "Hide editorialisms");
 		const toggleIcon = toggle.createSpan({ cls: "editorialist-panel__directives-toggle-icon" });
 		setIcon(toggleIcon, this.sceneDirectivesCollapsed ? "chevron-down" : "chevron-up");
 		this.bindImmediateAction(toggle, () => {
@@ -1003,7 +1005,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			const text = head.createSpan({
 				cls: "editorialist-panel__directive-text is-jump",
 				text: displayDirectiveText(directive.item.text),
-				attr: { role: "button", tabindex: "0", title: "Jump to this passage in the scene" },
+				attr: { role: "button", tabindex: "0", "aria-label": "Find this quoted passage in the manuscript note." },
 			});
 			const jump = (): void => {
 				void this.plugin.anchors.openEditorialismAnchor(directive.editorialismPath, directive.item, target);
@@ -1088,8 +1090,9 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 
 		const jump = row.createEl("button", {
 			cls: "editorialist-panel__directive-anchor-jump",
-			attr: { type: "button", "aria-label": "Jump to this passage" },
+			attr: { type: "button" },
 		});
+		setAccessibleLabel(jump, "Jump to this passage");
 		jump.createSpan({
 			cls: "editorialist-panel__directive-anchor-fragment",
 			text: formatAnchorFragment(anchor),
@@ -1256,10 +1259,11 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			cls: "editorialist-panel__comments-toggle",
 			attr: {
 				type: "button",
-				"aria-label": this.commentsCollapsed ? "Show comments" : "Hide comments",
+
 				"aria-expanded": this.commentsCollapsed ? "false" : "true",
 			},
 		});
+		setAccessibleLabel(toggle, this.commentsCollapsed ? "Show comments" : "Hide comments");
 		const toggleIcon = toggle.createSpan({ cls: "editorialist-panel__comments-toggle-icon" });
 		setIcon(toggleIcon, this.commentsCollapsed ? "chevron-down" : "chevron-up");
 		this.bindImmediateAction(toggle, () => {
@@ -1426,7 +1430,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		if (this.starredOnly) {
 			starredButton.buttonEl.addClass("is-active");
 		}
-		starredButton.buttonEl.setAttribute("aria-label", this.starredOnly ? "Show all reviewers" : "Show starred reviewers");
+		setAccessibleLabel(starredButton.buttonEl, this.starredOnly ? "Show all reviewers" : "Show starred reviewers");
 		setIcon(starredButton.buttonEl, "star");
 	}
 
@@ -1526,10 +1530,8 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		const summary = card.createDiv({ cls: "editorialist-suggestion__summary" });
 		const summaryStatus = summary.createDiv({
 			cls: `editorialist-suggestion__label editorialist-suggestion__label--${statusName}`,
-			attr: {
-				"aria-label": `${this.toSentenceCase(suggestion.operation)} suggestion`,
-			},
 		});
+		setAccessibleLabel(summaryStatus, `${this.toSentenceCase(suggestion.operation)} suggestion`);
 		const summaryStatusIcon = summaryStatus.createSpan({ cls: "editorialist-suggestion__label-icon" });
 		setIcon(summaryStatusIcon, this.getOperationIcon(suggestion));
 		summaryStatus.createSpan({
@@ -1549,10 +1551,8 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		const metaPrimary = meta.createDiv({ cls: "editorialist-suggestion__meta-primary" });
 		const status = metaPrimary.createDiv({
 			cls: `editorialist-suggestion__label editorialist-suggestion__label--${statusName}`,
-			attr: {
-				"aria-label": `${this.toSentenceCase(suggestion.operation)} suggestion`,
-			},
 		});
+		setAccessibleLabel(status, `${this.toSentenceCase(suggestion.operation)} suggestion`);
 		const statusIcon = status.createSpan({ cls: "editorialist-suggestion__label-icon" });
 		setIcon(statusIcon, this.getOperationIcon(suggestion));
 		status.createSpan({
@@ -1700,8 +1700,9 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			});
 			const done = row.createEl("button", {
 				cls: "editorialist-suggestion__directive-done",
-				attr: { type: "button", "aria-label": "Mark this passage done for the editorialism" },
+				attr: { type: "button" },
 			});
+			setAccessibleLabel(done, "Mark this passage done for the editorialism");
 			setIcon(done.createSpan({ cls: "editorialist-suggestion__directive-done-icon" }), "check");
 			done.createSpan({ text: "Done" });
 			this.bindImmediateAction(done, () => {
@@ -1756,7 +1757,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 				icon: "navigation",
 				iconOnly: true,
 				active: this.jumpMenuSuggestionId === suggestion.id,
-				tooltip: this.jumpMenuSuggestionId === suggestion.id ? "Hide jump options" : "Show jump options",
+				iconLabel: this.jumpMenuSuggestionId === suggestion.id ? "Hide jump options" : "Show jump options",
 			},
 		);
 	}
@@ -1969,7 +1970,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			block.setAttribute("role", "button");
 			block.setAttribute("tabindex", "0");
 			if (options.activateLabel) {
-				block.setAttribute("aria-label", options.activateLabel);
+				setAccessibleLabel(block, options.activateLabel);
 			}
 			this.bindImmediateAction(block, options.onActivate);
 		} else if (options.copyHint) {
@@ -2113,7 +2114,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 				disabled: !this.plugin.canJumpToSuggestionTarget(suggestion.id),
 				icon: "crosshair",
 				iconOnly: true,
-				tooltip: "Jump to this text",
+				iconLabel: "Jump to this text",
 			},
 		);
 		this.renderControlButton(
@@ -2127,7 +2128,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 				disabled: !this.plugin.canJumpToSuggestionSource(suggestion.id),
 				icon: "file-text",
 				iconOnly: true,
-				tooltip: "Jump to the note",
+				iconLabel: "Jump to the note",
 			},
 		);
 		if (isMoveSuggestion(suggestion)) {
@@ -2142,7 +2143,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 					disabled: !this.plugin.canJumpToSuggestionAnchor(suggestion.id),
 					icon: "link",
 					iconOnly: true,
-					tooltip: "Jump to the destination",
+					iconLabel: "Jump to the destination",
 				},
 			);
 		}
@@ -2352,18 +2353,18 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			disabled?: boolean;
 			icon?: string;
 			iconOnly?: boolean;
-			tooltip?: string;
+			iconLabel?: string;
 			trailingIcon?: string;
 		},
 	): HTMLElement {
-		const accessibleLabel = options?.tooltip ?? label;
+		const accessibleLabel = options?.iconLabel ?? label;
 		const button = parent.createEl("button", {
 			cls: "editorialist-suggestion__control",
 			attr: {
 				type: "button",
-				"aria-label": accessibleLabel,
 			},
 		});
+		if (options?.iconOnly) setAccessibleLabel(button, accessibleLabel);
 		if (options?.iconOnly) {
 			button.addClass("editorialist-suggestion__control--icon-only");
 		}

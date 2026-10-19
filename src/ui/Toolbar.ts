@@ -1,3 +1,4 @@
+import { setAccessibleLabel } from "./primitives/AccessibleLabel";
 import { t } from "../i18n";
 import { ButtonComponent, setIcon } from "obsidian";
 import type EditorialistPlugin from "../main";
@@ -280,10 +281,6 @@ export function createReviewToolbarElement(
 				cls: "editorialist-toolbar__pending-brief-link",
 				attr: {
 					href: "#",
-					// aria-label, not native `title`: the overlay re-renders while
-					// hovering, and Chromium ghosts orphaned title-tooltips over the
-					// editor text beneath.
-					"aria-label": t("toolbar.openBrief", { title: state.briefContext.noteTitle }),
 				},
 				text: state.briefContext.noteTitle,
 			});
@@ -410,10 +407,6 @@ export function createReviewToolbarElement(
 			markAsNonEditorSurface(indicator);
 			indicator.setAttribute(
 				"aria-label",
-				state.anchorDirection === "above" ? t("toolbar.insertAbove") : t("toolbar.insertBelow"),
-			);
-			indicator.setAttribute(
-				"title",
 				state.anchorDirection === "above" ? t("toolbar.insertAbove") : t("toolbar.insertBelow"),
 			);
 		}
@@ -622,13 +615,14 @@ function buildLegendTrigger(parent: HTMLElement): void {
 	// No aria-label: Obsidian renders a hover tooltip from aria-label, and the
 	// legend it reveals already names every shortcut, so a tooltip is redundant
 	// (and ghosts over the editor when the toolbar re-renders). aria-expanded +
-	// aria-controls keep it accessible without producing a tooltip; focus still
+	// the hidden accessible name avoid producing a tooltip; focus still
 	// reveals the legend via bindLegendReveal.
 	trigger.setAttribute("tabindex", "0");
 	trigger.setAttribute("role", "button");
 	trigger.setAttribute("aria-expanded", "false");
 	markAsNonEditorSurface(trigger);
 	setIcon(trigger, "asterisk");
+	setAccessibleLabel(trigger, t("toolbar.shortcuts"));
 }
 
 function buildFlatIconButton(
@@ -642,7 +636,7 @@ function buildFlatIconButton(
 	});
 	button.setAttribute("role", "button");
 	button.setAttribute("tabindex", "0");
-	button.setAttribute("aria-label", label);
+	setAccessibleLabel(button, label);
 	markAsNonEditorSurface(button);
 	const iconEl = button.createSpan({ cls: "ert-toolbar-close__icon" });
 	markAsNonEditorSurface(iconEl);
@@ -712,7 +706,7 @@ function buildButton(	parent: HTMLElement,
 		const activeAlternateAction = getActiveAlternateAction(state);
 		const nextLabel = activeAlternateAction?.label ?? label;
 		const nextIcon = activeAlternateAction?.icon ?? icon;
-		button.buttonEl.setAttribute("aria-label", nextLabel);
+		setAccessibleLabel(button.buttonEl, nextLabel);
 		button.buttonEl.setAttribute("data-editorialist-modifier-mode", activeAlternateAction?.kind ?? "default");
 		setIcon(iconEl, nextIcon);
 	};
@@ -753,7 +747,6 @@ function buildActionButton(
 		button.buttonEl.addClass("editorialist-toolbar__button--secondary");
 	}
 	markAsNonEditorSurface(button.buttonEl);
-	button.buttonEl.setAttribute("aria-label", label);
 	const iconEl = button.buttonEl.createSpan({ cls: "editorialist-toolbar__button-icon" });
 	markAsNonEditorSurface(iconEl);
 	setIcon(iconEl, icon);
@@ -776,7 +769,6 @@ function renderOperationBadge(
 	setIcon(iconEl, OPERATION_ICONS[operation]);
 	const labelEl = badge.createSpan({ cls: "editorialist-toolbar__operation-label", text: label });
 	markAsNonEditorSurface(labelEl);
-	badge.setAttribute("aria-label", label);
 }
 
 function renderMetaSegment(parent: HTMLElement, text: string, className?: string, title?: string): void {

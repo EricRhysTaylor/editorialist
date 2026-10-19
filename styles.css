@@ -4699,6 +4699,8 @@
 
 .editorialist-contributor-modal__tile {
 	display: inline-flex;
+	height: auto;
+	min-height: var(--input-height);
 	align-items: center;
 	gap: 0.45rem;
 	width: 100%;
@@ -4740,9 +4742,9 @@
 }
 
 .editorialist-contributor-modal__tile-label {
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
+	white-space: normal;
+	overflow-wrap: break-word;
+	line-height: 1.3;
 }
 
 .editorialist-contributor-modal__detail-toggle {

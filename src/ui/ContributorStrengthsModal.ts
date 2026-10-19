@@ -1,3 +1,4 @@
+import { setAccessibleLabel } from "./primitives/AccessibleLabel";
 import { TextComponent, setIcon, type App } from "obsidian";
 import { PromiseModal } from "./modals/PromiseModal";
 import { buildModalFooter, type ModalFooter } from "./primitives/ModalFooter";
@@ -105,9 +106,9 @@ class ContributorStrengthsModal extends PromiseModal<ContributorStrengthsModalRe
 			cls: "editorialist-contributor-modal__rename-link",
 			attr: {
 				type: "button",
-				title: "Edit display label",
 			},
 		});
+		setAccessibleLabel(this.nameTriggerEl, "Edit display label");
 		this.nameTriggerEl.createSpan({
 			cls: "editorialist-contributor-modal__rename-link-text",
 			text: this.displayName,
@@ -222,7 +223,7 @@ class ContributorStrengthsModal extends PromiseModal<ContributorStrengthsModalRe
 	): () => void {
 		const tile = parent.createEl("button", {
 			cls: "editorialist-contributor-modal__tile",
-			attr: { type: "button", title: definition.label, "aria-label": definition.label },
+			attr: { type: "button" },
 		});
 		const icon = tile.createSpan({ cls: "editorialist-contributor-modal__tile-icon" });
 		setIcon(icon, definition.icon);
@@ -255,7 +256,7 @@ class ContributorStrengthsModal extends PromiseModal<ContributorStrengthsModalRe
 	): () => void {
 		const tile = parent.createEl("button", {
 			cls: "editorialist-contributor-modal__tile",
-			attr: { type: "button", title: definition.label, "aria-label": definition.label },
+			attr: { type: "button" },
 		});
 		const icon = tile.createSpan({ cls: "editorialist-contributor-modal__tile-icon" });
 		if (definition.brand) {
@@ -286,7 +287,7 @@ class ContributorStrengthsModal extends PromiseModal<ContributorStrengthsModalRe
 	private createStrengthTile(parent: HTMLElement, definition: ContributorStrengthDefinition): void {
 		const tile = parent.createEl("button", {
 			cls: "editorialist-contributor-modal__tile",
-			attr: { type: "button", title: definition.label, "aria-label": definition.label },
+			attr: { type: "button" },
 		});
 		const icon = tile.createSpan({ cls: "editorialist-contributor-modal__tile-icon" });
 		setIcon(icon, definition.icon);
@@ -339,12 +340,9 @@ class ContributorStrengthsModal extends PromiseModal<ContributorStrengthsModalRe
 			for (const definition of selectedDefinitions) {
 				const iconEl = this.identityUseIconsEl.createSpan({
 					cls: "editorialist-contributor-modal__identity-icon",
-					attr: {
-						"aria-label": definition.label,
-						title: definition.label,
-					},
 				});
 				setIcon(iconEl, definition.icon);
+				setAccessibleLabel(iconEl, definition.label);
 			}
 		}
 	}

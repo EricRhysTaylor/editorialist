@@ -1,3 +1,4 @@
+import { setAccessibleLabel } from "./primitives/AccessibleLabel";
 import { ButtonComponent, Component, Notice, PluginSettingTab, setIcon, TFile, ToggleComponent, type App } from "obsidian";
 import { formatReviewerTypeLabel } from "../core/ContributorIdentity";
 import { sweepStatusLabel } from "../core/status/ReviewStatusModel";
@@ -183,11 +184,11 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			href: EditorialistSettingTab.SETTINGS_DOCS_URL,
 			cls: "editorialist-settings__hero-intro-badge-link editorialist-settings__rt-card-badge-link",
 			attr: {
-				"aria-label": "Open Editorialist documentation",
 				target: "_blank",
 				rel: "noopener",
 			},
 		});
+		setAccessibleLabel(badgeLink, "Open Editorialist documentation");
 		setIcon(badgeLink, "external-link");
 
 		const titleRow = hero.createDiv({ cls: "editorialist-settings__hero-intro-title-row" });
@@ -228,11 +229,11 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			href: EditorialistSettingTab.SETTINGS_DOCS_URL,
 			cls: "editorialist-settings__hero-intro-badge-link editorialist-settings__rt-card-badge-link",
 			attr: {
-				"aria-label": "Open Editorialist documentation",
 				target: "_blank",
 				rel: "noopener",
 			},
 		});
+		setAccessibleLabel(badgeLink, "Open Editorialist documentation");
 		setIcon(badgeLink, "external-link");
 
 		const titleRow = hero.createDiv({ cls: "editorialist-settings__hero-intro-title-row" });
@@ -272,11 +273,11 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			href: EditorialistSettingTab.SETTINGS_DOCS_URL,
 			cls: "editorialist-settings__hero-intro-badge-link editorialist-settings__rt-card-badge-link",
 			attr: {
-				"aria-label": "Open Editorialist documentation",
 				target: "_blank",
 				rel: "noopener",
 			},
 		});
+		setAccessibleLabel(badgeLink, "Open Editorialist documentation");
 		setIcon(badgeLink, "external-link");
 
 		const titleRow = hero.createDiv({ cls: "editorialist-settings__hero-intro-title-row" });
@@ -478,11 +479,11 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			href: EditorialistSettingTab.RADIAL_TIMELINE_WIKI_URL,
 			cls: "editorialist-settings__hero-intro-badge-link editorialist-settings__rt-card-badge-link",
 			attr: {
-				"aria-label": "Open the Radial Timeline wiki",
 				target: "_blank",
 				rel: "noopener",
 			},
 		});
+		setAccessibleLabel(wikiLink, "Open the Radial Timeline wiki");
 		setIcon(wikiLink, "external-link");
 		content.createDiv({
 			cls: "editorialist-settings__rt-card-title",
@@ -498,11 +499,11 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			href: EditorialistSettingTab.RADIAL_TIMELINE_INSTALL_URL,
 			cls: "editorialist-settings__action-button editorialist-settings__action-button--primary",
 			attr: {
-				"aria-label": "Install the Radial Timeline community plugin",
 				target: "_blank",
 				rel: "noopener",
 			},
 		});
+		setAccessibleLabel(installLink, "Install the Radial Timeline community plugin");
 		const installIcon = installLink.createSpan({ cls: "editorialist-settings__action-button-icon" });
 		setIcon(installIcon, "download");
 		installLink.createSpan({
@@ -515,11 +516,11 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			cls: "editorialist-settings__rt-card-fallback-link",
 			text: "Open plugin page",
 			attr: {
-				"aria-label": "Open the Radial Timeline plugin page",
 				target: "_blank",
 				rel: "noopener",
 			},
 		});
+		setAccessibleLabel(fallbackLink, "Open the Radial Timeline plugin page");
 		const fallbackIcon = fallbackLink.createSpan({ cls: "editorialist-settings__rt-card-fallback-icon" });
 		setIcon(fallbackIcon, "external-link");
 
@@ -891,7 +892,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			const cell = head.createEl("th", { text: label });
 			if (index === 0) {
 				cell.addClass("editorialist-settings__inventory-col-completion");
-				cell.setAttribute("aria-label", "Complete");
+				setAccessibleLabel(cell, "Complete");
 			}
 			if (index >= 2) {
 				cell.addClass("editorialist-settings__inventory-col-number");
@@ -905,10 +906,8 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			const completionCell = row.createEl("td", { cls: "editorialist-settings__inventory-col-completion" });
 			const completionIcon = completionCell.createSpan({
 				cls: `editorialist-settings__inventory-completion${openCount === 0 ? " is-complete" : ""}`,
-				attr: {
-					"aria-label": openCount === 0 ? `${record.noteTitle} complete` : `${record.noteTitle} still open`,
-				},
 			});
+			setAccessibleLabel(completionIcon, openCount === 0 ? `${record.noteTitle} complete` : `${record.noteTitle} still open`);
 			setIcon(completionIcon, openCount === 0 ? "square-check" : "square");
 
 			const sceneCell = row.createEl("td", {
@@ -941,9 +940,9 @@ export class EditorialistSettingTab extends PluginSettingTab {
 				text: record.noteTitle,
 				attr: {
 					href: "#",
-					"aria-label": `Open ${record.noteTitle}`,
 				},
 			});
+			setAccessibleLabel(sceneLink, `Open ${record.noteTitle}`);
 			sceneLink.addEventListener("click", (event) => {
 				event.preventDefault();
 				void this.plugin.openSceneNote(record.notePath);
@@ -952,8 +951,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 				const badge = sceneEntry.createSpan({
 					cls: "editorialist-settings__inventory-pending-badge",
 					attr: {
-						"aria-label": "Pending edits on this scene",
-						title: "This scene also has pending edits (free-form revision notes).",
+						"aria-label": "This scene also has pending edits (free-form revision notes).",
 					},
 				});
 				const badgeIcon = badge.createSpan({ cls: "editorialist-settings__inventory-pending-badge-icon" });
@@ -973,7 +971,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 				text: `${polish.revision}`,
 			});
 			if (polish.lastUpdatedLabel) {
-				sweepsCell.setAttribute("title", `Last sweep close: ${polish.lastUpdatedLabel}`);
+				sweepsCell.setAttribute("aria-label", `Last sweep close: ${polish.lastUpdatedLabel}`);
 			}
 			row.createEl("td", {
 				cls: "editorialist-settings__inventory-col-number",
@@ -1102,14 +1100,11 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		tone: string,
 		kind: "status" | "stage",
 	): void {
-		parent.createSpan({
+		const glyphEl = parent.createSpan({
 			cls: `editorialist-settings__inventory-rt-glyph editorialist-settings__inventory-rt-glyph--${kind} editorialist-settings__inventory-rt-glyph--${tone}`,
 			text: glyph,
-			attr: {
-				"aria-label": label,
-				title: label,
-			},
 		});
+		setAccessibleLabel(glyphEl, label);
 	}
 
 	private renderContributorsSection(parent: HTMLElement): void {
@@ -1221,10 +1216,10 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			const footer = card.createDiv({ cls: "editorialist-settings__contributor-footer" });
 			const controls = footer.createDiv({ cls: "editorialist-settings__contributor-controls" });
 			const starButton = new ButtonComponent(controls)
-				.setTooltip(profile.isStarred ? "Unstar contributor" : "Star contributor")
 				.onClick(() => {
 					void this.plugin.contributors.toggleReviewerStarById(profile.id).then(() => this.displayAsync(false));
 				});
+			setAccessibleLabel(starButton.buttonEl, profile.isStarred ? "Unstar contributor" : "Star contributor");
 			starButton.buttonEl.addClass("editorialist-settings__star-button");
 			if (profile.isStarred) {
 				starButton.buttonEl.addClass("is-starred");
@@ -1233,7 +1228,6 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			setIcon(starIcon, "star");
 
 			const manageButton = new ButtonComponent(controls)
-				.setTooltip("Manage contributor")
 				.onClick(() => {
 					void this.plugin.contributors.openContributorManagementFlow(profile.id).then((didChange) => {
 						if (didChange) {
@@ -1241,6 +1235,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 						}
 					});
 				});
+			setAccessibleLabel(manageButton.buttonEl, "Manage contributor");
 			manageButton.buttonEl.addClass("editorialist-settings__star-button");
 			manageButton.buttonEl.addClass("editorialist-settings__contributor-menu-button");
 			const manageIcon = manageButton.buttonEl.createSpan({ cls: "editorialist-settings__action-button-icon" });
@@ -1552,11 +1547,11 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			href: EditorialistSettingTab.SETTINGS_DOCS_URL,
 			cls: "editorialist-settings__section-title-link",
 			attr: {
-				"aria-label": `Open documentation for ${title}`,
 				target: "_blank",
 				rel: "noopener",
 			},
 		});
+		setAccessibleLabel(link, `Open documentation for ${title}`);
 		setIcon(link, "external-link");
 		return row;
 	}
@@ -1737,11 +1732,8 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		if (roleDefinition) {
 			const roleIcon = icons.createSpan({
 				cls: "editorialist-settings__contributor-use-icon editorialist-settings__contributor-use-icon--inline",
-				attr: {
-					"aria-label": roleDefinition.label,
-					title: roleDefinition.label,
-				},
 			});
+			setAccessibleLabel(roleIcon, roleDefinition.label);
 			setIcon(roleIcon, roleDefinition.icon);
 		}
 
@@ -1757,11 +1749,8 @@ export class EditorialistSettingTab extends PluginSettingTab {
 
 			const strengthIcon = icons.createSpan({
 				cls: "editorialist-settings__contributor-use-icon editorialist-settings__contributor-use-icon--inline",
-				attr: {
-					"aria-label": definition.label,
-					title: definition.label,
-				},
 			});
+			setAccessibleLabel(strengthIcon, definition.label);
 			setIcon(strengthIcon, definition.icon);
 		}
 	}

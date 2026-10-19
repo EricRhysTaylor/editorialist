@@ -1,3 +1,4 @@
+import { setAccessibleLabel } from "../primitives/AccessibleLabel";
 // Idle / completion / workspace section renderers for ReviewPanel.
 //
 // Extracted from ReviewPanel.ts (Pass 21) to shrink the 2,000-line file
@@ -99,7 +100,6 @@ export function renderCompletedSweepCard(
 				cls: "editorialist-panel__completion-step-link",
 				attr: {
 					href: "#",
-					title: step.label,
 				},
 			});
 			link.createSpan({
@@ -117,7 +117,6 @@ export function renderCompletedSweepCard(
 				cls: "editorialist-panel__completion-step-link",
 				attr: {
 					href: "#",
-					title: step.label,
 				},
 			});
 			link.createSpan({
@@ -135,7 +134,6 @@ export function renderCompletedSweepCard(
 				cls: "editorialist-panel__completion-step-link",
 				attr: {
 					href: "#",
-					title: step.label,
 				},
 			});
 			link.createSpan({
@@ -159,7 +157,6 @@ export function renderCompletedSweepCard(
 		cls: "editorialist-panel__completion-close-link",
 		attr: {
 			href: "#",
-			title: completedSweep.closeLabel,
 		},
 	});
 	closeLink.createSpan({ text: "→ " });
@@ -213,7 +210,6 @@ export function renderIdleStateCard(
 		cls: "editorialist-panel__completion-step-link",
 		attr: {
 			href: "#",
-			title: "Open Editorialist begin",
 		},
 	});
 	importLink.createSpan({
@@ -270,7 +266,7 @@ export function renderHeaderLauncherChip(
 	keys.createEl("kbd", { text: "P" });
 	const link = chip.createEl("a", {
 		cls: "editorialist-panel__launcher-chip-link",
-		attr: { href: "#", title: "Open the Editorialist launcher" },
+		attr: { href: "#" },
 	});
 	link.setText("Launcher");
 	host.bindAction(link, () => {
@@ -342,7 +338,6 @@ export function renderContinueReviewCard(
 		cls: "editorialist-panel__continue-action",
 		attr: {
 			type: "button",
-			title: `Open ${launchTarget.label}`,
 		},
 	});
 	resumeButton.createSpan({
@@ -518,7 +513,7 @@ function renderLibraryHeading(parent: HTMLElement, title: string, icon: string, 
 	setIcon(summary.createSpan({ cls: "editorialist-panel__disclosure-caret", attr: { "aria-hidden": "true" } }), "chevron-right");
 	setIcon(summary.createSpan({ cls: "editorialist-panel__disclosure-icon", attr: { "aria-hidden": "true" } }), icon);
 	summary.createSpan({ cls: "editorialist-panel__disclosure-title", text: title });
-	summary.createSpan({ cls: "editorialist-panel__disclosure-count", text: String(count), attr: { "aria-label": `${count} total` } });
+	summary.createSpan({ cls: "editorialist-panel__disclosure-count", text: String(count) });
 }
 
 export function renderRecentActivityBlock(
@@ -552,7 +547,6 @@ export function renderRecentActivityBlock(
 		batchLine.createSpan({
 			cls: "editorialist-panel__history-batch-id",
 			text: `${formatRecentReviewSceneTitle(lastFinished, scopeFolder)} · ${formatRelativeTime(lastFinished.updatedAt)}`,
-			attr: { title: `${lastFinished.batchId} — ${formatRelativeTime(lastFinished.updatedAt)}` },
 		});
 	}
 
@@ -584,16 +578,14 @@ export function renderRecentActivityBlock(
 		});
 		// The suggestion count names the latest pass only; the tooltip says so
 		// and spans the group so a collapsed row is never read as a single import.
-		meta.setAttr("title", formatGroupTooltip(passCount, entry.totalSuggestions, group.firstImportedAt, group.lastImportedAt));
+		meta.setAttr("aria-label", formatGroupTooltip(passCount, entry.totalSuggestions, group.firstImportedAt, group.lastImportedAt));
 
 		const stats = sumGroupStats(group.passes, (batchId) => plugin.getBatchDecisionStats(batchId));
 		const statusModifier = entry.status.replace(/_/g, "-");
 		const chip = row.createDiv({
 			cls: `editorialist-panel__history-stats editorialist-panel__history-stats--${statusModifier}`,
-			attr: {
-				title: formatStatsTooltip(stats),
-			},
 		});
+		setAccessibleLabel(chip, formatStatsTooltip(stats));
 		renderStatChip(chip, "check", stats.accepted, "accepted");
 		renderStatChip(chip, "x", stats.rejected, "rejected");
 		renderStatChip(chip, "pencil-line", stats.rewritten, "rewritten");

@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import ts from "typescript";
 
 const ROOT = process.cwd();
 const SVG_TAGS = new Set([
@@ -31,6 +32,7 @@ let hasError = false;
 for (const file of FILES) {
 	const text = fs.readFileSync(file, "utf8");
 	checkControlBytes(file, text);
+	if (file.endsWith(".ts") && !file.endsWith(".test.ts")) checkNativeTooltips(file, text);
 	const lines = text.split(/\r?\n/);
 
 	lines.forEach((line, index) => {
@@ -67,6 +69,31 @@ function checkControlBytes(file, text) {
 	const code = match[0].charCodeAt(0).toString(16).padStart(2, "0");
 	const line = text.split(/\r?\n/)[lineNumber - 1] ?? "";
 	fail(file, lineNumber, line, `Raw control byte 0x${code} in source. Use an escape sequence such as "\\0" instead.`);
+}
+
+// Obsidian renders aria-label as a tooltip. A native title adds a second,
+// independently timed browser tooltip; all hover help uses Obsidian only.
+function checkNativeTooltips(file, text) {
+	const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
+	const name = (node) => ts.isIdentifier(node) || ts.isStringLiteral(node) ? node.text : "";
+	const report = (node) => {
+		const line = source.getLineAndCharacterOfPosition(node.getStart(source)).line;
+		fail(file, line + 1, text.split(/\r?\n/)[line], "Do not create native title tooltips. Use accessible names without hover, or one explanatory Obsidian tooltip.");
+	};
+	const visit = (node) => {
+		if (ts.isPropertyAssignment(node) && name(node.name) === "attr" && ts.isObjectLiteralExpression(node.initializer)) {
+			for (const property of node.initializer.properties) if (ts.isPropertyAssignment(property) && name(property.name) === "title") report(property);
+		}
+		if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)) {
+			const method = node.expression.name.text;
+			if (["setAttr", "setAttribute"].includes(method) && node.arguments[0] && ts.isStringLiteral(node.arguments[0]) && node.arguments[0].text === "title") report(node);
+			if (method === "setAttrs" && node.arguments[0] && ts.isObjectLiteralExpression(node.arguments[0])) {
+				for (const property of node.arguments[0].properties) if (ts.isPropertyAssignment(property) && name(property.name) === "title") report(property);
+			}
+		}
+		ts.forEachChild(node, visit);
+	};
+	visit(source);
 }
 
 function checkStyleUsage(file, lineNumber, line, safe) {

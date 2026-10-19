@@ -1,3 +1,4 @@
+import { setAccessibleLabel } from "./AccessibleLabel";
 import { t, tCount } from "../../i18n";
 import { EDITORIALIST_ICON_ID } from "../EditorialistLogoIcon";
 import { Menu, setIcon } from "obsidian";
@@ -9,19 +10,21 @@ export function renderPanelHeader(parent: HTMLElement, plugin: EditorialistPlugi
 	const row = header.createDiv({ cls: "editorialist-panel__title-row" });
 	const mode = row.createEl("button", {
 		cls: "editorialist-panel__view-selector",
-		attr: { type: "button", "aria-label": t("panel.view", { label }), "aria-haspopup": "menu" },
+		attr: { type: "button", "aria-haspopup": "menu" },
 	});
 	setIcon(mode.createSpan({ cls: "editorialist-panel__brand" }), EDITORIALIST_ICON_ID);
 	mode.createSpan({ text: label });
 	setIcon(mode.createSpan(), "chevron-down");
 	mode.addEventListener("click", (event) => plugin.showPanelModeMenu(event, viewType));
-	const launch = row.createEl("button", { cls: "editorialist-panel__import", attr: { type: "button", "aria-label": primary?.label ?? t("panel.importNotes") } });
+	const launch = row.createEl("button", { cls: "editorialist-panel__import", attr: { type: "button" } });
 	setIcon(launch.createSpan(), "plus");
 	launch.createSpan({ text: primary?.label ?? t("panel.import") });
+	setAccessibleLabel(launch, primary?.label ?? t("panel.importNotes"));
 	launch.disabled = primary?.disabled ?? false;
 	launch.addEventListener("click", () => { if (primary) primary.action(); else void plugin.openEditorialistModal(); });
-	const more = row.createEl("button", { cls: "editorialist-panel__settings-button", attr: { type: "button", "aria-label": t("panel.actions"), "aria-haspopup": "menu" } });
+	const more = row.createEl("button", { cls: "editorialist-panel__settings-button", attr: { type: "button", "aria-haspopup": "menu" } });
 	setIcon(more.createSpan(), "ellipsis");
+	setAccessibleLabel(more, t("panel.actions"));
 	more.addEventListener("click", (event) => {
 		const menu = new Menu();
 		menu.addItem((item) => item.setTitle(t("panel.deliveries")).setIcon("package").onClick(() => plugin.openEditorialDeliveries()));
@@ -42,10 +45,10 @@ export function renderPanelHeader(parent: HTMLElement, plugin: EditorialistPlugi
 	if (scopeLabel) book.createSpan({ text: scopeLabel });
 	else {
 		const scope = plugin.getActiveBookScopeInfo();
-		const target = book.createEl("button", { cls: "editorialist-panel__target", attr: { type: "button", "aria-label": t("target.change") } });
+		const target = book.createEl("button", { cls: "editorialist-panel__target", attr: { type: "button" } });
 		const count = plugin.getManuscriptFiles().length;
 		const reconnect = Boolean(scope.unavailableReason && scope.target?.kind === "folder" && scope.target.path);
-		if (reconnect) target.setAttribute("aria-label", t("target.reconnect"));
+		setAccessibleLabel(target, reconnect ? t("target.reconnect") : t("target.change"));
 		const open = (): void => { if (reconnect) plugin.openManuscriptReconnection(); else plugin.openManuscriptTargetSelector(); };
 		target.createSpan({ text: reconnect ? t("target.reconnect") : scope.unavailableReason ? t("panel.noActiveBook") : t("target.summary", { label: scope.label ?? t("target.legacyVault"), notes: tCount("target.notes", count) }) });
 		setIcon(target.createSpan(), "chevron-down");

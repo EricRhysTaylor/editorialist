@@ -114,6 +114,13 @@ accepted. Reasons:
 Accepted cost: these settings do not appear in Obsidian's settings search on
 1.13+. Revisit when `minAppVersion` moves to 1.13.0.
 
+### Tooltip policy
+
+- Tooltips add an explanation, consequence, interaction instruction or hidden detail. Do not repeat a visible button label or an obvious icon action.
+- Do not create native `title` attributes. Obsidian's `aria-label` hover handling otherwise produces a second, independently timed browser tooltip. `qa-audit.mjs` enforces this for DOM attribute creation and setters.
+- Visible button/link text and wrapping form labels supply their own accessible names. For icon-only controls or contextual names without hover, use `setAccessibleLabel` from `src/ui/primitives/AccessibleLabel.ts`; it uses a hidden, referenced label in the control's own document.
+- Use `aria-label` alone when helpful Obsidian hover copy is warranted. Keep state attributes such as `aria-expanded` and `aria-pressed` independent of the name.
+
 ### 1.6 Styling
 
 - All colors come from Obsidian CSS variables (`--background-primary`,

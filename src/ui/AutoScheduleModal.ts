@@ -1,3 +1,4 @@
+import { setAccessibleLabel } from "./primitives/AccessibleLabel";
 import { AUTHOR_PLAN_SCOPE } from "../core/planning/AuthorPlan";
 import { Modal, Notice, setIcon } from "obsidian";
 import type EditorialistPlugin from "../main";
@@ -47,7 +48,7 @@ export class AutoScheduleModal extends Modal {
 		root.createEl("p", { cls: "editorialist-deliveries__intro", text: this.planningScope === AUTHOR_PLAN_SCOPE ? "Your vault-wide goals share one weekly capacity. Add effort estimates to schedule sessions; hard goal deadlines are enforced, while target dates remain personal aims." : this.delivery?.title ?? "Open engagement tasks, review batches, editorialism directives and pending edits in this book, spread across your working days before their deadlines and milestones. Work already in your plan keeps its place." });
 		const grid = root.createDiv({ cls: "editorialist-deliveries__fields" });
 		const input = (parent: HTMLElement, label: string, type: string, value: string, change: (value: string) => void): HTMLInputElement => {
-			const wrap = parent.createEl("label", { text: label }); const field = wrap.createEl("input", { type, value, attr: { "aria-label": label } });
+			const wrap = parent.createEl("label", { text: label }); const field = wrap.createEl("input", { type, value });
 			field.addEventListener("change", () => { this.invalidate(); change(field.value); }); return field;
 		};
 		input(grid, "Start on", "date", this.options.start, (value) => { this.options.start = value; });
@@ -60,7 +61,7 @@ export class AutoScheduleModal extends Modal {
 		input(days, "Reserve minutes", "number", String(this.plan.reserveMinutes), (value) => { this.plan.reserveMinutes = Math.max(0, Number(value) || 0); }).min = "0";
 		const advanced = root.createEl("details"); advanced.createEl("summary", { text: "Ordering & estimates" });
 		const settings = advanced.createDiv({ cls: "editorialist-deliveries__fields" });
-		const presetLabel = settings.createEl("label", { text: "Preset" }); const preset = presetLabel.createEl("select", { attr: { "aria-label": "Scheduling preset" } });
+		const presetLabel = settings.createEl("label", { text: "Preset" }); const preset = presetLabel.createEl("select");
 		for (const [value, label] of Object.entries(PRESETS)) preset.createEl("option", { value, text: label }); preset.value = this.options.preset;
 		preset.addEventListener("change", () => { this.options.preset = preset.value as SchedulePreset; this.invalidate(); });
 		const session = input(settings, "Session minutes", "number", String(this.options.sessionMinutes), (value) => { this.options.sessionMinutes = Number(value); }); session.min = "15"; session.max = "240";
@@ -73,7 +74,8 @@ export class AutoScheduleModal extends Modal {
 			const key = sourceKey(candidate); const choice = this.options.choices[key] ??= {};
 			const row = overrides.createDiv({ cls: "editorialist-autoschedule__task", attr: { "data-schedule-key": key } }); row.createEl("strong", { text: candidate.title });
 			const fields = row.createDiv({ cls: "editorialist-deliveries__fields" });
-			const phase = fields.createEl("select", { attr: { "aria-label": `Phase: ${candidate.title}` } }); phase.createEl("option", { value: "", text: "Needs triage" });
+			const phase = fields.createEl("select");
+			setAccessibleLabel(phase, `Phase: ${candidate.title}`); phase.createEl("option", { value: "", text: "Needs triage" });
 			for (const [value, label] of Object.entries(PHASES)) phase.createEl("option", { value, text: label }); phase.value = (choice.phase === undefined ? suggestPhase(candidate, this.options.preset) : choice.phase) ?? "";
 			phase.addEventListener("change", () => { choice.phase = phase.value as WorkPhase || null; this.invalidate(); });
 			const estimate = estimateRange(candidate);

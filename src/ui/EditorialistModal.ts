@@ -1,3 +1,4 @@
+import { setAccessibleLabel } from "./primitives/AccessibleLabel";
 import {
 	extractEditorialismFileFromText,
 	removeEditorialismFromText,
@@ -793,11 +794,11 @@ export class EditorialistModal extends Modal {
 
 		const toggle = new ButtonComponent(actions)
 			.setIcon(this.showExample ? "chevron-up" : "chevron-down")
-			.setTooltip(this.showExample ? "Hide formatting instructions" : "Show formatting instructions")
 			.onClick(() => {
 				this.showExample = !this.showExample;
 				this.render();
 			});
+		setAccessibleLabel(toggle.buttonEl, this.showExample ? "Hide formatting instructions" : "Show formatting instructions");
 		toggle.buttonEl.addClass("editorialist-control-modal__example-toggle");
 
 		if (!this.showExample) {

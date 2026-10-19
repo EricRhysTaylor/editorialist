@@ -58,7 +58,7 @@ export class EditorialDeliveriesModal extends Modal {
 		const fields = form.createDiv({ cls: "editorialist-deliveries__fields" });
 		const field = (label: string, type: string, value: string, change: (value: string) => void): HTMLInputElement => {
 			const wrap = fields.createEl("label", { text: label });
-			const input = wrap.createEl("input", { type, value, attr: { "aria-label": label } });
+			const input = wrap.createEl("input", { type, value });
 			input.addEventListener("input", () => change(input.value)); return input;
 		};
 		field("Delivery title", "text", draft.title, (value) => { draft.title = value; }).required = true;

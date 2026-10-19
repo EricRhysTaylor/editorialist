@@ -10,7 +10,7 @@ describe("English localization foundation", () => {
 
 	it("preserves Unicode, dollar substitutions, whitespace and braces inside author-defined names", () => {
 		const title = "  Élodie ไทย 日本語 \n$& {{operation}}  ";
-		expect(t("toolbar.openBrief", { title })).toBe("Open brief: " + title);
+		expect(t("target.summary", { label: title, notes: "1 note" })).toBe(title + " · 1 note");
 	});
 
 	it("does not reparse inserted values as template instructions", () => {

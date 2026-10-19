@@ -1,3 +1,4 @@
+import { setAccessibleLabel } from "./primitives/AccessibleLabel";
 import { setIcon } from "obsidian";
 import type { SceneContextSnippet } from "../core/SceneContext";
 import type { SceneContextGroup } from "../orchestrators/SceneContextResolver";
@@ -21,10 +22,10 @@ export function renderSceneContextGroups(
 		for (const snippet of group.snippets) {
 			const row = groupEl.createDiv({ cls: "editorialist-scene-context__snippet" });
 			const body = row.createDiv({ cls: "editorialist-scene-context__text is-clamped", text: snippet.text });
-			body.setAttr("title", "Click to expand");
+			body.setAttr("aria-label", "Click to expand");
 			bindImmediateAction(body, () => {
 				body.toggleClass("is-clamped", !body.hasClass("is-clamped"));
-				body.setAttr("title", body.hasClass("is-clamped") ? "Click to expand" : "Click to collapse");
+				body.setAttr("aria-label", body.hasClass("is-clamped") ? "Click to expand" : "Click to collapse");
 			});
 
 			const footer = row.createDiv({ cls: "editorialist-scene-context__footer" });
@@ -34,8 +35,9 @@ export function renderSceneContextGroups(
 			});
 			const open = footer.createEl("button", {
 				cls: "editorialist-scene-context__open",
-				attr: { type: "button", "aria-label": `Open ${group.title} beside this scene` },
+				attr: { type: "button" },
 			});
+			setAccessibleLabel(open, `Open ${group.title} beside this scene`);
 			setIcon(open.createSpan({ cls: "editorialist-scene-context__open-icon" }), "panel-right-open");
 			open.createSpan({ text: "Open beside" });
 			bindImmediateAction(open, () => openBeside(group.path, snippet), { guardInteractiveDescendants: true });

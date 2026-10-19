@@ -1,3 +1,4 @@
+import { setAccessibleLabel } from "./primitives/AccessibleLabel";
 import { deliveryDate } from "../core/EditorialDeliveries";
 import { displayDirectiveText, handoffItems } from "../core/DirectiveText";
 import { renderDirectiveDecision, renderDirectiveQuestion } from "./editorialism/DirectiveDecision";
@@ -151,13 +152,15 @@ export class EditorialismPanel extends ItemView {
 		parent.createEl("p", { cls: "editorialist-plan__hint", text: "Deactivate older files to hide their items from available work. Files and progress stay in your vault." });
 		const deliveries = this.plugin.getEditorialDeliveries();
 		const controls = parent.createDiv({ cls: "editorialist-editorialism-panel__source-filters" });
-		const deliverySelect = controls.createEl("select", { attr: { "aria-label": "Filter by delivery" } });
+		const deliverySelect = controls.createEl("select");
+		setAccessibleLabel(deliverySelect, "Filter by delivery");
 		deliverySelect.createEl("option", { value: "all", text: "All deliveries" });
 		deliverySelect.createEl("option", { value: "unassigned", text: "Unassigned" });
 		for (const delivery of deliveries) deliverySelect.createEl("option", { value: delivery.id, text: delivery.title });
 		deliverySelect.value = this.deliveryFilter;
 		deliverySelect.addEventListener("change", () => { this.deliveryFilter = deliverySelect.value; this.render(); });
-		const reviewerSelect = controls.createEl("select", { attr: { "aria-label": "Filter by reviewer" } });
+		const reviewerSelect = controls.createEl("select");
+		setAccessibleLabel(reviewerSelect, "Filter by reviewer");
 		reviewerSelect.createEl("option", { value: "all", text: "All reviewers" });
 		const reviewers = (item: EditorialismSummary): string[] => {
 			const names = [item.reviewer, deliveries.find((delivery) => delivery.files.includes(item.filePath))?.reviewer].filter((name): name is string => Boolean(name));
@@ -229,14 +232,15 @@ export class EditorialismPanel extends ItemView {
 		if (delivery?.due) meta.createDiv({ text: `Due ${deliveryDate(delivery.due)}` });
 		const file = this.app.vault.getAbstractFileByPath(document.filePath);
 		const modified = "mtime" in document ? document.mtime : file instanceof TFile ? file.stat.mtime : null;
-		if (modified) meta.setAttribute("title", `Last updated ${new Date(modified).toLocaleString()}`);
+		if (modified) meta.setAttribute("aria-label", `Last updated ${new Date(modified).toLocaleString()}`);
 	}
 
 	private renderActivation(parent: HTMLElement, document: Editorialism | EditorialismSummary): void {
 		const active = isEditorialismActive(document);
 		const bar = parent.createDiv({ cls: "editorialist-editorialism-panel__activation" });
 		bar.createSpan({ text: active ? "Active" : "Inactive" });
-		const button = bar.createEl("button", { text: active ? "Deactivate" : "Activate", attr: { type: "button", "aria-label": `${active ? "Deactivate" : "Activate"} ${document.title}` } });
+		const button = bar.createEl("button", { text: active ? "Deactivate" : "Activate", attr: { type: "button" } });
+		setAccessibleLabel(button, `${active ? "Deactivate" : "Activate"} ${document.title}`);
 		const changeActivity = async (): Promise<void> => {
 			button.disabled = true;
 			try { await this.plugin.setEditorialismActive(document.filePath, !active); await this.refresh(); }
@@ -289,9 +293,9 @@ export class EditorialismPanel extends ItemView {
 			cls: "editorialist-editorialism-panel__detail-open",
 			attr: {
 				type: "button",
-				"aria-label": "Open agenda",
 			},
 		});
+		setAccessibleLabel(openSource, "Open agenda");
 		const openIcon = openSource.createSpan({ cls: "editorialist-editorialism-panel__detail-open-icon" });
 		setIcon(openIcon, "external-link");
 		openSource.addEventListener("click", () => {
@@ -332,8 +336,9 @@ export class EditorialismPanel extends ItemView {
 			const sourceChip = subtitle.createEl("button", {
 				cls: "editorialist-editorialism-panel__detail-meta-chip editorialist-editorialism-panel__detail-source",
 				text: `Original feedback: ${sourceTarget ?? editorialism.source}`,
-				attr: { type: "button", "aria-label": "Open the source document" },
+				attr: { type: "button" },
 			});
+			setAccessibleLabel(sourceChip, "Open the source document");
 			sourceChip.addEventListener("click", () => {
 				void this.app.workspace.openLinkText(sourceTarget ?? editorialism.source ?? "", editorialism.filePath);
 			});
@@ -459,7 +464,7 @@ export class EditorialismPanel extends ItemView {
 			cls: "editorialist-editorialism-panel__item-status",
 			attr: {
 				type: "button",
-				"aria-label": `Change status: ${STATUS_LABEL[item.status]}`, "aria-haspopup": "menu",
+				"aria-label": `${STATUS_LABEL[item.status]} instruction. Choose its review status without changing the manuscript text.`, "aria-haspopup": "menu",
 			},
 		});
 		const checkboxIcon = checkbox.createSpan({ cls: "editorialist-editorialism-panel__item-status-icon" });
@@ -586,15 +591,16 @@ export class EditorialismPanel extends ItemView {
 		});
 		// The fragment is a locator, so it stays on one line and ellipsizes to
 		// keep the route scannable — the full text is available on hover.
-		fragment.setAttr("title", fragmentText);
+		fragment.setAttr("aria-label", fragmentText);
 
 		// Order matters: the row is a three-column grid, and the warning spans
 		// beneath. Creating the jump button before the warning keeps grid
 		// auto-placement filling row one completely.
 		const jump = row.createEl("button", {
 			cls: "editorialist-editorialism-panel__anchor-jump",
-			attr: { type: "button", "aria-label": "Jump to this passage" },
+			attr: { type: "button" },
 		});
+		setAccessibleLabel(jump, "Jump to this passage");
 		setIcon(
 			jump.createSpan({ cls: "editorialist-editorialism-panel__anchor-jump-icon" }),
 			"corner-down-right",

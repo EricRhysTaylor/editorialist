@@ -1,3 +1,4 @@
+import { setAccessibleLabel } from "./primitives/AccessibleLabel";
 import { isPathInFolderScope, isPathInManuscriptScope } from "../core/VaultScope";
 import { AUTHOR_PLAN_SCOPE } from "../core/planning/AuthorPlan";
 import { AuthorTargetPanel } from "./AuthorTargetPanel";
@@ -227,7 +228,7 @@ export class RevisionPlanPanel extends ItemView {
 	private input(parent: HTMLElement, label: string, type: string, value: string, change: (value: string) => void): HTMLInputElement {
 		const wrapper = parent.createEl("label", { cls: type === "checkbox" ? "editorialist-plan__field editorialist-plan__field--checkbox" : "editorialist-plan__field" });
 		wrapper.createSpan({ text: label });
-		const input = wrapper.createEl("input", { type, value, attr: { "aria-label": label } });
+		const input = wrapper.createEl("input", { type, value });
 		input.disabled = this.busy;
 		if (type === "number") { input.min = "0"; input.step = "1"; }
 		input.addEventListener("change", () => { if (input.checkValidity()) change(input.value); else input.reportValidity(); });
@@ -272,8 +273,7 @@ export class RevisionPlanPanel extends ItemView {
 		}
 		const refresh = this.button(toolbar, "", () => { void this.refresh(); });
 		refresh.addClass("editorialist-plan__icon-button");
-		refresh.setAttribute("aria-label", this.busy ? "Refreshing sources" : "Refresh sources");
-		refresh.setAttribute("title", "Refresh sources");
+		refresh.setAttribute("aria-label", "Re-read manuscript notes and feedback to update available work and progress.");
 		setIcon(refresh.createSpan(), "refresh-cw");
 		for (const warning of this.warnings) root.createEl("p", { cls: "editorialist-plan__warning", text: warning });
 		if (!this.book || !this.loaded) return;
@@ -343,7 +343,8 @@ export class RevisionPlanPanel extends ItemView {
 		const headline = card.createDiv({ cls: "editorialist-plan__momentum-headline" });
 		headline.createEl("strong", { text: `${summary.done} done` });
 		headline.createSpan({ text: ` · ${summary.remaining} to go` });
-		card.createEl("progress", { cls: "editorialist-plan__progress", attr: { max: String(total), value: String(summary.done), "aria-label": `${summary.done} of ${total} pieces of work done` } });
+		const progressBar = card.createEl("progress", { cls: "editorialist-plan__progress", attr: { max: String(total), value: String(summary.done) } });
+		setAccessibleLabel(progressBar, `${summary.done} of ${total} pieces of work done`);
 		const recent = card.createDiv({ cls: "editorialist-plan__momentum-recent" });
 		for (const [value, text] of [[summary.doneToday, "today"], [summary.doneLast7Days, "last 7 days"]] as const) {
 			const item = recent.createSpan({ cls: value ? "is-active" : "" });
@@ -410,7 +411,8 @@ export class RevisionPlanPanel extends ItemView {
 			const stat = stats.createDiv(); stat.createEl("strong", { text: String(value) }); stat.createSpan({ text });
 		}
 		const resolved = this.plan.entries.length - open.length;
-		const progress = summary.createEl("progress", { cls: "editorialist-plan__progress", attr: { max: String(this.plan.entries.length), value: String(resolved), "aria-label": `${resolved} of ${this.plan.entries.length} planning tasks finished` } });
+		const progress = summary.createEl("progress", { cls: "editorialist-plan__progress", attr: { max: String(this.plan.entries.length), value: String(resolved) } });
+		setAccessibleLabel(progress, `${resolved} of ${this.plan.entries.length} planning tasks finished`);
 		progress.createSpan({ text: `${resolved} / ${this.plan.entries.length}` });
 		if (forecast.availableMinutes !== null) {
 			const uncertain = forecast.unknownCount || forecast.unlinkedCount || this.warnings.length || this.stale;
@@ -444,14 +446,15 @@ export class RevisionPlanPanel extends ItemView {
 		button.createSpan({ text: primary ? `Auto-plan all ${count} open ${count === 1 ? "item" : "items"}` : `Auto-plan ${count} more open ${count === 1 ? "item" : "items"}${this.plan.deadline ? ` by ${planDayLabel(this.plan.deadline)}` : ""}` });
 	}
 	private renderWeek(root: HTMLElement, loads: Record<string, number>): void {
-		const week = root.createDiv({ cls: "editorialist-plan__week", attr: { "aria-label": "Next seven days" } });
+		const week = root.createDiv({ cls: "editorialist-plan__week" });
+		setAccessibleLabel(week, "Next seven days");
 		for (const day of this.weekDays()) {
 			const date = new Date(day + "T12:00:00");
 			const capacity = this.plan.capacity[date.getDay()] ?? 0;
 			const load = loads[day] ?? 0;
 			const cell = this.button(week, "", () => { this.view = "days"; this.render(); root.querySelector<HTMLElement>(`[data-plan-day="${day}"]`)?.scrollIntoView({ block: "nearest" }); });
-			cell.setAttribute("aria-label", `${planDayLabel(day)}: ${load} estimated minutes of ${capacity} available`);
-			cell.setAttribute("title", `${load} / ${capacity} min`);
+			setAccessibleLabel(cell, `${planDayLabel(day)}: ${load} estimated minutes of ${capacity} available`);
+
 			if (day === localDate(new Date())) cell.addClass("is-today");
 			if (load > capacity) cell.addClass("is-overloaded");
 			cell.createSpan({ cls: "editorialist-plan__week-label", text: date.toLocaleDateString(undefined, { weekday: "short" }) });
@@ -484,7 +487,7 @@ export class RevisionPlanPanel extends ItemView {
 		const row = parent.createDiv({ cls: `editorialist-plan__entry${entry.done ? " is-done" : ""}`, attr: { "data-work-kind": entry.source.kind } });
 		const resolved = resolvePlanSource(entry.source, this.candidates);
 		const layout = row.createDiv({ cls: "editorialist-plan__entry-row" });
-		const grip = layout.createSpan({ cls: "editorialist-plan__grip", attr: { draggable: "true", title: "Drag to reorder or assign a day" } });
+		const grip = layout.createSpan({ cls: "editorialist-plan__grip", attr: { draggable: "true", "aria-label": "Drag to reorder the queue or drop onto a day to schedule this session." } });
 		setIcon(grip, "grip-vertical");
 		grip.addEventListener("dragstart", (event) => { this.dragging = entry.id; row.addClass("is-dragging"); event.dataTransfer?.setData("text/plain", entry.id); });
 		grip.addEventListener("dragend", () => { this.dragging = null; row.removeClass("is-dragging"); });
@@ -492,7 +495,7 @@ export class RevisionPlanPanel extends ItemView {
 		const finish = this.button(layout, "", () => { void this.edit(entry.id, (item) => { item.done = !item.done; }); });
 		finish.addClass("clickable-icon", "editorialist-plan__finish");
 		if (entry.done) finish.addClass("is-done");
-		finish.setAttribute("aria-label", entry.done ? "Reopen session" : "Finish session");
+		setAccessibleLabel(finish, entry.done ? "Reopen session" : "Finish session");
 		setIcon(finish, entry.done ? "check-circle-2" : "circle");
 
 		const main = layout.createDiv({ cls: "editorialist-plan__entry-main" });
@@ -526,10 +529,10 @@ export class RevisionPlanPanel extends ItemView {
 		if (entry.source.kind !== "preparation") {
 			this.sourceButton(actions, "", () => { if (resolved.state === "ready") void this.plugin.openRevisionWork(resolved.candidate); }, resolved.state !== "ready" || this.stale);
 			const open = actions.lastElementChild as HTMLButtonElement;
-			open.addClass("clickable-icon", "editorialist-plan__icon-action"); open.setAttribute("aria-label", "Open source"); setIcon(open, "arrow-up-right");
+			open.addClass("clickable-icon", "editorialist-plan__icon-action"); setAccessibleLabel(open, "Open source"); setIcon(open, "arrow-up-right");
 		}
 		const options = this.button(actions, "", () => { details.open = !details.open; });
-		options.addClass("clickable-icon", "editorialist-plan__icon-action"); options.setAttribute("aria-label", "Schedule & options"); setIcon(options, "sliders-horizontal");
+		options.addClass("clickable-icon", "editorialist-plan__icon-action"); setAccessibleLabel(options, "Schedule & options"); setIcon(options, "sliders-horizontal");
 
 		details.createEl("p", { cls: "editorialist-plan__hint", text: this.author ? "The check records this work period as finished. Mark complete on the goal when its outcome is ready." : "The check finishes this session in your plan only. It does not accept edits or resolve the source instruction." });
 		const fields = details.createDiv({ cls: "editorialist-plan__fields" });
@@ -542,7 +545,8 @@ export class RevisionPlanPanel extends ItemView {
 		const locked = this.input(details, "Keep this date", "checkbox", "", () => { void this.edit(entry.id, (item) => { item.locked = locked.checked; }); });
 		locked.checked = entry.locked === true;
 		const label = details.createEl("label", { text: "After", cls: "editorialist-plan__field" });
-		const select = label.createEl("select", { cls: "dropdown", attr: { "aria-label": "Prerequisite task" } });
+		const select = label.createEl("select", { cls: "dropdown" });
+		setAccessibleLabel(select, "Prerequisite task");
 		select.createEl("option", { value: "", text: "No prerequisite" });
 		for (const other of this.plan.entries.filter((item) => item.id !== entry.id)) select.createEl("option", { value: other.id, text: other.title });
 		if (entry.afterId && !this.plan.entries.some((item) => item.id === entry.afterId)) select.createEl("option", { value: entry.afterId, text: "Missing prerequisite — choose another" });
@@ -557,7 +561,8 @@ export class RevisionPlanPanel extends ItemView {
 		if (resolved.state !== "ready" && !isPlanEntryComplete(entry, this.candidates, this.doneKeys())) {
 			row.createEl("p", { cls: "editorialist-plan__warning", text: resolved.state === "ambiguous" ? "Multiple source instructions match. Make them distinct in the source, refresh, then relink." : "Source changed or is unavailable. Refresh, then relink; its estimate and date are preserved." });
 			const controls = row.createDiv({ cls: "editorialist-plan__actions editorialist-plan__relink" });
-			const relink = controls.createEl("select", { cls: "dropdown", attr: { "aria-label": `Relink ${entry.title}` } });
+			const relink = controls.createEl("select", { cls: "dropdown" });
+			setAccessibleLabel(relink, `Relink ${entry.title}`);
 			relink.createEl("option", { value: "", text: "Choose replacement source…" });
 			this.available().forEach((candidate) => relink.createEl("option", { value: sourceKey(candidate), text: `${kindLabels[candidate.kind]} · ${candidate.detail} · ${candidate.title}` }));
 			this.sourceButton(controls, "Relink", () => { const candidate = this.available().find((item) => sourceKey(item) === relink.value); if (candidate) void this.edit(entry.id, (item) => { item.source = { kind: candidate.kind, path: candidate.path, locator: candidate.locator }; item.title = candidate.title; }); }, this.stale);
@@ -582,9 +587,11 @@ export class RevisionPlanPanel extends ItemView {
 		heading.createSpan({ cls: "editorialist-plan__count", text: String(available.length) });
 		const searchWrap = details.createDiv({ cls: "editorialist-plan__search" });
 		setIcon(searchWrap.createSpan(), "search");
-		const search = searchWrap.createEl("input", { type: "search", value: this.search, attr: { placeholder: "Find a scene or instruction…", "aria-label": "Find available work" } });
+		const search = searchWrap.createEl("input", { type: "search", value: this.search, attr: { placeholder: "Find a scene or instruction…" } });
+		setAccessibleLabel(search, "Find available work");
 		const filters = details.createDiv({ cls: "editorialist-plan__filters" });
-		const deliveryFilter = details.createEl("select", { cls: "dropdown", attr: { "aria-label": "Filter available work by delivery" } });
+		const deliveryFilter = details.createEl("select", { cls: "dropdown" });
+		setAccessibleLabel(deliveryFilter, "Filter available work by delivery");
 		deliveryFilter.createEl("option", { value: "all", text: "All deliveries" });
 		for (const delivery of this.plugin.getEditorialDeliveries()) deliveryFilter.createEl("option", { value: delivery.id, text: delivery.title });
 		deliveryFilter.value = this.deliveryFilter;
@@ -595,7 +602,7 @@ export class RevisionPlanPanel extends ItemView {
 			for (const candidate of shown.slice(0, this.backlogLimit)) {
 				const row = list.createDiv({ cls: "editorialist-plan__backlog-row", attr: { "data-work-kind": candidate.kind } });
 				const content = row.createDiv({ cls: "editorialist-plan__backlog-content" });
-				const title = content.createEl("strong", { attr: { title: candidate.title } });
+				const title = content.createEl("strong");
 				const icon = title.createSpan({ cls: "editorialist-plan__source-icon", attr: { "aria-hidden": "true" } });
 				setIcon(icon, kindIcons[candidate.kind]);
 				title.createSpan({ text: candidate.title });
@@ -603,7 +610,7 @@ export class RevisionPlanPanel extends ItemView {
 				this.sourceButton(row, "", () => { void this.change((plan) => { plan.entries.push({ id: crypto.randomUUID(), source: { kind: candidate.kind, path: candidate.path, locator: candidate.locator }, title: candidate.title, lowMinutes: null, highMinutes: null, day: null, required: true, done: false, afterId: null }); }); }, this.stale);
 				const add = row.querySelector<HTMLButtonElement>("button")!;
 				add.addClass("editorialist-plan__add");
-				add.setAttribute("aria-label", `Add to plan: ${candidate.title}`); add.setAttribute("title", "Add to plan"); setIcon(add.createSpan(), "plus");
+				setAccessibleLabel(add, `Add to plan: ${candidate.title}`); setIcon(add.createSpan(), "plus");
 			}
 			if (shown.length > this.backlogLimit) this.button(list, `Show ${Math.min(12, shown.length - this.backlogLimit)} more`, () => { this.backlogLimit += 12; render(); });
 			if (shown.length > 1) {

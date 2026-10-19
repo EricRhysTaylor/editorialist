@@ -1,3 +1,4 @@
+import { setAccessibleLabel } from "./primitives/AccessibleLabel";
 import { Modal, Notice, TFile, normalizePath, setIcon, type App } from "obsidian";
 import { collaborationUrl, createEditorialProject, engagementStartCountdown, isProjectEditorProfile, materialDue, projectEditor, recordProjectEvent, shiftDate, type EditorialProject, type EngagementRecord, type EngagementTask, type ProjectMaterial } from "../core/planning/EditorialProject";
 import { isDate, localDate, type RevisionPlan } from "../core/planning/RevisionPlan";
@@ -36,8 +37,8 @@ const button = (parent: HTMLElement, text: string, action: () => void): HTMLButt
 // handful of real buttons on the page — adding things, scheduling — keep
 // their weight instead of competing with a dozen identical grey ones.
 const iconButton = (parent: HTMLElement, icon: string, label: string, action: () => void, cls = ""): HTMLButtonElement => {
-	const el = parent.createEl("button", { cls: `clickable-icon editorialist-project__icon-button ${cls}`.trim(), attr: { type: "button", "aria-label": label, title: label } });
-	setIcon(el, icon); el.addEventListener("click", action); return el;
+	const el = parent.createEl("button", { cls: `clickable-icon editorialist-project__icon-button ${cls}`.trim(), attr: { type: "button" } });
+	setIcon(el, icon); setAccessibleLabel(el, label); el.addEventListener("click", action); return el;
 };
 // One collapsible section shape for milestones, tasks, and materials: icon,
 // full-strength title, count, and a large chevron. Open by default; the
@@ -53,15 +54,15 @@ function section(root: HTMLElement, key: string, icon: string, title: string, co
 }
 export function field(parent: HTMLElement, label: string, value: string, type = "text"): HTMLInputElement {
 	const wrap = parent.createEl("label", { cls: type === "checkbox" ? "editorialist-project__field editorialist-project__field--checkbox" : "editorialist-project__field", text: label });
-	return wrap.createEl("input", { type, value, attr: { "aria-label": label } });
+	return wrap.createEl("input", { type, value });
 }
 export function area(parent: HTMLElement, label: string, value: string): HTMLTextAreaElement {
 	const wrap = parent.createEl("label", { cls: "editorialist-project__field editorialist-project__field--area", text: label });
-	return wrap.createEl("textarea", { text: value, attr: { "aria-label": label, rows: "4" } });
+	return wrap.createEl("textarea", { text: value, attr: { rows: "4" } });
 }
 export function select(parent: HTMLElement, label: string, options: [string, string][], value: string): HTMLSelectElement {
 	const wrap = parent.createEl("label", { cls: "editorialist-project__field", text: label });
-	const el = wrap.createEl("select", { cls: "dropdown", attr: { "aria-label": label } });
+	const el = wrap.createEl("select", { cls: "dropdown" });
 	for (const [value, text] of options) el.createEl("option", { value, text });
 	el.value = value; return el;
 }
