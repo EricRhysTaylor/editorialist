@@ -1,8 +1,9 @@
+import { isPathInFolderScope, isPathInManuscriptScope } from "../core/VaultScope";
 import { AUTHOR_PLAN_SCOPE } from "../core/planning/AuthorPlan";
 import { AuthorTargetPanel } from "./AuthorTargetPanel";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
 import { pendingWorkTitle, planDayLabel } from "../core/planning/WorkPresentation";
-import { ItemView, Notice, TFile, setIcon, type WorkspaceLeaf } from "obsidian";
+import { ItemView, Notice, TFile, TFolder, setIcon, type TAbstractFile, type WorkspaceLeaf } from "obsidian";
 import type EditorialistPlugin from "../main";
 import { renderPanelHeader } from "./primitives/PanelHeader";
 import { emptyRevisionPlan, forecastPlan, isDate, isPlanEntryComplete, localDate, movePlanEntry, progressDoneKeys, resolvePlanSource, sourceKey, type PlanEntry, type RevisionPlan, type WorkCandidate } from "../core/planning/RevisionPlan";
@@ -82,8 +83,7 @@ export class RevisionPlanPanel extends ItemView {
 			this.stale = true;
 			this.sourceRevision++;
 			for (const button of Array.from(this.contentEl.querySelectorAll<HTMLButtonElement>("[data-plan-source-action]"))) button.disabled = true;
-			this.contentEl.querySelector<HTMLElement>(".editorialist-plan__forecast-status")?.setText("Refresh sources before relying on the forecast.");
-			this.contentEl.querySelector<HTMLElement>(".editorialist-plan__freshness")?.setText("Sources changed. Updating…");
+			this.contentEl.setAttribute("aria-busy", "true");
 			this.scheduleRefresh();
 		};
 		this.register(() => { if (this.refreshTimer !== null) window.clearTimeout(this.refreshTimer); });
@@ -94,13 +94,38 @@ export class RevisionPlanPanel extends ItemView {
 				if (current !== this.rtSignature) { this.rtSignature = current; markStale(); }
 			}, 2000));
 		}
-		this.registerEvent(this.app.vault.on("modify", markStale));
-		this.registerEvent(this.app.vault.on("create", markStale));
-		this.registerEvent(this.app.vault.on("delete", markStale));
-		this.registerEvent(this.app.vault.on("rename", markStale));
+		const sourceChanged = (file: TAbstractFile, oldPath?: string): void => {
+			if (this.isRelevantSource(file, oldPath)) markStale();
+		};
+		this.registerEvent(this.app.vault.on("modify", sourceChanged));
+		this.registerEvent(this.app.vault.on("create", sourceChanged));
+		this.registerEvent(this.app.vault.on("delete", sourceChanged));
+		this.registerEvent(this.app.vault.on("rename", sourceChanged));
 		this.registerEvent(this.app.workspace.on("active-leaf-change", () => { if (this.book !== this.scopeKey()) markStale(); }));
-		this.registerEvent(this.app.workspace.on("editor-change", markStale));
+		this.registerEvent(this.app.workspace.on("editor-change", (_editor, info) => { if (info.file) sourceChanged(info.file); }));
 		await this.refresh();
+	}
+	/** Rebuild only for manuscript work, agendas or references used by this plan. */
+	private isRelevantSource(file: TAbstractFile, oldPath?: string): boolean {
+		// Author goals live in plugin data; their RT link has its own change check.
+		if (this.author) return false;
+		const folder = file instanceof TFolder;
+		const scope = this.plugin.getActiveBookScopeInfo();
+		const references = [
+			...this.candidates.map((candidate) => candidate.path),
+			...this.plan.entries.map((entry) => entry.source.path),
+			...(this.plan.project?.materials.flatMap((material) => [material.source, material.exportPath]) ?? []),
+			...(this.plan.project?.records.map((record) => record.referencePath) ?? []),
+		].filter(Boolean);
+		return [file.path, oldPath].some((path) => {
+			if (!path) return false;
+			if (references.some((reference) => reference === path || (folder && isPathInFolderScope(reference, path)))) return true;
+			if (!folder && !path.toLowerCase().endsWith(".md")) return false;
+			const root = this.plugin.getEditorialismFolder();
+			if (isPathInFolderScope(path, root) || (folder && isPathInFolderScope(root, path))) return true;
+			if (folder) return Boolean(scope.sourceFolder && (isPathInFolderScope(path, scope.sourceFolder) || isPathInFolderScope(scope.sourceFolder, path)));
+			return file instanceof TFile && isPathInManuscriptScope(path, scope);
+		});
 	}
 	// Sources change constantly while the author works; the plan follows on
 	// its own after a pause instead of waiting for a manual refresh, so
@@ -127,7 +152,9 @@ export class RevisionPlanPanel extends ItemView {
 	async refresh(): Promise<void> {
 		if (this.busy) return;
 		this.busy = true;
-		this.render();
+		this.contentEl.setAttribute("aria-busy", "true");
+		// Keep the existing page in place during background reads.
+		if (!this.loaded) this.render();
 		try {
 			if (this.author) await this.plugin.synchronizeAuthorTargets(); else await this.plugin.refreshActiveBookScope();
 			const book = this.scopeKey();
@@ -148,7 +175,7 @@ export class RevisionPlanPanel extends ItemView {
 			if (this.author) this.rtSignature = JSON.stringify(this.plugin.radialBookGoals.status());
 			this.stale = revision !== this.sourceRevision;
 		} catch { this.stale = true; this.warnings = ["Could not load the revision plan. Refresh to try again."]; }
-		finally { this.busy = false; this.render(); }
+		finally { this.busy = false; this.contentEl.setAttribute("aria-busy", "false"); this.render(); }
 	}
 	private async recordProgress(book: string, candidates: readonly WorkCandidate[]): Promise<void> {
 		const plan = this.plugin.getRevisionPlan(book);
@@ -220,7 +247,6 @@ export class RevisionPlanPanel extends ItemView {
 			for (const [value, label] of [["overview", "Overview"], ["schedule", "Schedule"], ["materials", "Materials"], ["history", "History"]] as const) { const tab = this.button(navigation, label, () => { this.section = value; this.render(); }); tab.setAttribute("aria-pressed", String(this.section === value)); }
 			if (this.section !== "schedule") {
 				for (const warning of this.warnings) root.createEl("p", { cls: "editorialist-plan__warning", text: warning });
-				if (this.stale) root.createEl("p", { cls: "editorialist-plan__freshness", text: "Sources changed. Updating…", attr: { role: "status" } });
 				const project = this.projectPanel();
 				if (this.section === "overview") project.renderOverview(root); else if (this.section === "materials") project.renderMaterials(root); else project.renderHistory(root);
 				this.restoreSections(root);
@@ -240,7 +266,6 @@ export class RevisionPlanPanel extends ItemView {
 		refresh.setAttribute("aria-label", this.busy ? "Refreshing sources" : "Refresh sources");
 		refresh.setAttribute("title", "Refresh sources");
 		setIcon(refresh.createSpan(), "refresh-cw");
-		root.createEl("p", { cls: "editorialist-plan__freshness", text: this.stale ? "Sources changed. Updating…" : "", attr: { role: "status" } });
 		for (const warning of this.warnings) root.createEl("p", { cls: "editorialist-plan__warning", text: warning });
 		if (!this.book || !this.loaded) return;
 		if (!this.author && !this.plan.project) this.projectPanel().renderOverview(root);

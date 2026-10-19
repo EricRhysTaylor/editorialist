@@ -1,3 +1,4 @@
+import { TFile, TFolder } from "obsidian";
 import { describe, expect, it, vi } from "vitest";
 import { emptyRevisionPlan, type RevisionPlan } from "../core/planning/RevisionPlan";
 import { RevisionPlanPanel } from "./RevisionPlanPanel";
@@ -40,7 +41,7 @@ describe("planning after a Radial Timeline book switch", () => {
 		const { host, plans } = planningHost();
 		const oldPlan = structuredClone(plans[key("Book A")]);
 		const panel = Object.assign(Object.create(RevisionPlanPanel.prototype) as object, {
-			plugin: host, sourceRevision: 0, render: vi.fn(), recordProgress: vi.fn(),
+			plugin: host, sourceRevision: 0, contentEl: { setAttribute: vi.fn() }, render: vi.fn(), recordProgress: vi.fn(),
 		}) as unknown as RevisionPlanPanel;
 		await panel.refresh();
 		expect(Reflect.get(panel, "book")).toBe(key("Book B"));
@@ -88,4 +89,58 @@ it("rolls an RT stage date back if saving its linked goal fails", async () => {
 	await expect(EditorialistPlugin.prototype.saveAuthorGoalPlan.call(host as unknown as EditorialistPlugin, raw, { ...raw, deadline: "2026-12-31" }, { link: { bookId: "b2", stage: "Zero" }, expectedDate: "2026-12-20", date: "2026-12-31" })).rejects.toThrow("disk full");
 	expect(rollback).toHaveBeenCalledWith(receipt); expect(Reflect.get(host, "authorGoalSaving")).toBe(false);
 	expect(host.saveRevisionPlan).toHaveBeenCalledWith(scope, expect.anything());
+});
+
+
+describe("engagement source refreshes", () => {
+	function sourcePanel(author = false) {
+		return Object.assign(Object.create(RevisionPlanPanel.prototype) as object, {
+			author, plan: emptyRevisionPlan(), candidates: [],
+			plugin: {
+				getActiveBookScopeInfo: () => ({ sourceFolder: "Book", target: { kind: "folder", path: "Book", includeSubfolders: true, excludedFolders: ["Book/Research"] } }),
+				getEditorialismFolder: () => "Editorialist",
+			},
+		});
+	}
+	function relevant(panel: object, path: string, oldPath?: string, folder = false): boolean {
+		const file = folder ? Object.assign(new TFolder(), { path }) : Object.assign(new TFile(), { path, extension: path.split(".").pop() });
+		return Reflect.apply(Reflect.get(panel, "isRelevantSource") as (file: TFile | TFolder, oldPath?: string) => boolean, panel, [file, oldPath]);
+	}
+	it("ignores unrelated notes, excluded research and generated attachments", () => {
+		const panel = sourcePanel();
+		for (const path of ["Other book/Scene.md", "Journal/Today.md", "Book/Research/Notes.md", "Book/Export.pdf", "Editorialist/Export.pdf"]) expect(relevant(panel, path)).toBe(false);
+	});
+	it("refreshes manuscript and agenda edits, including moves out of scope", () => {
+		const panel = sourcePanel();
+		expect(relevant(panel, "Book/Scene.md")).toBe(true);
+		expect(relevant(panel, "Editorialist/Book/Agenda.md")).toBe(true);
+		expect(relevant(panel, "Archive/Scene.md", "Book/Scene.md")).toBe(true);
+		expect(relevant(panel, "Book/Scene.txt", "Book/Scene.md")).toBe(true);
+		expect(relevant(panel, "Renamed book", "Book", true)).toBe(true);
+		expect(relevant(panel, "Book", undefined, true)).toBe(true);
+	});
+	it("keeps tracked references relevant after they leave the manuscript folder", () => {
+		const panel = sourcePanel();
+		Reflect.set(panel, "candidates", [{ path: "Publisher/Letter.md" }]);
+		expect(relevant(panel, "Publisher/Letter.md")).toBe(true);
+		expect(relevant(panel, "Archive/Letter.md", "Publisher/Letter.md")).toBe(true);
+		expect(relevant(panel, "Publisher", undefined, true)).toBe(true);
+	});
+	it("does not rebuild plugin-data-only author goals on vault edits", () => {
+		expect(relevant(sourcePanel(true), "Book/Scene.md")).toBe(false);
+	});
+	it("keeps loaded content in place while source reads are pending", async () => {
+		const { host } = planningHost();
+		let release!: () => void;
+		host.collectRevisionWork = () => new Promise((resolve) => { release = () => resolve({ candidates: [], warnings: [] }); });
+		const render = vi.fn();
+		const panel = Object.assign(Object.create(RevisionPlanPanel.prototype) as object, {
+			plugin: host, loaded: true, sourceRevision: 0, contentEl: { setAttribute: vi.fn() }, render, recordProgress: vi.fn(),
+		}) as unknown as RevisionPlanPanel;
+		const refresh = panel.refresh();
+		await vi.waitFor(() => expect(release).toBeTypeOf("function"));
+		expect(render).not.toHaveBeenCalled();
+		release(); await refresh;
+		expect(render).toHaveBeenCalledTimes(1);
+	});
 });

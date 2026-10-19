@@ -6912,11 +6912,6 @@
 	color: var(--text-muted);
 }
 
-.editorialist-plan__freshness:empty {
-	display: none;
-}
-
-.editorialist-plan__freshness,
 .editorialist-plan__warning {
 	font-size: 12px;
 	color: var(--text-warning);
