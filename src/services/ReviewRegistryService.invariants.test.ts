@@ -24,7 +24,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { TFile } from "obsidian";
 import { ReviewRegistryService } from "./ReviewRegistryService";
 import { ContributorDirectory } from "../state/ContributorDirectory";
-import { createReviewBlock } from "../core/ReviewBlockFormat";
+import { createReviewBlock, findImportedReviewBlocks } from "../core/ReviewBlockFormat";
 import type { ReviewEngine } from "../core/ReviewEngine";
 import type { ReviewSession, ReviewSuggestion } from "../models/ReviewSuggestion";
 import type { ReviewImportBatch, ReviewImportNoteGroup } from "../models/ReviewImport";
@@ -163,8 +163,12 @@ function makeApp(files: MockFile[]) {
 // suggestions. Status comes from a per-path table the test controls.
 function makeEngine(sessions: Record<string, ReviewSuggestion[]>): ReviewEngine {
 	return {
-		buildSession: (notePath: string): ReviewSession =>
-			session(notePath, sessions[notePath] ?? []),
+		buildSession: (notePath: string, text: string): ReviewSession => {
+			const blocks = findImportedReviewBlocks(text);
+			return session(notePath, (sessions[notePath] ?? []).map((item) => ({ ...item,
+				source: { ...item.source, batchId: item.source.batchId ?? blocks[item.source.blockIndex]?.batchId },
+			})));
+		},
 		refreshSuggestions: (_text: string, s: ReviewSuggestion[]) => s,
 	} as unknown as ReviewEngine;
 }
@@ -963,6 +967,70 @@ describe("invariant: hand-removed blocks and deleted notes reconcile on the next
 	});
 });
 
+
+describe("mixed-batch inventory accounting", () => {
+	const notePath = "BookA/shared.md";
+	function mixedFixture() {
+		const suggestions = [
+			suggestion("r1", "accepted", { source: { blockIndex: 0, entryIndex: 0, batchId: "older" } }),
+			suggestion("r1", "rejected", { source: { blockIndex: 0, entryIndex: 1, batchId: "older" } }),
+			suggestion("r2", "pending", { source: { blockIndex: 1, entryIndex: 0, batchId: "newer" } }),
+		];
+		const options = {
+			app: makeApp([{ path: notePath, text: `${reviewNote("older")}\n\n${reviewNote("newer")}` }]),
+			engine: makeEngine({ [notePath]: suggestions }),
+		};
+		return { ...makeService(options), options, suggestions };
+	}
+
+	it("recovers only each batch's suggestions, decisions and completion state", async () => {
+		const { service, persistCalls } = mixedFixture();
+		await service.syncSceneInventory();
+		expect(service.getSweepRegistryEntry("older")).toMatchObject({ totalSuggestions: 2, acceptedCount: 1, rejectedCount: 1, status: "completed" });
+		expect(service.getSweepRegistryEntry("newer")).toMatchObject({ totalSuggestions: 1, acceptedCount: 0, rejectedCount: 0, status: "in_progress" });
+		expect(service.isSweepRegistryComplete("older")).toBe(true);
+		expect(service.isSweepRegistryComplete("newer")).toBe(false);
+		expect(service.getSceneReviewRecords()[0]).toMatchObject({ pendingCount: 1, acceptedCount: 1, rejectedCount: 1, status: "in_progress" });
+		expect(isBatchReadyToClean(service.getSweepRegistryEntry("older")!, service.getBatchDecisionStats("older"))).toBe(true);
+		const calls = persistCalls();
+		await service.syncSceneInventory();
+		expect(persistCalls()).toBe(calls);
+	});
+
+	it("repairs previously inflated recovered totals and preserves exact completion after reload", async () => {
+		const { service, options } = mixedFixture();
+		await service.syncSceneInventory();
+		const saved = service.buildPluginData([]);
+		for (const entry of Object.values(saved.sweepRegistry)) {
+			entry.totalSuggestions = 3;
+			entry.acceptedCount = 1;
+			entry.rejectedCount = 1;
+			entry.status = "in_progress";
+		}
+		const reloaded = makeService(options).service;
+		reloaded.load(saved);
+		await reloaded.syncSceneInventory();
+		expect(reloaded.getSweepRegistryEntry("older")).toMatchObject({ totalSuggestions: 2, status: "completed" });
+		expect(reloaded.getSweepRegistryEntry("newer")).toMatchObject({ totalSuggestions: 1, acceptedCount: 0, rejectedCount: 0, status: "in_progress" });
+		const loadedAgain = makeService(options).service;
+		loadedAgain.load(JSON.parse(JSON.stringify(reloaded.buildPluginData([]))));
+		expect(loadedAgain.isSweepRegistryComplete("older")).toBe(true);
+		expect(loadedAgain.isSweepRegistryComplete("newer")).toBe(false);
+	});
+
+	it("session updates complete only their own batch and can reopen a finished batch", async () => {
+		const { service, suggestions } = mixedFixture();
+		await service.syncSceneInventory();
+		suggestions[2]!.status = "accepted";
+		await service.syncSceneInventoryForSession(session(notePath, suggestions));
+		expect(service.getSweepRegistryEntry("older")).toMatchObject({ acceptedCount: 1, rejectedCount: 1, status: "completed" });
+		expect(service.getSweepRegistryEntry("newer")).toMatchObject({ acceptedCount: 1, rejectedCount: 0, status: "completed" });
+		suggestions[0]!.status = "deferred";
+		await service.syncSceneInventoryForSession(session(notePath, suggestions));
+		expect(service.getSweepRegistryEntry("older")).toMatchObject({ acceptedCount: 0, rejectedCount: 1, deferredCount: 1, status: "in_progress" });
+		expect(service.getSweepRegistryEntry("newer")).toMatchObject({ acceptedCount: 1, deferredCount: 0, status: "completed" });
+	});
+});
 
 describe("ended-round statistics", () => {
 	it("keeps final counts while obsolete scene signals disappear and after reload", async () => {

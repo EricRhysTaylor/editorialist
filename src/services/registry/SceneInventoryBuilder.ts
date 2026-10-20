@@ -6,11 +6,8 @@
 // (the `if (!session)` / `instanceof TFile` guards and the
 // no-imported-blocks fallback to a full sync).
 //
-// All vault / ReviewEngine / decision-index / scope access is injected so
-// this module stays free of Obsidian and of service state. Behavior —
-// including the single shared `now` threaded into
-// SweepRegistryManager.buildFromSceneInventory, the retire-stale loop, and
-// the Pass-2 determinism / idempotency contract — is byte-identical.
+// Vault / engine / decision-index access is injected. Per-batch counts use
+// the same effective-status tally as the combined scene inventory.
 
 import type { TFile } from "obsidian";
 import { findImportedReviewBlocks } from "../../core/ReviewBlockFormat";
@@ -67,6 +64,9 @@ export class SceneInventoryBuilder {
 			}
 		}
 		const tally = tallySuggestionStatuses(suggestions);
+		const byBatch = Object.fromEntries(batchIds.map((batchId) => [
+			batchId, tallySuggestionStatuses(suggestions.filter((suggestion) => suggestion.source.batchId === batchId)),
+		]));
 
 		return {
 			sceneId: this.deps.getSceneId(file),
@@ -75,6 +75,7 @@ export class SceneInventoryBuilder {
 			bookLabel: this.deps.getBookHint(file.path),
 			batchIds,
 			batchCount: batchIds.length,
+			batchTallies: { version: 1, byBatch },
 			pendingCount: tally.pending,
 			unresolvedCount: tally.unresolved,
 			deferredCount: tally.deferred,
@@ -166,6 +167,7 @@ export class SceneInventoryBuilder {
 				...existing,
 				batchIds: [],
 				batchCount: 0,
+				batchTallies: { version: 1, byBatch: {} },
 				pendingCount: 0,
 				unresolvedCount: 0,
 				deferredCount: 0,

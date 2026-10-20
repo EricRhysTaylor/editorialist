@@ -59,7 +59,7 @@ export type PersistedEditorialistData = Omit<
 import { authorQueryKey } from "../core/AuthorQueryMarker";
 import { SweepRegistryManager } from "./registry/SweepRegistryManager";
 import { SceneInventoryBuilder } from "./registry/SceneInventoryBuilder";
-import { tallyReviewStatuses } from "../core/review/SweepCompletion";
+import { getSceneBatchTally, tallyReviewStatuses } from "../core/review/SweepCompletion";
 import {
 	EDITORIALIST_PLUGIN_DATA_VERSION,
 	BATCH_ATTRIBUTION_VERSION,
@@ -575,13 +575,12 @@ export class ReviewRegistryService {
 		let rejected = 0;
 		let rewritten = 0;
 		for (const record of this.getSceneReviewRecords()) {
-			if (!record.batchIds.includes(batchId)) {
-				continue;
-			}
-			accepted += record.acceptedCount;
-			deferred += record.deferredCount;
-			rejected += record.rejectedCount;
-			rewritten += record.rewrittenCount;
+			const tally = getSceneBatchTally(record, batchId);
+			if (!tally) continue;
+			accepted += tally.accepted;
+			deferred += tally.deferred;
+			rejected += tally.rejected;
+			rewritten += tally.rewritten;
 		}
 		return { accepted, deferred, rejected, rewritten };
 	}

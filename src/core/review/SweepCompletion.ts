@@ -12,6 +12,7 @@
 import type { ReviewSuggestion } from "../../models/ReviewSuggestion";
 import { getEffectiveSuggestionStatus } from "../OperationSupport";
 import type { ReviewStatus, ReviewSweepStatus } from "../status/ReviewStatusModel";
+import type { SceneReviewRecord } from "../../models/ContributorProfile";
 
 export interface ReviewStatusTally {
 	totalSuggestions: number;
@@ -65,6 +66,20 @@ export function tallySuggestionStatuses(
 	);
 }
 
+/** Legacy scene totals are attributable only when the scene has one batch. */
+export function getSceneBatchTally(record: SceneReviewRecord, batchId: string): ReviewStatusTally | undefined {
+	if (!record.batchIds.includes(batchId)) return undefined;
+	if (record.batchTallies?.version === 1) {
+		return Object.prototype.hasOwnProperty.call(record.batchTallies.byBatch, batchId)
+			? record.batchTallies.byBatch[batchId] : undefined;
+	}
+	if (record.batchIds.length !== 1) return undefined;
+	const { acceptedCount: accepted, rejectedCount: rejected, rewrittenCount: rewritten,
+		pendingCount: pending, deferredCount: deferred, unresolvedCount: unresolved } = record;
+	return { totalSuggestions: accepted + rejected + rewritten + pending + deferred + unresolved,
+		accepted, rejected, rewritten, pending, deferred, unresolved };
+}
+
 export function isSweepCompleteFromCounts(counts: SweepBlockingCounts): boolean {
 	return (
 		counts.pendingCount === 0 &&
@@ -83,12 +98,8 @@ export function isSweepCompleteFromTally(tally: ReviewStatusTally): boolean {
 
 // Whether a single sweep-registry batch can have its review block removed now.
 //
-// Deliberately NOT keyed on the entry's `status`: that is "completed" only when
-// every scene the batch touched is clear across ALL batches on those scenes, so
-// a second batch sharing a scene pins the first at "in_progress" indefinitely.
-// Comparing the batch's own terminal decisions to its suggestion count sidesteps
-// that — a batch whose every suggestion is accepted/rejected/rewritten (and none
-// deferred) is finished and cleanable regardless of unrelated batches. A
+// Check the batch's own terminal decisions against its suggestion count. A
+// second batch sharing a scene must never make this batch cleanable. A
 // `cleaned` batch has already had its block removed, so there is nothing left.
 export function isBatchReadyToClean(
 	entry: { status: string; totalSuggestions: number },

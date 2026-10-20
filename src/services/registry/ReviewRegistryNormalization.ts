@@ -121,6 +121,7 @@ export function normalizeSceneReviewIndex(
 					bookLabel: record?.bookLabel,
 					batchIds: [...(record?.batchIds ?? [])],
 					batchCount: record?.batchCount ?? (record?.batchIds?.length ?? 0),
+					batchTallies: record?.batchTallies?.version === 1 ? structuredClone(record.batchTallies) : undefined,
 					pendingCount: record?.pendingCount ?? 0,
 					unresolvedCount: record?.unresolvedCount ?? 0,
 					deferredCount: record?.deferredCount ?? 0,

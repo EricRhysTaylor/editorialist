@@ -157,7 +157,7 @@ describe("SweepRegistryManager — updatedAt idempotency (Pass-2 fix)", () => {
 		const scene = sceneRecord({ acceptedCount: 0, rejectedCount: 0, rewrittenCount: 0, deferredCount: 0 });
 		const m = makeManager({ "s1.md": scene });
 		const reg = {
-			b1: entry({ status: "completed", updatedAt: 100, acceptedCount: 0, rejectedCount: 0, rewrittenCount: 0, deferredCount: 0 }),
+			b1: entry({ status: "completed", totalSuggestions: 0, updatedAt: 100, acceptedCount: 0, rejectedCount: 0, rewrittenCount: 0, deferredCount: 0 }),
 		};
 		const presence = new Map([["b1", new Set(["s1.md"])]]);
 
@@ -270,5 +270,27 @@ describe("ended rounds", () => {
 		const again = manager.buildFromSceneInventory(next, new Map(), {}, 700);
 		expect(again.b1).toMatchObject({ status: "ended_early", endedAt: 500, acceptedCount: 4, rejectedCount: 1, rewrittenCount: 1, deferredCount: 2, importedNotePaths: [], sceneOrder: ["s1.md"] });
 		expect(again.b1!.updatedAt).toBe(next.b1!.updatedAt);
+	});
+});
+
+describe("batch accounting compatibility", () => {
+	it("does not finish or invent counts for an unscanned legacy mixed scene", () => {
+		const scene = sceneRecord({ batchIds: ["b1", "b2"], batchCount: 2, acceptedCount: 3 });
+		const manager = makeManager({ "s1.md": scene });
+		const registry = { b1: entry({ acceptedCount: 1, status: "in_progress" }) };
+		expect(manager.isComplete(registry, "b1")).toBe(false);
+		const result = manager.buildFromSceneInventory(registry, new Map([
+			["b1", new Set(["s1.md"])], ["b2", new Set(["s1.md"])],
+		]), { "s1.md": scene }, 999);
+		expect(result.b1).toMatchObject({ acceptedCount: 1, totalSuggestions: 3, status: "in_progress" });
+		expect(result.b2).toBeUndefined();
+	});
+
+	it("retains a round's historical total after one of its scene blocks is removed", () => {
+		const scene = sceneRecord({ acceptedCount: 1 });
+		const manager = makeManager({ "s1.md": scene });
+		const result = manager.buildFromSceneInventory({ b1: entry({ totalSuggestions: 3, sceneOrder: ["s1.md", "s2.md"] }) },
+			new Map([["b1", new Set(["s1.md"])]]), { "s1.md": scene }, 999);
+		expect(result.b1).toMatchObject({ totalSuggestions: 3, importedNotePaths: ["s1.md"], sceneOrder: ["s1.md", "s2.md"] });
 	});
 });

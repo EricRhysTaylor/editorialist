@@ -3,6 +3,7 @@ import type { EditorialDeliveryStore } from "../core/EditorialDeliveries";
 import type { RevisionPlanStore } from "../core/planning/RevisionPlan";
 import type { ReviewSweepRegistryEntry } from "./ReviewImport";
 import type { SupportedReviewOperationType } from "./ReviewSuggestion";
+import type { ReviewStatusTally } from "../core/review/SweepCompletion";
 
 export type ReviewerResolutionStatus = "exact" | "alias" | "suggested" | "unresolved" | "new";
 export type ContributorKind = "human" | "ai";
@@ -102,6 +103,8 @@ export interface SceneReviewRecord {
 	bookLabel?: string;
 	batchIds: string[];
 	batchCount: number;
+	// Derived from each suggestion's import stamp; absent on older inventories.
+	batchTallies?: { version: 1; byBatch: Record<string, ReviewStatusTally> };
 	pendingCount: number;
 	unresolvedCount: number;
 	deferredCount: number;

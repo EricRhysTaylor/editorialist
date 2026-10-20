@@ -30,7 +30,7 @@ function suggestion(status: ReviewSuggestion["status"]): ReviewSuggestion {
 		operation: "edit",
 		status,
 		location: { primary: { text: `o${s}`, startOffset: 0, endOffset: 2, matchType: "exact" } },
-		source: { blockIndex: 0, entryIndex: s },
+		source: { blockIndex: 0, entryIndex: s, batchId: "b1" },
 		executionMode: "direct",
 		contributor: {
 			id: "r1",

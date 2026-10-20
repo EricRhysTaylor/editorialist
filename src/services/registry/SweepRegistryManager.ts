@@ -6,11 +6,8 @@
 // activeBookScope, the clock) is injected so vault/scene-inventory ownership
 // stays in the service.
 //
-// Behavior — including the Pass-2 `updatedAt` idempotency fix (an unchanged
-// sync must NOT churn updatedAt) — is byte-identical. The Pass-2 sweep
-// invariants (attachment, completion, idempotency) remain the primary safety
-// net; direct manager tests pin duplicate detection, completion, and the
-// updatedAt-stability rule.
+// An unchanged scan must not churn updatedAt. Counts and completion are
+// batch-scoped even when several rounds share a scene.
 
 import type { SceneReviewRecord } from "../../models/ContributorProfile";
 import type {
@@ -20,7 +17,7 @@ import type {
 	ReviewSweepStatus,
 } from "../../models/ReviewImport";
 import type { ActiveBookScopeInfo } from "../../core/VaultScope";
-import { getSweepStatus, isSweepCompleteFromCounts } from "../../core/review/SweepCompletion";
+import { getSceneBatchTally, getSweepStatus, isSweepCompleteFromTally, tallyReviewStatuses, type ReviewStatusTally } from "../../core/review/SweepCompletion";
 
 function sameJsonValue(left: unknown, right: unknown): boolean {
 	return JSON.stringify(left) === JSON.stringify(right);
@@ -33,6 +30,24 @@ export interface SweepRegistryManagerDeps {
 }
 
 type SweepRegistry = Record<string, ReviewSweepRegistryEntry>;
+
+function sumBatchTallies(records: readonly SceneReviewRecord[], batchId: string): ReviewStatusTally | undefined {
+	const total = tallyReviewStatuses([]);
+	for (const record of records) {
+		const tally = getSceneBatchTally(record, batchId);
+		// An unscanned legacy mixed scene has no attributable counts yet. Keep
+		// its round open until a scan supplies them; never borrow scene totals.
+		if (!tally) return undefined;
+		total.totalSuggestions += tally.totalSuggestions;
+		total.accepted += tally.accepted;
+		total.rejected += tally.rejected;
+		total.rewritten += tally.rewritten;
+		total.deferred += tally.deferred;
+		total.pending += tally.pending;
+		total.unresolved += tally.unresolved;
+	}
+	return total;
+}
 
 export class SweepRegistryManager {
 	private readonly now: () => number;
@@ -77,18 +92,16 @@ export class SweepRegistryManager {
 		);
 	}
 
-	// A scene with no record yet, or whose batch block has been removed
-	// (batchCount === 0), is not blocking — it carries no open items. Every
-	// other scene defers to the centralized sweep-completion rule.
-	private pathsComplete(sweepPaths: readonly string[]): boolean {
+	private pathsComplete(sweepPaths: readonly string[], batchId: string): boolean {
 		const sceneIndex = this.deps.getSceneReviewIndex();
 		return sweepPaths.every((path) => {
 			const record = sceneIndex[path];
-			if (!record || record.batchCount === 0) {
+			if (!record || !record.batchIds.includes(batchId)) {
 				return true;
 			}
 
-			return isSweepCompleteFromCounts(record);
+			const tally = getSceneBatchTally(record, batchId);
+			return tally !== undefined && isSweepCompleteFromTally(tally);
 		});
 	}
 
@@ -101,27 +114,22 @@ export class SweepRegistryManager {
 		}
 
 		const sweepPaths = entry.sceneOrder.length > 0 ? entry.sceneOrder : entry.importedNotePaths;
-		return this.pathsComplete(sweepPaths);
+		return this.pathsComplete(sweepPaths, batchId);
 	}
 
 	reconcileStatus(registry: SweepRegistry, updatedRecord: SceneReviewRecord): void {
-		for (const entry of Object.values(registry)) {
-			if (entry.status !== "in_progress") {
-				continue;
+		const sceneIndex = { ...this.deps.getSceneReviewIndex(), [updatedRecord.notePath]: updatedRecord };
+		const presence = new Map<string, Set<string>>();
+		for (const record of Object.values(sceneIndex)) {
+			for (const batchId of record.batchIds) {
+				const paths = presence.get(batchId) ?? new Set<string>();
+				paths.add(record.notePath);
+				presence.set(batchId, paths);
 			}
-
-			const sweepPaths = entry.sceneOrder.length > 0 ? entry.sceneOrder : entry.importedNotePaths;
-			if (!sweepPaths.includes(updatedRecord.notePath)) {
-				continue;
-			}
-
-			if (this.pathsComplete(sweepPaths)) {
-				registry[entry.batchId] = {
-					...entry,
-					status: "completed",
-					updatedAt: this.now(),
-				};
-			}
+		}
+		const refreshed = this.buildFromSceneInventory(registry, presence, sceneIndex, this.now());
+		for (const entry of Object.values(refreshed)) {
+			if (entry.sceneOrder.includes(updatedRecord.notePath)) registry[entry.batchId] = entry;
 		}
 	}
 
@@ -269,6 +277,7 @@ export class SweepRegistryManager {
 			let rejectedCount = entry.rejectedCount;
 			let rewrittenCount = entry.rewrittenCount;
 			let deferredCount = entry.deferredCount;
+			let totalSuggestions = entry.totalSuggestions;
 			// Status is re-derived from live scene counts when scenes still carry the
 			// block. Preserving entry.status would pin a stale "cleaned" forever: a
 			// block that reappears (re-import, or a detection bug that hid it) must
@@ -276,31 +285,20 @@ export class SweepRegistryManager {
 			// "cleaned" — could never act on it again.
 			let nextStatus: ReviewSweepStatus = currentPaths.length === 0 ? (entry.status === "ended_early" ? "ended_early" : "cleaned") : entry.status;
 			if (currentPaths.length > 0) {
-				let accepted = 0;
-				let rejected = 0;
-				let rewritten = 0;
-				let deferred = 0;
-				let pending = 0;
-				let unresolved = 0;
-				for (const path of currentPaths) {
-					const record = sceneIndex[path];
-					if (!record) continue;
-					accepted += record.acceptedCount;
-					rejected += record.rejectedCount;
-					rewritten += record.rewrittenCount;
-					deferred += record.deferredCount;
-					pending += record.pendingCount;
-					unresolved += record.unresolvedCount;
+				const records = currentPaths.map((path) => sceneIndex[path]).filter((record): record is SceneReviewRecord => Boolean(record));
+				const tally = sumBatchTallies(records, entry.batchId);
+				if (tally) {
+					acceptedCount = tally.accepted;
+					rejectedCount = tally.rejected;
+					rewrittenCount = tally.rewritten;
+					deferredCount = tally.deferred;
+					// Repair inflated recovery totals only while every historical scene
+					// still carries the batch. Partial cleanup retains its original total.
+					if (currentPaths.length === nextSceneOrder.length) totalSuggestions = tally.totalSuggestions;
+					nextStatus = getSweepStatus({ pendingCount: tally.pending, unresolvedCount: tally.unresolved, deferredCount: tally.deferred });
+				} else {
+					nextStatus = "in_progress";
 				}
-				acceptedCount = accepted;
-				rejectedCount = rejected;
-				rewrittenCount = rewritten;
-				deferredCount = deferred;
-				nextStatus = getSweepStatus({
-					pendingCount: pending,
-					unresolvedCount: unresolved,
-					deferredCount: deferred,
-				});
 			}
 
 			const candidate: ReviewSweepRegistryEntry = {
@@ -318,6 +316,7 @@ export class SweepRegistryManager {
 				rejectedCount,
 				rewrittenCount,
 				deferredCount,
+				totalSuggestions,
 			};
 
 			// Only stamp a fresh updatedAt when something material actually
@@ -346,14 +345,8 @@ export class SweepRegistryManager {
 			const records = sortedPaths
 				.map((path) => sceneIndex[path])
 				.filter((record): record is SceneReviewRecord => Boolean(record));
-			const sum = (pick: (record: SceneReviewRecord) => number): number =>
-				records.reduce((total, record) => total + pick(record), 0);
-			const pending = sum((record) => record.pendingCount);
-			const unresolved = sum((record) => record.unresolvedCount);
-			const deferred = sum((record) => record.deferredCount);
-			const accepted = sum((record) => record.acceptedCount);
-			const rejected = sum((record) => record.rejectedCount);
-			const rewritten = sum((record) => record.rewrittenCount);
+			const tally = sumBatchTallies(records, batchId);
+			if (!tally) continue;
 			nextRegistry[batchId] = {
 				batchId,
 				contentHash: "",
@@ -367,13 +360,13 @@ export class SweepRegistryManager {
 				importedNotePaths: sortedPaths,
 				currentNotePath: sortedPaths[0],
 				sceneOrder: sortedPaths,
-				status: getSweepStatus({ pendingCount: pending, unresolvedCount: unresolved, deferredCount: deferred }),
-				totalSuggestions: pending + unresolved + deferred + accepted + rejected + rewritten,
+				status: getSweepStatus({ pendingCount: tally.pending, unresolvedCount: tally.unresolved, deferredCount: tally.deferred }),
+				totalSuggestions: tally.totalSuggestions,
 				updatedAt: now,
-				acceptedCount: accepted,
-				rejectedCount: rejected,
-				rewrittenCount: rewritten,
-				deferredCount: deferred,
+				acceptedCount: tally.accepted,
+				rejectedCount: tally.rejected,
+				rewrittenCount: tally.rewritten,
+				deferredCount: tally.deferred,
 			};
 		}
 
