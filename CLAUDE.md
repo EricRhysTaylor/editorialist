@@ -116,3 +116,23 @@ blocker explicitly rather than calling the UI finished.
 GitHub Release assets for an Obsidian release are exactly three files,
 attached individually (no zip, no folder): `manifest.json`, `main.js`,
 `styles.css`. Tag name is the bare version (e.g. `0.1.1`, not `v0.1.1`).
+
+## Release notes are for writers
+
+Release notes are read by the authors who use Editorialist, and many of them
+are not technically savvy. They are not written for other programmers, and
+not for Eric. Say in plain language what a writer can now do, what was broken
+and now works, and what to know when upgrading.
+
+- **No validation.** No test counts, typecheck, lint or scan results, CSS or
+  QA audits, or "verified in Obsidian". Report verification to Eric in the
+  session instead.
+- **No implementation language.** No code identifiers, file paths, commit
+  hashes, property syntax in backticks, or developer terms such as race,
+  rollback, regression, scope, schema, or native tooltip.
+- **Describe what the writer saw.** A bug is what went wrong on screen or in
+  their notes; a fix is what happens now.
+- **Fixes are relative to the last release.** List a fix only if users of the
+  previous version could hit the bug. Hardening of unreleased work is not a fix.
+- The notes live only in the GitHub draft that `npm run release -- <bump>`
+  creates. Never commit a draft notes file to the repo.
