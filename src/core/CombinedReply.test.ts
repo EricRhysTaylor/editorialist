@@ -79,9 +79,11 @@ describe("unwrapOuterFence", () => {
 });
 
 describe("the instructions ask for one copy", () => {
-	it("asks for both formats in one outer block, in the chat", () => {
+	it("asks for both formats in one outer block, in the chat, always in code blocks", () => {
 		const out = buildReviewTemplate();
 		expect(out).toContain("ONE outer block fenced with four backticks");
 		expect(out).toContain("do not create files, attachments, artifacts, or downloads");
+		expect(out).toContain("Code blocks are required");
+		expect(out).not.toContain("Don't worry");
 	});
 });
