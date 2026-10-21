@@ -157,6 +157,28 @@ describe("imports share the selected manuscript", () => {
 		await expect(engine.importBatch(batch)).rejects.toThrow("left the manuscript target");
 		expect(await app.vault.cachedRead(app.vault.getAbstractFileByPath("Book/Chapter.md") as TFile)).toBe("The lantern glows.");
 	});
+	// Obsidian re-reads each note an import writes; for a few milliseconds its
+	// metadata cache has nothing for it, so the scene briefly looks classless.
+	it("imports across several scenes while Obsidian re-reads each note it writes", async () => {
+		const app = createMockApp([
+			{ path: "Book/One.md", frontmatter: { Class: "Scene" }, body: "The lantern glows." },
+			{ path: "Book/Two.md", frontmatter: { Class: "Scene" }, body: "The candle gutters." },
+		]) as unknown as App;
+		const scope: ActiveBookScopeInfo = { label: "Book", sourceFolder: "Book", structured: true };
+		const engine = new ImportEngine(app, new SuggestionParser(new ContributorDirectory()), new MatchEngine(), () => "", async () => scope);
+		const batch = await engine.inspectBatch("Reviewer: Editor\n=== EDIT ===\nNote: One\nOriginal: The lantern glows.\nRevised: The lantern burns.\nWhy: Tighten.\n\n=== EDIT ===\nNote: Two\nOriginal: The candle gutters.\nRevised: The candle dies.\nWhy: Tighten.");
+		expect(batch.groups).toHaveLength(2);
+		const rereading = new Map<string, number>();
+		const process = app.vault.process.bind(app.vault);
+		app.vault.process = async (file, mutate) => {
+			const result = await process(file, mutate);
+			rereading.set(file.path, Date.now() + 30);
+			return result;
+		};
+		const getFileCache = app.metadataCache.getFileCache.bind(app.metadataCache);
+		app.metadataCache.getFileCache = (file) => (rereading.get(file.path) ?? 0) > Date.now() ? null : getFileCache(file);
+		expect(await engine.importBatch(batch)).toHaveLength(2);
+	});
 	it("cannot redirect an author correction outside the selected target", async () => {
 		const { engine } = fixture();
 		const batch = await engine.inspectBatch(review);

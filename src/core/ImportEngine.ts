@@ -69,6 +69,10 @@ interface TextMatchCounts {
 	normalizedCount: number;
 }
 
+// How long an import waits for Obsidian to re-read a note it just wrote.
+const FILE_CACHE_SETTLE_MS = 2000;
+const FILE_CACHE_POLL_MS = 10;
+
 export class ImportEngine {
 	constructor(
 		private readonly app: App,
@@ -476,8 +480,10 @@ export class ImportEngine {
 	async validateImportTarget(batch: ReviewImportBatch, destinationPath?: string): Promise<void> {
 		if (!batch.targetSnapshot) return; // Legacy saved/test batches predate target snapshots.
 		const scope = await this.resolveBookScope();
-		const files = this.app.vault.getMarkdownFiles().filter((file) => isSceneNoteForScope(this.app, file, scope, this.getCutFolderOverride()));
-		const paths = new Set(files.map((file) => file.path));
+		const eligiblePaths = () => new Set(this.app.vault.getMarkdownFiles()
+			.filter((file) => isSceneNoteForScope(this.app, file, scope, this.getCutFolderOverride()))
+			.map((file) => file.path));
+		let paths = eligiblePaths();
 		if (scope.unavailableReason || manuscriptScopeKey(scope) !== batch.targetSnapshot.key) {
 			throw new Error("The manuscript target changed. Preview the import again before importing.");
 		}
@@ -486,10 +492,30 @@ export class ImportEngine {
 		const previewed = new Set(batch.targetSnapshot.paths);
 		const destinations = batch.groups.filter((group) => group.isReady).map((group) => group.filePath);
 		if (destinationPath) destinations.push(destinationPath);
+		// Obsidian re-reads a note after each write, and for a few milliseconds its
+		// metadata cache has nothing for it, so a scene this import just wrote can
+		// look classless. Wait for those reads to finish before judging the notes.
+		if (await this.settleFileCaches(destinations.filter((path) => !paths.has(path)))) {
+			paths = eligiblePaths();
+		}
 		for (const path of destinations) {
 			if (!previewed.has(path)) throw new Error("An import destination is outside the manuscript target. Preview the import again.");
 			if (!paths.has(path)) throw new Error("An import destination left the manuscript target. Preview the import again before importing.");
 		}
+	}
+
+	// Waits (up to a couple of seconds) until Obsidian has a metadata cache entry
+	// for each of these notes again. True when it had to wait for any of them.
+	private async settleFileCaches(notePaths: string[]): Promise<boolean> {
+		const unread = () => notePaths.filter((path) => {
+			const file = this.app.vault.getAbstractFileByPath(path);
+			return file instanceof TFile && !this.app.metadataCache.getFileCache(file);
+		});
+		if (unread().length === 0) return false;
+		for (let waited = 0; unread().length > 0 && waited < FILE_CACHE_SETTLE_MS; waited += FILE_CACHE_POLL_MS) {
+			await new Promise((resolve) => window.setTimeout(resolve, FILE_CACHE_POLL_MS));
+		}
+		return true;
 	}
 
 	private getActiveBookScopeFiles(activeNotePath: string | undefined, markdownFiles: TFile[], scope: ActiveBookScopeInfo): TFile[] {
