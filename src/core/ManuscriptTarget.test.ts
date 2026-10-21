@@ -106,7 +106,7 @@ describe("imports share the selected manuscript", () => {
 		const { app, engine, setTarget } = fixture();
 		const batch = await engine.inspectBatch(review);
 		setTarget({ ...createManuscriptTarget("note", "Other/Chapter.md"), includeSubfolders: false });
-		await expect(engine.importBatch(batch)).rejects.toThrow("target or its notes changed");
+		await expect(engine.importBatch(batch)).rejects.toThrow("manuscript target changed");
 		expect(await app.vault.cachedRead(app.vault.getAbstractFileByPath("Book/Chapter.md") as TFile)).toBe("The lantern glows.");
 	});
 	it("rolls back earlier review blocks if the target changes during a multi-note import", async () => {
@@ -123,7 +123,7 @@ describe("imports share the selected manuscript", () => {
 			if (++writes === 1) setTarget(createManuscriptTarget("note", "Other/Chapter.md"));
 			return result;
 		};
-		await expect(engine.importBatch(batch)).rejects.toThrow("target or its notes changed");
+		await expect(engine.importBatch(batch)).rejects.toThrow("manuscript target changed");
 		for (const path of ["Book/Chapter.md", "Book/Chapters/Next.md"]) {
 			expect(await app.vault.cachedRead(app.vault.getAbstractFileByPath(path) as TFile)).toBe("The lantern glows.");
 		}
@@ -138,15 +138,24 @@ describe("imports share the selected manuscript", () => {
 			if (!wrote) { wrote = true; setTarget(createManuscriptTarget("none")); }
 			return result;
 		};
-		await expect(engine.importBatch(batch)).rejects.toThrow("target or its notes changed");
+		await expect(engine.importBatch(batch)).rejects.toThrow("manuscript target changed");
 		expect(await app.vault.cachedRead(app.vault.getAbstractFileByPath("Book/Chapter.md") as TFile)).toBe("The lantern glows.");
 	});
-	it("rejects a stale preview when a new eligible note appears", async () => {
+	// Saving the Editorialism from the same paste adds a note before the import runs.
+	it("imports after an unrelated eligible note appears", async () => {
 		const { app, engine } = fixture();
 		const batch = await engine.inspectBatch(review);
 		const original = app.vault.getMarkdownFiles.bind(app.vault);
 		app.vault.getMarkdownFiles = () => [...original(), Object.assign(new TFile(), { path: "Book/New.md" })];
-		await expect(engine.importBatch(batch)).rejects.toThrow("target or its notes changed");
+		expect(await engine.importBatch(batch)).toHaveLength(1);
+	});
+	it("rejects an import whose destination left the target after the preview", async () => {
+		const { app, engine } = fixture();
+		const batch = await engine.inspectBatch(review);
+		const original = app.vault.getMarkdownFiles.bind(app.vault);
+		app.vault.getMarkdownFiles = () => original().filter((file) => file.path !== "Book/Chapter.md");
+		await expect(engine.importBatch(batch)).rejects.toThrow("left the manuscript target");
+		expect(await app.vault.cachedRead(app.vault.getAbstractFileByPath("Book/Chapter.md") as TFile)).toBe("The lantern glows.");
 	});
 	it("cannot redirect an author correction outside the selected target", async () => {
 		const { engine } = fixture();

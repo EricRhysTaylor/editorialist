@@ -114,7 +114,7 @@ export class ManuscriptReassociationService {
 		const affected = knownManuscriptFolders(data).filter((folder) => moveFolderPath(folder, oldFolder, newFolder) !== folder);
 		const target = data.settings.manuscriptTarget;
 		const pinnedNoteMoved = target?.kind === "note" && moveFolderPath(target.path, oldFolder, newFolder) !== target.path;
-		if (!affected.length && !pinnedNoteMoved) return false;
+		if (!affected.length && !pinnedNoteMoved) return this.followRuleRename(data, oldFolder, newFolder);
 		// One root transaction also moves nested manuscript plans and references.
 		const oldName = manuscriptName(data, oldFolder);
 		const scope = this.registry.getActiveBookScopeInfo();
@@ -124,6 +124,20 @@ export class ManuscriptReassociationService {
 		const newName = rtTitle ?? (oldName === oldFolder.split("/").pop() ? newFolder.split("/").pop()! : oldName);
 		const sharedName = this.folders().some((folder) => folder.path !== oldFolder && folder.name === oldName);
 		await this.apply(await this.preview({ oldFolder, newFolder, oldName, newName: sharedName || !knownManuscriptFolders(data).includes(oldFolder) ? oldName : newName }, undefined, true));
+		return true;
+	}
+
+	/** Excluded folders and the cut folder sit inside a manuscript; renaming one moves only that rule. */
+	private async followRuleRename(data: EditorialistPluginData, oldFolder: string, newFolder: string): Promise<boolean> {
+		const settings = data.settings;
+		const excluded = settings.manuscriptTarget?.excludedFolders ?? [];
+		const movedExcluded = excluded.map((path) => moveFolderPath(path, oldFolder, newFolder));
+		const cut = moveFolderPath(settings.cutFolderOverride, oldFolder, newFolder);
+		if (movedExcluded.every((path, index) => path === excluded[index]) && cut === settings.cutFolderOverride) return false;
+		const next = structuredClone(data);
+		if (next.settings.manuscriptTarget) next.settings.manuscriptTarget.excludedFolders = [...new Set(movedExcluded)].sort();
+		next.settings.cutFolderOverride = cut;
+		await this.registry.applyAssociationSnapshot(data, next);
 		return true;
 	}
 }

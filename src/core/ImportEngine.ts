@@ -477,12 +477,18 @@ export class ImportEngine {
 		if (!batch.targetSnapshot) return; // Legacy saved/test batches predate target snapshots.
 		const scope = await this.resolveBookScope();
 		const files = this.app.vault.getMarkdownFiles().filter((file) => isSceneNoteForScope(this.app, file, scope, this.getCutFolderOverride()));
-		const paths = files.map((file) => file.path).sort();
-		if (scope.unavailableReason || manuscriptScopeKey(scope) !== batch.targetSnapshot.key || JSON.stringify(paths) !== JSON.stringify(batch.targetSnapshot.paths)) {
-			throw new Error("The manuscript target or its notes changed. Preview the import again before importing.");
+		const paths = new Set(files.map((file) => file.path));
+		if (scope.unavailableReason || manuscriptScopeKey(scope) !== batch.targetSnapshot.key) {
+			throw new Error("The manuscript target changed. Preview the import again before importing.");
 		}
-		if ((destinationPath && !paths.includes(destinationPath)) || batch.groups.some((group) => group.isReady && !paths.includes(group.filePath))) {
-			throw new Error("An import destination is outside the manuscript target. Preview the import again.");
+		// Only the notes this import writes must match the preview: other notes,
+		// such as the Editorialism saved from the same paste, may appear meanwhile.
+		const previewed = new Set(batch.targetSnapshot.paths);
+		const destinations = batch.groups.filter((group) => group.isReady).map((group) => group.filePath);
+		if (destinationPath) destinations.push(destinationPath);
+		for (const path of destinations) {
+			if (!previewed.has(path)) throw new Error("An import destination is outside the manuscript target. Preview the import again.");
+			if (!paths.has(path)) throw new Error("An import destination left the manuscript target. Preview the import again before importing.");
 		}
 	}
 

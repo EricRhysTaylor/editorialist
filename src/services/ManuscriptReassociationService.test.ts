@@ -221,6 +221,17 @@ describe("folder-based manuscript recovery", () => {
 		expect(await service.followRename("New", "Shelf/New")).toBe(true);
 		expect(registry.associationSnapshot().settings.manuscriptTarget?.path).toBe("Shelf/New");
 	});
+	it("follows a renamed excluded folder or cut folder inside the manuscript", async () => {
+		const { service, registry, persist } = fixture();
+		expect(await service.followRename("Old/Research", "Old/Notes")).toBe(true);
+		expect(await service.followRename("Old/Cut", "Old/Trimmed")).toBe(true);
+		const saved = registry.associationSnapshot();
+		expect(saved.settings.manuscriptTarget?.path).toBe("Old");
+		expect(saved.settings.manuscriptTarget?.excludedFolders).toEqual(["Old/Notes"]);
+		expect(saved.settings.cutFolderOverride).toBe("Old/Trimmed");
+		expect(persist).toHaveBeenCalledTimes(2);
+		expect(await service.followRename("Elsewhere", "Moved")).toBe(false);
+	});
 });
 
 describe("reassociation data safety", () => {
