@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { extractEditorialismFileFromText, removeEditorialismFromText } from "./EditorialismImport";
 import { unwrapOuterFence } from "./PasteNormalizer";
 import { extractReviewBlocks, normalizeImportedReviewText } from "./ReviewBlockFormat";
-import { buildReviewTemplate } from "./ReviewTemplate";
+import { buildReviewTemplate, isReviewTemplateText } from "./ReviewTemplate";
 
 // One reply carrying both formats, as the instructions ask for it: an outer
 // ````editorialist block around the review block and the editorialism.
@@ -85,5 +85,10 @@ describe("the instructions ask for one copy", () => {
 		expect(out).toContain("do not create files, attachments, artifacts, or downloads");
 		expect(out).toContain("Code blocks are required");
 		expect(out).not.toContain("Don't worry");
+		expect(out).toContain(["````editorialist", "```editorialist-review"].join("\n"));
+	});
+
+	it("is still recognized as the instructions when pasted back, so the launcher imports nothing from it", () => {
+		expect(isReviewTemplateText(buildReviewTemplate())).toBe(true);
 	});
 });
