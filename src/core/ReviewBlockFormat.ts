@@ -1,4 +1,4 @@
-import { normalizeReviewPaste } from "./PasteNormalizer";
+import { normalizeReviewPaste, unwrapOuterFence } from "./PasteNormalizer";
 import {
 	REVIEW_FIELD_PATTERN as GENERAL_FIELD_PATTERN,
 	REVIEW_METADATA_KEYS,
@@ -159,7 +159,7 @@ export function normalizeImportedReviewText(rawText: string): string | null {
 	// Strip plugin-owned stamps FIRST, so everything downstream — the content
 	// hash, the block that gets written, the parser — sees text the reviewer
 	// actually wrote rather than fields it copied the look of.
-	const cleanedText = stripImportStamps(rawText).text;
+	const cleanedText = unwrapOuterFence(stripImportStamps(rawText).text);
 	const candidates = [cleanedText, normalizeReviewPaste(cleanedText)];
 	for (const candidate of candidates) {
 		if (!candidate || !candidate.trim()) {

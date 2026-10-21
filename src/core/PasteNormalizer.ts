@@ -58,6 +58,28 @@ interface StructuredDocument {
 	operations?: unknown;
 }
 
+const OUTER_FENCE = "editorialist";
+
+// A reply carrying both formats arrives as one outer block fenced with four or
+// more backticks around the ```editorialist-review and ```editorialism blocks,
+// so a single copy takes both. Copying the block gives the inside already;
+// copying the whole chat message keeps the outer fence and any prose around it.
+// Returns what is inside the outer fence; text without one comes back as is.
+// Only an `editorialist` (or unlabelled) fence that wraps other fenced blocks
+// counts: a review block Editorialist itself fenced with four backticks (its
+// body quotes a ``` fence) keeps its own fence.
+export function unwrapOuterFence(rawText: string): string {
+	const lines = rawText.replace(/\r\n?/g, "\n").split("\n");
+	const open = lines.findIndex((line) => new RegExp(`^\\s*\`{4,}\\s*(${OUTER_FENCE})?\\s*$`, "i").test(line));
+	if (open < 0) {
+		return rawText;
+	}
+	const ticks = (lines[open] ?? "").trim().match(/^`+/)?.[0] ?? "````";
+	const close = lines.findIndex((line, index) => index > open && /^`+$/.test(line.trim()) && line.trim().length >= ticks.length);
+	const inner = lines.slice(open + 1, close < 0 ? undefined : close);
+	return inner.some((line) => /^\s*```[^`]/.test(line)) ? inner.join("\n") : rawText;
+}
+
 export function normalizeReviewPaste(rawText: string): string {
 	if (!rawText || !rawText.trim()) {
 		return rawText ?? "";
