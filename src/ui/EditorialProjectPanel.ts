@@ -1,4 +1,5 @@
 import { setAccessibleLabel } from "./primitives/AccessibleLabel";
+import { bindCompletionMenu } from "./primitives/CompletionMenu";
 import { Modal, Notice, TFile, normalizePath, setIcon, type App } from "obsidian";
 import { collaborationUrl, createEditorialProject, engagementStartCountdown, isProjectEditorProfile, materialDue, projectEditor, recordProjectEvent, shiftDate, type EditorialProject, type EngagementRecord, type EngagementTask, type ProjectMaterial } from "../core/planning/EditorialProject";
 import { isDate, localDate, type RevisionPlan } from "../core/planning/RevisionPlan";
@@ -36,9 +37,9 @@ const button = (parent: HTMLElement, text: string, action: () => void): HTMLButt
 // A quiet icon-only control for row actions (edit, open, finish), so the
 // handful of real buttons on the page — adding things, scheduling — keep
 // their weight instead of competing with a dozen identical grey ones.
-const iconButton = (parent: HTMLElement, icon: string, label: string, action: () => void, cls = ""): HTMLButtonElement => {
+const iconButton = (parent: HTMLElement, icon: string, label: string, action?: () => void, cls = ""): HTMLButtonElement => {
 	const el = parent.createEl("button", { cls: `clickable-icon editorialist-project__icon-button ${cls}`.trim(), attr: { type: "button" } });
-	setIcon(el, icon); setAccessibleLabel(el, label); el.addEventListener("click", action); return el;
+	setIcon(el, icon); setAccessibleLabel(el, label); if (action) el.addEventListener("click", action); return el;
 };
 // One collapsible section shape for milestones, tasks, and materials: icon,
 // full-strength title, count, and a large chevron. Open by default; the
@@ -198,12 +199,16 @@ export class EditorialProjectPanel {
 		button(actions, "Open schedule", () => this.host.openSchedule()).addClass("mod-cta");
 	}
 	private finishToggle(parent: HTMLElement, task: EngagementTask): void {
-		const toggle = iconButton(parent, task.done ? "check-circle-2" : "circle", task.done ? `Reopen “${task.title}”` : `Finish “${task.title}”`, () => {
-			if (toggle.disabled) return; toggle.disabled = true;
-			void this.change((draft) => { const item = draft.tasks.find((value) => value.id === task.id)!; item.done = !item.done; recordProjectEvent(draft, `${item.title}: ${item.done ? "task finished" : "task reopened"}`); })
-				.catch((reason: unknown) => { new Notice(reason instanceof Error ? reason.message : "Could not update engagement."); toggle.disabled = false; });
-		}, `editorialist-project__check${task.done ? " is-done" : ""}`);
-		toggle.disabled = this.host.busy;
+		this.completionControl(parent, task.title, task.done, (draft, done) => {
+			const item = draft.tasks.find((value) => value.id === task.id);
+			if (!item) throw new Error("This task is no longer available. Reopen the engagement.");
+			item.done = done; recordProjectEvent(draft, `${item.title}: ${done ? "task finished" : "task reopened"}`);
+		});
+	}
+	private completionControl(parent: HTMLElement, title: string, done: boolean, update: (draft: EditorialProject, done: boolean) => void): void {
+		const control = iconButton(parent, done ? "check-circle-2" : "circle", `Status for “${title}”: ${done ? "Done" : "Open"}. Choose a status.`, undefined, `editorialist-project__check${done ? " is-done" : ""}`);
+		control.disabled = this.host.busy;
+		bindCompletionMenu(control, done, (next) => this.change((draft) => update(draft, next)));
 	}
 	renderMaterials(root: HTMLElement, compact = false): void {
 		const project = this.host.plan.project; if (!project) { this.renderOverview(root); return; }
@@ -211,12 +216,11 @@ export class EditorialProjectPanel {
 		if (!project.materials.length) root.createEl("p", { cls: "editorialist-project__hint", text: "No materials linked yet. Add a reference or a personal checklist item when useful." });
 		for (const material of project.materials) {
 			const row = root.createDiv({ cls: `editorialist-project__row editorialist-project__material-row${material.completed ? " is-done" : ""}`, attr: { "data-material-id": material.id, "data-material-state": material.completed ? "complete" : "open" } });
-			const toggle = iconButton(row, material.completed ? "check-circle-2" : "circle", material.completed ? `Reopen “${material.title}”` : `Mark “${material.title}” complete`, () => {
-				if (toggle.disabled) return; toggle.disabled = true;
-				void this.change((draft) => { const target = draft.materials.find((item) => item.id === material.id)!; target.completed = !target.completed; recordProjectEvent(draft, `${target.title}: ${target.completed ? "completed" : "reopened"}`); })
-					.catch((reason: unknown) => { new Notice(reason instanceof Error ? reason.message : "Could not update engagement."); toggle.disabled = false; });
-			}, `editorialist-project__check${material.completed ? " is-done" : ""}`);
-			toggle.disabled = this.host.busy;
+			this.completionControl(row, material.title, Boolean(material.completed), (draft, done) => {
+				const target = draft.materials.find((item) => item.id === material.id);
+				if (!target) throw new Error("This reference is no longer available. Reopen the engagement.");
+				target.completed = done; recordProjectEvent(draft, `${target.title}: ${done ? "completed" : "reopened"}`);
+			});
 			const main = row.createDiv({ cls: "editorialist-project__row-main" });
 			main.createDiv({ cls: "editorialist-project__row-title", text: material.title });
 			const due = materialDue(project, material);
@@ -286,7 +290,11 @@ export class EditorialProjectPanel {
 		const today = localDate(new Date());
 		for (const milestone of [...project.milestones].sort((a, b) => a.day.localeCompare(b.day))) {
 			const row = body.createDiv({ cls: `editorialist-project__row editorialist-project__milestone${milestone.done ? " is-done" : milestone.day < today ? " is-overdue" : ""}` });
-			setIcon(row.createSpan({ cls: "editorialist-project__row-icon", attr: { "aria-hidden": "true" } }), milestone.done ? "check-circle-2" : "flag");
+			this.completionControl(row, milestone.title, milestone.done, (draft, done) => {
+				const item = draft.milestones.find((value) => value.id === milestone.id);
+				if (!item) throw new Error("This milestone is no longer available. Reopen the engagement.");
+				item.done = done; recordProjectEvent(draft, `${item.title}: ${done ? "milestone finished" : "milestone reopened"}`);
+			});
 			row.createDiv({ cls: "editorialist-project__row-main" }).createDiv({ cls: "editorialist-project__row-title", text: milestone.title });
 			row.createSpan({ cls: "editorialist-project__row-date", text: `${dayLabel(milestone.day)}${milestone.done ? " · Finished" : ""}` });
 			iconButton(row.createDiv({ cls: "editorialist-project__row-actions" }), "pencil", `Edit “${milestone.title}”`, () => this.editMilestone(milestone.id));

@@ -13,6 +13,7 @@ import { estimateRange } from "../core/planning/AutoSchedule";
 import { type QueueHead, EditorialProjectPanel } from "./EditorialProjectPanel";
 import { EditorialProjectService } from "../services/EditorialProjectService";
 import { entryDeadline } from "../core/planning/EditorialProject";
+import { bindCompletionMenu } from "./primitives/CompletionMenu";
 
 export const REVISION_PLAN_VIEW_TYPE = "editorialist-revision-plan";
 export const AUTHOR_PLAN_VIEW_TYPE = "editorialist-author-plan";
@@ -492,10 +493,12 @@ export class RevisionPlanPanel extends ItemView {
 		grip.addEventListener("dragstart", (event) => { this.dragging = entry.id; row.addClass("is-dragging"); event.dataTransfer?.setData("text/plain", entry.id); });
 		grip.addEventListener("dragend", () => { this.dragging = null; row.removeClass("is-dragging"); });
 		if (this.view === "queue") this.dropTarget(row, (id) => { void this.change((plan) => { plan.entries = movePlanEntry(plan.entries, id, entry.id); }); });
-		const finish = this.button(layout, "", () => { void this.edit(entry.id, (item) => { item.done = !item.done; }); });
+		const finish = layout.createEl("button", { attr: { type: "button" } });
+		finish.disabled = this.busy;
+		bindCompletionMenu(finish, entry.done, (done) => this.edit(entry.id, (item) => { item.done = done; }));
 		finish.addClass("clickable-icon", "editorialist-plan__finish");
 		if (entry.done) finish.addClass("is-done");
-		setAccessibleLabel(finish, entry.done ? "Reopen session" : "Finish session");
+		setAccessibleLabel(finish, `Session status: ${entry.done ? "Done" : "Open"}. Choose a status.`);
 		setIcon(finish, entry.done ? "check-circle-2" : "circle");
 
 		const main = layout.createDiv({ cls: "editorialist-plan__entry-main" });
