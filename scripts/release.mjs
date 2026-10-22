@@ -4,13 +4,17 @@
 // Two-phase flow (mirrors radial-timeline's release-script.mjs):
 //
 //   Phase 1 — start a release:
-//     npm run release -- <patch|minor|major|x.y.z>
+//     npm run release -- <patch|minor|major|x.y.z> [--notes <file>] [--title "<title>"]
 //       1. Runs the full check funnel (typecheck, lint, css, compliance, audits, tests, build).
 //       2. Bumps manifest.json + versions.json + package.json.
 //       3. Rebuilds the production bundle, commits, tags (bare version, no "v"),
 //          pushes main + tag.
-//       4. Creates a DRAFT GitHub release with an auto-generated changelog and
-//          opens it in the browser so the notes can be polished by hand.
+//       4. Creates a DRAFT GitHub release and opens it in the browser. With
+//          --notes, the draft carries those notes (and --title its name) from
+//          the start; without it, an auto-generated changelog to polish by hand.
+//          Notes written before the release belong on the draft at creation:
+//          editing a draft afterwards gives it a new untagged-… address, and
+//          the tab opened here then shows an empty page.
 //
 //   Phase 2 — finish the release:
 //     npm run release
@@ -22,7 +26,7 @@
 //
 // Requires: gh CLI authenticated, releases cut from main.
 
-import { execSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { readFileSync, writeFileSync, unlinkSync, existsSync } from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
@@ -306,7 +310,49 @@ async function verifyPublishedAssets(version) {
 }
 
 // --- Phase 1: start a new release -------------------------------------------
-async function startRelease(bumpArg) {
+// Phase 1 options. --notes reads the release notes from a file outside the
+// repo (the GitHub draft is the only copy kept), and --title names the draft.
+// A relative --notes path resolves from where npm was run.
+function parseArgs(args) {
+	const options = { bump: null, notesFile: null, title: null };
+	for (let index = 0; index < args.length; index++) {
+		const arg = args[index];
+		if (arg === "--notes" || arg === "--title") {
+			const value = args[++index];
+			if (!value || value.startsWith("--")) {
+				console.error(`[release] ${arg} needs a value.`);
+				process.exit(1);
+			}
+			if (arg === "--notes") options.notesFile = path.resolve(process.env.INIT_CWD ?? ROOT, value);
+			else options.title = value.trim();
+		} else if (arg.startsWith("--")) {
+			console.error(`[release] Unknown option: ${arg}`);
+			process.exit(1);
+		} else if (options.bump) {
+			console.error(`[release] Unexpected argument: ${arg}`);
+			process.exit(1);
+		} else {
+			options.bump = arg;
+		}
+	}
+	return options;
+}
+
+// Read and check the notes before anything is bumped, committed, or pushed.
+function readNotesFile(file) {
+	if (!existsSync(file)) {
+		console.error(`[release] Notes file not found: ${file}`);
+		process.exit(1);
+	}
+	const notes = readFileSync(file, "utf8");
+	if (!notes.trim()) {
+		console.error(`[release] Notes file is empty: ${file}`);
+		process.exit(1);
+	}
+	return notes;
+}
+
+async function startRelease(bumpArg, { notesFile = null, title = null } = {}) {
 	const manifest = readJSON(MANIFEST);
 	const versions = readJSON(VERSIONS);
 	const pkg = readJSON(PKG);
@@ -316,6 +362,10 @@ async function startRelease(bumpArg) {
 	const minAppVersion = manifest.minAppVersion;
 
 	console.log(`\nEditorialist release: ${currentVersion} → ${targetVersion} (minAppVersion ${minAppVersion})`);
+	const providedNotes = notesFile ? readNotesFile(notesFile) : null;
+	const releaseTitle = title || targetVersion;
+	if (providedNotes) console.log(`Notes: ${notesFile}`);
+	console.log(`Title: ${releaseTitle}`);
 
 	if (fetchReleaseInfo(targetVersion)) {
 		console.error(`[release] A release for ${targetVersion} already exists on GitHub.`);
@@ -355,23 +405,36 @@ async function startRelease(bumpArg) {
 	run("git push origin main", "Pushing main");
 	run(`git push origin ${targetVersion}`, "Pushing tag");
 
-	// 5. Create a draft release with the generated changelog. The notes are
-	// edited on GitHub afterwards; the GitHub draft is the only copy, so there
-	// is deliberately no repo-side file that could override the template.
-	const lastTag = getLastReleaseTag();
-	const notes = buildReleaseNotes(lastTag === targetVersion ? null : lastTag);
+	// 5. Create the draft with the provided notes, or the generated changelog.
+	// The GitHub draft is the only copy kept: the temp file is removed, and no
+	// repo-side file is ever read in place of the notes passed here. The title
+	// goes to gh as an argument, not through a shell, so it may hold any text.
+	let notes = providedNotes;
+	if (!notes) {
+		const lastTag = getLastReleaseTag();
+		notes = buildReleaseNotes(lastTag === targetVersion ? null : lastTag);
+	}
 
-	const notesFile = path.join(ROOT, ".release-notes-temp.md");
-	writeFileSync(notesFile, notes, "utf8");
-	run(
-		`gh release create ${targetVersion} --title "${targetVersion}" --notes-file "${notesFile}" --draft`,
-		"Creating draft release on GitHub"
-	);
-	unlinkSync(notesFile);
+	const tempNotes = path.join(ROOT, ".release-notes-temp.md");
+	writeFileSync(tempNotes, notes, "utf8");
+	console.log("\n→ Creating draft release on GitHub");
+	try {
+		execFileSync("gh", ["release", "create", targetVersion, "--title", releaseTitle, "--notes-file", tempNotes, "--draft"], { stdio: "inherit", cwd: ROOT });
+	} catch (error) {
+		console.error("\n[release] Failed: Creating draft release on GitHub");
+		console.error(error.message);
+		process.exit(1);
+	} finally {
+		unlinkSync(tempNotes);
+	}
 
 	console.log(`\n✅ Draft release ${targetVersion} created.\n`);
 	console.log("Next steps:");
-	console.log("  1. Edit the release notes on GitHub (browser is opening). SAVE the draft — do not publish.");
+	if (providedNotes) {
+		console.log("  1. Review the notes on GitHub (browser is opening). Saving an edit there is fine — do not publish.");
+	} else {
+		console.log("  1. Edit the release notes on GitHub (browser is opening). SAVE the draft — do not publish.");
+	}
 	console.log("  2. Run `npm run release` (no arguments) to build/attest/upload assets in CI and publish.");
 	run(`gh release view ${targetVersion} --web`, "Opening GitHub", { silent: true, allowFail: true });
 }
@@ -384,8 +447,14 @@ async function main() {
 	requireMainBranch();
 	run("gh auth status", "Checking gh CLI authentication", { silent: true });
 
-	const bumpArg = process.argv[2];
+	const options = parseArgs(process.argv.slice(2));
+	const bumpArg = options.bump;
 	const currentVersion = readJSON(MANIFEST).version;
+
+	if (!bumpArg && (options.notesFile || options.title)) {
+		console.error("[release] --notes and --title apply only when starting a release: npm run release -- <patch|minor|major|x.y.z> --notes <file>");
+		process.exit(1);
+	}
 
 	if (!bumpArg) {
 		// Finish phase: look for an existing release of the current version.
@@ -393,7 +462,7 @@ async function main() {
 		if (!release) {
 			console.error(`[release] No GitHub release found for ${currentVersion}.`);
 			console.error("Usage:");
-			console.error("  npm run release -- <patch|minor|major|x.y.z>   # start a release");
+			console.error("  npm run release -- <patch|minor|major|x.y.z> [--notes <file>] [--title \"<title>\"]   # start a release");
 			console.error("  npm run release                                 # finish the draft for the current version");
 			process.exit(1);
 		}
@@ -419,7 +488,7 @@ async function main() {
 		return;
 	}
 
-	await startRelease(bumpArg);
+	await startRelease(bumpArg, options);
 }
 
 main().catch((err) => {

@@ -62,6 +62,7 @@ npm run build            # full check + portable production bundle
 npm run build:dev        # full build + copy to configured local vaults
 npm run release:check    # check + tests + css-drift + build
 npm run release -- patch # bump, rebuild, commit, tag, PUSH, open a draft GitHub Release
+npm run release -- patch --notes <file> --title "<title>"  # same, with the notes and title on the draft from the start
 npm run release          # finish: CI build + asset upload + publish + download check (one y)
 npm run backup           # commits everything and PUSHES main — Eric's tool, never an agent's
 ```
@@ -135,4 +136,8 @@ and now works, and what to know when upgrading.
 - **Fixes are relative to the last release.** List a fix only if users of the
   previous version could hit the bug. Hardening of unreleased work is not a fix.
 - The notes live only in the GitHub draft that `npm run release -- <bump>`
-  creates. Never commit a draft notes file to the repo.
+  creates. Never commit a draft notes file to the repo. Write them in a
+  scratch file outside the repo and pass it with `--notes` (and the name with
+  `--title`) so the draft is created with them. Editing a draft afterwards
+  gives it a new address, and the tab the script opened then shows an empty
+  page.

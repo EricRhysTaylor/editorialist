@@ -194,8 +194,10 @@ npm run release
 ```
 
 `scripts/release.mjs` is two-phase. Phase 1 commits, tags, and pushes, then
-creates the GitHub Release as a **draft** and opens it in the browser; the
-release notes are edited there and the draft is saved, not published. Phase 2
+creates the GitHub Release as a **draft** and opens it in the browser. Pass
+`--notes <file>` (and `--title "<title>"`) to create the draft with finished
+notes; otherwise it starts from a generated changelog that is edited there. The
+draft is saved, not published. Phase 2
 dispatches the CI build, waits for the assets, and asks before publishing.
 Publishing is the only step that makes a release public, and it always asks
 first. Note that phase 1 does push: it is the one sanctioned push in the
