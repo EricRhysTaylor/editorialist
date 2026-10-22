@@ -13,9 +13,9 @@ Keep an editor’s agreed dates, personal milestones, tasks, optional reference 
 
 ## Overview and milestones
 
-The overview starts with your editor and the agreed start date, counted down in days ("9 days away", "Today", or "3 days ago"). **Next up** follows: the first unfinished item in your schedule's work queue, so the overview and the **Schedule** tab always agree on what comes first. An engagement task can be finished right there with its check circle; any other kind of work shows what it is, when it is scheduled, and an **Open** button. The card also shows the next open milestone, marked overdue in amber once its date passes, and **Open schedule**. When the queue is empty, it says so and points you to the **Schedule** tab.
+The overview starts with your editor and the agreed start date, counted down in days ("9 days away", "Today", or "3 days ago"). **Next up** follows: the first unfinished item in your schedule's work queue, so the overview and the **Schedule** tab always agree on what comes first. Click an engagement task's circle and choose **Done** to finish it right there, or **Open** to reopen it; any other kind of work shows what it is, when it is scheduled, and an **Open** button. The card also shows the next open milestone, marked overdue in amber once its date passes, and **Open schedule**. When the queue is empty, it says so and points you to the **Schedule** tab.
 
-**Editor return & questions**, **Engagement tasks**, **Milestones**, and **Materials & references** follow as sections you can collapse; each remembers whether you left it open or closed. Rows show their state at the left (a check circle for tasks and materials, a flag for milestones, struck through once done) and quiet icon actions at the right. Add personal milestones before or after the start date; mark them complete when you decide the work is done.
+**Editor return & questions**, **Engagement tasks**, **Milestones**, and **Materials & references** follow as sections you can collapse; each remembers whether you left it open or closed. Each task, milestone, and material has a circle at the left: click it and choose **Done** or **Open**. Opening the menu changes nothing until you choose, and finished rows are struck through. Quiet icon actions sit at the right. Add personal milestones before or after the start date, and mark them **Done** when you decide the work is finished.
 
 Tasks can target a milestone or the agreed start date, and optionally reference a material. Leaving a target unset gives that task no individual deadline. The schedule’s own deadline stays independently editable. The start date does not cut off work after an editor returns.
 
@@ -27,7 +27,7 @@ Prepare and exchange files through your editor’s collaboration service, email,
 
 ## Schedule the work
 
-Open **Schedule** for the ordered **Queue**, daily **Days** view, deadline, weekday capacity, and reserve time. Personal tasks join imported review batches, Editorialism directives, and pending edits. Review a schedule preview before applying it, then resolve feedback in its own workflow. **Finish session** records a planning session; source completion is separate.
+Open **Schedule** for the ordered **Queue**, daily **Days** view, deadline, weekday capacity, and reserve time. Personal tasks join imported review batches, Editorialism directives, and pending edits. Review a schedule preview before applying it, then resolve feedback in its own workflow. Marking a scheduled session **Done** records the planning session; finishing the feedback itself is separate.
 
 <p align="center"><img src="images/panel-revision-plan.png" alt="Editor engagement schedule with book progress and a capacity forecast" width="460"></p>
 

@@ -86,7 +86,7 @@ The two-fragment form (`"opening" → "closing"`) anchors a whole passage betwee
 
 **An anchor is not an edit.** It carries no replacement text and Editorialist never applies it. Clicking one opens that scene, selects the passage, and highlights the directive's *other* anchors in the same scene — so a comment that touches three places shows all three at once. You read, revise however you see fit, and mark the anchor processed. The editing stays yours.
 
-Anchors have the same five-state status as directives; **done** and **deferred** both retire an anchor from the walk. In this panel, clicking an anchor's circle steps it to the next status in the order shown above. Marking the last one does not mark the directive done — that call is yours.
+Anchors have the same five-state status as directives; **done** and **deferred** both retire an anchor from the walk. Clicking an anchor's circle opens the same menu of statuses; opening or dismissing it changes nothing. Marking the last one does not mark the directive done — that call is yours.
 
 **Getting anchors:**
 

@@ -25,11 +25,11 @@ The forecast uses the high end of estimates and includes scheduled optional work
 
 ## Work a session
 
-Each card in the queue shows its kind, title, context, and its date and estimate (dashed when not yet set). The check circle at the left is **Finish session**. At the right, **Schedule & options** opens the card's scheduling controls; clicking the date or estimate opens them too. Batches, Editorialism directives, and pending edits also get **Open source**, which takes you to the underlying feedback. Engagement tasks live in the engagement itself, so they have none.
+Each card in the queue shows its kind, title, context, and its date and estimate (dashed when not yet set). Click the circle at the left and choose **Done** to finish the session, or **Open** to reopen it; opening the menu changes nothing until you choose. At the right, **Schedule & options** opens the card's scheduling controls; clicking the date or estimate opens them too. Batches, Editorialism directives, and pending edits also get **Open source**, which takes you to the underlying feedback. Engagement tasks live in the engagement itself, so they have none.
 
-<p align="center"><img src="images/plan-queue-cards.png" alt="Work queue with three engagement-task cards: a check circle at the left, the kind and session, title and context, date and estimate chips, and a Schedule &amp; options icon at the right" width="460"></p>
+<p align="center"><img src="images/plan-queue-cards.png" alt="Work queue with three engagement-task cards: a status circle at the left, the kind and session, title and context, date and estimate chips, and a Schedule &amp; options icon at the right" width="460"></p>
 
-**Finish session** completes only the planning session: it does not accept a batch suggestion, check off an Editorialism, or remove a Pending edit. Resolve those in their source workflow. Source completion can also make its planned work complete. A batch is complete once every suggestion in it is decided; its memos ride along. A batch holding only memos has nothing to decide, so it stays open until you finish its session.
+Marking a session **Done** completes only the planning session: it does not accept a batch suggestion, check off an Editorialism, or remove a Pending edit. Resolve those in their source workflow. Source completion can also make its planned work complete. A batch is complete once every suggestion in it is decided; its memos ride along. A batch holding only memos has nothing to decide, so it stays open until you finish its session.
 
 The options hold the date, effort range, required-for-deadline flag, lock, prerequisite, and removal controls. **Remove from plan** preserves the source feedback. **Keep this date** protects the session during regeneration; manual editing remains available.
 
@@ -49,7 +49,7 @@ Phase suggestions use words in the instruction, not an AI assessment of your man
 
 Set your planning window, session length, working minutes for each weekday, and reserve time. **Preview plan** previews the proposed sessions without saving. Scheduling uses the upper estimate, subtracts existing commitments, leaves reserve time at the end, and never schedules past the earliest of the finish date, the schedule deadline, and the item’s applicable deadline, such as a delivery return date or engagement milestone. Existing dated work without an estimate reserves its entire day. Work that cannot fit stays unscheduled; work lacking a phase or valid estimate stays in Available work.
 
-Suggested effort is a starting assumption: existing Editorialism heuristics, or five minutes per remaining batch suggestion and fifteen per memo, with a ±25% range. Replace these with your own ranges when known. Large tasks split into numbered sessions that keep their original source link. **Finish session** completes only that planning session; it does not check off an Editorialism or accept suggestions.
+Suggested effort is a starting assumption: existing Editorialism heuristics, or five minutes per remaining batch suggestion and fifteen per memo, with a ±25% range. Replace these with your own ranges when known. Large tasks split into numbered sessions that keep their original source link. Marking a session **Done** completes only that planning session; it does not check off an Editorialism or accept suggestions.
 
 <p align="center"><img src="images/delivery-schedule-preview.png" alt="Schedule preview with estimated hours, six sessions across five working days, and a finish-date forecast" width="524"></p>
 

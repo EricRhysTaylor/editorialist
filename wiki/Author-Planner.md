@@ -20,7 +20,7 @@ The **Schedule** tab shows **Queue** and **Days**, along with the forecast and a
 
 <p align="center"><img src="images/author-schedule-preview.png" alt="Author goal schedule preview showing sessions and a finish forecast" width="524"></p>
 
-**Finish session** records work on a session. Use **Mark complete** on the goal when its outcome is achieved. The two planners have their own capacity settings and sessions; do not assume one reserves time in the other.
+Marking a session **Done** from its circle records work on that session. Use **Mark complete** on the goal when its outcome is achieved. The two planners have their own capacity settings and sessions; do not assume one reserves time in the other.
 
 ## Optional Radial Timeline target dates
 
