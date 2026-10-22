@@ -48,6 +48,9 @@ export class EditorialismPanel extends ItemView {
 	// Last scene number the relevance highlights were rendered against; lets us
 	// re-render only when the author actually moves to a different scene.
 	private lastRelevanceSceneNumber: number | null | undefined = undefined;
+	// Passage lists the author has opened, by file and item text. A jump or a
+	// status change re-renders the panel; the list being worked through stays open.
+	private readonly openAnchorLists = new Set<string>();
 
 	constructor(leaf: WorkspaceLeaf, private readonly plugin: EditorialistPlugin) {
 		super(leaf);
@@ -519,6 +522,12 @@ export class EditorialismPanel extends ItemView {
 
 		const processed = item.anchors.filter((anchor) => isAnchorProcessed(anchor.status)).length;
 		const list = parent.createEl("details", { cls: "editorialist-editorialism-panel__anchors" });
+		const listKey = `${editorialism.filePath}\n${item.text}`;
+		list.open = this.openAnchorLists.has(listKey);
+		list.addEventListener("toggle", () => {
+			if (list.open) this.openAnchorLists.add(listKey);
+			else this.openAnchorLists.delete(listKey);
+		});
 		list.createEl("summary", {
 			cls: "editorialist-editorialism-panel__anchors-count",
 			text: `${processed} / ${item.anchors.length} passages processed`,
