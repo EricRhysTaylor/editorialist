@@ -1,4 +1,5 @@
 import { setAccessibleLabel } from "./primitives/AccessibleLabel";
+import { bindMenuAction } from "./util/bindMenuAction";
 import { deliveryDate } from "../core/EditorialDeliveries";
 import { displayDirectiveText, handoffItems } from "../core/DirectiveText";
 import { renderDirectiveDecision, renderDirectiveQuestion } from "./editorialism/DirectiveDecision";
@@ -22,7 +23,7 @@ import { scopeRelatesToScene, type SceneRelevanceContext } from "../core/SceneRe
 import {
 	STATUS_ICON,
 	STATUS_LABEL,
-	nextStatusInCycle,
+	STATUS_CYCLE,
 } from "./editorialism/EditorialismStatusPresentation";
 
 export const EDITORIALISM_PANEL_VIEW_TYPE = "editorialist-editorialism-panel";
@@ -469,21 +470,7 @@ export class EditorialismPanel extends ItemView {
 		});
 		const checkboxIcon = checkbox.createSpan({ cls: "editorialist-editorialism-panel__item-status-icon" });
 		setIcon(checkboxIcon, STATUS_ICON[item.status]);
-		checkbox.addEventListener("click", (event) => {
-			event.preventDefault();
-			const menu = new Menu();
-			for (const status of Object.keys(STATUS_LABEL) as Array<EditorialismItem["status"]>) {
-				menu.addItem((entry) => entry.setTitle(STATUS_LABEL[status]).setChecked(item.status === status).onClick(async () => {
-					// Choosing Question asks for the question itself; saving it sets the status.
-					if (status === "question" && item.status !== "question") { await this.askQuestion(editorialism, item); return; }
-					await this.plugin.setEditorialismItemStatus(editorialism.filePath, item.lineIndex, status); await this.refresh();
-				}));
-			}
-			menu.addSeparator();
-			menu.addItem((entry) => entry.setTitle(item.question ? "Edit your question…" : "Ask a question…").setIcon("message-circle-question").onClick(() => { void this.askQuestion(editorialism, item); }));
-			menu.addItem((entry) => entry.setTitle("Draft fixes with AI…").setIcon("wand-2").onClick(() => { void this.plugin.copyDirectiveFixPrompt([item]); }));
-			menu.showAtMouseEvent(event);
-		});
+		bindMenuAction(checkbox, () => this.showStatusMenu(checkbox, editorialism, item));
 
 		const main = row.createDiv({ cls: "editorialist-editorialism-panel__item-main" });
 		main.createDiv({
@@ -563,18 +550,15 @@ export class EditorialismPanel extends ItemView {
 			cls: "editorialist-editorialism-panel__anchor-status",
 			attr: {
 				type: "button",
-				"aria-label": `Anchor status: ${STATUS_LABEL[anchor.status]} (click to advance)`,
+				"aria-label": `Passage status: ${STATUS_LABEL[anchor.status]} — choose a status`,
+				"aria-haspopup": "menu",
 			},
 		});
 		setIcon(
 			status.createSpan({ cls: "editorialist-editorialism-panel__anchor-status-icon" }),
 			STATUS_ICON[anchor.status],
 		);
-		status.addEventListener("click", (event) => {
-			event.preventDefault();
-			event.stopPropagation();
-			void this.advanceAnchorStatus(editorialism.filePath, anchor);
-		});
+		bindMenuAction(status, () => this.showStatusMenu(status, editorialism, item, anchor));
 
 		const main = row.createDiv({ cls: "editorialist-editorialism-panel__anchor-main" });
 		if (anchor.scene) {
@@ -643,9 +627,27 @@ export class EditorialismPanel extends ItemView {
 		this.render();
 	}
 
-	private async advanceAnchorStatus(filePath: string, anchor: EditorialismAnchor): Promise<void> {
-		await this.plugin.anchors.setEditorialismAnchorStatus(filePath, anchor, nextStatusInCycle(anchor.status));
-		await this.refresh();
+	private showStatusMenu(control: HTMLElement, editorialism: Editorialism, item: EditorialismItem, anchor?: EditorialismAnchor): void {
+		const current = anchor?.status ?? item.status;
+		const menu = new Menu();
+		if (anchor) menu.addItem((entry) => entry.setTitle("This passage").setIsLabel(true));
+		for (const status of STATUS_CYCLE) {
+			menu.addItem((entry) => entry.setTitle(STATUS_LABEL[status]).setIcon(STATUS_ICON[status]).setChecked(current === status).onClick(async () => {
+				if (status === current) return;
+				if (status === "question") {
+					if (!anchor) { await this.askQuestion(editorialism, item); return; }
+					if (!await this.plugin.promptEditorialismItemQuestion(editorialism.filePath, item)) return;
+				}
+				if (anchor) await this.plugin.anchors.setEditorialismAnchorStatus(editorialism.filePath, anchor, status);
+				else await this.plugin.setEditorialismItemStatus(editorialism.filePath, item.lineIndex, status);
+				await this.refresh();
+			}));
+		}
+		menu.addSeparator();
+		menu.addItem((entry) => entry.setTitle(item.question ? "Edit your question…" : "Ask a question…").setIcon("message-circle-question").onClick(() => { void this.askQuestion(editorialism, item); }));
+		menu.addItem((entry) => entry.setTitle("Draft fixes with AI…").setIcon("wand-2").onClick(() => { void this.plugin.copyDirectiveFixPrompt([item]); }));
+		const rect = control.getBoundingClientRect();
+		menu.showAtPosition({ x: rect.left, y: rect.bottom }, control.ownerDocument);
 	}
 
 	private renderScopeChip(parent: HTMLElement, item: EditorialismItem): void {

@@ -13,6 +13,7 @@ import {
 	selectPanelPrimarySuggestionId,
 } from "../core/review/SuggestionTraversal";
 import { bindImmediateAction } from "./util/bindImmediateAction";
+import { bindMenuAction } from "./util/bindMenuAction";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
 import { displayDirectiveText } from "../core/DirectiveText";
 import { renderDirectiveDecision, renderDirectiveQuestion } from "./editorialism/DirectiveDecision";
@@ -983,7 +984,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 				},
 			});
 			setIcon(status.createSpan({ cls: "editorialist-panel__directive-status-icon" }), STATUS_ICON[current]);
-			this.bindImmediateAction(status, () => {
+			bindMenuAction(status, () => {
 				this.showDirectiveStatusMenu(
 					status,
 					current,
@@ -1077,7 +1078,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			status.createSpan({ cls: "editorialist-panel__directive-anchor-status-icon" }),
 			STATUS_ICON[anchor.status],
 		);
-		this.bindImmediateAction(status, () => {
+		bindMenuAction(status, () => {
 			this.showDirectiveStatusMenu(
 				status,
 				anchor.status,
@@ -1211,7 +1212,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 				}),
 		);
 		const rect = anchorEl.getBoundingClientRect();
-		menu.showAtPosition({ x: rect.left, y: rect.bottom });
+		menu.showAtPosition({ x: rect.left, y: rect.bottom }, anchorEl.ownerDocument);
 	}
 
 	private async setSceneDirectiveAnchorStatus(
