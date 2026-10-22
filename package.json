@@ -1,6 +1,6 @@
 {
 	"name": "editorialist",
-	"version": "3.0.4",
+	"version": "3.0.5",
 	"description": "Plan editor engagements and writing goals, schedule revision work, and review AI-formatted editorial feedback scene by scene.",
 	"main": "main.js",
 	"type": "module",
