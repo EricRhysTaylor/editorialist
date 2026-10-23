@@ -126,37 +126,42 @@ export function isSceneNoteForScope(
 	return true;
 }
 
+const SCENE_ID_KEYS = [
+	"id",
+	"Id",
+	"ID",
+	"editorial_id",
+	"editorialId",
+	"EditorialId",
+	"sceneid",
+	"sceneId",
+	"SceneId",
+	"scene_id",
+	"Scene_ID",
+];
+
 export function getSceneIdForFile(app: App, file: TFile): string | undefined {
 	const frontmatter = app.metadataCache.getFileCache(file)?.frontmatter;
-	const values = getFrontmatterStringValues(frontmatter, [
-		"id",
-		"Id",
-		"ID",
-		"editorial_id",
-		"editorialId",
-		"EditorialId",
-		"sceneid",
-		"sceneId",
-		"SceneId",
-		"scene_id",
-		"Scene_ID",
-	]);
-
-	return values[0]?.trim() || undefined;
+	return getFrontmatterStringValues(frontmatter, SCENE_ID_KEYS)[0]?.trim() || undefined;
 }
 
 export function matchesSceneId(app: App, file: TFile, sceneId: string): boolean {
 	const normalizedSceneId = sceneId.trim().toLowerCase();
 	const frontmatterCandidates = getFrontmatterStringValues(
 		app.metadataCache.getFileCache(file)?.frontmatter,
-		["id", "Id", "ID", "editorial_id", "editorialId", "EditorialId", "sceneid", "sceneId", "SceneId", "scene_id", "Scene_ID"],
+		SCENE_ID_KEYS,
 	).map((value) => value.trim().toLowerCase());
 
-	return (
-		frontmatterCandidates.includes(normalizedSceneId) ||
-		file.basename.toLowerCase().includes(normalizedSceneId) ||
-		file.path.toLowerCase().includes(normalizedSceneId)
-	);
+	return frontmatterCandidates.includes(normalizedSceneId) || matchesNoteName(file, sceneId);
+}
+
+// A note is named by its whole name or its vault path, with or without `.md`.
+// Only the whole name counts: a substring test made `Chapter 1` also match
+// `Chapter 10`–`Chapter 19`, and the ambiguity left the entry unplaced.
+export function matchesNoteName(file: TFile, name: string): boolean {
+	const normalizedName = name.trim().toLowerCase();
+	const path = file.path.toLowerCase();
+	return file.basename.toLowerCase() === normalizedName || path === normalizedName || path === `${normalizedName}.md`;
 }
 
 export function getActiveNoteScopeRoot(activeNotePath: string | undefined): string | null {

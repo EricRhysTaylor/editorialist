@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { App, TFile } from "obsidian";
-import { buildConfiguredBookScope, isCutArchivePath, isSceneNoteForScope } from "./VaultScope";
+import { buildConfiguredBookScope, isCutArchivePath, isSceneNoteForScope, matchesSceneId } from "./VaultScope";
 
 describe("buildConfiguredBookScope", () => {
 	it("returns an empty, unstructured scope for a blank override", () => {
@@ -142,5 +142,43 @@ describe("isSceneNoteForScope", () => {
 		expect(
 			isSceneNoteForScope(appWith({}), file, { sourceFolder: null, structured: false }, ""),
 		).toBe(true);
+	});
+});
+
+// Notes without an id are named by their whole name. A substring test once made
+// `Chapter 1` match `Chapter 10`–`Chapter 12` as well, so the entry was unplaced.
+describe("matchesSceneId", () => {
+	const fileAt = (path: string) =>
+		({ path, basename: path.split("/").pop()?.replace(/\.md$/, "") ?? "" }) as unknown as TFile;
+	const appWith = (ids: Record<string, string>) =>
+		({
+			metadataCache: {
+				getFileCache: (file: TFile) => (ids[file.path] ? { frontmatter: { id: ids[file.path] } } : null),
+			},
+		}) as unknown as App;
+
+	it("matches a note name only when it is the whole name", () => {
+		const app = appWith({});
+		expect(matchesSceneId(app, fileAt("Book/Chapter 1.md"), "Chapter 1")).toBe(true);
+		expect(matchesSceneId(app, fileAt("Book/Chapter 10.md"), "Chapter 1")).toBe(false);
+		expect(matchesSceneId(app, fileAt("Book/Chapter 1.md"), "chapter 1")).toBe(true);
+	});
+
+	it("matches a vault path with or without its extension", () => {
+		const app = appWith({});
+		expect(matchesSceneId(app, fileAt("Part 1/Chapter 1.md"), "Part 1/Chapter 1")).toBe(true);
+		expect(matchesSceneId(app, fileAt("Part 1/Chapter 1.md"), "Part 1/Chapter 1.md")).toBe(true);
+		expect(matchesSceneId(app, fileAt("Part 1/Chapter 10.md"), "Part 1/Chapter 1")).toBe(false);
+	});
+
+	it("does not match a fragment of a name or folder", () => {
+		const app = appWith({});
+		expect(matchesSceneId(app, fileAt("Book/12 Return Home.md"), "Return")).toBe(false);
+		expect(matchesSceneId(app, fileAt("Book/12 Return Home.md"), "Book")).toBe(false);
+	});
+
+	it("still matches a frontmatter id", () => {
+		const file = fileAt("Book/12 Return Home.md");
+		expect(matchesSceneId(appWith({ [file.path]: "scn_abc123" }), file, "SCN_abc123")).toBe(true);
 	});
 });

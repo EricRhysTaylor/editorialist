@@ -17,6 +17,7 @@ import {
 	getSceneIdForFile,
 	isPathInFolderScope,
 	isSceneClassFile,
+	matchesNoteName,
 	matchesSceneId,
 	isSceneNoteForScope,
 	type ActiveBookScopeInfo,
@@ -35,6 +36,7 @@ import type {
 	ReviewUnroutedMemo,
 } from "../models/ReviewImport";
 import type {
+	CondenseTargetAnchorPair,
 	ParsedReviewDocument,
 	ReviewSuggestion,
 	ReviewSuggestionRouting,
@@ -573,12 +575,7 @@ export class ImportEngine {
 			return null;
 		}
 
-		const normalizedName = name.trim().toLowerCase();
-		const matches = files.filter(
-			(file) =>
-				file.basename.toLowerCase() === normalizedName ||
-				file.path.toLowerCase() === normalizedName,
-		);
+		const matches = files.filter((file) => matchesNoteName(file, name));
 
 		return matches.length === 1 ? (matches[0] ?? null) : null;
 	}
@@ -728,6 +725,11 @@ export class ImportEngine {
 					normalizedCount: this.findAllNormalizedMatches(noteText, suggestion.payload.target),
 				};
 			case "condense":
+				// An anchor-pair target names two fragments to find; the raw
+				// `"opening" → "closing"` expression never appears in a note.
+				if (suggestion.payload.targetAnchors) {
+					return this.getAnchorPairMatchCounts(noteText, suggestion.payload.targetAnchors);
+				}
 				return {
 					exactCount: this.findAllExactMatches(noteText, suggestion.payload.target).length,
 					normalizedCount: this.findAllNormalizedMatches(noteText, suggestion.payload.target),
@@ -748,6 +750,21 @@ export class ImportEngine {
 				};
 			}
 		}
+	}
+
+	// A note holds an anchor-pair passage when each anchor occurs there once and
+	// the opening starts before the closing ends, as the matcher requires once
+	// the suggestion is routed.
+	private getAnchorPairMatchCounts(noteText: string, anchors: CondenseTargetAnchorPair): TextMatchCounts {
+		const [start, ...otherStarts] = this.findAllExactMatches(noteText, anchors.start);
+		const [end, ...otherEnds] = this.findAllExactMatches(noteText, anchors.end);
+		const inOrder = start !== undefined && end !== undefined && otherStarts.length === 0 && otherEnds.length === 0
+			&& start < end + anchors.end.length;
+		return {
+			exactCount: inOrder ? 1 : 0,
+			normalizedCount:
+				this.findAllNormalizedMatches(noteText, anchors.start) === 1 && this.findAllNormalizedMatches(noteText, anchors.end) === 1 ? 1 : 0,
+		};
 	}
 
 	private isSafeExactInferenceMatch(
