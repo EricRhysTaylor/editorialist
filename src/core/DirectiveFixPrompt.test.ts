@@ -6,6 +6,7 @@ describe("buildDirectiveFixPrompt", () => {
 	const passage = {
 		sceneLabel: "4 Party",
 		sceneId: "scn_4",
+		noteName: null,
 		fragment: "Seven years, near enough,",
 		paragraph: "\"Seven years, near enough,\" she said.\nHe nodded.",
 	};
@@ -20,6 +21,15 @@ describe("buildDirectiveFixPrompt", () => {
 		expect(prompt).toContain("  > He nodded.");
 		expect(prompt).toContain(REVIEW_TEMPLATE_BLOCK);
 		expect(prompt).toContain("scn_4 — 4 Party");
+	});
+
+	it("names a passage in a note without a scene id by its Note", () => {
+		const prompt = buildDirectiveFixPrompt(
+			[{ text: "Vary Mrs. Bennet.", scope: "9", decision: null, question: null, needsDecision: false, passages: [{ ...passage, sceneLabel: "Chapter 9", sceneId: null, noteName: "Chapter 9" }] }],
+			{ noteNames: ["Chapter 9"] },
+		);
+		expect(prompt).toContain('- Chapter 9 (Note: Chapter 9) — "Seven years, near enough,"');
+		expect(prompt).toContain("Give every entry the SceneId (or Note) shown for its passage.");
 	});
 
 	it("asks for a stated choice when a decision is needed but not recorded", () => {

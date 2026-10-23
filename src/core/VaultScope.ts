@@ -164,6 +164,14 @@ export function matchesNoteName(file: TFile, name: string): boolean {
 	return file.basename.toLowerCase() === normalizedName || path === normalizedName || path === `${normalizedName}.md`;
 }
 
+// What an AI writes in `Note:` to reach a manuscript note that has no scene id:
+// its name, or its vault path when another manuscript note shares that name.
+export function noteRouteName(file: TFile, manuscriptFiles: readonly TFile[]): string {
+	const name = file.basename.toLowerCase();
+	const shared = manuscriptFiles.some((other) => other.path !== file.path && other.basename.toLowerCase() === name);
+	return shared ? file.path.replace(/\.md$/i, "") : file.basename;
+}
+
 export function getActiveNoteScopeRoot(activeNotePath: string | undefined): string | null {
 	if (!activeNotePath) {
 		return null;

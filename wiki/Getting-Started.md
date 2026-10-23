@@ -54,7 +54,7 @@ A five-minute walkthrough of the core loop:
 
 ### 1. Copy the template
 
-Run **Open review launcher** and click **Copy formatting instructions**. This copies the review batch format, the Editorialism file format, and (with Radial Timeline) your book's actual scene IDs to the clipboard.
+Run **Open review launcher** and click **Copy formatting instructions**. This copies the review batch format, the Editorialism file format, and the scenes of your manuscript target — their scene IDs, or note names for notes without IDs — to the clipboard.
 
 <p align="center"><img src="images/panel-import.png" alt="The review launcher with current-scene and clipboard choices and formatting instructions" width="560"></p>
 

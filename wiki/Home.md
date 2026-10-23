@@ -67,7 +67,7 @@ Alongside these, the **Contributor directory** (**Settings → Contributors**) s
 
 ## Core Workflow
 
-1. **Copy the formatting instructions** from the review launcher — they include the [format specification](Importing-Reviews) and your book's scene IDs.
+1. **Copy the formatting instructions** from the review launcher — they include the [format specification](Importing-Reviews) and your book's scene IDs, or its note names where notes have no IDs.
 2. **Get suggestions.** Paste the instructions into your AI conversation along with the prose. For human feedback, collect your reviewer's notes in any form — a photo of a marked-up page, a document, an email — and have an AI shape them into a batch using the same instructions.
 3. **Import the batch** through the launcher; Editorialist appends review blocks to the bottom of the targeted scene notes.
 4. **Walk the [guided review sweep](Review-Panel)** — accept, reject, rewrite, or defer each suggestion.

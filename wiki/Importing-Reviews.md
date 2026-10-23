@@ -2,7 +2,7 @@ This page documents what can come back from a reviewer or AI, where each object 
 
 The formats are written for an AI to produce. For an AI review, paste the formatting instructions into the conversation along with your prose. When the feedback comes from a human — margin notes on a printed page, a marked-up document, an email — hand their notes to an AI together with these same instructions, and it shapes them into Editorialist-ready output with your human reviewer credited as the contributor. A human never works from this format directly.
 
-> **Tip:** you never need to write this format by hand. The review launcher's **Copy formatting instructions** button puts the full specification — including your book's real scene IDs — on the clipboard, ready to paste into an AI conversation.
+> **Tip:** you never need to write this format by hand. The review launcher's **Copy formatting instructions** button puts the full specification — including your book's real scene IDs, or the names of notes that have none — on the clipboard, ready to paste into an AI conversation.
 
 ---
 
@@ -73,8 +73,8 @@ The lines before the first `=== SECTION ===` marker identify the batch and the c
 
 | Section | Fields | What it does |
 |---|---|---|
-| `=== MEMO ===` | freeform, optional `Strengths:` / `Issues:`, optional `SceneId:` | Commentary that doesn't belong inline as a line edit. A MEMO **with** a `SceneId` attaches to that scene, whether or not the scene received edits; a MEMO **without** one is duplicated to every scene in the batch. Use as many as needed. |
-| `=== QUERY ===` | `Id:`, optional `SceneId:`, `Question:`, `Answer:`, optional `Recommendation:` | Answers an author query — a `%%query: …%%` marker the author left inline. See [Author queries](#author-queries) below. |
+| `=== MEMO ===` | freeform, optional `Strengths:` / `Issues:`, optional `SceneId:` or `Note:` | Commentary that doesn't belong inline as a line edit. A MEMO **with** a `SceneId` or `Note` attaches to that scene, whether or not the scene received edits; a MEMO **without** either is duplicated to every scene in the batch. Use as many as needed. |
+| `=== QUERY ===` | `Id:`, optional `SceneId:` or `Note:`, `Question:`, `Answer:`, optional `Recommendation:` | Answers an author query — a `%%query: …%%` marker the author left inline. See [Author queries](#author-queries) below. |
 | `=== EDIT ===` | `SceneId:`, `Original:`, `Revised:`, `Why:` | Replace `Original` text with a specific suggested change. |
 | `=== MOVE ===` | `SceneId:`, `Target:`, `Before:` (or `After:`), `Why:` | Relocate the target passage relative to a destination anchor. |
 | `=== CUT ===` | `SceneId:`, `Target:`, `Why:` | Remove the target passage. Accepted cuts can be [backed up to a cut file](Settings-Reference#configuration-tab) first. |
@@ -101,7 +101,7 @@ When you review that suggestion, the referenced paragraphs appear in the **Acros
 
 ### Memo-only batches
 
-A batch does not need any line edits. An editorial letter, a developmental read, or an agent's notes often arrive as commentary alone, and the natural conversion is one `MEMO` per scene discussed plus unscoped `MEMO`s for the manuscript as a whole. Each scoped memo is appended to its own scene as a review block; unscoped memos go to every scene in the batch. When a batch has no edits and no `SceneId`s at all, the memos attach to the scene you have open. A memo whose `SceneId` matches nothing is not imported. The launcher says so before you import — a warning under the paste box, and a line in the destination preview naming the memo — rather than dropping it quietly. A clipboard import that would leave a memo behind opens the destination preview instead of importing straight away; **Import placed entries** there brings in everything that has a home.
+A batch does not need any line edits. An editorial letter, a developmental read, or an agent's notes often arrive as commentary alone, and the natural conversion is one `MEMO` per scene discussed plus unscoped `MEMO`s for the manuscript as a whole. Each scoped memo is appended to its own scene as a review block; unscoped memos go to every scene in the batch. When a batch has no edits and no `SceneId`s or `Note`s at all, the memos attach to the scene you have open. A memo whose `SceneId` or `Note` matches nothing is not imported. The launcher says so before you import — a warning under the paste box, and a line in the destination preview naming the memo — rather than dropping it quietly. A clipboard import that would leave a memo behind opens the destination preview instead of importing straight away; **Import placed entries** there brings in everything that has a home.
 
 ### Author queries
 
@@ -142,7 +142,8 @@ Advisory is the honest answer when a beat needs your voice rather than the revie
 Every operation entry targets one scene via `SceneId:`. Items in the same block may target different scenes — the importer routes each entry to its own scene.
 
 - IDs must be **real values** from the manuscript or the scene-ID list the template includes. Unmatched IDs are surfaced in the destination preview; a wrong ID that happens to name a real scene can misroute feedback, so never guess.
-- If a reviewer can't identify the scene for a passage, the right move is to **omit the SceneId entirely** — Editorialist routes those entries to the scene you're currently viewing and flags them for manual verification, which is recoverable. A confidently wrong ID is not.
+- A note without an ID — every note of a book kept outside Radial Timeline, for example — is named with `Note:` instead, exactly as the formatting instructions list it: `Note: Chapter 9`. `Note:` works on every operation, `MEMO` and `QUERY`, so a comment from an editorial letter about one chapter lands on that chapter alone.
+- If a reviewer can't identify the scene for a passage, the right move is to **omit the SceneId and Note entirely**. Editorialist then looks for the quoted text across the book and places the entry in the one scene that contains it; otherwise it routes the entry to the scene you're currently viewing and flags it for manual verification, which is recoverable. A confidently wrong ID is not.
 - If a Radial Timeline manuscript export was the reviewer's input, scene IDs appear inline in that export and match the template's list. See [Radial Timeline Integration](Radial-Timeline-Integration).
 
 ### Matching against the manuscript

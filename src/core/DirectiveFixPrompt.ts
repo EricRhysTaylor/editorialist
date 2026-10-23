@@ -15,6 +15,8 @@ import { buildSceneIdContextSection, REVIEW_TEMPLATE_BLOCK, type ReviewTemplateC
 export interface DirectiveFixPassage {
 	sceneLabel: string;
 	sceneId: string | null;
+	/** The `Note:` name for a passage in a note without a scene id. */
+	noteName: string | null;
 	fragment: string;
 	/** The paragraph around the fragment, verbatim; null when it could not be located. */
 	paragraph: string | null;
@@ -54,14 +56,14 @@ export function buildDirectiveFixPrompt(
 		"  leave unrelated numbers alone even when they look similar.",
 		"- Original must be copied byte-for-byte from the quoted prose. Keep each Original",
 		"  to the smallest span that makes the change unambiguous.",
-		"- Give every entry the SceneId shown for its passage.",
+		"- Give every entry the SceneId (or Note) shown for its passage.",
 		"- When a fix in one scene depends on another listed passage (the same date, object,",
 		"  or event), add a `Context:` line to the entry quoting that other passage, so the",
 		"  author sees both side by side.",
-		"- Where the author asks a QUESTION, answer it in a MEMO scoped to the SceneId of",
-		"  the directive's first passage (unscoped if it has none): `Notes: Question: …`",
-		"  then your answer and recommendation. If the answer calls for changes, draft",
-		"  those edits too, consistent with your answer.",
+		"- Where the author asks a QUESTION, answer it in a MEMO scoped to the SceneId (or",
+		"  Note) of the directive's first passage (unscoped if it has neither):",
+		"  `Notes: Question: …` then your answer and recommendation. If the answer calls",
+		"  for changes, draft those edits too, consistent with your answer.",
 		"- If a passage cannot be fixed with a line edit, or you find a conflicting",
 		"  occurrence outside the quoted prose, explain it in a scene-scoped MEMO rather",
 		"  than guessing.",
@@ -91,7 +93,7 @@ export function buildDirectiveFixPrompt(
 		} else {
 			lines.push("Passages:");
 			for (const passage of directive.passages) {
-				const id = passage.sceneId ? ` (SceneId: ${passage.sceneId})` : "";
+				const id = passage.sceneId ? ` (SceneId: ${passage.sceneId})` : passage.noteName ? ` (Note: ${passage.noteName})` : "";
 				lines.push(`- ${passage.sceneLabel}${id} — "${passage.fragment}"`);
 				if (passage.paragraph) {
 					lines.push("  Prose around it, verbatim:");

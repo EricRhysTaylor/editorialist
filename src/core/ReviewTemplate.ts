@@ -1,5 +1,6 @@
 import { REVIEW_BLOCK_FENCE } from "./ReviewBlockFormat";
 import { AUTHOR_QUERY_PATTERN } from "./AuthorQueryMarker";
+import { sceneNumberFromName } from "./SceneRelevance";
 import { EDITORIALISM_TYPE_VALUE } from "../models/Editorialism";
 import {
 	SUPPORTED_REVIEW_OPERATION_LABELS,
@@ -169,15 +170,16 @@ const REVIEW_TEMPLATE_GUIDANCE = [
 	"edit. Use as many MEMO blocks as you need — they can be freeform prose, or use the",
 	"optional Strengths: / Issues: fields. There is no fixed structure.",
 	"",
-	"Each MEMO may optionally include a SceneId to scope it to a single scene. A MEMO with",
-	"no SceneId is duplicated to every scene in this batch, so the editorial framing",
+	"Each MEMO may optionally include a SceneId (or a Note, for a note listed without an",
+	"id) to scope it to a single scene. A MEMO with neither is duplicated to every scene",
+	"in this batch, so the editorial framing",
 	"appears above the line edits in each scene. Mix freely: one wide MEMO at the top for",
 	"manuscript-level patterns, then additional scoped MEMOs for scene-specific notes.",
 	"",
 	"A batch may be MEMOs only — no line edits at all. Use this for commentary from an",
 	"editorial letter or a developmental read: one scoped MEMO per scene it discusses, so",
 	"each lands in its own scene, plus unscoped MEMOs for the manuscript as a whole. With no",
-	"edits and no SceneIds, the memos attach to the scene the author has open.",
+	"edits and no SceneIds or Notes, the memos attach to the scene the author has open.",
 	"MEMOs have no individual completion checkbox. Put independently actionable",
 	"developmental tasks in Format B so the author can plan and complete each one.",
 	"Keep context in MEMOs without repeating those tasks as separate assignments.",
@@ -187,13 +189,14 @@ const REVIEW_TEMPLATE_GUIDANCE = [
 	"embedded inline for you (they survive a Radial Timeline export with author queries",
 	"retained, so they can appear in the pasted manuscript, not just a selected passage).",
 	"Answer EVERY one in its own === QUERY === block: repeat the Question, give a direct",
-	"Answer with a recommendation (not an acknowledgement), and set SceneId to the scene the",
-	"marker sits in. Do not treat the marker as prose to edit, and do not echo the",
+	"Answer with a recommendation (not an acknowledgement), and set SceneId (or Note) to the",
+	"scene the marker sits in. Do not treat the marker as prose to edit, and do not echo the",
 	"`%%query:%%` or `%%ai:%%` delimiters back in your output.",
 	"",
-	"Each operation entry (EDIT / CUT / CONDENSE / EXPAND / MOVE) targets a single scene via SceneId.",
-	"Items in the same block may target different scenes — repeat the operation header and",
-	"use the appropriate SceneId for each.",
+	"Each operation entry (EDIT / CUT / CONDENSE / EXPAND / MOVE) targets a single scene via",
+	"SceneId, or via Note for a note listed without an id. Items in the same block may target",
+	"different scenes — repeat the operation header and use the appropriate SceneId or Note",
+	"for each.",
 	"",
 	"CONDENSE Target format: write `Target: \"<opening>\" → \"<closing>\"` where both fragments",
 	"are copied byte-for-byte from the manuscript (≤12 words each is plenty — they're anchors,",
@@ -256,15 +259,17 @@ const REVIEW_TEMPLATE_GUIDANCE = [
 	"anything pasted in, so emitting them achieves nothing either way.",
 	"",
 	"SceneIds: every entry's SceneId MUST be a real value drawn from the manuscript or the",
-	"\"Scene IDs in this context\" list provided below. Do NOT invent IDs.",
+	"\"SCENES\" list provided below. Do NOT invent IDs. Notes that list no id there are",
+	"reached with `Note:` and the note's name instead, as the list explains.",
 	"",
 	"When the scene id is NOT visible: if the prose you are reviewing was pasted without a",
-	"scene id, and no id in the \"Scene IDs in this context\" list demonstrably belongs to",
-	"that exact text, do NOT guess and do NOT reuse a scene id that appeared earlier in this",
+	"scene id, and no id or note in the \"SCENES\" list demonstrably belongs to that exact",
+	"text, do NOT guess and do NOT reuse a scene id that appeared earlier in this",
 	"conversation for different prose — a stale or guessed id routes the entire batch to the",
-	"wrong scene silently. Instead, OMIT the SceneId field entirely on those entries.",
-	"Editorialist will route them to the scene the author is currently viewing and flag them",
-	"for manual verification, which is recoverable; a confidently wrong id is not. Add a",
+	"wrong scene silently. Instead, OMIT the SceneId and Note fields entirely on those",
+	"entries. Editorialist then looks for the quoted text across the book, and otherwise",
+	"routes them to the scene the author is currently viewing and flags them for manual",
+	"verification, which is recoverable; a confidently wrong id is not. Add a",
 	"=== MEMO === (no SceneId) stating that the target scene could not be identified from",
 	"the provided text so the author can confirm placement before applying the edits.",
 ];
@@ -405,18 +410,38 @@ export interface ReviewTemplateContext {
 	bookLabel?: string | null;
 	activeSceneId?: string | null;
 	sceneIds?: ReadonlyArray<{ id: string; title: string }>;
+	// Manuscript notes that carry no scene id, by the name `Note:` reaches them
+	// with. A book outside Radial Timeline is usually all of these.
+	noteNames?: ReadonlyArray<string>;
+	// The open note's `Note:` name, when it has no scene id.
+	activeNoteName?: string | null;
+}
+
+interface RoutingField {
+	field: "SceneId" | "Note";
+	value: string;
+}
+
+// The routing field an answer about the open note carries.
+function activeRoutingField(context: ReviewTemplateContext | undefined): RoutingField | null {
+	const sceneId = context?.activeSceneId?.trim();
+	if (sceneId) return { field: "SceneId", value: sceneId };
+	const note = context?.activeNoteName?.trim();
+	return note ? { field: "Note", value: note } : null;
 }
 
 export function buildSceneIdContextSection(context: ReviewTemplateContext): string | null {
+	const sceneIds = context.sceneIds ?? [];
+	const noteNames = context.noteNames ?? [];
 	const hasAnyContext = Boolean(
-		context.bookLabel || context.activeSceneId || (context.sceneIds && context.sceneIds.length > 0),
+		context.bookLabel || context.activeSceneId || context.activeNoteName || sceneIds.length > 0 || noteNames.length > 0,
 	);
 	if (!hasAnyContext) {
 		return null;
 	}
 	const lines: string[] = [
 		"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-		"SCENE IDS — USE THESE EXACT VALUES",
+		"SCENES — USE THESE EXACT VALUES",
 		"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
 		"",
 	];
@@ -425,20 +450,43 @@ export function buildSceneIdContextSection(context: ReviewTemplateContext): stri
 	}
 	if (context.activeSceneId) {
 		lines.push(`Active scene id: ${context.activeSceneId}`);
+	} else if (context.activeNoteName) {
+		lines.push(`Active note (no scene id): ${context.activeNoteName}`);
 	}
-	if (context.sceneIds && context.sceneIds.length > 0) {
-		lines.push("", `Available scenes in this book (${context.sceneIds.length}):`);
-		for (const entry of context.sceneIds) {
+	if (sceneIds.length > 0) {
+		lines.push("", `Available scenes in this book (${sceneIds.length}):`);
+		for (const entry of sceneIds) {
 			lines.push(`- ${entry.id} — ${entry.title}`);
 		}
+		lines.push(
+			"",
+			"Every SceneId in your output must match one of the values above exactly.",
+			"If your input includes a Radial Timeline manuscript export, scene ids appear",
+			"inline in that export — those match the list here.",
+		);
 	}
-	lines.push(
-		"",
-		"Every SceneId in your output must match one of the values above exactly.",
-		"If your input includes a Radial Timeline manuscript export, scene ids appear",
-		"inline in that export — those match the list here. Never use the placeholder",
-		"`scn_xxxxxxxx`; never invent ids.",
-	);
+	if (noteNames.length > 0) {
+		lines.push("", `Notes in this book without a scene id (${noteNames.length}):`);
+		for (const name of noteNames) {
+			lines.push(`- ${name}`);
+		}
+		lines.push(
+			"",
+			"These notes have no scene id. For an entry in one of them, write",
+			"`Note: <name exactly as listed>` where the format shows `SceneId:` — on every",
+			"operation, MEMO and QUERY. Never put a note name in SceneId and never invent an id",
+			"for these notes. Name a note only when the feedback shows the passage belongs to it,",
+			"such as the manuscript's own chapter heading or text quoted from that note;",
+			"otherwise omit both fields.",
+		);
+		lines.push(
+			"",
+			noteNames.some((name) => sceneNumberFromName(name.split("/").pop() ?? name) !== null)
+				? "In Format B, scopes and anchors use the number in the note's name (`Chapter 9` is `9`)."
+				: "These names carry no number, so Format B scene scopes and anchors cannot point at them.",
+		);
+	}
+	lines.push("", "Never use the placeholder `scn_xxxxxxxx`; never invent ids.");
 	return lines.join("\n");
 }
 
@@ -464,11 +512,12 @@ function extractAuthorQueries(passage: string): ExtractedAuthorQueries {
 	return { cleanedText, questions };
 }
 
-// The query answer contract. SceneId is embedded in both the prompt and the
-// required output so routing is self-describing across the copy-out/paste-back
-// gap — there is no temporary map to carry the question→scene link.
-function buildAuthorQueriesSection(questions: string[], activeSceneId?: string | null): string {
-	const sceneId = activeSceneId?.trim();
+// The query answer contract. The open note's SceneId (or Note) is embedded in
+// both the prompt and the required output so routing is self-describing across
+// the copy-out/paste-back gap — there is no temporary map to carry the
+// question→scene link.
+function buildAuthorQueriesSection(questions: string[], routing: RoutingField | null): string {
+	const route = routing ? `${routing.field}: ${routing.value}` : null;
 	const lines: string[] = [
 		SECTION_BAR,
 		"AUTHOR QUERIES — answer each directly; do not treat as prose.",
@@ -476,15 +525,15 @@ function buildAuthorQueriesSection(questions: string[], activeSceneId?: string |
 		"",
 		"The author embedded these questions inline in the passage below. They have",
 		"been removed from the prose so you do not edit them. Answer every one in its",
-		`own === QUERY === block, echoing its Id${sceneId ? " and SceneId" : ""} so Editorialist can route the`,
+		`own === QUERY === block, echoing its Id${routing ? ` and ${routing.field}` : ""} so Editorialist can route the`,
 		"answer back to the right scene. Give a direct recommendation, not an",
 		"acknowledgement:",
 		"",
 		"=== QUERY ===",
 		"Id: Q1",
 	];
-	if (sceneId) {
-		lines.push(`SceneId: ${sceneId}`);
+	if (route) {
+		lines.push(route);
 	}
 	lines.push(
 		"Question: <repeat the question being answered>",
@@ -495,7 +544,7 @@ function buildAuthorQueriesSection(questions: string[], activeSceneId?: string |
 	);
 	questions.forEach((question, index) => {
 		const id = `Q${index + 1}`;
-		lines.push(sceneId ? `[${id}] SceneId: ${sceneId} — ${question}` : `[${id}] ${question}`);
+		lines.push(route ? `[${id}] ${route} — ${question}` : `[${id}] ${question}`);
 	});
 	return lines.join("\n");
 }
@@ -522,7 +571,7 @@ export function buildReviewTemplate(
 	if (selectedText?.trim()) {
 		const { cleanedText, questions } = extractAuthorQueries(selectedText);
 		if (questions.length > 0) {
-			parts.push("", buildAuthorQueriesSection(questions, context?.activeSceneId));
+			parts.push("", buildAuthorQueriesSection(questions, activeRoutingField(context)));
 		}
 		parts.push("", "Passage:", cleanedText);
 	}

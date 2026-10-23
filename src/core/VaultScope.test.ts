@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { App, TFile } from "obsidian";
-import { buildConfiguredBookScope, isCutArchivePath, isSceneNoteForScope, matchesSceneId } from "./VaultScope";
+import { buildConfiguredBookScope, isCutArchivePath, isSceneNoteForScope, matchesSceneId, noteRouteName } from "./VaultScope";
 
 describe("buildConfiguredBookScope", () => {
 	it("returns an empty, unstructured scope for a blank override", () => {
@@ -180,5 +180,20 @@ describe("matchesSceneId", () => {
 	it("still matches a frontmatter id", () => {
 		const file = fileAt("Book/12 Return Home.md");
 		expect(matchesSceneId(appWith({ [file.path]: "scn_abc123" }), file, "SCN_abc123")).toBe(true);
+	});
+});
+
+describe("noteRouteName", () => {
+	const fileAt = (path: string) =>
+		({ path, basename: path.split("/").pop()?.replace(/\.md$/, "") ?? "" }) as unknown as TFile;
+
+	it("uses the note name when it is unique in the manuscript", () => {
+		const files = [fileAt("Book/Chapter 1.md"), fileAt("Book/Chapter 2.md")];
+		expect(noteRouteName(files[0]!, files)).toBe("Chapter 1");
+	});
+
+	it("uses the vault path when another manuscript note shares the name", () => {
+		const files = [fileAt("Book/Part 1/Chapter 1.md"), fileAt("Book/Part 2/Chapter 1.md")];
+		expect(noteRouteName(files[1]!, files)).toBe("Book/Part 2/Chapter 1");
 	});
 });

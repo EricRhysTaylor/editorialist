@@ -59,6 +59,7 @@ import {
 	getFrontmatterStringValues,
 	getSceneIdForFile,
 	isSceneNoteForScope,
+	noteRouteName,
 	type ActiveBookScopeInfo,
 } from "./core/VaultScope";
 import { buildSceneTokens, sceneNumberFromName, type SceneRelevanceContext } from "./core/SceneRelevance";
@@ -3315,6 +3316,7 @@ export default class EditorialistPlugin extends Plugin {
 
 	async copyDirectiveFixPrompt(items: readonly EditorialismItem[]): Promise<void> {
 		const directives = [];
+		const manuscriptFiles = this.getManuscriptFiles();
 		for (const item of items) {
 			const passages: DirectiveFixPassage[] = [];
 			for (const anchor of item.anchors.filter((candidate) => !isAnchorRetired(candidate.status))) {
@@ -3322,9 +3324,11 @@ export default class EditorialistPlugin extends Plugin {
 				const text = file ? this.resolveOpenNoteText(file.path) ?? await this.app.vault.cachedRead(file) : null;
 				const location = text === null ? null : locateAnchor(text, anchor);
 				const paragraph = text !== null && location && isLocated(location) ? paragraphAround(text, location) : null;
+				const sceneId = file ? getSceneIdForFile(this.app, file) ?? null : null;
 				passages.push({
 					sceneLabel: file?.basename ?? (anchor.scene ? `Scene ${anchor.scene}` : "Unknown scene"),
-					sceneId: file ? getSceneIdForFile(this.app, file) ?? null : null,
+					sceneId,
+					noteName: file && !sceneId ? noteRouteName(file, manuscriptFiles) : null,
 					fragment: anchor.closing ? `${anchor.opening}" → "${anchor.closing}` : anchor.opening,
 					paragraph: text !== null && paragraph ? text.slice(paragraph.start, paragraph.end).trim() : null,
 				});
@@ -3352,40 +3356,52 @@ export default class EditorialistPlugin extends Plugin {
 		await this.copyTextToClipboard(template, "Review template copied", "Could not copy the review template.");
 	}
 
-	// Collects the active book label, the active note's scene id (if any), and
-	// the full list of scene ids in the active book — so the copied prompt can
-	// give the AI a concrete set of valid SceneIds. Without this, AIs invent
-	// plausible-looking ids (e.g. `scn_eb08b7ef`) that fail to route.
+	// Collects the active book label, the active note's scene id (if any), the
+	// full list of scene ids in the active book, and the names of manuscript
+	// notes that have no id — so the copied prompt gives the AI a concrete set
+	// of valid SceneIds and Notes. Without this, AIs invent plausible-looking
+	// ids (e.g. `scn_eb08b7ef`) that fail to route, and a book of plain chapter
+	// notes gets no way to place a memo at all.
 	private gatherReviewTemplateContext(): ReviewTemplateContext {
 		const scope = this.registry.getActiveBookScopeInfo();
 		const activeFile = this.app.workspace.getActiveFile();
 		const sceneIds: { id: string; title: string }[] = [];
+		const noteNames: string[] = [];
 		let activeSceneId: string | null = null;
+		let activeNoteName: string | null = null;
 
-		if (scope.sourceFolder || scope.target) {
-			const seenIds = new Set<string>();
-			for (const file of this.app.vault.getMarkdownFiles()) {
-				if (!isSceneNoteForScope(this.app, file, scope, this.getCutFolderOverride())) {
-					continue;
-				}
-				const sceneId = getSceneIdForFile(this.app, file);
-				if (!sceneId || seenIds.has(sceneId)) {
-					continue;
-				}
-				seenIds.add(sceneId);
-				sceneIds.push({ id: sceneId, title: file.basename });
+		// Legacy installations with no target and no book folder would otherwise
+		// list every note in the vault.
+		const manuscriptFiles = scope.sourceFolder || scope.target ? this.getManuscriptFiles() : [];
+		const seenIds = new Set<string>();
+		for (const file of manuscriptFiles) {
+			const sceneId = getSceneIdForFile(this.app, file);
+			if (!sceneId) {
+				noteNames.push(noteRouteName(file, manuscriptFiles));
+				continue;
 			}
-			sceneIds.sort((left, right) => left.title.localeCompare(right.title, undefined, { numeric: true }));
+			if (seenIds.has(sceneId)) {
+				continue;
+			}
+			seenIds.add(sceneId);
+			sceneIds.push({ id: sceneId, title: file.basename });
 		}
+		sceneIds.sort((left, right) => left.title.localeCompare(right.title, undefined, { numeric: true }));
+		noteNames.sort((left, right) => left.localeCompare(right, undefined, { numeric: true }));
 
 		if (activeFile && isSceneNoteForScope(this.app, activeFile, scope, this.getCutFolderOverride())) {
 			activeSceneId = getSceneIdForFile(this.app, activeFile) ?? null;
+			if (!activeSceneId && manuscriptFiles.some((file) => file.path === activeFile.path)) {
+				activeNoteName = noteRouteName(activeFile, manuscriptFiles);
+			}
 		}
 
 		return {
 			bookLabel: scope.label,
 			activeSceneId,
+			activeNoteName,
 			sceneIds,
+			noteNames,
 		};
 	}
 

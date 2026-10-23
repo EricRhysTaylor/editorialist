@@ -231,3 +231,39 @@ describe("buildReviewTemplate — planning handoff", () => {
 		expect(isReviewTemplateText(out)).toBe(true);
 	});
 });
+
+// A book outside Radial Timeline: plain chapter notes with no scene ids. The
+// instructions once listed no scenes at all yet required every SceneId to
+// match one, so an AI had no way to place a memo on its chapter.
+describe("buildReviewTemplate — notes without scene ids", () => {
+	const chapters = ["Chapter 1", "Chapter 2", "Chapter 10"];
+
+	it("lists the notes and tells the AI to route them with Note", () => {
+		const out = buildReviewTemplate(undefined, { bookLabel: "The Bennet Sisters", noteNames: chapters });
+		expect(out).toContain("Notes in this book without a scene id (3):");
+		expect(out).toContain("- Chapter 10");
+		expect(out).toContain("`Note: <name exactly as listed>`");
+		expect(out).toContain("Never put a note name in SceneId");
+		expect(out).not.toContain("must match one of the values above");
+		expect(isReviewTemplateText(out)).toBe(true);
+	});
+
+	it("explains how Format B numbers a chapter note", () => {
+		expect(buildReviewTemplate(undefined, { noteNames: chapters })).toContain("`Chapter 9` is `9`");
+		expect(buildReviewTemplate(undefined, { noteNames: ["The Storm"] })).toContain("cannot point at them");
+	});
+
+	it("keeps the id list and its rule for a book with ids", () => {
+		const out = buildReviewTemplate(undefined, { sceneIds: [{ id: "scn_real", title: "1 Arrival" }], noteNames: ["Epilogue"] });
+		expect(out).toContain("scn_real — 1 Arrival");
+		expect(out).toContain("must match one of the values above");
+		expect(out).toContain("- Epilogue");
+	});
+
+	it("routes query answers to the open note by its Note", () => {
+		const out = buildReviewTemplate("Prose %%query: Too abrupt?%% here.", { activeNoteName: "Chapter 3", noteNames: chapters });
+		expect(out).toContain("Active note (no scene id): Chapter 3");
+		expect(out).toContain("echoing its Id and Note");
+		expect(out).toContain("[Q1] Note: Chapter 3 — Too abrupt?");
+	});
+});
