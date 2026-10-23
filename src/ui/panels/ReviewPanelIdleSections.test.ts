@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { formatRelativeTime } from "../../core/RelativeTime";
 import {
+	compareSceneTitles,
 	formatRecentReviewSceneTitle,
 	formatStatsTooltip,
 	groupRecentReviews,
@@ -326,5 +327,29 @@ describe("sumGroupStats", () => {
 			rewritten: 3,
 			deferred: 2,
 		});
+	});
+});
+
+// Books outside Radial Timeline name notes "Chapter N"; a plain text sort put
+// Chapter 10 before Chapter 4.
+describe("compareSceneTitles", () => {
+	const sorted = (titles: string[]) => [...titles].sort(compareSceneTitles);
+
+	it("orders chapter-named notes by their number", () => {
+		expect(sorted(["Chapter 10", "Chapter 4", "Chapter 1", "Chapter 12"])).toEqual(["Chapter 1", "Chapter 4", "Chapter 10", "Chapter 12"]);
+	});
+
+	it("orders number-led scenes as before, ahead of unnumbered notes", () => {
+		expect(sorted(["Epilogue", "51 Long Road Up", "13 Shail Begins Race", "Prologue"])).toEqual(["13 Shail Begins Race", "51 Long Road Up", "Epilogue", "Prologue"]);
+	});
+
+	it("reads numbers inside other names as numbers", () => {
+		expect(sorted(["Part 10", "Part 2"])).toEqual(["Part 2", "Part 10"]);
+	});
+
+	it("orders a batch title's chapters by number", () => {
+		expect(
+			formatRecentReviewSceneTitle({ sceneOrder: ["Chapter 10.md", "Chapter 4.md", "Chapter 1.md"], importedNotePaths: [] }),
+		).toBe("Chapter 1, Chapter 4, Chapter 10");
 	});
 });

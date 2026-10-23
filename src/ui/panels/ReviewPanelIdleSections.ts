@@ -21,6 +21,7 @@ import { setIcon } from "obsidian";
 import { renderContributorBrandMark, resolveContributorAvatarKind } from "../../core/ContributorBrandMarks";
 import { formatReviewerTypeLabel } from "../../core/ContributorIdentity";
 import { isPathInFolderScope } from "../../core/VaultScope";
+import { sceneNumberFromName } from "../../core/SceneRelevance";
 import { isBatchReadyToClean } from "../../core/review/SweepCompletion";
 import type EditorialistPlugin from "../../main";
 
@@ -786,15 +787,12 @@ export function formatRecentReviewSceneTitle(
 	if (titles.length === 1) {
 		return titles[0] ?? "Review pass";
 	}
-	// Multi-scene batches: order ascending by leading scene number, shorten each
-	// name to "<number> + 2 words…", and name up to MAX_NAMED before a count
-	// suffix. Short names let the title wrap to a second line (see styles.css)
-	// instead of ellipsis-truncating mid-word.
+	// Multi-scene batches: order by scene number, shorten each name to
+	// "<number> + 2 words…", and name up to MAX_NAMED before a count suffix.
+	// Short names let the title wrap to a second line (see styles.css) instead
+	// of ellipsis-truncating mid-word.
 	const MAX_NAMED = 4;
-	const ordered = titles
-		.map((title, index) => ({ title, index, key: sceneNumberKey(title) }))
-		.sort((left, right) => left.key - right.key || left.index - right.index)
-		.map((item) => shortenSceneTitle(item.title));
+	const ordered = [...titles].sort(compareSceneTitles).map(shortenSceneTitle);
 	if (ordered.length <= MAX_NAMED) {
 		return ordered.join(", ");
 	}
@@ -818,12 +816,16 @@ export function shortenSceneTitle(title: string): string {
 	return `${tokens.slice(0, keep).join(" ")}…`;
 }
 
-// Leading scene number used to order scenes within a batch title. Names without
-// a number sort to the end (kept in their original relative order via the index
-// tie-breaker at the call site).
-function sceneNumberKey(title: string): number {
-	const match = title.match(/^\s*(\d+(?:\.\d+)?)/);
-	return match ? Number(match[1]) : Number.POSITIVE_INFINITY;
+// Story order for scene names, by the scene number Editorialism anchors use:
+// "14 Arrival" and "Chapter 14" are both scene 14. Numbered names come first;
+// the rest, and ties, compare as text with numbers read as numbers.
+export function compareSceneTitles(left: string, right: string): number {
+	const leftNumber = sceneNumberFromName(left);
+	const rightNumber = sceneNumberFromName(right);
+	if (leftNumber !== null && rightNumber !== null && leftNumber !== rightNumber) return leftNumber - rightNumber;
+	if (leftNumber !== null && rightNumber === null) return -1;
+	if (leftNumber === null && rightNumber !== null) return 1;
+	return left.localeCompare(right, undefined, { numeric: true });
 }
 
 
