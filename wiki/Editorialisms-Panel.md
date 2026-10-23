@@ -54,7 +54,7 @@ Each item is a task line with one of five statuses. In the file, the status is t
 
 Clicking an item's status circle opens a menu naming every status — **Open**, **In progress**, **Done**, **Deferred**, **Question** — with the current one checked, so you always see what a click will set. The same menu offers **Ask a question…** and **Draft fixes with AI…**, both described below.
 
-Because Editorialisms are plain markdown task lists, they stay fully readable and editable outside the panel — edit the file directly and the panel reflects it. The `[scope:: …]` metadata records which scene, range (`13–22`), subplot (`subplot:<name>`), or `manuscript` each directive applies to.
+Because Editorialisms are plain markdown task lists, they stay fully readable and editable outside the panel — edit the file directly and the panel reflects it. The `[scope:: …]` metadata records which scene, range (`13–22`), subplot (`subplot:<name>`), or `manuscript` each directive applies to, or `general` when the reviewer gave the guidance without saying where.
 
 ### Current-scene highlights
 
@@ -68,6 +68,8 @@ Rows light up when their `[scope:: …]` matches the current scene:
 - A scene scope matches that scene number: the number at the start of the note's name, or after `Chapter` in a book of chapter notes.
 - A range scope matches when the current scene falls inside the range.
 - A subplot scope matches when the subplot name overlaps the scene's character, subplot, or action / description frontmatter. For example, an item scoped to `[scope:: subplot:Cesena thread]` lights up while you are in a scene whose metadata mentions `Cesena`.
+
+`manuscript` and `general` items never light up: the first covers every scene, the second names none. A **General guidance** chip, with an empty dashed bar, marks advice your reviewer tied to no place in the book. When you decide where it belongs, edit its scope in the file.
 
 ### Anchors — jumping to the passages a directive is about
 

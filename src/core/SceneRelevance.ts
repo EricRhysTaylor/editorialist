@@ -2,8 +2,9 @@
 // is currently working on, so the panel can mark those items — a geolocation
 // hint for a long agenda. Scene/range matches are exact (numeric); subplot
 // matches are a heuristic token overlap between the subplot name and the current
-// scene's character names + subplot/action-description tokens. Manuscript/unknown
-// scopes never match (they apply everywhere, so they don't help locate).
+// scene's character names + subplot/action-description tokens. Manuscript,
+// general and unknown scopes never match (they apply everywhere or name no
+// place, so they don't help locate).
 
 import type { EditorialismItemScope } from "../models/Editorialism";
 
@@ -84,7 +85,7 @@ export function scopeRelatesToScene(
 			return false;
 		}
 		default:
-			// manuscript / unknown — not a geolocation signal.
+			// manuscript / general / unknown — not a geolocation signal.
 			return false;
 	}
 }

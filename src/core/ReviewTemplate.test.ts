@@ -267,3 +267,20 @@ describe("buildReviewTemplate — notes without scene ids", () => {
 		expect(out).toContain("[Q1] Note: Chapter 3 — Too abrupt?");
 	});
 });
+
+// A letter point with no stated place used to become an invented range or
+// `manuscript`, which look like real placements in the panel.
+describe("buildReviewTemplate — general guidance scope", () => {
+	const out = buildReviewTemplate();
+
+	it("offers general apart from manuscript", () => {
+		expect(out).toContain("`general`            — guidance the reviewer gave without naming any place in the book");
+		expect(out).toContain("`manuscript`         — work that touches every scene");
+		expect(out).toContain("[scope:: general]");
+	});
+
+	it("forbids turning vague hints into a range", () => {
+		expect(out).toContain("use `general`; do not turn hints");
+		expect(out).toContain("a guessed range sends the author to the wrong scenes");
+	});
+});

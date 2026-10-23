@@ -94,10 +94,10 @@ export function collectSceneDirectives(
 				// irreversible from the card — the author could not see what they
 				// had just changed, let alone undo it. Counts and the in-sweep
 				// passage match leave finished directives out.
-				// `manuscript` and `unknown` scopes never match by design — a
-				// directive that applies everywhere does not help locate
-				// anything, and surfacing it at every scene would make this card
-				// noise. Giving those a jump target is issue #3's job.
+				// `manuscript`, `general` and `unknown` scopes never match by
+				// design — a directive that applies everywhere, or names no
+				// place, does not help locate anything, and surfacing it at every
+				// scene would make this card noise. Giving those a jump target is issue #3's job.
 				if (!scopeRelatesToScene(item.scope, context)) {
 					continue;
 				}

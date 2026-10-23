@@ -65,8 +65,9 @@ describe("scopeRelatesToScene", () => {
 		expect(scopeRelatesToScene(scope({ kind: "subplot", subplotName: "Wala margin" }), ctx())).toBe(false);
 	});
 
-	it("never matches manuscript or unknown scopes", () => {
+	it("never matches manuscript, general or unknown scopes", () => {
 		expect(scopeRelatesToScene(scope({ kind: "manuscript" }), ctx())).toBe(false);
+		expect(scopeRelatesToScene(scope({ kind: "general" }), ctx())).toBe(false);
 		expect(scopeRelatesToScene(scope({ kind: "unknown" }), ctx())).toBe(false);
 		expect(scopeRelatesToScene(null, ctx())).toBe(false);
 	});

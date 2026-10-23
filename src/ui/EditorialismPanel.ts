@@ -679,6 +679,8 @@ export class EditorialismPanel extends ItemView {
 		switch (scope.kind) {
 			case "manuscript":
 				return "Manuscript";
+			case "general":
+				return "General guidance";
 			case "scene":
 				return `Scene ${scope.scene}`;
 			case "range":

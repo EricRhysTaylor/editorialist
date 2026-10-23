@@ -72,6 +72,9 @@ export function parseScope(raw: string): EditorialismItemScope {
 	if (lower === "manuscript" || lower === "mss" || lower === "book") {
 		return { kind: "manuscript", raw: trimmed };
 	}
+	if (lower === "general") {
+		return { kind: "general", raw: trimmed };
+	}
 	// `subplot:` is the term (matches Radial Timeline). `arc:` is kept as a
 	// legacy alias so editorialisms written before the rename still parse.
 	if (lower.startsWith("subplot:") || lower.startsWith("arc:")) {

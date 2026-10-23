@@ -6463,6 +6463,21 @@
 	color: color-mix(in srgb, var(--text-accent) 80%, var(--text-normal));
 }
 
+/* General guidance names no place in the book: a short dotted line with no
+   fill instead of a track, so it never reads as Manuscript's full bar. Short,
+   too, so the longer label stays on one line in a narrow sidebar. */
+.editorialist-editorialism-panel__scope-chip--general {
+	color: var(--text-muted);
+}
+
+.editorialist-editorialism-panel__scope-chip--general .editorialist-editorialism-panel__scope-bar {
+	width: 16px;
+	height: 0;
+	border-top: 2px dotted var(--text-faint);
+	border-radius: 0;
+	background: transparent;
+}
+
 .editorialist-editorialism-panel__scope-chip--unknown {
 	color: var(--text-faint);
 	font-style: italic;

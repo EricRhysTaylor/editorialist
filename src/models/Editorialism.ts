@@ -22,7 +22,9 @@ export type EditorialismItemStatus =
 	| "deferred"
 	| "question";
 
-export type EditorialismScopeKind = "manuscript" | "scene" | "range" | "subplot" | "unknown";
+// `manuscript` is work that touches every scene; `general` is guidance the
+// reviewer gave without naming any place in the book.
+export type EditorialismScopeKind = "manuscript" | "general" | "scene" | "range" | "subplot" | "unknown";
 
 export interface EditorialismItemScope {
 	kind: EditorialismScopeKind;

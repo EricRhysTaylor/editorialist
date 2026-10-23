@@ -79,8 +79,14 @@ describe("parseScope", () => {
 		expect(parseScope("42")).toEqual({ kind: "scene", scene: "42", raw: "42" });
 	});
 
+	it("recognizes general guidance, apart from the whole book", () => {
+		expect(parseScope("general")).toEqual({ kind: "general", raw: "general" });
+		expect(parseScope(" General ").kind).toBe("general");
+	});
+
 	it("falls back to unknown", () => {
 		expect(parseScope("somewhere").kind).toBe("unknown");
+		expect(parseScope("general guidance").kind).toBe("unknown");
 	});
 });
 

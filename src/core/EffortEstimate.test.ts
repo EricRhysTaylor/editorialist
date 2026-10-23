@@ -70,6 +70,13 @@ describe("estimateEditorialismEffort", () => {
 		expect(scene.directiveMinutes).toBe(DEFAULT_EFFORT_PARAMS.minutesPerDirective);
 	});
 
+	it("costs general guidance like one scene, not the whole book", () => {
+		const general = estimateEditorialismEffort(
+			doc([item({ text: "seed his interest earlier", scope: { kind: "general", raw: "general" } })]),
+		);
+		expect(general.directiveMinutes).toBe(DEFAULT_EFFORT_PARAMS.minutesPerDirective);
+	});
+
 	it("multiplies range directives by the scene span", () => {
 		const est = estimateEditorialismEffort(
 			doc([item({ text: "reconcile timeline", scope: { kind: "range", start: "13", end: "22", raw: "13–22" } })]),
