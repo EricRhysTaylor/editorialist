@@ -271,8 +271,9 @@ describe("createSuggestionApplyPlan — move", () => {
 		expect(createSuggestionApplyPlan("T.\n\nA.", s)).toBeNull();
 	});
 
-	it("target verification is STRICT — normalized-equivalent drift does NOT apply", () => {
-		// edit/cut/condense fall back to normalizeMatchText; move does not.
+	it("target verification tolerates normalized drift, like every other operation", () => {
+		// The match engine locates a move's source fuzzily too (quotes, dashes,
+		// italics), so a strict compare would refuse every move it found that way.
 		const note = "“Quote”\n\nAnchor"; // curly quotes in manuscript
 		const s = moveSuggestion(
 			{
@@ -286,7 +287,7 @@ describe("createSuggestionApplyPlan — move", () => {
 			},
 			{ target: '"Quote"', anchor: "Anchor", placement: "after" }, // straight quotes
 		);
-		expect(createSuggestionApplyPlan(note, s)).toBeNull();
+		expect(createSuggestionApplyPlan(note, s)?.text.trim()).toBe("Anchor\n\n“Quote”");
 	});
 
 	it("placement 'after', target before anchor — anchor offsets shift by removed length", () => {

@@ -126,7 +126,7 @@ The CONDENSE target uses a two-anchor format:
 Target: "<verbatim opening fragment>" → "<verbatim closing fragment>"
 ```
 
-Both fragments should be copied from the manuscript (≤12 words each is plenty — they're anchors, not the whole passage). Editorialist tries exact matching first, then a quote/dash/whitespace-tolerant match. A paraphrased description still routes the suggestion to "Passage not located" and you can't act on it.
+Both fragments should be copied from the manuscript (≤12 words each is plenty — they're anchors, not the whole passage). Editorialist tries exact matching first, then a match that tolerates differences in quotes, dashes, spacing, and italics or bold. A paraphrased description still routes the suggestion to "Passage not located" and you can't act on it.
 
 ### CONDENSE and EXPAND: direct vs. advisory
 
@@ -148,7 +148,9 @@ Every operation entry targets one scene via `SceneId:`. Items in the same block 
 
 ### Matching against the manuscript
 
-`Original:` and `Target:` text is matched **conservatively** against the live note: exact text first, then a quote/dash/whitespace-tolerant fallback. Editorialist also checks whether the suggested replacement already appears to be applied. Each suggestion gets a match type — exact, multiple matches, not found, or already applied — surfaced in the review UI so you know what you're acting on.
+`Original:` and `Target:` text is matched **conservatively** against the live note: exact text first, then a fallback that tolerates differences in quotes, dashes, spacing, and italics or bold — so a passage quoted from a Word file, where `_me_` in your note arrives as plain *me*, is still found. Editorialist also checks whether the suggested replacement already appears to be applied. Each suggestion gets a match type — exact, multiple matches, not found, or already applied — surfaced in the review UI so you know what you're acting on.
+
+When the passage in your note has italics or bold and the reviewer's text has none, applying keeps your formatting in the wording the suggestion leaves unchanged, and the card says so. If the suggestion rewrites the formatted words themselves, or would cut or move only part of a formatted phrase, the card shows the passage but does not apply it: make that change by hand, then mark it rewritten. A reviewer who writes their own italics or bold in the new text gets exactly that.
 
 ---
 

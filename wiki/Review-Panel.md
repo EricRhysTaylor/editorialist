@@ -187,7 +187,7 @@ pending ──→ accepted
 
 ### Undo
 
-Only the single most-recently applied change can be undone, and only for as long as you stay on that note — navigate away and it's final. Rejecting, deferring, and rewriting have no undo. Suggestions whose target text can't be found in the note (paraphrased targets, already-applied edits) are flagged by match type — exact, multiple matches, not found, or already applied — so nothing is ever applied against the wrong text.
+Only the single most-recently applied change can be undone, and only for as long as you stay on that note — navigate away and it's final. Rejecting, deferring, and rewriting have no undo. Suggestions whose target text can't be found in the note (paraphrased targets, already-applied edits) are flagged by match type — exact, multiple matches, not found, or already applied — so nothing is ever applied against the wrong text. A suggestion that would break the italics or bold in its passage is shown but left for you to make by hand; see [Matching against the manuscript](Importing-Reviews#matching-against-the-manuscript).
 
 ### Sweep completion
 

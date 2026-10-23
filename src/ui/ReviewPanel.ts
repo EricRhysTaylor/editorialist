@@ -4,6 +4,7 @@ import { renderPanelHeader } from "./primitives/PanelHeader";
 import { ButtonComponent, DropdownComponent, ItemView, Menu, Notice, setIcon, type WorkspaceLeaf } from "obsidian";
 import { formatContributorIdentityLabel } from "../core/ContributorIdentity";
 import { getEffectiveSuggestionStatus, getSuggestionCopyBlocks, getSuggestionReason as getOperationSuggestionReason, isImplicitlyAcceptedSuggestion, isMoveSuggestion } from "../core/OperationSupport";
+import { FORMATTING_CONFLICT_REASON } from "../core/EmphasisCarry";
 import { isOpenStatus, reviewStatusLabel } from "../core/status/ReviewStatusModel";
 import type { ReviewSuggestion, SceneMemo } from "../models/ReviewSuggestion";
 import type { default as EditorialistPlugin, ReviewStateIndexEntry } from "../main";
@@ -2241,6 +2242,11 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	}
 
 	private getSuggestionReasonTone(suggestion: ReviewSuggestion): "alert" | "muted" {
+		// Located but left for a hand edit, so the author's formatting survives.
+		const target = isMoveSuggestion(suggestion) ? suggestion.location.target : suggestion.location.primary ?? suggestion.location.target;
+		if (target?.matchType === "formatting" || (isMoveSuggestion(suggestion) && suggestion.location.relocation?.reason === FORMATTING_CONFLICT_REASON)) {
+			return "alert";
+		}
 		const reason = this.getSuggestionReason(suggestion).toLowerCase();
 		if (
 			reason.includes("no exact match") ||

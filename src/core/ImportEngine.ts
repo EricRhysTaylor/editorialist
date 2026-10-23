@@ -827,7 +827,8 @@ export class ImportEngine {
 		}
 
 		const primary = getSuggestionPrimaryTarget(suggestion);
-		if (primary?.matchType === "exact") {
+		// A formatting conflict is a located passage; only applying it is left to the author.
+		if (primary?.matchType === "exact" || primary?.matchType === "formatting") {
 			return {
 				status: "exact",
 				reason: primary.reason ?? "Exact match found.",

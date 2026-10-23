@@ -10,6 +10,8 @@ import type {
 	ReviewTargetRef,
 } from "../models/ReviewSuggestion";
 import { rewriteAnchorEdit } from "./AnchorDirective";
+import { FORMATTING_CONFLICT_REASON, FORMATTING_KEPT_REASON, planEmphasisReplacement } from "./EmphasisCarry";
+import { createSuggestionApplyPlan } from "./OperationSupport";
 import { findApproximateMatch, findExactMatches, findFuzzyMatches, normalizeMatchText } from "./TextMatching";
 
 interface TextResolution {
@@ -90,7 +92,7 @@ export class MatchEngine {
 			...effective,
 			status: this.resolveSuggestionStatus(effective.status, resolution),
 			location: {
-				primary: target,
+				primary: this.guardFormatting(noteText, target, effective.payload.revised),
 			},
 		};
 	}
@@ -128,7 +130,7 @@ export class MatchEngine {
 			suggestion.payload.placement,
 		);
 
-		return {
+		const resolved: MoveSuggestion = {
 			...suggestion,
 			status: this.preserveTerminalStatus(
 				suggestion.status,
@@ -140,6 +142,15 @@ export class MatchEngine {
 				relocation,
 			},
 		};
+		// A located move that would split the author's italics or bold stays
+		// open for a hand edit instead of offering an apply that would break it.
+		if (relocation.canApply && !createSuggestionApplyPlan(noteText, resolved)) {
+			return {
+				...resolved,
+				location: { ...resolved.location, relocation: { ...relocation, canApply: false, reason: FORMATTING_CONFLICT_REASON } },
+			};
+		}
+		return resolved;
 	}
 
 	private resolveCutSuggestion(noteText: string, suggestion: CutSuggestion): CutSuggestion {
@@ -149,7 +160,7 @@ export class MatchEngine {
 			...suggestion,
 			status: this.resolveSuggestionStatus(suggestion.status, resolution),
 			location: {
-				target: resolution.target,
+				target: this.guardFormatting(noteText, resolution.target, ""),
 			},
 		};
 	}
@@ -170,7 +181,7 @@ export class MatchEngine {
 			...suggestion,
 			status: this.resolveSuggestionStatus(suggestion.status, resolution),
 			location: {
-				target: resolution.target,
+				target: this.guardFormatting(noteText, resolution.target, suggestion.payload.suggestion),
 			},
 		};
 	}
@@ -189,7 +200,7 @@ export class MatchEngine {
 			...suggestion,
 			status: this.resolveSuggestionStatus(suggestion.status, resolution),
 			location: {
-				target: resolution.target,
+				target: this.guardFormatting(noteText, resolution.target, suggestion.payload.suggestion),
 			},
 		};
 	}
@@ -247,13 +258,13 @@ export class MatchEngine {
 				target: resolvedText,
 			},
 			location: {
-				target: {
+				target: this.guardFormatting(noteText, {
 					text: resolvedText,
 					startOffset,
 					endOffset,
 					matchType: "exact",
 					reason: "Resolved from opening and closing anchors.",
-				},
+				}, suggestion.payload.suggestion),
 			},
 		};
 	}
@@ -493,7 +504,7 @@ export class MatchEngine {
 						startOffset: range.startOffset,
 						endOffset: range.endOffset,
 						matchType: "exact",
-						reason: "Match found after normalizing quotes/dashes/whitespace.",
+						reason: "Match found once differences in quotes, dashes, spacing or italics were set aside.",
 					},
 				};
 			}
@@ -504,7 +515,7 @@ export class MatchEngine {
 				target: {
 					text,
 					matchType: "multiple",
-					reason: "Multiple matches found after normalizing quotes/dashes/whitespace.",
+					reason: "Multiple matches found once differences in quotes, dashes, spacing or italics were set aside.",
 				},
 			};
 		}
@@ -558,6 +569,20 @@ export class MatchEngine {
 				reason: "Text not found in the manuscript.",
 			},
 		};
+	}
+
+	// A located passage whose replacement would split or drop the author's
+	// italics or bold stays visible but cannot be applied: the author makes that
+	// change by hand. When the formatting carries over, the card says so.
+	private guardFormatting(noteText: string, target: ReviewTargetRef, replacement: string | undefined): ReviewTargetRef {
+		if (replacement === undefined || target.matchType !== "exact" || target.startOffset === undefined || target.endOffset === undefined) {
+			return target;
+		}
+		const planned = planEmphasisReplacement(noteText, target.startOffset, target.endOffset, replacement);
+		if (planned === null) {
+			return { ...target, matchType: "formatting", reason: FORMATTING_CONFLICT_REASON };
+		}
+		return planned.text === replacement ? target : { ...target, reason: [target.reason, FORMATTING_KEPT_REASON].filter(Boolean).join(" ") };
 	}
 
 	private preserveTerminalStatus(currentStatus: ReviewStatus, nextStatus: ReviewStatus): ReviewStatus {

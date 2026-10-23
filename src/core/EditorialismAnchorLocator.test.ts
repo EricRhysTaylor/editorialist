@@ -33,6 +33,12 @@ describe("locateAnchor — single fragment", () => {
 		expect(NOTE.slice(location.start, location.end)).toBe("Marla laughed at the joke");
 	});
 
+	it("finds a fragment quoted without the note's italics", () => {
+		const note = "Not handsome enough to tempt _me_; and I am in no humour.";
+		const location = locateAnchor(note, anchor({ opening: "tempt me; and I am" }));
+		expect(location).toMatchObject({ status: "located", matchType: "fuzzy" });
+	});
+
 	it("falls back to fuzzy matching for curly-quote drift", () => {
 		const note = "She said “not tonight” and left.";
 		const location = locateAnchor(note, anchor({ opening: 'She said "not tonight" and left.' }));

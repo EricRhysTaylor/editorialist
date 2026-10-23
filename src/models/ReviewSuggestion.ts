@@ -31,7 +31,10 @@ export type AuthorQueryStatus = "open" | "resolved" | "dismissed";
 // passage the suggestion pointed at. Approximate targets carry offsets (so the
 // card can jump/reveal for side-by-side comparison) but never enable apply;
 // the author decides via Mark as rewritten / Reject.
-export type MatchType = "exact" | "multiple" | "none" | "already_applied" | "approximate";
+// "formatting": the passage was found, but writing the suggestion over it would
+// split or drop the author's italics or bold. It carries offsets for jump and
+// reveal, never enables apply, and the author makes the change by hand.
+export type MatchType = "exact" | "multiple" | "none" | "already_applied" | "approximate" | "formatting";
 
 export type ReviewPlacement = "before" | "after";
 

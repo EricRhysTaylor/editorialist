@@ -12,6 +12,8 @@ import {
 	type ReviewSuggestion,
 	type ReviewTargetRef,
 } from "../models/ReviewSuggestion";
+import { countEmphasisDefects, widenToWrappingEmphasis } from "./Emphasis";
+import { planEmphasisReplacement } from "./EmphasisCarry";
 import { normalizeMatchText } from "./TextMatching";
 import { isOpenStatus, isTerminalStatus } from "./status/ReviewStatusModel";
 
@@ -87,11 +89,7 @@ const operationSupport: {
 				return null;
 			}
 
-			return {
-				from: match.startOffset,
-				to: match.endOffset,
-				text: suggestion.payload.revised,
-			};
+			return planEmphasisReplacement(noteText, match.startOffset, match.endOffset, suggestion.payload.revised);
 		},
 		getCopyBlocks: (suggestion: EditSuggestion) => [
 			{ label: "Original", body: suggestion.payload.original },
@@ -113,18 +111,23 @@ const operationSupport: {
 				return null;
 			}
 
-			const { targetStart, targetEnd, anchorStart, anchorEnd } = relocation;
+			const { anchorStart, anchorEnd } = relocation;
 			if (
-				targetStart === undefined ||
-				targetEnd === undefined ||
+				relocation.targetStart === undefined ||
+				relocation.targetEnd === undefined ||
 				anchorStart === undefined ||
 				anchorEnd === undefined
 			) {
 				return null;
 			}
+			// A whole italic or bold phrase travels with its own markers.
+			const { from: targetStart, to: targetEnd } = widenToWrappingEmphasis(noteText, relocation.targetStart, relocation.targetEnd);
 
 			const targetText = noteText.slice(targetStart, targetEnd);
-			if (targetText !== suggestion.payload.target) {
+			if (
+				targetText !== suggestion.payload.target
+				&& normalizeMatchText(targetText) !== normalizeMatchText(suggestion.payload.target)
+			) {
 				return null;
 			}
 
@@ -178,10 +181,16 @@ const operationSupport: {
 			const focusStart = insertOffset + prefix.length;
 			const focusEnd = focusStart + normalizedTargetText.length;
 
+			const text = withoutTarget.slice(0, insertOffset) + insertedText + withoutTarget.slice(insertOffset);
+			// The moved passage keeps its own formatting; a move that takes only
+			// one side of an italic or bold phrase would split it.
+			if (countEmphasisDefects(text) > countEmphasisDefects(noteText)) {
+				return null;
+			}
 			return {
 				from: 0,
 				to: noteText.length,
-				text: withoutTarget.slice(0, insertOffset) + insertedText + withoutTarget.slice(insertOffset),
+				text,
 				focusStart,
 				focusEnd,
 			};
@@ -237,11 +246,7 @@ const operationSupport: {
 				return null;
 			}
 
-			return {
-				from: target.startOffset,
-				to: target.endOffset,
-				text: "",
-			};
+			return planEmphasisReplacement(noteText, target.startOffset, target.endOffset, "");
 		},
 		getCopyBlocks: (suggestion: CutSuggestion) => [{ label: "Target", body: suggestion.payload.target }],
 		getPrimaryTarget: (suggestion: CutSuggestion) => suggestion.location.target,
@@ -281,11 +286,7 @@ const operationSupport: {
 				return null;
 			}
 
-			return {
-				from: target.startOffset,
-				to: target.endOffset,
-				text: suggestion.payload.suggestion,
-			};
+			return planEmphasisReplacement(noteText, target.startOffset, target.endOffset, suggestion.payload.suggestion);
 		},
 		getCopyBlocks: (suggestion: CondenseSuggestion) => [
 			{ label: "Condense this", body: suggestion.payload.target },
@@ -342,11 +343,7 @@ const operationSupport: {
 				return null;
 			}
 
-			return {
-				from: target.startOffset,
-				to: target.endOffset,
-				text: suggestion.payload.suggestion,
-			};
+			return planEmphasisReplacement(noteText, target.startOffset, target.endOffset, suggestion.payload.suggestion);
 		},
 		getCopyBlocks: (suggestion: ExpandSuggestion) => [
 			{ label: "Expand this", body: suggestion.payload.target },

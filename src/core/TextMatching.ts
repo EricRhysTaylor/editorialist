@@ -1,3 +1,5 @@
+import { stripEmphasisMarkers } from "./Emphasis";
+
 // Blank a span with spaces (newlines kept), so every offset still points into
 // the real note while the span can no longer match.
 function blankRange(text: string, start: number, end: number): string {
@@ -96,7 +98,7 @@ export function findExactMatches(noteText: string, text: string): number[] {
 // engine found through dash tolerance was rejected here as unsafe to apply: the
 // author saw a matched suggestion that refused to go in, with no way to act on it.
 export function normalizeMatchText(value: string): string {
-	return value
+	return stripEmphasisMarkers(value)
 		.replace(/[“”]/g, "\"")
 		.replace(/[‘’ʼ]/g, "'")
 		// A typed `--` / `---` is the same dash as – or —: plain-text manuscripts
@@ -113,9 +115,10 @@ interface FuzzyMatchRange {
 }
 
 // Returns offsets in the raw note text where the target appears under
-// quote/dash/whitespace-tolerant matching. Used as a fallback when byte-exact
-// match fails — most commonly because the AI emitted curly quotes/apostrophes
-// while the manuscript has straight ones (or vice versa).
+// quote/dash/whitespace/emphasis-tolerant matching. Used as a fallback when
+// byte-exact match fails — most commonly because the AI emitted curly
+// quotes/apostrophes while the manuscript has straight ones (or vice versa), or
+// quoted a Word passage whose italics the note writes as `_word_`.
 export function findFuzzyMatches(noteText: string, text: string): FuzzyMatchRange[] {
 	if (!text || !noteText) {
 		return [];
@@ -125,7 +128,7 @@ export function findFuzzyMatches(noteText: string, text: string): FuzzyMatchRang
 		return [];
 	}
 	const ranges: FuzzyMatchRange[] = [];
-	const regex = new RegExp(pattern, "g");
+	const regex = new RegExp(pattern, "gu");
 	let match: RegExpExecArray | null;
 	while ((match = regex.exec(noteText)) !== null) {
 		if (match[0].length === 0) {
@@ -139,20 +142,39 @@ export function findFuzzyMatches(noteText: string, text: string): FuzzyMatchRang
 
 const REGEX_META_CHARS = /[.*+?^${}()|[\]\\]/g;
 
+// An optional emphasis marker run, allowed wherever prose meets a space or
+// punctuation. The outer ends refuse a run inside a word, so a match never
+// takes the underscore of `snake_case`.
+const EMPHASIS = "(?:\\*{1,3}|_{1,3})?";
+const LEADING_EMPHASIS = "(?:(?<![\\p{L}\\p{N}])(?:\\*{1,3}|_{1,3}))?";
+const TRAILING_EMPHASIS = "(?:(?:\\*{1,3}|_{1,3})(?![\\p{L}\\p{N}]))?";
+
+function isWordChar(char: string): boolean {
+	return /[\p{L}\p{N}]/u.test(char);
+}
+
 function buildFuzzyMatchPattern(text: string): string | null {
 	// Collapse runs of whitespace in the target so they map to `\s+` in the
 	// pattern. Then escape regex meta chars and replace the placeholder runs
 	// of single spaces with `\s+`. Quote and dash variants get character classes.
-	const collapsed = text.replace(/-{2,3}/g, "-").replace(/\s+/g, " ").trim();
+	// The target's own emphasis markers are dropped and optional markers allowed
+	// at every word edge instead, so `*me*`, `_me_` and `me` all match.
+	const collapsed = stripEmphasisMarkers(text).replace(/-{2,3}/g, "-").replace(/\s+/g, " ").trim();
 	if (!collapsed) {
 		return null;
 	}
-	let out = "";
+	let out = LEADING_EMPHASIS;
+	let previous: string | null = null;
 	for (const char of collapsed) {
 		if (char === " ") {
-			out += "\\s+";
+			out += `${EMPHASIS}\\s+${EMPHASIS}`;
+			previous = char;
 			continue;
 		}
+		if (previous !== null && previous !== " " && isWordChar(previous) !== isWordChar(char)) {
+			out += EMPHASIS;
+		}
+		previous = char;
 		if (char === "'" || char === "‘" || char === "’" || char === "ʼ") {
 			out += "['‘’ʼ]";
 			continue;
@@ -167,7 +189,7 @@ function buildFuzzyMatchPattern(text: string): string | null {
 		}
 		out += char.replace(REGEX_META_CHARS, "\\$&");
 	}
-	return out;
+	return out + TRAILING_EMPHASIS;
 }
 
 export interface ApproximateMatchRange {
