@@ -65,7 +65,7 @@ Highlighting applies only to scene notes of the active book. Cut archives are al
 
 Rows light up when their `[scope:: …]` matches the current scene:
 
-- A scene scope matches that scene number.
+- A scene scope matches that scene number: the number at the start of the note's name, or after `Chapter` in a book of chapter notes.
 - A range scope matches when the current scene falls inside the range.
 - A subplot scope matches when the subplot name overlaps the scene's character, subplot, or action / description frontmatter. For example, an item scoped to `[scope:: subplot:Cesena thread]` lights up while you are in a scene whose metadata mentions `Cesena`.
 

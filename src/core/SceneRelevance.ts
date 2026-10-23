@@ -8,18 +8,21 @@
 import type { EditorialismItemScope } from "../models/Editorialism";
 
 export interface SceneRelevanceContext {
-	// The current scene's number, taken from the leading integer of its file
-	// name (the manuscript-numbering convention the scopes also use). Null when
-	// the active file isn't number-prefixed.
+	// The current scene's number, taken from its file name (the manuscript-
+	// numbering convention the scopes also use). Null when the name carries no
+	// number sceneNumberFromName recognises.
 	sceneNumber: number | null;
 	// Lowercased word tokens (length ≥ 3) from the scene's Character + Subplot
 	// + action-description frontmatter, for subplot matching.
 	tokens: ReadonlySet<string>;
 }
 
-// Pull the leading integer from a file basename ("45 Cesena Scene" → 45).
+// The scene number in a file basename: its leading integer ("45 Cesena Scene"
+// → 45), or the number after a leading "Chapter" in a book whose notes are
+// named that way ("Chapter 9" → 9). A leading integer wins, so "5 Chapter 12"
+// is scene 5.
 export function sceneNumberFromName(basename: string): number | null {
-	const match = basename.match(/^\s*(\d+)/);
+	const match = basename.match(/^\s*(?:chapter[\s_-]*)?(\d+)/i);
 	if (!match) {
 		return null;
 	}

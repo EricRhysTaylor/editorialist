@@ -21,6 +21,19 @@ describe("sceneNumberFromName", () => {
 	it("returns null when not number-prefixed", () => {
 		expect(sceneNumberFromName("Intro")).toBeNull();
 	});
+	it("reads the number of a chapter-named note", () => {
+		expect(sceneNumberFromName("Chapter 9")).toBe(9);
+		expect(sceneNumberFromName("chapter 12 The Ball")).toBe(12);
+		expect(sceneNumberFromName("Chapter_03")).toBe(3);
+	});
+	it("prefers a leading integer over a chapter number", () => {
+		expect(sceneNumberFromName("5 Chapter 12")).toBe(5);
+	});
+	it("ignores chapter names without digits and other words", () => {
+		expect(sceneNumberFromName("Chapter One")).toBeNull();
+		expect(sceneNumberFromName("Chapters and Verses")).toBeNull();
+		expect(sceneNumberFromName("Part 2")).toBeNull();
+	});
 });
 
 describe("buildSceneTokens", () => {

@@ -192,7 +192,7 @@ Paste the reply into the review launcher: when it contains an editorialism file,
 - `source:` — optional wiki link to an existing vault note holding the letter or document. The importer does not save that original document for you.
 
 **Inline metadata per item:**
-- `[scope:: <value>]` (recommended): `manuscript` (whole book), a scene number (`22`), a range (`13–22`, en-dash or hyphen), or `subplot:<name>`.
+- `[scope:: <value>]` (recommended): `manuscript` (whole book), a scene number (`22`), a range (`13–22`, en-dash or hyphen), or `subplot:<name>`. A scene's number is the number at the start of its note name (`22 The Ball`), or after `Chapter` in a book of chapter notes (`Chapter 22`). Anchors use the same number.
 - `[tags:: tag1, tag2]` (optional).
 - `[words:: <n>]` or `[scenes:: <n>]` for new prose, or `[effort:: light|medium|heavy]` for relative non-drafting effort (optional). These inform suggested effort, not fixed calendar commitments.
 - `[decision:: <answer>]` — the author's settled answer to a directive that asks for a choice, written by **Decide** in the [Editorialisms Panel](Editorialisms-Panel#decisions). A reviewer never writes one; when revising or re-exporting an agenda that already carries one, keep it verbatim and treat the answer as settled.
