@@ -8842,11 +8842,16 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	display: inline-flex;
 	align-items: center;
 	gap: 5px;
-	padding: 3px 8px;
+	padding: 2px 7px;
 	border-radius: 4px;
 	background: var(--background-primary);
 	color: var(--text-muted);
-	font-size: var(--font-ui-small);
+	font-size: var(--font-ui-smaller);
+}
+
+.editorialist-author__book .editorialist-author__icon svg {
+	width: 12px;
+	height: 12px;
 }
 
 .editorialist-author__icon {
