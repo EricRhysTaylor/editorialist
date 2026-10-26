@@ -71,6 +71,38 @@ describe("planEmphasisReplacement", () => {
 		expect(plan("tempt _me_; and I am", "tempt _me_; and I am", "tempt *me*. I am")).toBe("tempt *me*. I am");
 	});
 
+	it("keeps bold and italics on one word nested, in either order", () => {
+		const note = "She was **_furious_** and left.";
+		expect(plan(note, note, "She was furious, and left.")).toBe("She was **_furious_**, and left.");
+		expect(plan("a _**big**_ day", "a _**big**_ day", "a big night")).toBe("a _**big**_ night");
+		expect(plan("a ***big*** day", "a ***big*** day", "a big night")).toBe("a ***big*** night");
+	});
+
+	it("keeps nested formatting nested beside punctuation", () => {
+		const note = "“**_No_**,” she said.";
+		expect(plan(note, note, "“No,” he said.")).toBe("“**_No_**,” he said.");
+		expect(plan("He was **_gone_**.", "He was **_gone_**.", "He was gone!")).toBe("He was **_gone_**!");
+		expect(plan("(_**never**_) again", "(_**never**_) again", "(never) more")).toBe("(_**never**_) more");
+	});
+
+	it("keeps nested formatting on a word the rewrite moves along", () => {
+		const note = "She was **_furious_** and left.";
+		expect(plan(note, note, "She truly was furious and left.")).toBe("She truly was **_furious_** and left.");
+		expect(plan(note, note, "She was furious and then left.")).toBe("She was **_furious_** and then left.");
+		expect(plan(note, note, "Furious, she left.")).toBeNull();
+	});
+
+	it("refuses a reviewer's text that crosses the author's phrases", () => {
+		const note = "She was **_furious_** and left.";
+		expect(plan(note, note, "She was _**furious_**, and left.")).toBeNull();
+	});
+
+	it("takes the formatting off when that is the suggestion's only change", () => {
+		expect(applied("I *can't* go.", "*can't*", "can't")).toBe("I can't go.");
+		expect(applied("I *can't* go.", "I *can't* go.", "I can't go.")).toBe("I can't go.");
+		expect(applied("She was **_furious_**.", "**_furious_**", "furious")).toBe("She was furious.");
+	});
+
 	it("leaves plain passages and their replacements alone", () => {
 		expect(plan("She nodded and left.", "nodded and left", "nodded, then left")).toBe("nodded, then left");
 	});

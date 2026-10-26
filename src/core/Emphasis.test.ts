@@ -29,6 +29,13 @@ describe("countEmphasisDefects", () => {
 		expect(countEmphasisDefects("_ bad indeed_")).toBe(1);
 		expect(countEmphasisDefects("_opens here\n\nand closes there_")).toBe(2);
 	});
+
+	it("counts phrases that cross instead of nesting", () => {
+		expect(countEmphasisDefects("She was **_furious_** and left.")).toBe(0);
+		expect(countEmphasisDefects("She was _**furious**_ and left.")).toBe(0);
+		expect(countEmphasisDefects("She was _**furious_** and left.")).toBe(1);
+		expect(countEmphasisDefects("She was **_furious**_ and left.")).toBe(1);
+	});
 });
 
 // A passage quoted from Word loses its italics, or comes back from Pandoc as

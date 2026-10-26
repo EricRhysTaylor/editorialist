@@ -36,12 +36,17 @@ export interface EmphasisReplacement {
 // change would split or drop the author's formatting there.
 export function planEmphasisReplacement(noteText: string, from: number, to: number, replacement: string): EmphasisReplacement | null {
 	if (replacement === "") ({ from, to } = widenToWrappingEmphasis(noteText, from, to));
+	const span = noteText.slice(from, to);
 	const markers = findEmphasisMarkers(noteText, from, to);
 	// A reviewer who wrote markers chose the formatting; their text stands.
-	const text = markers.length === 0 || findEmphasisMarkers(replacement).length > 0
+	const carried = markers.length === 0 || findEmphasisMarkers(replacement).length > 0
 		? replacement
-		: carryMarkers(noteText.slice(from, to), from, markers, replacement);
-	if (text === null) return null;
+		: carryMarkers(span, from, markers, replacement);
+	if (carried === null) return null;
+	// Carrying that gives back the passage exactly means the suggestion changes
+	// no wording, so its only change is taking the formatting off
+	// (`*can't*` → `can't`): writing the markers back would apply nothing.
+	const text = carried === span && replacement !== span ? replacement : carried;
 	return keepsEmphasisIntact(noteText, from, to, text) ? { from, to, text } : null;
 }
 
@@ -102,8 +107,12 @@ function carryMarkers(span: string, offset: number, markers: readonly EmphasisMa
 		if (run.close) placed.push({ at: end <= prefix ? end : end + shift, marker: run.close });
 	}
 
-	// Closers before openers where two meet, so `_a_ _b_` stays two phrases.
-	placed.sort((left, right) => left.at - right.at || Number(left.marker.role === "open") - Number(right.marker.role === "open"));
+	// Closers before openers where two meet, so `_a_ _b_` stays two phrases;
+	// otherwise markers that meet keep their order in the note, so nested
+	// `**_word_**` stays nested instead of crossing into `_**word_**`.
+	placed.sort((left, right) => left.at - right.at
+		|| Number(left.marker.role === "open") - Number(right.marker.role === "open")
+		|| left.marker.start - right.marker.start);
 	let out = "";
 	let next = 0;
 	revised.forEach((token, index) => {

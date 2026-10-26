@@ -15,6 +15,9 @@ export interface EmphasisMarker {
 export interface EmphasisRun {
 	open?: EmphasisMarker;
 	close?: EmphasisMarker;
+	// Closes over a later opener of another mark that is still open, as in
+	// `_**word_**`: the two phrases cross instead of nesting.
+	crossed?: boolean;
 }
 
 const MARKER_RUN = /\*+|_+/g;
@@ -58,7 +61,7 @@ export function pairEmphasisMarkers(markers: readonly EmphasisMarker[]): Emphasi
 	for (const marker of markers) {
 		const partner = marker.role === "open" ? -1 : open.map((candidate) => candidate.mark).lastIndexOf(marker.mark);
 		if (partner >= 0) {
-			runs.push({ open: open[partner], close: marker });
+			runs.push(partner < open.length - 1 ? { open: open[partner], close: marker, crossed: true } : { open: open[partner], close: marker });
 			open.splice(partner, 1);
 		} else if (marker.role === "close") {
 			runs.push({ close: marker });
@@ -79,12 +82,13 @@ export function stripEmphasisMarkers(value: string): string {
 	return out + value.slice(position);
 }
 
-// Markers left without a partner, counted paragraph by paragraph (emphasis
-// never crosses a blank line). An edit that raises this count has split or
-// orphaned the author's formatting.
+// Markers left without a partner, and phrases that cross another instead of
+// nesting in it, counted paragraph by paragraph (emphasis never crosses a
+// blank line). An edit that raises this count has split, orphaned or tangled
+// the author's formatting.
 export function countEmphasisDefects(text: string): number {
 	return text.split(/\n[ \t]*\n/).reduce(
-		(sum, paragraph) => sum + pairEmphasisMarkers(findEmphasisMarkers(paragraph)).filter((run) => !run.open || !run.close).length,
+		(sum, paragraph) => sum + pairEmphasisMarkers(findEmphasisMarkers(paragraph)).filter((run) => !run.open || !run.close || run.crossed).length,
 		0,
 	);
 }

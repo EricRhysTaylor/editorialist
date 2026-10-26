@@ -38,6 +38,22 @@ describe("MatchEngine — passages with italics or bold", () => {
 		expect(engine.matchSuggestion(after!, matched).location.primary?.matchType).toBe("already_applied");
 	});
 
+	it("applies an edit whose only change is taking the italics off", () => {
+		const note = "I *can't* go.";
+		const matched = engine.matchSuggestion(note, parseOne("=== EDIT ===\nOriginal: I *can't* go.\nRevised: I can't go.\nWhy: Less stress."));
+		expect(matched.location.primary?.matchType).toBe("exact");
+		expect(matched.location.primary?.reason).not.toContain("Your italics and bold stay in place");
+		const after = applied(note, matched);
+		expect(after).toBe("I can't go.");
+	});
+
+	it("applies an edit around bold italics with the phrase still nested", () => {
+		const note = "She was **_furious_** and left.";
+		const matched = engine.matchSuggestion(note, parseOne("=== EDIT ===\nOriginal: She was **_furious_** and left.\nRevised: She was furious, and left.\nWhy: Pause."));
+		expect(matched.location.primary?.reason).toContain("Your italics and bold stay in place");
+		expect(applied(note, matched)).toBe("She was **_furious_**, and left.");
+	});
+
 	it("leaves an edit that rewrites the italic word for a hand edit, still located", () => {
 		const matched = engine.matchSuggestion(NOTE, parseOne("=== EDIT ===\nOriginal: tempt me; and\nRevised: tempt anyone; and\nWhy: Wider."));
 		expect(matched.location.primary?.matchType).toBe("formatting");
