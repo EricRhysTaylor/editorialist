@@ -8834,6 +8834,116 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	font-weight: var(--font-semibold);
 }
 
+.editorialist-author__card .editorialist-project__material-heading > strong {
+	font-size: var(--font-ui-medium);
+}
+
+.editorialist-author__book {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 3px 8px;
+	border-radius: 4px;
+	background: var(--background-primary);
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.editorialist-author__icon {
+	display: inline-flex;
+	color: inherit;
+}
+
+.editorialist-author__icon svg {
+	width: 13px;
+	height: 13px;
+}
+
+.editorialist-author__rt {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+}
+
+.editorialist-author__timeline {
+	margin: 12px 0 10px;
+}
+
+.editorialist-author__count {
+	display: flex;
+	align-items: baseline;
+	flex-wrap: wrap;
+	gap: 4px 8px;
+	margin-bottom: 8px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.editorialist-author__count-value {
+	color: var(--text-normal);
+	font-size: 1.6em;
+	font-weight: var(--font-semibold);
+	line-height: 1.1;
+}
+
+.editorialist-author__timeline[data-phase="past"] .editorialist-author__count-value {
+	color: var(--text-error);
+}
+
+.editorialist-author__bar {
+	position: relative;
+	height: 8px;
+	border-radius: 4px;
+	background: var(--background-modifier-border);
+}
+
+.editorialist-author__bar-fill {
+	width: var(--editorialist-goal-used);
+	height: 100%;
+	border-radius: 4px;
+	background: var(--interactive-accent);
+}
+
+.editorialist-author__timeline[data-closing="true"] .editorialist-author__bar-fill {
+	background: var(--text-warning);
+}
+
+.editorialist-author__timeline[data-phase="past"] .editorialist-author__bar-fill,
+.editorialist-author__timeline[data-phase="due-today"] .editorialist-author__bar-fill {
+	background: var(--text-error);
+}
+
+.editorialist-author__bar-today {
+	position: absolute;
+	top: -4px;
+	left: var(--editorialist-goal-used);
+	width: 2px;
+	height: 16px;
+	margin-left: -1px;
+	border-radius: 1px;
+	background: var(--text-normal);
+}
+
+.editorialist-author__labels {
+	display: flex;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 4px 12px;
+	margin-top: 6px;
+	color: var(--text-muted);
+	font-size: var(--font-smallest);
+}
+
+.editorialist-author__deadline {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.editorialist-author__timeline[data-hard="true"] .editorialist-author__deadline {
+	color: var(--text-error);
+}
+
 .editorialist-author__card[data-target-status="overdue"] {
 	border-inline-start: 3px solid var(--text-warning);
 }

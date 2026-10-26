@@ -1,5 +1,5 @@
-import { FuzzySuggestModal, Notice, TFile, type App } from "obsidian";
-import { AUTHOR_PLAN_SCOPE, RT_STAGES, type RTStage, type AuthorTarget } from "../core/planning/AuthorPlan";
+import { FuzzySuggestModal, Notice, TFile, setIcon, type App } from "obsidian";
+import { AUTHOR_PLAN_SCOPE, RT_STAGES, goalTimeline, type RTStage, type AuthorTarget } from "../core/planning/AuthorPlan";
 import { isDate, localDate, type RevisionPlan } from "../core/planning/RevisionPlan";
 import type { RadialBookGoals, RTDateEdit } from "../services/RadialBookGoals";
 import { ProjectDialog, area, field, select } from "./EditorialProjectPanel";
@@ -47,11 +47,20 @@ export class AuthorTargetPanel {
 		const card = root.createDiv({ cls: "editorialist-project__material editorialist-author__card", attr: { "data-target-id": target.id, "data-target-status": target.done ? "done" : overdue ? target.hardDeadline ? "late" : "overdue" : "open" } });
 		const heading = card.createDiv({ cls: "editorialist-project__material-heading" });
 		heading.createEl("strong", { text: target.title });
-		if (target.bookLabel) heading.createSpan({ cls: "editorialist-project__status", text: target.bookLabel });
-		if (target.rt) card.createEl("p", { cls: "editorialist-project__hint", text: `Radial Timeline · ${RT_STAGES[target.rt.stage]}${syncWarning ? " · Sync paused" : " · Date synced"}` });
+		if (target.bookLabel) {
+			const book = heading.createSpan({ cls: "editorialist-author__book" });
+			setIcon(book.createSpan({ cls: "editorialist-author__icon" }), "book");
+			book.createSpan({ text: target.bookLabel });
+		}
+		if (target.rt) {
+			const rt = card.createEl("p", { cls: "editorialist-project__hint editorialist-author__rt" });
+			setIcon(rt.createSpan({ cls: "editorialist-author__icon" }), syncWarning ? "refresh-cw-off" : "refresh-cw");
+			rt.createSpan({ text: `Radial Timeline · ${RT_STAGES[target.rt.stage]}${syncWarning ? " · Sync paused" : " · Date synced"}` });
+		}
 		if (syncWarning) card.createEl("p", { cls: "editorialist-plan__warning", text: syncWarning });
-		const date = new Date(`${target.due}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-		card.createEl("p", { cls: "editorialist-author__due", text: `${syncWarning ? "Last synced · " : ""}${target.done ? "Completed · " : overdue ? "Past due · " : ""}${target.hardDeadline ? "Hard deadline" : "Target"} · ${date}` });
+		const date = formatDay(target.due, true);
+		if (target.done || syncWarning) card.createEl("p", { cls: "editorialist-author__due", text: `${syncWarning ? "Last synced · " : ""}${target.done ? "Completed · " : ""}${target.hardDeadline ? "Hard deadline" : "Target"} · ${date}` });
+		else this.timeline(card, target);
 		if (target.description) card.createEl("p", { text: target.description });
 		if (target.file) card.createEl("p", { cls: "editorialist-project__path", text: target.file });
 		if (target.file && !(this.host.app.vault.getAbstractFileByPath(target.file) instanceof TFile)) card.createEl("p", { cls: "editorialist-plan__warning", text: "Linked file unavailable. Choose another file in goal details." });
@@ -65,6 +74,38 @@ export class AuthorTargetPanel {
 			void this.host.save(expected, next).catch((error: unknown) => new Notice(error instanceof Error ? error.message : "Could not save this goal."));
 		});
 	}
+	// Countdown and the start-to-deadline window. Time only — the card cannot
+	// know how much of the work is done, so it never shows a completion share.
+	private timeline(card: HTMLElement, target: AuthorTarget): void {
+		const timeline = goalTimeline(target.start, target.due, localDate(new Date()));
+		const block = card.createDiv({ cls: "editorialist-author__timeline", attr: { "data-phase": timeline.phase, "data-closing": String(timeline.closing), "data-hard": String(target.hardDeadline) } });
+		const count = block.createDiv({ cls: "editorialist-author__count" });
+		const days = (value: number): string => `${value} ${value === 1 ? "day" : "days"}`;
+		if (timeline.phase === "upcoming") {
+			count.createSpan({ cls: "editorialist-author__count-value", text: String(timeline.daysToStart) });
+			count.createSpan({ text: `${timeline.daysToStart === 1 ? "day" : "days"} until you start${timeline.window !== null ? ` · ${timeline.window}-day window` : ""}` });
+		} else if (timeline.phase === "due-today") {
+			count.createSpan({ cls: "editorialist-author__count-value", text: "Due today" });
+		} else if (timeline.phase === "past") {
+			count.createSpan({ cls: "editorialist-author__count-value", text: "Past due" });
+			count.createSpan({ text: `by ${days(-timeline.daysLeft)}` });
+		} else {
+			count.createSpan({ cls: "editorialist-author__count-value", text: String(timeline.daysLeft) });
+			const weeks = Math.floor(timeline.daysLeft / 7);
+			count.createSpan({ text: [`${timeline.daysLeft === 1 ? "day" : "days"} left`, ...(timeline.daysLeft >= 14 ? [`${weeks} weeks`] : []), ...(timeline.used !== null ? [`${Math.round(timeline.used * 100)}% of the time used`] : [])].join(" · ") });
+		}
+		if (timeline.used !== null) {
+			const bar = block.createDiv({ cls: "editorialist-author__bar", attr: { role: "img", "aria-label": `${Math.round(timeline.used * 100)}% of the time from start to deadline has passed` } });
+			bar.style.setProperty("--editorialist-goal-used", `${timeline.used * 100}%`);
+			bar.createDiv({ cls: "editorialist-author__bar-fill" });
+			if (timeline.phase === "active") bar.createDiv({ cls: "editorialist-author__bar-today" });
+		}
+		const labels = block.createDiv({ cls: "editorialist-author__labels" });
+		if (target.start) labels.createSpan({ text: `Start · ${formatDay(target.start, false)}` });
+		const deadline = labels.createSpan({ cls: "editorialist-author__deadline" });
+		setIcon(deadline.createSpan({ cls: "editorialist-author__icon" }), "flag");
+		deadline.createSpan({ text: `${target.hardDeadline ? "Hard deadline" : "Target"} · ${formatDay(target.due, true)}` });
+	}
 	edit(existing?: AuthorTarget): void {
 		const expected = structuredClone(this.host.plan), next = structuredClone(expected);
 		const dialog = new ProjectDialog(this.host.app, existing ? "Edit writing goal" : "Add writing goal", (form) => {
@@ -75,6 +116,7 @@ export class AuthorTargetPanel {
 			});
 			const title = field(form, "Goal title", existing?.title ?? ""); title.required = true;
 			const description = area(form, "What does complete mean?", existing?.description ?? "");
+			const start = field(form, "Start date (optional)", existing?.start ?? "", "date");
 			const due = field(form, "Target date", existing?.due ?? "", "date"); due.required = true;
 			const hard = field(form, "This is a hard deadline", "", "checkbox"); hard.checked = existing?.hardDeadline ?? false;
 			const book = field(form, "Book label (optional)", existing?.bookLabel ?? "");
@@ -103,6 +145,7 @@ export class AuthorTargetPanel {
 			form.createEl("p", { cls: "editorialist-project__hint", text: "Completion is your decision. This card tracks your work without changing the linked document." });
 			return async () => {
 				if (!title.value.trim() || !isDate(due.value)) throw new Error("Enter a title and valid target date.");
+				if (start.value && (!isDate(start.value) || start.value > due.value)) throw new Error("Choose a start date on or before the target date, or leave it blank.");
 				if (file.value && !(this.host.app.vault.getAbstractFileByPath(file.value) instanceof TFile)) throw new Error("Choose an available vault document, or clear the link.");
 				const lowMinutes = low.value ? Number(low.value) : null, highMinutes = high.value ? Number(high.value) : null;
 				if ((lowMinutes === null) !== (highMinutes === null) || lowMinutes !== null && highMinutes !== null && (!Number.isFinite(lowMinutes) || !Number.isFinite(highMinutes) || lowMinutes < 0 || highMinutes < Math.max(1, lowMinutes))) throw new Error("Enter a valid low and high estimate, or leave both blank.");
@@ -110,11 +153,15 @@ export class AuthorTargetPanel {
 				if (rtBook.value && !linked && (!existing?.rt || rtBook.value !== existing.rt.bookId || stage.value !== existing.rt.stage || due.value !== existing.due)) throw new Error("Reconnect RT or unlink before changing this target.");
 				const rt = rtBook.value ? { bookId: rtBook.value, stage: stage.value as RTStage } : undefined;
 				const edit: RTDateEdit | undefined = rt && linked ? { link: rt, expectedDate: linked.dates[rt.stage] ?? null, date: due.value } : undefined;
-				const target: AuthorTarget = { ...(rt ? { rt } : {}), id: existing?.id ?? crypto.randomUUID(), title: title.value.trim(), description: description.value.trim(), due: due.value, hardDeadline: hard.checked, bookLabel: book.value.trim(), file: file.value, done: existing?.done ?? false, lowMinutes, highMinutes };
+				const target: AuthorTarget = { ...(rt ? { rt } : {}), id: existing?.id ?? crypto.randomUUID(), title: title.value.trim(), description: description.value.trim(), due: due.value, hardDeadline: hard.checked, bookLabel: book.value.trim(), start: start.value || null, file: file.value, done: existing?.done ?? false, lowMinutes, highMinutes };
 				next.targets ??= []; const index = next.targets.findIndex((item) => item.id === target.id); if (index < 0) next.targets.push(target); else next.targets[index] = target;
 				await this.host.save(expected, next, edit);
 			};
 		});
 		dialog.open();
 	}
+}
+
+function formatDay(day: string, withYear: boolean): string {
+	return new Date(`${day}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", ...(withYear ? { year: "numeric" } : {}) });
 }

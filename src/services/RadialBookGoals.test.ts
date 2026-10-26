@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { RadialBookGoals } from "./RadialBookGoals";
 import { emptyRevisionPlan, normalizeRevisionPlans } from "../core/planning/RevisionPlan";
 import { AUTHOR_PLAN_SCOPE, type AuthorTarget } from "../core/planning/AuthorPlan";
-const goal: AuthorTarget = { id: "draft", title: "Finish draft", description: "All scenes written", file: "", bookLabel: "Old title", due: "2026-12-31", hardDeadline: true, done: false, lowMinutes: null, highMinutes: null, rt: { bookId: "b2", stage: "Zero" } };
+const goal: AuthorTarget = { id: "draft", title: "Finish draft", description: "All scenes written", file: "", bookLabel: "Old title", start: null, due: "2026-12-31", hardDeadline: true, done: false, lowMinutes: null, highMinutes: null, rt: { bookId: "b2", stage: "Zero" } };
 function setup() {
 	const rt = { settings: { activeBookId: "b1", books: [{ id: "b1", title: "Book 1", stageTargetDates: { Zero: "2026-11-01" } }, { id: "b2", title: "Book 2", stageTargetDates: { Zero: "2026-12-20", Author: "2027-02-01" } }] }, saveSettings: vi.fn(async () => {}), isSettingsPersistenceBlocked: () => false };
 	return { rt, bridge: new RadialBookGoals(() => rt) };

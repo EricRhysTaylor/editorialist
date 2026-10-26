@@ -135,7 +135,7 @@ function isDay(value: unknown): value is string {
 
 // UTC calendar arithmetic, as forecastPlan does, so daylight saving never
 // shifts a day.
-function daysBetween(from: string, to: string): number {
+export function daysBetween(from: string, to: string): number {
 	return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000);
 }
 
