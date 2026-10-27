@@ -112,6 +112,10 @@ actually viewed and tested, and retain screenshot evidence outside the public re
 when it contains private manuscript text. If visual access is blocked, report the
 blocker explicitly rather than calling the UI finished.
 
+Every screenshot published in the wiki or in release notes gets rounded corners:
+run `node scripts/round-screenshot.mjs <file.png>` on the final crop. See
+`docs/engineering/WIKI-SCREENSHOTS.md` for the radius and details.
+
 ## Release artifacts
 
 GitHub Release assets for an Obsidian release are exactly three files,

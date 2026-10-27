@@ -1,4 +1,23 @@
-# Wiki screenshots — September 25, 2026
+# Wiki screenshots
+
+## Rounded corners on every screenshot
+
+Every screenshot published in the wiki or in release notes gets rounded
+corners of 12 CSS pixels, which is 24 image pixels at the usual 2x capture (Eric,
+October 27, 2026). Round the final crop once, after it has been inspected:
+
+```bash
+node scripts/round-screenshot.mjs wiki/images/<file>.png
+```
+
+GitHub strips styles from markdown, so the radius has to be built into the
+image. The script makes the corners transparent, so they read correctly on
+light and dark pages. It keeps the colour profile and every pixel outside the
+corners, and leaves a file that is already rounded alone. Pass
+`--radius <px>` (in image pixels) only for an image captured at another
+scale, so the corners still display at 12 CSS pixels.
+
+## September 25, 2026
 
 Captured from Editorialist 1.3.5, source commit `6be956a`, running in Obsidian 1.13.7. These are real UI captures, not reconstructed mockups.
 
