@@ -16,7 +16,8 @@ import { RadialBookGoals, type RTDateEdit } from "./services/RadialBookGoals";
 import { AUTHOR_PLAN_SCOPE, authorWork } from "./core/planning/AuthorPlan";
 import { localDate, type RevisionPlan, type WorkCandidate } from "./core/planning/RevisionPlan";
 import { batchWork, directiveWork, pendingWork } from "./core/planning/RevisionWork";
-import { preparationWork } from "./core/planning/EditorialProject";
+import { preparationWork, type EditorialProject } from "./core/planning/EditorialProject";
+import { countProseWords } from "./core/WordCount";
 import { collectPendingEdits, describeCollectFailure } from "./core/PendingEditsCollector";
 import { endReviewRound, getEndableRoundBatches } from "./orchestrators/EndReviewRound";
 import type { EditorView } from "@codemirror/view";
@@ -1059,6 +1060,18 @@ export default class EditorialistPlugin extends Plugin {
 			if (delivery) { candidate.deliveryId = delivery.id; candidate.due = delivery.due; candidate.detail += ` · ${deliveryCaption(delivery)}${delivery.due ? ` · Due ${delivery.due}` : ""}`; }
 		}
 		return { candidates, warnings };
+	}
+
+	/** Current prose words of each engagement document that has a word limit. */
+	async materialWordCounts(project: EditorialProject | undefined): Promise<Record<string, number>> {
+		const counts: Record<string, number> = {};
+		for (const material of project?.materials ?? []) {
+			if (!material.wordLimit || !material.source) continue;
+			const file = this.app.vault.getAbstractFileByPath(material.source);
+			if (!(file instanceof TFile)) continue;
+			counts[material.id] = countProseWords(this.resolveOpenNoteText(file.path) ?? await this.app.vault.cachedRead(file));
+		}
+		return counts;
 	}
 
 	async openRevisionWork(candidate: WorkCandidate): Promise<void> {

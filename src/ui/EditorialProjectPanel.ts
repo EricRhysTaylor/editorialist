@@ -1,3 +1,4 @@
+import { renderWordLimit } from "./primitives/WordLimitBar";
 import { setAccessibleLabel } from "./primitives/AccessibleLabel";
 import { bindCompletionMenu } from "./primitives/CompletionMenu";
 import { Modal, Notice, TFile, normalizePath, setIcon, type App } from "obsidian";
@@ -20,8 +21,10 @@ export interface ProjectPanelHost {
 	openSchedule(): void;
 	openWorkspace(): Promise<void>;
 	openSource(path: string): Promise<void>;
-	/** The first open item in the work queue — the same item the Schedule tab lists first. */
+	/** The next session, by the rule Today uses. */
 	nextInQueue(): QueueHead | null;
+	/** Current words of documents that have a word limit, by material id. */
+	wordCounts: Readonly<Record<string, number>>;
 }
 export interface QueueHead {
 	title: string;
@@ -170,9 +173,9 @@ export class EditorialProjectPanel {
 		this.renderMaterials(section(root, "materials", "folder-open", "Materials & references", project.materials.filter((item) => !item.completed).length), true);
 	}
 	// What an author opening the engagement on any given day needs first: the
-	// next thing to work on and the next date that matters. "Next" is the head
-	// of the work queue — the order the author set on the Schedule tab — so
-	// the two views can never disagree about what comes first.
+	// next thing to work on and the next date that matters. "Next" follows
+	// Today's rule — overdue and today's sessions first, then the next
+	// scheduled day, then the unscheduled queue — so the views agree.
 	private renderNextUp(root: HTMLElement, project: EditorialProject): void {
 		const today = localDate(new Date());
 		const head = this.host.nextInQueue();
@@ -186,6 +189,8 @@ export class EditorialProjectPanel {
 			row.createSpan({ cls: "editorialist-project__next-title", text: head.title });
 			const meta = [task ? null : head.kindLabel, head.detail, head.day ? `Scheduled ${dayLabel(head.day)}` : null].filter(Boolean).join(" · ");
 			if (meta) card.createDiv({ cls: `editorialist-project__next-meta${task ? "" : " is-flush"}`, text: meta });
+			const material = task?.materialId ? project.materials.find((item) => item.id === task.materialId) : undefined;
+			if (material) this.wordLimit(card, material);
 		} else {
 			card.createDiv({ cls: "editorialist-project__next-empty", text: "Your work queue is empty. Add tasks or auto-plan from the Schedule tab." });
 		}
@@ -226,6 +231,7 @@ export class EditorialProjectPanel {
 			const due = materialDue(project, material);
 			if (due) main.createDiv({ cls: "editorialist-project__row-meta", text: `Personal target · ${dayLabel(due)}` });
 			if (material.notes) main.createDiv({ cls: "editorialist-project__row-notes", text: material.notes });
+			this.wordLimit(main, material);
 			if (!compact && material.source) main.createDiv({ cls: "editorialist-project__path", text: material.source });
 			const actions = row.createDiv({ cls: "editorialist-project__row-actions" });
 			if (material.source) iconButton(actions, "file-text", "Open document", () => { void this.host.openSource(material.source).catch((reason: unknown) => new Notice(reason instanceof Error ? reason.message : "Could not open the document.")); });
@@ -233,6 +239,10 @@ export class EditorialProjectPanel {
 			iconButton(actions, "pencil", "Edit item", () => this.editMaterial(material));
 		}
 		button(root, "Add reference item", () => this.editMaterial(null)).addClass("editorialist-project__add");
+	}
+	private wordLimit(parent: HTMLElement, material: ProjectMaterial): void {
+		const words = this.host.wordCounts[material.id];
+		if (material.wordLimit && words !== undefined) renderWordLimit(parent, words, material.wordLimit);
 	}
 	private fileField(form: HTMLElement, label: string, value: string): HTMLInputElement {
 		const input = field(form, label, value), paths = form.createEl("datalist", { attr: { id: `engagement-paths-${crypto.randomUUID()}` } });
@@ -250,10 +260,15 @@ export class EditorialProjectPanel {
 			const title = field(form, "Item title", material?.title ?? ""); title.required = true;
 			const notes = area(form, "Description (optional)", material?.notes ?? "");
 			const source = this.fileField(form, "Vault document (optional)", material?.source ?? "");
+			const limit = field(form, "Word limit (optional)", material?.wordLimit ? String(material.wordLimit) : "", "number"); limit.min = "1"; limit.step = "1";
+			form.createEl("p", { cls: "editorialist-project__hint", text: "Counts the linked document's prose, leaving out properties, headings and hidden comments." });
 			const milestone = select(form, "Personal target", [["", "No target date"], ...project.milestones.map((item): [string, string] => [item.id, `${item.title} · ${dayLabel(item.day)}`])], material?.milestoneId ?? "");
 			return async () => {
 				const target = material ? project.materials.find((item) => item.id === material.id)! : { id: crypto.randomUUID(), title: "", kind: "document" as const, required: false, source: "", exportPath: "", milestoneId: null, requirements: [], approvedDigest: null, check: null, uploads: [] };
 				if (!title.value.trim()) throw new Error("Enter an item title.");
+				const wordLimit = limit.value ? Number(limit.value) : null;
+				if (wordLimit !== null && (!Number.isInteger(wordLimit) || wordLimit < 1)) throw new Error("Enter the word limit as a whole number, or leave it blank.");
+				if (wordLimit) target.wordLimit = wordLimit; else delete target.wordLimit;
 				target.title = title.value.trim(); target.notes = notes.value.trim(); target.source = this.referencePath(source, material?.source); target.milestoneId = milestone.value || null;
 				if (!material) project.materials.push(target); recordProjectEvent(project, `${target.title}: reference updated`); await this.host.save(expected, next);
 			};

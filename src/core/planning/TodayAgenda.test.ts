@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { emptyRevisionPlan, sourceKey, type PlanEntry, type WorkCandidate } from "./RevisionPlan";
-import { todayAgenda } from "./TodayAgenda";
+import { nextSession, todayAgenda } from "./TodayAgenda";
 
 const entry = (id: string, day: string | null, extra: Partial<PlanEntry> = {}): PlanEntry => ({
 	id, source: { kind: "directive", path: "Ed/agenda.md", locator: id }, title: `Session ${id}`,
@@ -39,7 +39,22 @@ describe("todayAgenda", () => {
 
 	it("previews the next later day with open sessions", () => {
 		const agenda = todayAgenda([{ scope: "book", plan: plan([entry("a", "2026-11-02"), entry("b", "2026-10-29"), entry("c", "2026-10-29"), entry("d", "2026-10-28", { done: true })]), candidates: [] }], TODAY);
-		expect(agenda.later).toEqual({ day: "2026-10-29", count: 2 });
+		expect(agenda.later?.day).toBe("2026-10-29");
+		expect(agenda.later?.items.map((item) => item.entry.id)).toEqual(["b", "c"]);
 		expect(todayAgenda([], TODAY).later).toBeNull();
+	});
+});
+
+describe("nextSession", () => {
+	it("prefers overdue work over the queue head scheduled later", () => {
+		// The engagement queue put the query letter first, but the series rewrite was due earlier.
+		const book = plan([entry("query", "2026-10-31"), entry("rewrite", "2026-10-16"), entry("pending", null)]);
+		expect(nextSession([{ scope: "book", plan: book, candidates: [] }], TODAY)?.entry.id).toBe("rewrite");
+	});
+
+	it("falls back to the next scheduled day, then the unscheduled queue", () => {
+		expect(nextSession([{ scope: "book", plan: plan([entry("free", null), entry("later", "2026-10-31")]), candidates: [] }], TODAY)?.entry.id).toBe("later");
+		expect(nextSession([{ scope: "book", plan: plan([entry("done", TODAY, { done: true }), entry("free", null)]), candidates: [] }], TODAY)?.entry.id).toBe("free");
+		expect(nextSession([{ scope: "book", plan: plan([]), candidates: [] }], TODAY)).toBeNull();
 	});
 });

@@ -9272,3 +9272,35 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	width: 14px;
 	height: 14px;
 }
+
+/* A document's words against its limit; red once over. */
+.editorialist-word-limit {
+	margin: 10px 0 4px;
+}
+
+.editorialist-word-limit__label {
+	margin-bottom: 4px;
+	color: var(--text-muted);
+	font-size: var(--font-smallest);
+}
+
+.editorialist-word-limit[data-over="true"] .editorialist-word-limit__label {
+	color: var(--text-error);
+}
+
+.editorialist-word-limit__bar {
+	height: 6px;
+	border-radius: 3px;
+	background: var(--background-modifier-border);
+}
+
+.editorialist-word-limit__fill {
+	width: var(--editorialist-word-share);
+	height: 100%;
+	border-radius: 3px;
+	background: var(--interactive-accent);
+}
+
+.editorialist-word-limit[data-over="true"] .editorialist-word-limit__fill {
+	background: var(--text-error);
+}

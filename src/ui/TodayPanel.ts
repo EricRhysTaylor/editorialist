@@ -6,6 +6,8 @@ import { todayAgenda, type AgendaItem, type AgendaPlan, type TodayAgenda } from 
 import { kindIcons, kindLabels, pendingWorkTitle, planDayLabel } from "../core/planning/WorkPresentation";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
 import { renderPanelHeader } from "./primitives/PanelHeader";
+import { renderWordLimit } from "./primitives/WordLimitBar";
+import type { ProjectMaterial } from "../core/planning/EditorialProject";
 
 export const TODAY_VIEW_TYPE = "editorialist-today";
 /** Device-local: the day Today was last shown, so a new day opens on it once. */
@@ -20,6 +22,7 @@ export class TodayPanel extends ItemView {
 	private plans: LoadedPlan[] = [];
 	private agenda: TodayAgenda | null = null;
 	private bookLabel: string | null = null;
+	private wordCounts: Record<string, number> = {};
 	private busy = false;
 	private day = localDate(new Date());
 	private refreshDebounced: Debouncer<[], void> | null = null;
@@ -66,6 +69,7 @@ export class TodayPanel extends ItemView {
 			const goals = this.plugin.collectAuthorWork();
 			plans.push({ scope: AUTHOR_PLAN_SCOPE, plan: this.plugin.getAuthorPlanningPlan(), candidates: goals.candidates, warnings: goals.warnings });
 			this.plans = plans;
+			this.wordCounts = folder ? await this.plugin.materialWordCounts(plans[0]?.plan.project) : {};
 			this.bookLabel = folder ? scope.label : null;
 			this.day = localDate(new Date());
 			this.agenda = todayAgenda(plans, this.day);
@@ -116,7 +120,9 @@ export class TodayPanel extends ItemView {
 		if (agenda.later) {
 			const later = root.createDiv({ cls: "editorialist-today__later" });
 			setIcon(later.createSpan({ cls: "editorialist-today__icon" }), "calendar");
-			later.createSpan({ text: `Next: ${new Date(`${agenda.later.day}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · ${agenda.later.count} ${agenda.later.count === 1 ? "session" : "sessions"}` });
+			const titles = agenda.later.items.map((item) => this.title(item));
+			const named = titles.length <= 2 ? titles.join(", ") : `${titles.slice(0, 2).join(", ")} and ${titles.length - 2} more`;
+			later.createSpan({ text: `Next: ${new Date(`${agenda.later.day}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · ${named}` });
 		}
 		container.scrollTop = scrollTop;
 	}
@@ -130,6 +136,8 @@ export class TodayPanel extends ItemView {
 		if (detail) card.createEl("p", { cls: "editorialist-project__hint", text: detail });
 		const meta = card.createDiv({ cls: "editorialist-today__meta" });
 		for (const text of this.metaParts(item)) meta.createSpan({ cls: item.overdue && text.startsWith("From") ? "editorialist-today__overdue" : "", text });
+		const material = this.material(item);
+		if (material?.wordLimit && this.wordCounts[material.id] !== undefined) renderWordLimit(card, this.wordCounts[material.id]!, material.wordLimit);
 		const actions = card.createDiv({ cls: "editorialist-project__actions" });
 		const start = this.button(actions, "Start", () => { void this.start(item); });
 		start.addClass("mod-cta");
@@ -163,6 +171,14 @@ export class TodayPanel extends ItemView {
 			entry.sessionCount ? `Session ${entry.sessionIndex}/${entry.sessionCount}` : "",
 			entry.lowMinutes !== null && entry.highMinutes !== null ? `${entry.lowMinutes}–${entry.highMinutes} min` : "No estimate",
 		].filter(Boolean);
+	}
+
+	/** The engagement document an engagement task works on, if it names one. */
+	private material(item: AgendaItem): ProjectMaterial | undefined {
+		const project = this.plan(item)?.plan.project;
+		if (item.entry.source.kind !== "preparation" || item.entry.source.path !== project?.id) return undefined;
+		const task = project.tasks.find((candidate) => candidate.id === item.entry.source.locator);
+		return task?.materialId ? project.materials.find((candidate) => candidate.id === task.materialId) : undefined;
 	}
 
 	private plan(item: AgendaItem): LoadedPlan | undefined { return this.plans.find((plan) => plan.scope === item.scope); }

@@ -4,6 +4,7 @@ import { AUTHOR_PLAN_SCOPE } from "../core/planning/AuthorPlan";
 import { AuthorTargetPanel } from "./AuthorTargetPanel";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
 import { kindIcons, kindLabels, pendingWorkTitle, planDayLabel } from "../core/planning/WorkPresentation";
+import { nextSession } from "../core/planning/TodayAgenda";
 import { ItemView, Notice, TFile, TFolder, setIcon, type TAbstractFile, type WorkspaceLeaf } from "obsidian";
 import type EditorialistPlugin from "../main";
 import { renderPanelHeader } from "./primitives/PanelHeader";
@@ -24,6 +25,7 @@ export class RevisionPlanPanel extends ItemView {
 	private plan: RevisionPlan = emptyRevisionPlan();
 	private book: string | null = null;
 	private candidates: WorkCandidate[] = [];
+	private wordCounts: Record<string, number> = {};
 	private warnings: string[] = [];
 	private view: "queue" | "days" = "queue";
 	private section: "overview" | "materials" | "schedule" | "history" = "overview";
@@ -46,10 +48,10 @@ export class RevisionPlanPanel extends ItemView {
 		return new AuthorTargetPanel({ app: this.app, plan: this.plan, busy: this.busy, rt: this.plugin.radialBookGoals, save: async (expected, next, edit) => { await this.plugin.saveAuthorGoalPlan(expected, next, edit); }, openSource: async (path) => { await this.app.workspace.openLinkText(path, "", false); }, openSchedule: () => this.plugin.openAuthorScheduler() });
 	}
 	private projectService(): EditorialProjectService { return new EditorialProjectService(this.app); }
-	// The first open entry in the work queue, in the author's order — the
-	// single answer to "what is next" for both the Schedule and Overview tabs.
+	// What is next, by the same rule Today uses (see nextSession), so the
+	// overview and Today never name different sessions.
 	private queueHead(): QueueHead | null {
-		const entry = this.plan.entries.find((item) => !isPlanEntryComplete(item, this.candidates, this.doneKeys()));
+		const entry = nextSession([{ scope: this.book ?? "", plan: this.plan, candidates: this.candidates }], localDate(new Date()))?.entry;
 		if (!entry) return null;
 		const resolved = resolvePlanSource(entry.source, this.candidates);
 		const candidate = resolved.state === "ready" ? resolved.candidate : null;
@@ -70,6 +72,7 @@ export class RevisionPlanPanel extends ItemView {
 			save: async (expected, next) => { if (!book || book !== this.scopeKey()) throw new Error("The active book changed. Reopen the project before saving."); await this.plugin.applyScheduledPlan(book, expected, next); },
 			openWorkspace: () => this.plugin.openEditorialProjectWorkspace(), openSchedule: () => { this.section = "schedule"; this.render(); }, openSource: async (path) => { const file = this.app.vault.getAbstractFileByPath(path); if (!(file instanceof TFile)) throw new Error("This file is unavailable. Check its path in material details."); await this.app.workspace.openLinkText(file.path, "", false); },
 			nextInQueue: () => this.queueHead(),
+			wordCounts: this.wordCounts,
 		});
 	}
 	getViewType(): string { return this.author ? AUTHOR_PLAN_VIEW_TYPE : REVISION_PLAN_VIEW_TYPE; }
@@ -172,6 +175,7 @@ export class RevisionPlanPanel extends ItemView {
 			const plan = this.author ? this.plugin.getAuthorPlanningPlan() : book ? this.plugin.getRevisionPlan(book) : emptyRevisionPlan();
 			if (book !== this.scopeKey()) { this.stale = true; return; }
 			this.plan = plan;
+			this.wordCounts = await this.plugin.materialWordCounts(plan.project);
 			if (this.author) this.rtSignature = JSON.stringify(this.plugin.radialBookGoals.status());
 			this.stale = revision !== this.sourceRevision;
 		} catch { this.stale = true; this.warnings = ["Could not load the revision plan. Refresh to try again."]; }

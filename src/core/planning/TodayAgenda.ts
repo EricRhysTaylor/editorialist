@@ -25,18 +25,25 @@ export interface TodayAgenda {
 	highMinutes: number;
 	/** Items without an estimate, left out of the minutes. */
 	unestimated: number;
-	/** The next later day with open sessions, if any. */
-	later: { day: string; count: number } | null;
+	/** The next later day with open sessions, in queue order, if any. */
+	later: { day: string; items: AgendaItem[] } | null;
 }
 
-export function todayAgenda(plans: readonly AgendaPlan[], today: string): TodayAgenda {
-	const open: { scope: string; entry: PlanEntry; planIndex: number; entryIndex: number }[] = [];
+interface OpenEntry { scope: string; entry: PlanEntry; planIndex: number; entryIndex: number }
+
+function openEntries(plans: readonly AgendaPlan[]): OpenEntry[] {
+	const open: OpenEntry[] = [];
 	plans.forEach(({ scope, plan, candidates }, planIndex) => {
 		const doneKeys = progressDoneKeys(plan);
 		plan.entries.forEach((entry, entryIndex) => {
-			if (entry.day !== null && !isPlanEntryComplete(entry, candidates, doneKeys)) open.push({ scope, entry, planIndex, entryIndex });
+			if (!isPlanEntryComplete(entry, candidates, doneKeys)) open.push({ scope, entry, planIndex, entryIndex });
 		});
 	});
+	return open;
+}
+
+export function todayAgenda(plans: readonly AgendaPlan[], today: string): TodayAgenda {
+	const open = openEntries(plans).filter((item) => item.entry.day !== null);
 	const due = open.filter((item) => item.entry.day! <= today);
 	due.sort((left, right) => left.entry.day!.localeCompare(right.entry.day!) || left.planIndex - right.planIndex || left.entryIndex - right.entryIndex);
 	const items = due.map(({ scope, entry }) => ({ scope, entry, overdue: entry.day! < today }));
@@ -47,6 +54,19 @@ export function todayAgenda(plans: readonly AgendaPlan[], today: string): TodayA
 		lowMinutes: estimated.reduce((sum, item) => sum + item.entry.lowMinutes!, 0),
 		highMinutes: estimated.reduce((sum, item) => sum + item.entry.highMinutes!, 0),
 		unestimated: items.length - estimated.length,
-		later: nextDay ? { day: nextDay, count: open.filter((item) => item.entry.day === nextDay).length } : null,
+		later: nextDay ? { day: nextDay, items: open.filter((item) => item.entry.day === nextDay).map(({ scope, entry }) => ({ scope, entry, overdue: false })) } : null,
 	};
+}
+
+/**
+ * The one answer to "what is next", shared by Today and the engagement
+ * overview: whatever Today would put first, else the first session of the
+ * next scheduled day, else the first unscheduled session in queue order.
+ */
+export function nextSession(plans: readonly AgendaPlan[], today: string): AgendaItem | null {
+	const agenda = todayAgenda(plans, today);
+	const scheduled = agenda.items[0] ?? agenda.later?.items[0];
+	if (scheduled) return scheduled;
+	const unscheduled = openEntries(plans).find((item) => item.entry.day === null);
+	return unscheduled ? { scope: unscheduled.scope, entry: unscheduled.entry, overdue: false } : null;
 }
