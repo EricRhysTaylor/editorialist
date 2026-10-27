@@ -496,7 +496,10 @@ export class RevisionPlanPanel extends ItemView {
 	// fields stay one click away instead of a footer of grey text buttons;
 	// the date and estimate chips open them too.
 	private renderEntry(parent: HTMLElement, entry: PlanEntry): void {
-		const row = parent.createDiv({ cls: `editorialist-plan__entry${entry.done ? " is-done" : ""}`, attr: { "data-work-kind": entry.source.kind } });
+		// A session left open past its day is overdue whatever its place in
+		// the queue: the order is priority, the day is the commitment.
+		const overdue = entry.day !== null && entry.day < localDate(new Date()) && !isPlanEntryComplete(entry, this.candidates, this.doneKeys());
+		const row = parent.createDiv({ cls: `editorialist-plan__entry${entry.done ? " is-done" : ""}${overdue ? " is-overdue" : ""}`, attr: { "data-work-kind": entry.source.kind } });
 		const resolved = resolvePlanSource(entry.source, this.candidates);
 		const layout = row.createDiv({ cls: "editorialist-plan__entry-row" });
 		const grip = layout.createSpan({ cls: "editorialist-plan__grip", attr: { draggable: "true", "aria-label": "Drag to reorder the queue or drop onto a day to schedule this session." } });
@@ -532,10 +535,11 @@ export class RevisionPlanPanel extends ItemView {
 		const details = row.createEl("details", { cls: "editorialist-plan__entry-options", attr: { "data-plan-section": entry.id } });
 		details.createEl("summary", { text: "Schedule & options" });
 		const metadata = main.createDiv({ cls: "editorialist-plan__task-meta" });
-		for (const [icon, text, unset] of [["calendar", entry.day ? planDayLabel(entry.day) : "Unscheduled", !entry.day], ["clock-3", entry.lowMinutes === null || entry.highMinutes === null ? "Add estimate" : `${entry.lowMinutes}–${entry.highMinutes} min`, entry.lowMinutes === null || entry.highMinutes === null]] as const) {
+		for (const [icon, text, unset] of [["calendar", entry.day ? `${overdue ? "Overdue · " : ""}${planDayLabel(entry.day)}` : "Unscheduled", !entry.day], ["clock-3", entry.lowMinutes === null || entry.highMinutes === null ? "Add estimate" : `${entry.lowMinutes}–${entry.highMinutes} min`, entry.lowMinutes === null || entry.highMinutes === null]] as const) {
 			const chip = this.button(metadata, "", () => { details.open = true; details.querySelector<HTMLInputElement>("input")?.focus(); });
 			chip.addClass("editorialist-plan__chip");
 			if (unset) chip.addClass("is-unset");
+			if (overdue && icon === "calendar") chip.addClass("is-overdue");
 			setIcon(chip.createSpan(), icon); chip.createSpan({ text });
 		}
 

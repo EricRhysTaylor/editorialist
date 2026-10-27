@@ -25,8 +25,8 @@ export interface TodayAgenda {
 	highMinutes: number;
 	/** Items without an estimate, left out of the minutes. */
 	unestimated: number;
-	/** The next later day with open sessions, in queue order, if any. */
-	later: { day: string; items: AgendaItem[] } | null;
+	/** Open sessions scheduled after today, soonest first, queue order within a day. */
+	upcoming: AgendaItem[];
 }
 
 interface OpenEntry { scope: string; entry: PlanEntry; planIndex: number; entryIndex: number }
@@ -44,17 +44,16 @@ function openEntries(plans: readonly AgendaPlan[]): OpenEntry[] {
 
 export function todayAgenda(plans: readonly AgendaPlan[], today: string): TodayAgenda {
 	const open = openEntries(plans).filter((item) => item.entry.day !== null);
+	open.sort((left, right) => left.entry.day!.localeCompare(right.entry.day!) || left.planIndex - right.planIndex || left.entryIndex - right.entryIndex);
 	const due = open.filter((item) => item.entry.day! <= today);
-	due.sort((left, right) => left.entry.day!.localeCompare(right.entry.day!) || left.planIndex - right.planIndex || left.entryIndex - right.entryIndex);
 	const items = due.map(({ scope, entry }) => ({ scope, entry, overdue: entry.day! < today }));
 	const estimated = items.filter((item) => item.entry.lowMinutes !== null && item.entry.highMinutes !== null);
-	const nextDay = open.map((item) => item.entry.day!).filter((day) => day > today).sort()[0];
 	return {
 		items,
 		lowMinutes: estimated.reduce((sum, item) => sum + item.entry.lowMinutes!, 0),
 		highMinutes: estimated.reduce((sum, item) => sum + item.entry.highMinutes!, 0),
 		unestimated: items.length - estimated.length,
-		later: nextDay ? { day: nextDay, items: open.filter((item) => item.entry.day === nextDay).map(({ scope, entry }) => ({ scope, entry, overdue: false })) } : null,
+		upcoming: open.filter((item) => item.entry.day! > today).map(({ scope, entry }) => ({ scope, entry, overdue: false })),
 	};
 }
 
@@ -65,7 +64,7 @@ export function todayAgenda(plans: readonly AgendaPlan[], today: string): TodayA
  */
 export function nextSession(plans: readonly AgendaPlan[], today: string): AgendaItem | null {
 	const agenda = todayAgenda(plans, today);
-	const scheduled = agenda.items[0] ?? agenda.later?.items[0];
+	const scheduled = agenda.items[0] ?? agenda.upcoming[0];
 	if (scheduled) return scheduled;
 	const unscheduled = openEntries(plans).find((item) => item.entry.day === null);
 	return unscheduled ? { scope: unscheduled.scope, entry: unscheduled.entry, overdue: false } : null;

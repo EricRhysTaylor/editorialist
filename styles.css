@@ -9220,7 +9220,7 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 }
 
 .editorialist-today__overdue {
-	color: var(--text-warning);
+	color: var(--text-error);
 }
 
 .editorialist-today__heading {
@@ -9319,4 +9319,14 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	.editorialist-project-dialog .editorialist-project__fieldset > p {
 		grid-column: 1 / -1;
 	}
+}
+
+/* Overdue sessions: the queue keeps the author's order but marks the missed day. */
+.editorialist-plan__entry.is-overdue {
+	border-inline-start-color: var(--text-error);
+}
+
+.editorialist-plan__body button.editorialist-plan__chip.is-overdue {
+	color: var(--text-error);
+	border-color: color-mix(in srgb, var(--text-error) 45%, transparent);
 }

@@ -1,7 +1,7 @@
 import { ItemView, Notice, TFile, debounce, setIcon, type Debouncer, type WorkspaceLeaf } from "obsidian";
 import type EditorialistPlugin from "../main";
 import { AUTHOR_PLAN_SCOPE } from "../core/planning/AuthorPlan";
-import { localDate, resolvePlanSource, type RevisionPlan, type WorkCandidate } from "../core/planning/RevisionPlan";
+import { localDate, resolvePlanSource, type PlanEntry, type RevisionPlan, type WorkCandidate } from "../core/planning/RevisionPlan";
 import { todayAgenda, type AgendaItem, type AgendaPlan, type TodayAgenda } from "../core/planning/TodayAgenda";
 import { kindIcons, kindLabels, pendingWorkTitle, planDayLabel } from "../core/planning/WorkPresentation";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
@@ -12,6 +12,7 @@ import type { ProjectMaterial } from "../core/planning/EditorialProject";
 export const TODAY_VIEW_TYPE = "editorialist-today";
 /** Device-local: the day Today was last shown, so a new day opens on it once. */
 export const TODAY_SHOWN_KEY = "editorialist-today-shown";
+const UPCOMING_SHOWN = 3;
 
 interface LoadedPlan extends AgendaPlan { warnings: string[] }
 
@@ -117,12 +118,18 @@ export class TodayPanel extends ItemView {
 			const list = root.createDiv({ cls: "editorialist-today__list" });
 			for (const item of rest) this.renderRow(list, item);
 		}
-		if (agenda.later) {
-			const later = root.createDiv({ cls: "editorialist-today__later" });
-			setIcon(later.createSpan({ cls: "editorialist-today__icon" }), "calendar");
-			const titles = agenda.later.items.map((item) => this.title(item));
-			const named = titles.length <= 2 ? titles.join(", ") : `${titles.slice(0, 2).join(", ")} and ${titles.length - 2} more`;
-			later.createSpan({ text: `Next: ${new Date(`${agenda.later.day}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · ${named}` });
+		// The next few scheduled sessions by name, each one movable to today
+		// when the author wants to get ahead of it.
+		if (agenda.upcoming.length) {
+			root.createEl("h3", { cls: "editorialist-today__heading", text: "Coming up" });
+			const list = root.createDiv({ cls: "editorialist-today__list" });
+			for (const item of agenda.upcoming.slice(0, UPCOMING_SHOWN)) this.renderRow(list, item, true);
+			const more = agenda.upcoming.length - UPCOMING_SHOWN;
+			if (more > 0) {
+				const later = root.createDiv({ cls: "editorialist-today__later" });
+				setIcon(later.createSpan({ cls: "editorialist-today__icon" }), "calendar");
+				later.createSpan({ text: `${more} more scheduled later` });
+			}
 		}
 		container.scrollTop = scrollTop;
 	}
@@ -144,13 +151,20 @@ export class TodayPanel extends ItemView {
 		this.button(actions, "Done", () => { void this.markDone(item); });
 	}
 
-	private renderRow(parent: HTMLElement, item: AgendaItem): void {
+	private renderRow(parent: HTMLElement, item: AgendaItem, upcoming = false): void {
 		const row = parent.createDiv({ cls: "editorialist-today__row", attr: { "data-work-kind": item.entry.source.kind } });
 		const main = row.createDiv({ cls: "editorialist-today__row-main" });
 		this.kindBadge(main, item);
 		main.createDiv({ cls: "editorialist-today__row-title", text: this.title(item) });
 		const meta = main.createDiv({ cls: "editorialist-today__meta" });
+		if (upcoming && item.entry.day) meta.createSpan({ text: new Date(`${item.entry.day}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }) });
 		for (const text of this.metaParts(item)) meta.createSpan({ cls: item.overdue && text.startsWith("From") ? "editorialist-today__overdue" : "", text });
+		if (upcoming) {
+			const move = this.button(row, "", () => { void this.moveToToday(item); });
+			move.addClass("clickable-icon", "editorialist-plan__icon-action");
+			move.setAttribute("aria-label", "Move to today");
+			setIcon(move, "calendar-plus");
+		}
 		const open = this.button(row, "", () => { void this.start(item); });
 		open.addClass("clickable-icon", "editorialist-plan__icon-action");
 		open.setAttribute("aria-label", "Start this session");
@@ -215,12 +229,15 @@ export class TodayPanel extends ItemView {
 		await this.plugin.openRevisionWork(candidate);
 	}
 
-	private async markDone(item: AgendaItem): Promise<void> {
+	private async markDone(item: AgendaItem): Promise<void> { await this.updateEntry(item, (entry) => { entry.done = true; }); }
+	private async moveToToday(item: AgendaItem): Promise<void> { await this.updateEntry(item, (entry) => { entry.day = localDate(new Date()); }); }
+
+	private async updateEntry(item: AgendaItem, update: (entry: PlanEntry) => void): Promise<void> {
 		if (this.busy) return;
 		const plan: RevisionPlan = item.scope === AUTHOR_PLAN_SCOPE ? this.plugin.getAuthorPlanningPlan() : this.plugin.getRevisionPlan(item.scope);
 		const entry = plan.entries.find((candidate) => candidate.id === item.entry.id);
 		if (!entry) { new Notice("This session is no longer in the plan."); await this.refresh(); return; }
-		entry.done = true;
+		update(entry);
 		try { await this.plugin.saveRevisionPlan(item.scope, plan); }
 		catch { new Notice("Could not save the session. Try again."); return; }
 		await this.plugin.refreshPlanViews();

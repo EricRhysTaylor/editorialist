@@ -37,11 +37,10 @@ describe("todayAgenda", () => {
 		expect([agenda.lowMinutes, agenda.highMinutes, agenda.unestimated]).toEqual([45, 80, 1]);
 	});
 
-	it("previews the next later day with open sessions", () => {
+	it("lists later sessions soonest first", () => {
 		const agenda = todayAgenda([{ scope: "book", plan: plan([entry("a", "2026-11-02"), entry("b", "2026-10-29"), entry("c", "2026-10-29"), entry("d", "2026-10-28", { done: true })]), candidates: [] }], TODAY);
-		expect(agenda.later?.day).toBe("2026-10-29");
-		expect(agenda.later?.items.map((item) => item.entry.id)).toEqual(["b", "c"]);
-		expect(todayAgenda([], TODAY).later).toBeNull();
+		expect(agenda.upcoming.map((item) => item.entry.id)).toEqual(["b", "c", "a"]);
+		expect(todayAgenda([], TODAY).upcoming).toEqual([]);
 	});
 });
 
