@@ -127,3 +127,22 @@ Kept: `panel-author-planner.png` (its header label is unchanged), the schedule
 previews, `panel-import.png` (the launcher's opening screen is unchanged; only
 its paste preview names the manuscript), the Core and Contributors settings tabs,
 and the toolbar and cut-file close-ups.
+
+## 3.0.6 goal-card refresh — October 27, 2026
+
+Captured from commit `4d0d5bd` (the 3.0.6 candidate) in desktop Obsidian
+1.14.5, dark theme, 2x device scale, 460 CSS-pixel right sidebar, pointer off
+the panel. The `Editorialist Release Demo` vault was rebuilt from scratch with
+synthetic scenes in `Book/` and `Workshop/Series overview.md`; the author goals
+come from the 3.0.0 fixture, with start dates added so the new cards have a
+time window to show. No Author-vault content was used.
+
+- `panel-author-planner.png` — "Revise the series overview" (started Oct 13,
+  hard deadline Nov 20: 24 days left, 37% of the time used) and "Polish the
+  query letter" (starts Nov 9, target Dec 4: 13 days until you start). The crop
+  ends 12 px below the second goal card and is 768 CSS pixels tall, past the
+  usual 735 limit: the countdown and bar make each card taller, and one card
+  alone could not show both a goal under way and one not yet started.
+
+Also checked in light and dark at 300 and 460 CSS pixels; the countdown wraps
+cleanly at 300 with no horizontal overflow.

@@ -1,14 +1,17 @@
 Give your own writing goals a target date and room in your working week. Run **Open author planner**, or choose **Author planner** from the panel’s mode selector. This plan spans the vault and stays separate from each book’s [Editor Engagement](Editor-Engagement).
 
-<p align="center"><img src="images/panel-author-planner.png" alt="Author planner showing writing goals, completion descriptions, book labels, and target dates" width="460"></p>
+<p align="center"><img src="images/panel-author-planner.png" alt="Author planner showing a goal with 24 days left and a bar of how much of its time has passed, and a goal 13 days from its start date" width="460"></p>
 
 ## Add a writing goal
 
 1. Choose **Add goal** and enter a title.
 2. Describe **What does complete mean?** in your own terms: a revised chapter, a finished query letter, or another outcome.
 3. Set a **Target date**. Check **This is a hard deadline** when scheduling must finish by that date.
-4. Optionally add a book label, choose a vault document, and enter low/high minutes under **Effort estimate**.
-5. Save. **Edit goal** lets you change these details later.
+4. Optionally set a **Start date**: the day you plan to begin. It must fall on or before the target date.
+5. Optionally add a book label, choose a vault document, and enter low/high minutes under **Effort estimate**.
+6. Save. **Edit goal** lets you change these details later.
+
+Each goal card counts down to its date. Before a goal’s start date, it shows the days until you start and the length of the window; after that, the days left, plus the weeks when at least two weeks remain. A goal with a start date also shows a bar of how much of the time from start to deadline has passed. The bar measures time, not how much of the writing is done. It turns amber in the last 14 days and red when the goal is due today or past due, and a hard deadline’s date is shown in red.
 
 A document link opens the working file. Linking or editing it never completes the goal. **Mark complete** records your decision; **Reopen goal** brings it back. **Remove goal** removes that goal and its planned sessions while preserving the document.
 
