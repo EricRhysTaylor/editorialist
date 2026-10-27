@@ -8774,6 +8774,11 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	font-size: var(--font-small);
 }
 
+/* A note about the fields just above it, tucked under them rather than spaced as a paragraph. */
+.editorialist-project__field-note {
+	margin: -8px 0 14px;
+}
+
 .editorialist-project__field input:not([type="checkbox"]),
 .editorialist-project__field textarea,
 .editorialist-project__field select {

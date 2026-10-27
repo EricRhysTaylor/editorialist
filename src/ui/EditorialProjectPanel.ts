@@ -275,7 +275,7 @@ export class EditorialProjectPanel {
 	private documentFields(parent: HTMLElement, material: ProjectMaterial | null, shared = false): (target: ProjectMaterial) => void {
 		const source = this.fileField(parent, "Vault document (optional)", material?.source ?? "");
 		const limit = field(parent, "Word limit (optional)", material?.wordLimit ? String(material.wordLimit) : "", "number"); limit.min = "1"; limit.step = "1";
-		parent.createEl("p", { cls: "editorialist-project__hint", text: `${shared && material ? `Shared with the “${material.title}” reference. ` : ""}The word count covers the document's prose, leaving out properties, headings and hidden comments.` });
+		parent.createEl("p", { cls: "editorialist-project__hint editorialist-project__field-note", text: `${shared && material ? `Shared with the “${material.title}” reference. ` : ""}The word count covers the document's prose, leaving out properties, headings and hidden comments.` });
 		return (target) => {
 			const wordLimit = limit.value ? Number(limit.value) : null;
 			if (wordLimit !== null && (!Number.isInteger(wordLimit) || wordLimit < 1)) throw new Error("Enter the word limit as a whole number, or leave it blank.");
