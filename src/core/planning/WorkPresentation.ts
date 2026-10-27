@@ -7,3 +7,6 @@ export function pendingWorkTitle(text: string): string {
 export function planDayLabel(day: string): string {
 	return new Date(`${day}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
+
+export const kindLabels = { pending: "Pending edit", batch: "Scene batch", directive: "Editorialism", preparation: "Engagement task" } as const;
+export const kindIcons = { pending: "pencil-line", batch: "messages-square", directive: "list-checks", preparation: "clipboard-list" } as const;

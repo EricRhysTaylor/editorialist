@@ -58,6 +58,7 @@ From there, Editorialist runs the workflow: it matches each suggestion to its pa
 
 ## Commands
 
+- `Open today` — opens Today: the scheduled session to work on now, the rest of today, and the next day with work, across the active book and your goals. The Ed ribbon icon opens it too, and the panel shows it the first time Obsidian starts each day.
 - `Open review launcher` — opens the launcher modal to import a review batch or start pending-edits review.
 - `Open review panel` — opens the review side panel for the active note.
 - `Open editorialism panel` — opens the Editorialisms panel for structural guidance documents.

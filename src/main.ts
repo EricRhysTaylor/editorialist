@@ -11,6 +11,7 @@ import { EditorialDeliveriesModal } from "./ui/EditorialDeliveriesModal";
 import { deliveryCaption, planDeliveryLink, type DeliverySource, type EditorialDelivery } from "./core/EditorialDeliveries";
 import { formatReviewerTypeLabel, normalizeReviewerType } from "./core/ContributorIdentity";
 import { RevisionPlanPanel, REVISION_PLAN_VIEW_TYPE, AUTHOR_PLAN_VIEW_TYPE } from "./ui/RevisionPlanPanel";
+import { TodayPanel, TODAY_SHOWN_KEY, TODAY_VIEW_TYPE } from "./ui/TodayPanel";
 import { RadialBookGoals, type RTDateEdit } from "./services/RadialBookGoals";
 import { AUTHOR_PLAN_SCOPE, authorWork } from "./core/planning/AuthorPlan";
 import { localDate, type RevisionPlan, type WorkCandidate } from "./core/planning/RevisionPlan";
@@ -495,6 +496,7 @@ export default class EditorialistPlugin extends Plugin {
 		// panel finds "editorialist-logo" (and the RT mark) already available.
 		registerEditorialistIcon();
 		registerRadialTimelineIcon();
+		this.registerView(TODAY_VIEW_TYPE, (leaf) => new TodayPanel(leaf, this));
 		this.registerView(REVISION_PLAN_VIEW_TYPE, (leaf) => new RevisionPlanPanel(leaf, this));
 		this.registerView(AUTHOR_PLAN_VIEW_TYPE, (leaf) => new RevisionPlanPanel(leaf, this, true));
 		this.registerView(REVIEW_PANEL_VIEW_TYPE, (leaf) => new ReviewPanel(leaf, this));
@@ -505,7 +507,7 @@ export default class EditorialistPlugin extends Plugin {
 		// in-panel swatch toggle or the "Toggle editorialism mode" command — no
 		// second icon, no second tab.
 		this.addRibbonIcon(EDITORIALIST_ICON_ID, t("ribbon.openPanel"), () => {
-			void this.openReviewPanel();
+			void this.openTodayPanel();
 		});
 		registerCommands(this);
 		this.registerDomEvent(window, "resize", () => {
@@ -597,6 +599,7 @@ export default class EditorialistPlugin extends Plugin {
 		// file the button points at. Deferred to layout-ready because `create`
 		// fires once per file while the vault index is warming up.
 		this.app.workspace.onLayoutReady(() => {
+			this.showTodayOnNewDay();
 			// Folder/note membership cannot be validated before the vault index
 			// is ready. Resolve the persisted target again at the actual boundary.
 			void this.registry.syncOperationalMetadata().then(() => {
@@ -738,6 +741,7 @@ export default class EditorialistPlugin extends Plugin {
 	// second tab. Returns the leaf, or null when no sidebar slot is available.
 	private async openEditorialistPanel(viewType: string): Promise<WorkspaceLeaf | null> {
 		const existing = [
+			...this.app.workspace.getLeavesOfType(TODAY_VIEW_TYPE),
 			...this.app.workspace.getLeavesOfType(REVIEW_PANEL_VIEW_TYPE),
 			...this.app.workspace.getLeavesOfType(EDITORIALISM_PANEL_VIEW_TYPE),
 			...this.app.workspace.getLeavesOfType(PENDING_EDITS_PANEL_VIEW_TYPE),
@@ -885,6 +889,18 @@ export default class EditorialistPlugin extends Plugin {
 		await this.savePluginData();
 	}
 
+	// The first time Obsidian starts on a new day, the Ed panel shows Today
+	// instead of whatever view it was left on. Later the same day the restored
+	// view stays. Today records the day when it opens; see TodayPanel.
+	private showTodayOnNewDay(): void {
+		if (this.app.loadLocalStorage(TODAY_SHOWN_KEY) === localDate(new Date())) return;
+		const leaf = [REVIEW_PANEL_VIEW_TYPE, EDITORIALISM_PANEL_VIEW_TYPE, PENDING_EDITS_PANEL_VIEW_TYPE, REVISION_PLAN_VIEW_TYPE, AUTHOR_PLAN_VIEW_TYPE]
+			.flatMap((type) => this.app.workspace.getLeavesOfType(type))[0];
+		if (leaf) void leaf.setViewState({ type: TODAY_VIEW_TYPE, active: false });
+	}
+	async openTodayPanel(): Promise<void> {
+		await this.openEditorialistPanel(TODAY_VIEW_TYPE);
+	}
 	async openRevisionPlanPanel(): Promise<void> {
 		await this.openEditorialistPanel(REVISION_PLAN_VIEW_TYPE);
 	}
@@ -929,7 +945,15 @@ export default class EditorialistPlugin extends Plugin {
 		for (const leaf of this.app.workspace.getLeavesOfType(AUTHOR_PLAN_VIEW_TYPE)) if (leaf.view instanceof RevisionPlanPanel) await leaf.view.refresh();
 	}
 	getRevisionPlan(book: string): RevisionPlan { return this.registry.getRevisionPlan(book); }
-	async saveRevisionPlan(book: string, plan: RevisionPlan): Promise<void> { await this.registry.setRevisionPlan(book, plan); }
+	async saveRevisionPlan(book: string, plan: RevisionPlan): Promise<void> {
+		await this.registry.setRevisionPlan(book, plan);
+		// Every plan save funnels through here, so Today follows any planner edit.
+		for (const leaf of this.app.workspace.getLeavesOfType(TODAY_VIEW_TYPE)) if (leaf.view instanceof TodayPanel) leaf.view.scheduleRefresh();
+	}
+	async refreshPlanViews(): Promise<void> {
+		for (const type of [REVISION_PLAN_VIEW_TYPE, AUTHOR_PLAN_VIEW_TYPE]) for (const leaf of this.app.workspace.getLeavesOfType(type)) if (leaf.view instanceof RevisionPlanPanel) await leaf.view.refresh();
+		for (const leaf of this.app.workspace.getLeavesOfType(TODAY_VIEW_TYPE)) if (leaf.view instanceof TodayPanel) leaf.view.scheduleRefresh();
+	}
 
 	getEditorialDeliveries(): EditorialDelivery[] {
 		const folder = this.getActiveBookScopeInfo().sourceFolder?.replace(/\/$/, "");
@@ -976,7 +1000,7 @@ export default class EditorialistPlugin extends Plugin {
 		const active = book === AUTHOR_PLAN_SCOPE ? AUTHOR_PLAN_SCOPE : JSON.stringify(["folder", this.getActiveBookScopeInfo().sourceFolder?.replace(/\/$/, "")]);
 		if (book !== active || JSON.stringify(book === AUTHOR_PLAN_SCOPE ? this.getAuthorPlanningPlan() : this.getRevisionPlan(book)) !== JSON.stringify(expected)) throw new Error("The book or plan changed. Reopen the planner before applying.");
 		await this.saveRevisionPlan(book, next);
-		for (const type of [REVISION_PLAN_VIEW_TYPE, AUTHOR_PLAN_VIEW_TYPE]) for (const leaf of this.app.workspace.getLeavesOfType(type)) if (leaf.view instanceof RevisionPlanPanel) await leaf.view.refresh();
+		await this.refreshPlanViews();
 	}
 	async saveEditorialDelivery(delivery: EditorialDelivery): Promise<void> {
 		if (delivery.bookFolder !== this.getActiveBookScopeInfo().sourceFolder?.replace(/\/$/, "")) throw new Error("The active book changed. Reopen deliveries before saving.");
@@ -1077,16 +1101,23 @@ export default class EditorialistPlugin extends Plugin {
 	// current one checked. Direct selection (no blind cycling) and it swaps the
 	// single Ed leaf in place. Each mode also has its own command.
 	showPanelModeMenu(event: MouseEvent, currentViewType: string): void {
-		const modes: Array<{ type: string; label: string }> = [
-			{ type: REVISION_PLAN_VIEW_TYPE, label: t("panel.editorEngagement") },
-			{ type: AUTHOR_PLAN_VIEW_TYPE, label: t("panel.authorPlanner") },
-			{ type: REVIEW_PANEL_VIEW_TYPE, label: t("panel.review") },
-			{ type: PENDING_EDITS_PANEL_VIEW_TYPE, label: t("panel.pendingEdits") },
-			{ type: EDITORIALISM_PANEL_VIEW_TYPE, label: t("panel.editorialisms") },
+		// Daily, then the working views a session opens into, then planning.
+		const groups: Array<Array<{ type: string; label: string }>> = [
+			[{ type: TODAY_VIEW_TYPE, label: t("panel.today") }],
+			[
+				{ type: REVIEW_PANEL_VIEW_TYPE, label: t("panel.review") },
+				{ type: PENDING_EDITS_PANEL_VIEW_TYPE, label: t("panel.pendingEdits") },
+				{ type: EDITORIALISM_PANEL_VIEW_TYPE, label: t("panel.editorialisms") },
+			],
+			[
+				{ type: REVISION_PLAN_VIEW_TYPE, label: t("panel.editorEngagement") },
+				{ type: AUTHOR_PLAN_VIEW_TYPE, label: t("panel.authorPlanner") },
+			],
 		];
 		const menu = new Menu();
-		for (const mode of modes) {
-			menu.addItem((item) => {
+		for (const [index, modes] of groups.entries()) {
+			if (index > 0) menu.addSeparator();
+			for (const mode of modes) menu.addItem((item) => {
 				item
 					.setTitle(mode.label)
 					.setIcon(EDITORIALIST_ICON_ID)
@@ -1329,7 +1360,7 @@ export default class EditorialistPlugin extends Plugin {
 		this.resyncSessionForActiveNote();
 		this.refreshReviewPanel();
 		this.refreshEditorialismPanel();
-		for (const type of [REVISION_PLAN_VIEW_TYPE, AUTHOR_PLAN_VIEW_TYPE]) for (const leaf of this.app.workspace.getLeavesOfType(type)) if (leaf.view instanceof RevisionPlanPanel) await leaf.view.refresh();
+		await this.refreshPlanViews();
 	}
 
 	getManuscriptTarget(): ManuscriptTarget | undefined { return this.registry.getManuscriptTarget(); }
@@ -1354,9 +1385,7 @@ export default class EditorialistPlugin extends Plugin {
 		this.syncActiveEditorDecorations();
 		this.refreshReviewPanel();
 		this.refreshEditorialismPanel();
-		for (const type of [REVISION_PLAN_VIEW_TYPE, AUTHOR_PLAN_VIEW_TYPE]) {
-			for (const leaf of this.app.workspace.getLeavesOfType(type)) if (leaf.view instanceof RevisionPlanPanel) await leaf.view.refresh();
-		}
+		await this.refreshPlanViews();
 	}
 
 	getBookFolderOverride(): string {

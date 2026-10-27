@@ -2,6 +2,7 @@ import { t } from "../i18n";
 import type EditorialistPlugin from "../main";
 
 export function registerCommands(plugin: EditorialistPlugin): void {
+	plugin.addCommand({ id: "open-today", name: t("commands.openToday"), callback: () => { void plugin.openTodayPanel(); } });
 	plugin.addCommand({ id: "open-author-planner", name: t("commands.openAuthorPlanner"), callback: () => { void plugin.openAuthorPlanner(); } });
 	plugin.addCommand({ id: "open-revision-plan", name: t("commands.openEditorEngagement"), callback: () => { void plugin.openRevisionPlanPanel(); } });
 	plugin.addCommand({ id: "open-editorial-project-workspace", name: t("commands.openEditorialProject"), callback: () => { void plugin.openEditorialProjectWorkspace(); } });

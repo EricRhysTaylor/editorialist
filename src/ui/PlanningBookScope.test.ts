@@ -31,6 +31,7 @@ function planningHost() {
 		getAuthorPlanningPlan: () => structuredClone(plans[JSON.stringify(["author", "vault"])]!),
 		collectRevisionWork: async () => ({ candidates: [], warnings: [] }),
 		saveRevisionPlan: vi.fn(async (book: string, next: RevisionPlan) => { plans[book] = structuredClone(next); }),
+		refreshPlanViews: vi.fn(async () => {}),
 		app: { workspace: { getLeavesOfType: () => [] } },
 	};
 	return { host, plans };

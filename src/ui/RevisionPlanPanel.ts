@@ -3,7 +3,7 @@ import { isPathInFolderScope, isPathInManuscriptScope } from "../core/VaultScope
 import { AUTHOR_PLAN_SCOPE } from "../core/planning/AuthorPlan";
 import { AuthorTargetPanel } from "./AuthorTargetPanel";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
-import { pendingWorkTitle, planDayLabel } from "../core/planning/WorkPresentation";
+import { kindIcons, kindLabels, pendingWorkTitle, planDayLabel } from "../core/planning/WorkPresentation";
 import { ItemView, Notice, TFile, TFolder, setIcon, type TAbstractFile, type WorkspaceLeaf } from "obsidian";
 import type EditorialistPlugin from "../main";
 import { renderPanelHeader } from "./primitives/PanelHeader";
@@ -17,8 +17,6 @@ import { bindCompletionMenu } from "./primitives/CompletionMenu";
 
 export const REVISION_PLAN_VIEW_TYPE = "editorialist-revision-plan";
 export const AUTHOR_PLAN_VIEW_TYPE = "editorialist-author-plan";
-const kindLabels = { pending: "Pending edit", batch: "Scene batch", directive: "Editorialism", preparation: "Engagement task" };
-const kindIcons = { pending: "pencil-line", batch: "messages-square", directive: "list-checks", preparation: "clipboard-list" };
 const duration = (minutes: number): string => `${Math.round(minutes / 6) / 10} h`;
 
 /** Planning writes only plugin data. Source editing stays in the existing tools. */

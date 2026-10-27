@@ -10,7 +10,7 @@ describe("localized command registration preserves the command contract", () => 
 		const host = {
 			addCommand: (command: Command) => { commands.push(command); },
 			...Object.fromEntries([
-				"openAuthorPlanner", "openRevisionPlanPanel", "openEditorialProjectWorkspace",
+				"openTodayPanel", "openAuthorPlanner", "openRevisionPlanPanel", "openEditorialProjectWorkspace",
 				"openEditorialistModal", "openReviewPanel", "openEditorialismPanel", "openPendingEditsPanel",
 				"endCurrentReviewRound", "rescanReviewBlocks", "insertAuthorQuery"
 			].map(method => [method, () => { invoked.push(method); }])),
@@ -24,6 +24,7 @@ describe("localized command registration preserves the command contract", () => 
 		};
 		registerCommands(host as unknown as EditorialistPlugin); // SAFE: registration only needs the delegates above.
 		expect(commands.map(command => [command.id, command.name])).toEqual([
+			["open-today", "Open today"],
 			["open-author-planner", "Open author planner"],
 			["open-revision-plan", "Open editor engagement"],
 			["open-editorial-project-workspace", "Open editorial project in workspace"],
@@ -46,7 +47,7 @@ describe("localized command registration preserves the command contract", () => 
 			command.editorCallback?.({} as Editor, {} as MarkdownView);
 		}
 		expect(invoked).toEqual([
-			"openAuthorPlanner", "openRevisionPlanPanel", "openEditorialProjectWorkspace",
+			"openTodayPanel", "openAuthorPlanner", "openRevisionPlanPanel", "openEditorialProjectWorkspace",
 			"openEditorialistModal", "openReviewPanel", "openEditorialismPanel", "openPendingEditsPanel",
 			"startPendingEditsReview", "endCurrentReviewRound", "rescanReviewBlocks",
 			"backupSelectionToCutFile", "insertAuthorQuery", "anchorSelectionToEditorialismItem",
