@@ -135,14 +135,17 @@ export class TodayPanel extends ItemView {
 	}
 
 	private renderNow(parent: HTMLElement, item: AgendaItem): void {
-		const card = parent.createDiv({ cls: "editorialist-project__material editorialist-today__now", attr: { "data-work-kind": item.entry.source.kind } });
+		const card = parent.createDiv({ cls: `editorialist-project__material editorialist-today__now${item.overdue ? " is-overdue" : ""}`, attr: { "data-work-kind": item.entry.source.kind } });
 		card.createDiv({ cls: "editorialist-project__eyebrow", text: "Now" });
-		this.kindBadge(card, item);
+		this.head(card, item);
 		card.createDiv({ cls: "editorialist-today__title", text: this.title(item) });
 		const detail = this.candidate(item)?.detail;
 		if (detail) card.createEl("p", { cls: "editorialist-project__hint", text: detail });
-		const meta = card.createDiv({ cls: "editorialist-today__meta" });
-		for (const text of this.metaParts(item)) meta.createSpan({ cls: item.overdue && text.startsWith("From") ? "editorialist-today__overdue" : "", text });
+		const parts = this.metaParts(item);
+		if (parts.length) {
+			const meta = card.createDiv({ cls: "editorialist-today__meta" });
+			for (const text of parts) meta.createSpan({ text });
+		}
 		const material = this.material(item);
 		if (material?.wordLimit && this.wordCounts[material.id] !== undefined) renderWordLimit(card, this.wordCounts[material.id]!, material.wordLimit);
 		const actions = card.createDiv({ cls: "editorialist-project__actions" });
@@ -152,38 +155,43 @@ export class TodayPanel extends ItemView {
 	}
 
 	private renderRow(parent: HTMLElement, item: AgendaItem, upcoming = false): void {
-		const row = parent.createDiv({ cls: "editorialist-today__row", attr: { "data-work-kind": item.entry.source.kind } });
-		const main = row.createDiv({ cls: "editorialist-today__row-main" });
-		this.kindBadge(main, item);
-		main.createDiv({ cls: "editorialist-today__row-title", text: this.title(item) });
-		const meta = main.createDiv({ cls: "editorialist-today__meta" });
-		if (upcoming && item.entry.day) meta.createSpan({ text: new Date(`${item.entry.day}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }) });
-		for (const text of this.metaParts(item)) meta.createSpan({ cls: item.overdue && text.startsWith("From") ? "editorialist-today__overdue" : "", text });
+		const row = parent.createDiv({ cls: `editorialist-today__row${item.overdue ? " is-overdue" : ""}`, attr: { "data-work-kind": item.entry.source.kind } });
+		this.head(row, item);
+		row.createDiv({ cls: "editorialist-today__row-title", text: this.title(item) });
+		const foot = row.createDiv({ cls: "editorialist-today__foot" });
+		const meta = foot.createDiv({ cls: "editorialist-today__meta" });
+		for (const text of this.metaParts(item)) meta.createSpan({ text });
+		const actions = foot.createDiv({ cls: "editorialist-today__row-actions" });
 		if (upcoming) {
-			const move = this.button(row, "", () => { void this.moveToToday(item); });
+			const move = this.button(actions, "", () => { void this.moveToToday(item); });
 			move.addClass("clickable-icon", "editorialist-plan__icon-action");
 			move.setAttribute("aria-label", "Move to today");
 			setIcon(move, "calendar-plus");
 		}
-		const open = this.button(row, "", () => { void this.start(item); });
+		const open = this.button(actions, "", () => { void this.start(item); });
 		open.addClass("clickable-icon", "editorialist-plan__icon-action");
 		open.setAttribute("aria-label", "Start this session");
 		setIcon(open, "arrow-up-right");
 	}
 
-	private kindBadge(parent: HTMLElement, item: AgendaItem): void {
-		const badge = parent.createSpan({ cls: "editorialist-plan__kind" });
+	// The kind of work on the left and its day on the right; both turn red
+	// once the day has passed.
+	private head(parent: HTMLElement, item: AgendaItem): void {
+		const head = parent.createDiv({ cls: "editorialist-today__head" });
+		const badge = head.createSpan({ cls: "editorialist-plan__kind" });
 		const goal = item.scope === AUTHOR_PLAN_SCOPE;
 		setIcon(badge.createSpan(), goal ? "target" : kindIcons[item.entry.source.kind]);
 		badge.createSpan({ text: goal ? "Writing goal" : kindLabels[item.entry.source.kind] });
+		const { day } = item.entry;
+		const label = !day ? "" : item.overdue ? `Overdue · ${planDayLabel(day)}` : day === this.day ? "Today" : new Date(`${day}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+		if (label) head.createSpan({ cls: "editorialist-today__day", text: label });
 	}
 
 	private metaParts(item: AgendaItem): string[] {
 		const { entry } = item;
 		return [
-			item.overdue && entry.day ? `From ${planDayLabel(entry.day)}` : "",
 			entry.sessionCount ? `Session ${entry.sessionIndex}/${entry.sessionCount}` : "",
-			entry.lowMinutes !== null && entry.highMinutes !== null ? `${entry.lowMinutes}–${entry.highMinutes} min` : "No estimate",
+			entry.lowMinutes !== null && entry.highMinutes !== null ? `${entry.lowMinutes}–${entry.highMinutes} min` : "",
 		].filter(Boolean);
 	}
 
