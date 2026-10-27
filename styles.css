@@ -9304,3 +9304,14 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 .editorialist-word-limit[data-over="true"] .editorialist-word-limit__fill {
 	background: var(--text-error);
 }
+
+/* A task dialog's reference fields join the dialog grid as if they were its own. */
+.editorialist-project__fieldset {
+	display: contents;
+}
+
+@media (width >= 700px) {
+	.editorialist-project-dialog .editorialist-project__fieldset > p {
+		grid-column: 1 / -1;
+	}
+}

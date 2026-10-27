@@ -259,20 +259,29 @@ export class EditorialProjectPanel {
 		new ProjectDialog(this.host.app, material ? "Edit reference item" : "Add reference item", (form) => {
 			const title = field(form, "Item title", material?.title ?? ""); title.required = true;
 			const notes = area(form, "Description (optional)", material?.notes ?? "");
-			const source = this.fileField(form, "Vault document (optional)", material?.source ?? "");
-			const limit = field(form, "Word limit (optional)", material?.wordLimit ? String(material.wordLimit) : "", "number"); limit.min = "1"; limit.step = "1";
-			form.createEl("p", { cls: "editorialist-project__hint", text: "Counts the linked document's prose, leaving out properties, headings and hidden comments." });
-			const milestone = select(form, "Personal target", [["", "No target date"], ...project.milestones.map((item): [string, string] => [item.id, `${item.title} · ${dayLabel(item.day)}`])], material?.milestoneId ?? "");
+			const applyDocument = this.documentFields(form, material);
+			const milestone = select(form, "Target date", [["", "No target date"], ...project.milestones.map((item): [string, string] => [item.id, `${item.title} · ${dayLabel(item.day)}`])], material?.milestoneId ?? "");
 			return async () => {
 				const target = material ? project.materials.find((item) => item.id === material.id)! : { id: crypto.randomUUID(), title: "", kind: "document" as const, required: false, source: "", exportPath: "", milestoneId: null, requirements: [], approvedDigest: null, check: null, uploads: [] };
 				if (!title.value.trim()) throw new Error("Enter an item title.");
-				const wordLimit = limit.value ? Number(limit.value) : null;
-				if (wordLimit !== null && (!Number.isInteger(wordLimit) || wordLimit < 1)) throw new Error("Enter the word limit as a whole number, or leave it blank.");
-				if (wordLimit) target.wordLimit = wordLimit; else delete target.wordLimit;
-				target.title = title.value.trim(); target.notes = notes.value.trim(); target.source = this.referencePath(source, material?.source); target.milestoneId = milestone.value || null;
+				applyDocument(target);
+				target.title = title.value.trim(); target.notes = notes.value.trim(); target.milestoneId = milestone.value || null;
 				if (!material) project.materials.push(target); recordProjectEvent(project, `${target.title}: reference updated`); await this.host.save(expected, next);
 			};
 		}).open();
+	}
+	// A reference's document, edited the same way from the reference dialog and
+	// from any task that works on it — both write the one reference.
+	private documentFields(parent: HTMLElement, material: ProjectMaterial | null, shared = false): (target: ProjectMaterial) => void {
+		const source = this.fileField(parent, "Vault document (optional)", material?.source ?? "");
+		const limit = field(parent, "Word limit (optional)", material?.wordLimit ? String(material.wordLimit) : "", "number"); limit.min = "1"; limit.step = "1";
+		parent.createEl("p", { cls: "editorialist-project__hint", text: `${shared && material ? `Shared with the “${material.title}” reference. ` : ""}The word count covers the document's prose, leaving out properties, headings and hidden comments.` });
+		return (target) => {
+			const wordLimit = limit.value ? Number(limit.value) : null;
+			if (wordLimit !== null && (!Number.isInteger(wordLimit) || wordLimit < 1)) throw new Error("Enter the word limit as a whole number, or leave it blank.");
+			target.source = this.referencePath(source, material?.source);
+			if (wordLimit) target.wordLimit = wordLimit; else delete target.wordLimit;
+		};
 	}
 	private recordActivity(record?: EngagementRecord): void {
 		const expected = structuredClone(this.host.plan), next = structuredClone(expected), project = next.project!;
@@ -333,8 +342,13 @@ export class EditorialProjectPanel {
 		for (const task of project.tasks) {
 			const row = body.createDiv({ cls: `editorialist-project__row editorialist-project__task${task.done ? " is-done" : ""}` });
 			this.finishToggle(row, task);
-			row.createDiv({ cls: "editorialist-project__row-main" }).createDiv({ cls: "editorialist-project__row-title", text: task.title });
-			iconButton(row.createDiv({ cls: "editorialist-project__row-actions" }), "pencil", `Edit “${task.title}”`, () => this.editTask(task.id));
+			const main = row.createDiv({ cls: "editorialist-project__row-main" });
+			main.createDiv({ cls: "editorialist-project__row-title", text: task.title });
+			const material = project.materials.find((item) => item.id === task.materialId);
+			if (material) { main.createDiv({ cls: "editorialist-project__row-meta", text: material.title }); this.wordLimit(main, material); }
+			const actions = row.createDiv({ cls: "editorialist-project__row-actions" });
+			if (material?.source) iconButton(actions, "file-text", "Open document", () => { void this.host.openSource(material.source).catch((reason: unknown) => new Notice(reason instanceof Error ? reason.message : "Could not open the document.")); });
+			iconButton(actions, "pencil", `Edit “${task.title}”`, () => this.editTask(task.id));
 		}
 		const actions = body.createDiv({ cls: "editorialist-project__actions" });
 		button(actions, "Add task", () => this.editTask()).addClass("editorialist-project__add");
@@ -346,8 +360,24 @@ export class EditorialProjectPanel {
 		new ProjectDialog(this.host.app, id ? "Edit engagement task" : "Add engagement task", (form) => {
 			const title = field(form, "Task title", task.title); title.required = true;
 			const material = select(form, "Related reference", [["", "No reference"], ...draft.materials.map((item): [string, string] => [item.id, item.title])], task.materialId ?? "");
-			const milestone = select(form, "Target", [["", "No task deadline"], ["__start__", `Engagement starts · ${dayLabel(draft.submissionDate)}`], ...draft.milestones.map((item): [string, string] => [item.id, `${item.title} · ${dayLabel(item.day)}`])], task.milestoneId ?? "");
-			return async () => { if (!title.value.trim()) throw new Error("Enter a task title."); task.title = title.value.trim(); task.materialId = material.value || null; task.milestoneId = milestone.value || null; if (!id) draft.tasks.push(task); recordProjectEvent(draft, `Engagement task ${id ? "updated" : "added"}: ${task.title}`); await this.host.save(expected, next); };
+			// The chosen reference's document fields, so a task and its
+			// reference are edited with the same controls.
+			const shared = form.createDiv({ cls: "editorialist-project__fieldset" });
+			let applyDocument: ((target: ProjectMaterial) => void) | null = null;
+			const showDocument = (): void => {
+				shared.empty();
+				const chosen = draft.materials.find((item) => item.id === material.value) ?? null;
+				applyDocument = chosen ? this.documentFields(shared, chosen, true) : null;
+			};
+			material.addEventListener("change", showDocument); showDocument();
+			const milestone = select(form, "Target date", [["", "No target date"], ["__start__", `Engagement starts · ${dayLabel(draft.submissionDate)}`], ...draft.milestones.map((item): [string, string] => [item.id, `${item.title} · ${dayLabel(item.day)}`])], task.milestoneId ?? "");
+			return async () => {
+				if (!title.value.trim()) throw new Error("Enter a task title.");
+				const chosen = draft.materials.find((item) => item.id === material.value);
+				if (chosen && applyDocument) applyDocument(chosen);
+				task.title = title.value.trim(); task.materialId = material.value || null; task.milestoneId = milestone.value || null; if (!id) draft.tasks.push(task);
+				recordProjectEvent(draft, `Engagement task ${id ? "updated" : "added"}: ${task.title}`); await this.host.save(expected, next);
+			};
 		}).open();
 	}
 	// History reads like the overview: one section per kind of record, rows

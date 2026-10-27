@@ -111,6 +111,11 @@ export function createEditorialProject(editor: string, deadline: string, makeId:
 export function materialDue(project: EditorialProject, material: ProjectMaterial): string | null {
 	return project.milestones.find((item) => item.id === material.milestoneId)?.day ?? null;
 }
+/** The vault document an engagement task works on, through its related reference. */
+export function taskDocument(project: EditorialProject, taskId: string): string | null {
+	const task = project.tasks.find((item) => item.id === taskId);
+	return project.materials.find((item) => item.id === task?.materialId)?.source || null;
+}
 export function preparationWork(project: EditorialProject): WorkCandidate[] {
 	return project.tasks.map((task) => {
 		const milestone = project.milestones.find((item) => item.id === task.milestoneId);

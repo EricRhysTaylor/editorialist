@@ -13,7 +13,7 @@ import { advancePlanProgress, summarizePlanProgress, type ProgressInput } from "
 import { estimateRange } from "../core/planning/AutoSchedule";
 import { type QueueHead, EditorialProjectPanel } from "./EditorialProjectPanel";
 import { EditorialProjectService } from "../services/EditorialProjectService";
-import { entryDeadline } from "../core/planning/EditorialProject";
+import { entryDeadline, taskDocument } from "../core/planning/EditorialProject";
 import { bindCompletionMenu } from "./primitives/CompletionMenu";
 
 export const REVISION_PLAN_VIEW_TYPE = "editorialist-revision-plan";
@@ -62,10 +62,19 @@ export class RevisionPlanPanel extends ItemView {
 			detail: candidate?.detail ?? "",
 			taskId: isTask ? entry.source.locator : null,
 			day: entry.day,
-			open: candidate && entry.source.kind !== "preparation" && !this.stale ? () => { void this.plugin.openRevisionWork(candidate); } : null,
+			open: this.stale ? null : this.openAction(entry, candidate),
 		};
 	}
 
+	// What opening a session means: an engagement task opens the document of
+	// its related reference; other work opens its source.
+	private openAction(entry: PlanEntry, candidate: WorkCandidate | null): (() => void) | null {
+		if (entry.source.kind === "preparation") {
+			const document = this.plan.project && entry.source.path === this.plan.project.id ? taskDocument(this.plan.project, entry.source.locator) : null;
+			return document ? () => { void this.app.workspace.openLinkText(document, "", false); } : null;
+		}
+		return candidate ? () => { void this.plugin.openRevisionWork(candidate); } : null;
+	}
 	private projectPanel(): EditorialProjectPanel {
 		const book = this.book;
 		return new EditorialProjectPanel({ app: this.app, plan: this.plan, busy: this.busy || this.stale, service: this.projectService(), deliveries: this.plugin.getEditorialDeliveries(), getReviewers: () => this.plugin.getReviewerProfiles(), manageEditor: async (id) => { await this.plugin.contributors.openContributorManagementFlow(id); },
@@ -531,10 +540,11 @@ export class RevisionPlanPanel extends ItemView {
 		}
 
 		const actions = layout.createDiv({ cls: "editorialist-plan__entry-actions" });
-		if (entry.source.kind !== "preparation") {
-			this.sourceButton(actions, "", () => { if (resolved.state === "ready") void this.plugin.openRevisionWork(resolved.candidate); }, resolved.state !== "ready" || this.stale);
+		const openWork = this.openAction(entry, resolved.state === "ready" ? resolved.candidate : null);
+		if (entry.source.kind !== "preparation" || openWork) {
+			this.sourceButton(actions, "", () => openWork?.(), !openWork || this.stale);
 			const open = actions.lastElementChild as HTMLButtonElement;
-			open.addClass("clickable-icon", "editorialist-plan__icon-action"); setAccessibleLabel(open, "Open source"); setIcon(open, "arrow-up-right");
+			open.addClass("clickable-icon", "editorialist-plan__icon-action"); setAccessibleLabel(open, entry.source.kind === "preparation" ? "Open document" : "Open source"); setIcon(open, entry.source.kind === "preparation" ? "file-text" : "arrow-up-right");
 		}
 		const options = this.button(actions, "", () => { details.open = !details.open; });
 		options.addClass("clickable-icon", "editorialist-plan__icon-action"); setAccessibleLabel(options, "Schedule & options"); setIcon(options, "sliders-horizontal");

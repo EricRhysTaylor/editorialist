@@ -193,7 +193,8 @@ export class TodayPanel extends ItemView {
 	}
 
 	// Start opens the work itself: a goal's linked document (or its planner),
-	// an engagement task's planner, or the batch, agenda line, or pending note.
+	// an engagement task's document (or its planner), or the batch, agenda
+	// line, or pending note.
 	private async start(item: AgendaItem): Promise<void> {
 		const { source } = item.entry;
 		if (item.scope === AUTHOR_PLAN_SCOPE) {
@@ -203,7 +204,12 @@ export class TodayPanel extends ItemView {
 			else await this.plugin.openAuthorPlanner();
 			return;
 		}
-		if (source.kind === "preparation") { await this.plugin.openRevisionPlanPanel(); return; }
+		if (source.kind === "preparation") {
+			const document = this.material(item)?.source;
+			if (document) await this.app.workspace.openLinkText(document, "", false);
+			else await this.plugin.openRevisionPlanPanel();
+			return;
+		}
 		const candidate = this.candidate(item);
 		if (!candidate) { new Notice("This session's source has changed. Open Editor engagement to relink it."); return; }
 		await this.plugin.openRevisionWork(candidate);

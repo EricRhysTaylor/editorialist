@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { collaborationUrl, createEditorialProject, engagementStartCountdown, entryDeadline, isProjectEditorProfile, normalizeEditorialProject, preparationWork, projectEditor, shiftDate, type MaterialCheck } from "./EditorialProject";
+import { collaborationUrl, createEditorialProject, engagementStartCountdown, entryDeadline, isProjectEditorProfile, normalizeEditorialProject, preparationWork, projectEditor, shiftDate, taskDocument, type MaterialCheck } from "./EditorialProject";
 import type { ContributorProfile } from "../../models/ContributorProfile";
 import { emptyRevisionPlan, normalizeRevisionPlans } from "./RevisionPlan";
 import { draftSchedule } from "./AutoSchedule";
@@ -61,4 +61,15 @@ describe("Editorial preparation project", () => {
 	});
 	it("refuses unsafe collaboration URLs", () => { expect(collaborationUrl("https://reedsy.com/collaborations/123")).toBe("https://reedsy.com/collaborations/123"); for (const url of ["javascript:alert(1)", "http://example.com", "https://user:secret@example.com"]) expect(() => collaborationUrl(url)).toThrow(); });
 	it("rejects unsafe storage identities", () => { expect(() => normalizeEditorialProject({ ...project(), id: "../outside" })).toThrow(/identity/); });
+});
+
+describe("taskDocument and word limits", () => {
+	it("finds a task's document through its related reference", () => {
+		let id = 0; const project = createEditorialProject("Editor", "2026-11-30", () => String(++id));
+		project.materials.push({ id: "query", title: "Query letter", kind: "document", required: false, source: "Publisher/Query Letter.md", exportPath: "", milestoneId: null, requirements: [], approvedDigest: null, check: null, uploads: [], wordLimit: 500 });
+		project.tasks.push({ id: "draft", title: "Draft query letter", materialId: "query", milestoneId: null, done: false }, { id: "loose", title: "Call editor", materialId: null, milestoneId: null, done: false });
+		expect(taskDocument(project, "draft")).toBe("Publisher/Query Letter.md");
+		expect(taskDocument(project, "loose")).toBeNull();
+		expect(normalizeEditorialProject(JSON.parse(JSON.stringify(project)))?.materials.find((item) => item.id === "query")?.wordLimit).toBe(500);
+	});
 });
