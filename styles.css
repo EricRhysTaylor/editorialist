@@ -9226,6 +9226,17 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	gap: 8px;
 }
 
+.editorialist-today__head .editorialist-plan__kind {
+	font-size: var(--font-smallest);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
+.editorialist-today__head .editorialist-plan__kind svg {
+	width: 14px;
+	height: 14px;
+}
+
 .editorialist-today__day {
 	flex-shrink: 0;
 	color: var(--text-normal);

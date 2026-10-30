@@ -60,7 +60,7 @@ From there, Editorialist runs the workflow: it matches each suggestion to its pa
 
 - `Open today` — opens Today: the scheduled session to work on now, the rest of today, and the next day with work, across the active book and your goals. The Ed ribbon icon opens it too, and the panel shows it the first time Obsidian starts each day.
 - `Open review launcher` — opens the launcher modal to import a review batch or start pending-edits review.
-- `Open review panel` — opens the review side panel for the active note.
+- `Open line edits` — opens the line edits panel (the scene batches under review) for the active note.
 - `Open editorialism panel` — opens the Editorialisms panel for structural guidance documents.
 - `Open editor engagement` — orders mixed revision work and plans author estimates against daily capacity and a deadline.
 - `Open author planner` — vault-wide writing goals with optional document links, book labels, target dates, hard deadlines, and shared capacity scheduling. Optionally link a goal to an RT book and publishing-stage target for two-way date sync.

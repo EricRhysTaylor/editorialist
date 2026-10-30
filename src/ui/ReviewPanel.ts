@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import { setAccessibleLabel } from "./primitives/AccessibleLabel";
 import { formatRelativeTime } from "../core/RelativeTime";
 import { renderPanelHeader } from "./primitives/PanelHeader";
@@ -257,7 +258,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			? this.plugin.getNextLogicalReviewLaunchTarget()
 			: null;
 
-		const header = renderPanelHeader(this.contentEl, this.plugin, REVIEW_PANEL_VIEW_TYPE, "Review");
+		const header = renderPanelHeader(this.contentEl, this.plugin, REVIEW_PANEL_VIEW_TYPE, t("panel.review"));
 
 		if (branch === "completed_sweep") {
 			if (!completedSweep) {

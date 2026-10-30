@@ -29,7 +29,7 @@ describe("localized command registration preserves the command contract", () => 
 			["open-revision-plan", "Open editor engagement"],
 			["open-editorial-project-workspace", "Open editorial project in workspace"],
 			["open-review-launcher", "Open review launcher"],
-			["open-review-panel", "Open review panel"],
+			["open-review-panel", "Open line edits"],
 			["open-editorialism-panel", "Open editorialism panel"],
 			["open-pending-edits-panel", "Open pending edits panel"],
 			["review-pending-edits", "Review pending edits in active book"],
