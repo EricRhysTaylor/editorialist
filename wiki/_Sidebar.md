@@ -6,7 +6,7 @@
 - [Editor Engagement](Editor-Engagement)
 - [Author Planner](Author-Planner)
 - [Revision Scheduling](Revision-Plan)
-- [Review Panel](Review-Panel)
+- [Line Edits](Line-Edits)
 - [Pending Edits](Pending-Edits)
 - [Editorialisms Panel](Editorialisms-Panel)
 - [Importing Reviews](Importing-Reviews)

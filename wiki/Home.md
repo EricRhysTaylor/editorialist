@@ -1,6 +1,6 @@
 **Editorialist turns outside feedback and author notes into controlled revision workflows inside Obsidian.**
 
-It is for writers who get notes from human editors, beta readers, or AI and want to work through those notes without losing control of the manuscript. Editorialist 3.0.0 gives the Ed side panel five modes: Editor engagement, Author planner, Review, Pending edits, and Editorialisms. Keep editorial commitments and personal goals visible, schedule the work, then resolve feedback in its source workflow.
+It is for writers who get notes from human editors, beta readers, or AI and want to work through those notes without losing control of the manuscript. The Ed side panel has six modes: Today, Line edits, Pending edits, Editorialisms, Editor engagement, and Author planner. Keep editorial commitments and personal goals visible, schedule the work, then resolve feedback in its source workflow.
 
 The plugin does not rewrite your prose on import. Line edits, memos, author questions, and pending-edit notes stay reviewable until you decide what to do with them. Any passage can be archived to a per-scene cut file — from the editor's right-click menu, the suggestion toolbar, or the command palette — and completed sweeps update revision history, contributor stats, and per-scene progress.
 
@@ -46,11 +46,11 @@ Use the view name beside the Ed logo to switch modes. Book-scoped modes use the 
 |---|---|
 | **Editor engagement** | Record your editor’s agreed dates, milestones, tasks, references, and history. Schedule revision work and see progress across the whole book. |
 | **Author planner** | Set vault-wide writing goals with completion descriptions, target dates, optional document links, and capacity scheduling. |
-| **Review** | Imported review batches: scene-level edits such as expand, condense, cut, move, and line edits, plus `%%query: question%%` responses and scene memos. Each batch is a review block appended to the scene, worked through, then cleaned away. Each scene can carry multiple batches from different manuscript shares or review passes. |
+| **Line edits** | Imported review batches: scene-level edits such as expand, condense, cut, move, and line edits, plus `%%query: question%%` responses and scene memos. Each batch is a review block appended to the scene, worked through, then cleaned away. Each scene can carry multiple batches from different manuscript shares or review passes. |
 | **Pending edits** | The notes in each scene’s **Pending Edits** property (the revision notes you keep with Radial Timeline, including Inquiry follow-ups), walked scene by scene across the active book. |
 | **Editorialisms** | A long-form checklist of directives pinned to the passages they concern, kept permanently as its own document: structural guidance, theme/subplot notes, and general feedback with no line edits. Record decisions or questions on directives and hand them to AI. |
 
-Alongside these, the **Contributor directory** (**Settings → Contributors**) shows which readers, editors, and AI models give the most useful feedback. The Review panel’s **How Editorialist works** section sums up the same four workflows: imported review batches, Editorialisms, pending edits, and the contributor directory.
+Alongside these, the **Contributor directory** (**Settings → Contributors**) shows which readers, editors, and AI models give the most useful feedback. The Line edits view’s **How Editorialist works** section sums up the same four workflows: imported review batches, Editorialisms, pending edits, and the contributor directory.
 
 ## What You Work With
 
@@ -70,7 +70,7 @@ Alongside these, the **Contributor directory** (**Settings → Contributors**) s
 1. **Copy the formatting instructions** from the review launcher — they include the [format specification](Importing-Reviews) and your book's scene IDs, or its note names where notes have no IDs.
 2. **Get suggestions.** Paste the instructions into your AI conversation along with the prose. For human feedback, collect your reviewer's notes in any form — a photo of a marked-up page, a document, an email — and have an AI shape them into a batch using the same instructions.
 3. **Import the batch** through the launcher; Editorialist appends review blocks to the bottom of the targeted scene notes.
-4. **Walk the [guided review sweep](Review-Panel)** — accept, reject, rewrite, or defer each suggestion.
+4. **Walk the [guided review sweep](Line-Edits)** — accept, reject, rewrite, or defer each suggestion.
 5. **Finish.** Per-scene progress, contributor stats, and revision history update as each sweep completes.
 
 To schedule everything at once, open **Editor engagement → Schedule** (or the schedule shown before you create an engagement) and choose **Auto-plan**; it spreads every open batch, directive, and pending edit across your working days. For one editor's handoff, group its imported batches and Editorialisms into an **Editorial delivery**, then choose **Plan this delivery**. Review the draft before applying it; priorities and estimates are editable. See [Revision Plan](Revision-Plan).
@@ -83,7 +83,7 @@ To schedule everything at once, open **Editor engagement → Schedule** (or the 
 | [Editor Engagement](Editor-Engagement) | Agreed dates, editor return, milestones, references, and activity history |
 | [Author Planner](Author-Planner) | Personal goals, target dates, linked documents, and optional RT stage dates |
 | [Revision Scheduling](Revision-Plan) | Progress across the book, priorities, capacity, auto-planning, and delivery tracking |
-| [Review Panel](Review-Panel) | The main working surface — sessions, the suggestion toolbar, statuses |
+| [Line Edits](Line-Edits) | The main working surface — sessions, the suggestion toolbar, statuses |
 | [Pending Edits](Pending-Edits) | The active-book queue for author notes and Inquiry follow-ups |
 | [Editorialisms Panel](Editorialisms-Panel) | Structural guidance documents and the checklist workflow |
 | [Importing Reviews](Importing-Reviews) | Review batches, review blocks, and Editorialism files |

@@ -1,10 +1,10 @@
-The Review mode is traditional Editorialist: scene-level review batches with line edits, cut / move / condense / expand suggestions, `%%query: question%%` responses, and memos for a scene. Open it with the **Open review panel** command or choose **Review** from the mode menu.
+The Line edits mode is traditional Editorialist: scene-level review batches with line edits, cut / move / condense / expand suggestions, `%%query: question%%` responses, and memos for a scene. Open it with the **Open line edits** command or choose **Line edits** from the mode menu.
 
 <p align="center"><img src="images/panel-review-active.png" alt="Active review comparing the original passage with a proposed revision and reviewer attribution" width="460"></p>
 
 ## Idle state
 
-<p align="center"><img src="images/panel-review.png" alt="Review panel with the manuscript target, the scene to continue, the other scenes waiting for review, and the reviewed scenes" width="460"></p>
+<p align="center"><img src="images/panel-review.png" alt="Line edits view with the manuscript target, the scene to continue, the other scenes waiting for review, and the reviewed scenes" width="460"></p>
 
 Between sessions the panel shows:
 
@@ -20,7 +20,7 @@ Between sessions the panel shows:
 
 | Control | What it does |
 |---|---|
-| **View name / chevron** | Choose Editor engagement, Author planner, Review, Pending edits, or Editorialisms. The Ed logo stays the same. |
+| **View name / chevron** | Choose Today, Line edits, Pending edits, Editorialisms, Editor engagement, or Author planner. The Ed logo stays the same. |
 | **Import** | Open the launcher. At narrow widths this becomes a **+** button. |
 | **… → Editorial deliveries** | Group batches and Editorialism files by handoff, record dates, and start planning. |
 | **… → Insert author query** | Add a `%%query: …%%` question to the manuscript. |

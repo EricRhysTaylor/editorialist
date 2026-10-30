@@ -23,7 +23,7 @@ Editorialist registers these commands in the command palette:
 | **Open editor engagement** | Opens [Editor Engagement](Editor-Engagement), with dates, milestones, history, and a revision schedule |
 | **Open author planner** | Opens [Author Planner](Author-Planner) for vault-wide writing goals and schedules |
 | **Open editorial project in workspace** | Opens the active book’s engagement in a full workspace tab |
-| **Open review panel** | Opens the [Review Panel](Review-Panel) in the sidebar |
+| **Open line edits** | Opens [Line edits](Line-Edits) in the sidebar |
 | **Open editorialism panel** | Opens the [Editorialisms Panel](Editorialisms-Panel) in the sidebar |
 | **Open pending edits panel** | Opens the [Pending Edits](Pending-Edits) panel in the sidebar |
 | **Review pending edits in active book** | Starts the pending-edits review flow across the active Radial Timeline book |
@@ -39,7 +39,7 @@ Editorialist ships **no default hotkeys** — assign your own under **Settings �
 
 ## Four workflows
 
-Editorialist handles four kinds of work, the same four the Review panel's **How Editorialist works** section describes:
+Editorialist handles four kinds of work, the same four the Line edits view's **How Editorialist works** section describes:
 
 - **Imported review batch:** notes from a human reader or AI editor, appended as a review block to the end of each targeted scene. Accept, reject, or rewrite each suggestion, then clean the block away.
 - **Editorialisms:** a long-form checklist of directives pinned to the passages they concern, kept permanently as its own document in the Editorialist folder. Each scene shows the directives that apply there as you review.
@@ -74,7 +74,7 @@ Copy the reviewer's reply and run **Open review launcher** again. The launcher d
 
 ### 4. Walk the sweep
 
-The [Review Panel](Review-Panel) opens a guided sweep: each suggestion is highlighted in the editor with a toolbar — apply it, reject it, rewrite it yourself, defer it for later, or back the text up to a cut file first. The sweep advances scene by scene through the batch.
+[Line edits](Line-Edits) opens a guided sweep: each suggestion is highlighted in the editor with a toolbar — apply it, reject it, rewrite it yourself, defer it for later, or back the text up to a cut file first. The sweep advances scene by scene through the batch.
 
 ### 5. Finish
 
