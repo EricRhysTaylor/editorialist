@@ -7,7 +7,7 @@ import { createEditorialProject } from "./EditorialProject";
 const goal = (id: string, hardDeadline = true): AuthorTarget => ({ id, title: `Goal ${id}`, description: "Author-defined completion", file: "", bookLabel: "Book 2", start: null, due: "2026-10-20", hardDeadline, done: false, lowMinutes: 30, highMinutes: 60 });
 describe("vault-wide author commitments", () => {
 	it("round-trips optional files, book labels, and estimates separately from editor projects", () => {
-		let id = 0; const editor = createEditorialProject("Andrea Hurst", "2026-11-30", () => String(++id));
+		let id = 0; const editor = createEditorialProject("Morgan Lee", "2026-11-30", () => String(++id));
 		const personal = { ...emptyRevisionPlan(), targets: [goal("outline")] };
 		const data = normalizeRevisionPlans({ version: 1, books: { [AUTHOR_PLAN_SCOPE]: personal, book: { ...emptyRevisionPlan(), project: editor } } });
 		expect(data.books[AUTHOR_PLAN_SCOPE]).toEqual(personal);

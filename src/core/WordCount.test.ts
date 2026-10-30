@@ -7,7 +7,7 @@ describe("countProseWords", () => {
 	});
 
 	it("leaves out properties, comments and fenced blocks", () => {
-		const note = "---\ntitle: Query letter draft\n---\nDear Andrea,\n\n%% cut this %%\nThe book is done.\n\n```\nnot prose here\n```";
+		const note = "---\ntitle: Query letter draft\n---\nDear Morgan,\n\n%% cut this %%\nThe book is done.\n\n```\nnot prose here\n```";
 		expect(countProseWords(note)).toBe(6);
 	});
 });
