@@ -21,6 +21,8 @@ The plan refreshes itself a few seconds after your sources change, waits while y
 3. Drag to prioritize, or use **Move up** and **Move down** in **Schedule & options**.
 4. Set a day and a low/high effort range. Switch between **Queue** and **Days** to review the order or daily workload; tasks can also be dragged onto a day.
 
+A session still open past its day shows a red edge and an **Overdue** date chip wherever it sits in the queue, so a reordered queue keeps every missed day in view.
+
 The forecast uses the high end of estimates and includes scheduled optional work in capacity. Unknown effort is never counted as zero. Missing sources, past dates, prerequisites, overloaded days, and delivery deadlines can all require attention. A forecast describes the selected work in your plan, not every unresolved note in the book; the progress card covers the whole book.
 
 ## Work a session

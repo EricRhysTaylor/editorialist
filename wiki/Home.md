@@ -36,19 +36,20 @@ The standard Review workflow supports a full set of scene-level editorial moves:
 | **Expand** | Develop, slow down, or decompress a beat with finished prose or advisory guidance. |
 | **Memo** | Keep general thoughts, strengths, issues, or scene notes beside the sweep without changing prose. |
 
-## Five panel modes
+## Six panel modes
 
-Use the view name beside the Ed logo to switch modes. Book-scoped modes use the active-book header and **Import**. Author planner shows **Across your vault** and **Add goal**.
+Use the view name beside the Ed logo to switch modes. Book-scoped modes use the active-book header and **Import**. Author planner shows **Across your vault** and **Add goal**. Today covers the active book and your writing goals together.
 
 <p align="center"><img src="images/panel-editor-engagement.png" alt="Editor engagement overview with the editor, a countdown to the agreed start date, and Next up showing the first queued task and the next milestone" width="460"></p>
 
 | Mode | Use it for |
 |---|---|
-| **Editor engagement** | Record your editor’s agreed dates, milestones, tasks, references, and history. Schedule revision work and see progress across the whole book. |
-| **Author planner** | Set vault-wide writing goals with completion descriptions, target dates, optional document links, and capacity scheduling. |
+| **Today** | The session to do now, with **Start** and **Done**, then the rest of today and the next few sessions coming up, across the active book and your writing goals. Sessions left from an earlier day come first, marked in red, and an upcoming session can be moved to today. The ribbon icon opens Today, and the Ed panel shows it the first time Obsidian starts each day. |
 | **Line edits** | Imported review batches: scene-level edits such as expand, condense, cut, move, and line edits, plus `%%query: question%%` responses and scene memos. Each batch is a review block appended to the scene, worked through, then cleaned away. Each scene can carry multiple batches from different manuscript shares or review passes. |
 | **Pending edits** | The notes in each scene’s **Pending Edits** property (the revision notes you keep with Radial Timeline, including Inquiry follow-ups), walked scene by scene across the active book. |
 | **Editorialisms** | A long-form checklist of directives pinned to the passages they concern, kept permanently as its own document: structural guidance, theme/subplot notes, and general feedback with no line edits. Record decisions or questions on directives and hand them to AI. |
+| **Editor engagement** | Record your editor’s agreed dates, milestones, tasks, references, and history. Schedule revision work and see progress across the whole book. |
+| **Author planner** | Set vault-wide writing goals with completion descriptions, start and target dates with a countdown, optional document links, and capacity scheduling. |
 
 Alongside these, the **Contributor directory** (**Settings → Contributors**) shows which readers, editors, and AI models give the most useful feedback. The Line edits view’s **How Editorialist works** section sums up the same four workflows: imported review batches, Editorialisms, pending edits, and the contributor directory.
 

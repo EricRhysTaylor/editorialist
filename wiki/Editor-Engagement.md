@@ -13,7 +13,7 @@ Keep an editor’s agreed dates, personal milestones, tasks, optional reference 
 
 ## Overview and milestones
 
-The overview starts with your editor and the agreed start date, counted down in days ("9 days away", "Today", or "3 days ago"). **Next up** follows: the first unfinished item in your schedule's work queue, so the overview and the **Schedule** tab always agree on what comes first. Click an engagement task's circle and choose **Done** to finish it right there, or **Open** to reopen it; any other kind of work shows what it is, when it is scheduled, and an **Open** button. The card also shows the next open milestone, marked overdue in amber once its date passes, and **Open schedule**. When the queue is empty, it says so and points you to the **Schedule** tab.
+The overview starts with your editor and the agreed start date, counted down in days ("9 days away", "Today", or "3 days ago"). **Next up** names the same session as Today: a session left from an earlier day or scheduled for today comes first, then the first session of the next scheduled day, then the first unscheduled item in your work queue. Click an engagement task's circle and choose **Done** to finish it right there, or **Open** to reopen it; any other kind of work shows what it is, when it is scheduled, and an **Open** button. The card also shows the next open milestone, marked overdue in amber once its date passes, and **Open schedule**. When the queue is empty, it says so and points you to the **Schedule** tab.
 
 **Editor return & questions**, **Engagement tasks**, **Milestones**, and **Materials & references** follow as sections you can collapse; each remembers whether you left it open or closed. Each task, milestone, and material has a circle at the left: click it and choose **Done** or **Open**. Opening the menu changes nothing until you choose, and finished rows are struck through. Quiet icon actions sit at the right. Add personal milestones before or after the start date, and mark them **Done** when you decide the work is finished.
 
@@ -22,6 +22,8 @@ Tasks can target a milestone or the agreed start date, and optionally reference 
 ## Materials
 
 Use **Materials → Add reference item** for a personal checklist item or a document reference. Titles, descriptions, and milestone targets help you organize it; file links are optional. Choose **Mark complete** or **Reopen item** explicitly. Editing, exporting, or linking a document does not complete an item automatically.
+
+A reference's vault document can carry a **Word limit**, a query letter capped at 500 words, say. Wherever that document appears, a bar shows its current prose words against the limit and turns red once over; the count leaves out properties, headings, and hidden comments. A task that works on a reference edits the same **Vault document** and **Word limit** fields, marked as shared with that reference. **Open document** on the task row or in the schedule, or **Start** on Today, opens it.
 
 Prepare and exchange files through your editor’s collaboration service, email, or other agreed channel. Editorialist tracks your commitments and records; it does not send files or certify a submission.
 
