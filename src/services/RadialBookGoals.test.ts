@@ -39,6 +39,15 @@ describe("optional RT goal targets", () => {
 	});
 });
 
+it("keeps the author's start date when RT moves the goal's date before it", () => {
+	const { rt, bridge } = setup(); const started = { ...goal, start: "2026-12-10" };
+	rt.settings.books[1]!.stageTargetDates.Zero = "2026-12-01";
+	const resolved = bridge.resolve({ ...emptyRevisionPlan(), targets: [started] }).plan;
+	expect(resolved.targets?.[0]).toMatchObject({ start: "2026-12-10", due: "2026-12-01" });
+	const reloaded = normalizeRevisionPlans(JSON.parse(JSON.stringify({ version: 1, books: { [AUTHOR_PLAN_SCOPE]: resolved } }))).books[AUTHOR_PLAN_SCOPE];
+	expect(reloaded?.targets?.[0]).toMatchObject({ start: "2026-12-10", due: "2026-12-01" });
+});
+
 it("creates an unset stage target and pauses a goal when RT clears that date", async () => {
 	const { rt, bridge } = setup(); Reflect.deleteProperty(rt.settings.books[1]!.stageTargetDates, "Zero");
 	await bridge.update({ link: goal.rt!, expectedDate: null, date: "2026-12-31" });

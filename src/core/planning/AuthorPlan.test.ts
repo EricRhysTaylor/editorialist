@@ -37,11 +37,13 @@ describe("vault-wide author commitments", () => {
 });
 
 describe("goal start dates", () => {
-	it("keeps a start on or before the deadline and drops one after it", () => {
+	it("keeps any valid start, even one after the deadline, and drops invalid ones", () => {
 		const raw = (start: unknown) => normalizeAuthorTargets([{ id: "g", title: "Draft", due: "2027-02-28", start }])[0]?.start;
 		expect(raw("2026-11-01")).toBe("2026-11-01");
 		expect(raw("2027-02-28")).toBe("2027-02-28");
-		expect(raw("2027-03-01")).toBeNull();
+		// RT can move a linked goal's date before its start; the author's start survives the reload.
+		expect(raw("2027-03-01")).toBe("2027-03-01");
+		expect(raw("March")).toBeNull();
 		expect(raw(undefined)).toBeNull();
 	});
 });

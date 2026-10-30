@@ -18,7 +18,8 @@ export interface AuthorTarget {
 	description: string;
 	file: string;
 	bookLabel: string;
-	/** Optional first day of work; never after `due`. */
+	/** Optional first day of work. The goal form keeps it on or before `due`, but
+	 * an RT-synced `due` can move before it; it is kept and the card asks for a new one. */
 	start: string | null;
 	due: string;
 	hardDeadline: boolean;
@@ -35,7 +36,7 @@ export function normalizeAuthorTargets(raw: unknown): AuthorTarget[] {
 		ids.add(item.id);
 		const minutes = (value: unknown): number | null => typeof value === "number" && Number.isFinite(value) && value >= 0 ? Math.round(value) : null;
 		const low = minutes(item.lowMinutes), high = minutes(item.highMinutes);
-		return [{ ...(normalizeRTLink(item.rt) ? { rt: normalizeRTLink(item.rt) } : {}), id: item.id, title: item.title.trim(), description: typeof item.description === "string" ? item.description : "", file: typeof item.file === "string" ? item.file : "", bookLabel: typeof item.bookLabel === "string" ? item.bookLabel : "", start: isDate(item.start) && item.start <= item.due ? item.start : null, due: item.due, hardDeadline: item.hardDeadline === true, done: item.done === true, lowMinutes: low, highMinutes: high === null ? null : Math.max(low ?? 0, high) }];
+		return [{ ...(normalizeRTLink(item.rt) ? { rt: normalizeRTLink(item.rt) } : {}), id: item.id, title: item.title.trim(), description: typeof item.description === "string" ? item.description : "", file: typeof item.file === "string" ? item.file : "", bookLabel: typeof item.bookLabel === "string" ? item.bookLabel : "", start: isDate(item.start) ? item.start : null, due: item.due, hardDeadline: item.hardDeadline === true, done: item.done === true, lowMinutes: low, highMinutes: high === null ? null : Math.max(low ?? 0, high) }];
 	});
 }
 export function authorWork(plan: RevisionPlan): WorkCandidate[] {

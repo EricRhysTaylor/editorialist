@@ -58,8 +58,13 @@ export class AuthorTargetPanel {
 			rt.createSpan({ text: `Radial Timeline · ${RT_STAGES[target.rt.stage]}${syncWarning ? " · Sync paused" : " · Date synced"}` });
 		}
 		if (syncWarning) card.createEl("p", { cls: "editorialist-plan__warning", text: syncWarning });
+		// RT can move a linked goal's date before the author's start. The start is
+		// kept rather than dropped, and the card asks for a new one instead of
+		// counting down across a backwards window.
+		const startAfterDue = !target.done && target.start !== null && target.start > target.due;
+		if (startAfterDue) card.createEl("p", { cls: "editorialist-plan__warning", text: `${target.rt ? "The RT stage date moved before" : "The target date is before"} your start date, ${formatDay(target.start!, true)}. Edit the goal to choose a new start.` });
 		const date = formatDay(target.due, true);
-		if (target.done || syncWarning) card.createEl("p", { cls: "editorialist-author__due", text: `${syncWarning ? "Last synced · " : ""}${target.done ? "Completed · " : ""}${target.hardDeadline ? "Hard deadline" : "Target"} · ${date}` });
+		if (target.done || syncWarning || startAfterDue) card.createEl("p", { cls: "editorialist-author__due", text: `${syncWarning ? "Last synced · " : ""}${target.done ? "Completed · " : ""}${target.hardDeadline ? "Hard deadline" : "Target"} · ${date}` });
 		else this.timeline(card, target);
 		if (target.description) card.createEl("p", { text: target.description });
 		if (target.file) card.createEl("p", { cls: "editorialist-project__path", text: target.file });
