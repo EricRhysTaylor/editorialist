@@ -1,8 +1,8 @@
 import { ItemView, Notice, TFile, debounce, setIcon, type Debouncer, type WorkspaceLeaf } from "obsidian";
 import type EditorialistPlugin from "../main";
-import { AUTHOR_PLAN_SCOPE } from "../core/planning/AuthorPlan";
+import { AUTHOR_PLAN_SCOPE, goalTimeline, wordProgress, type AuthorTarget } from "../core/planning/AuthorPlan";
 import { localDate, resolvePlanSource, type PlanEntry, type RevisionPlan, type WorkCandidate } from "../core/planning/RevisionPlan";
-import { todayAgenda, type AgendaItem, type AgendaPlan, type TodayAgenda } from "../core/planning/TodayAgenda";
+import { activeGoals, todayAgenda, type AgendaItem, type AgendaPlan, type TodayAgenda } from "../core/planning/TodayAgenda";
 import { kindIcons, kindLabels, pendingWorkTitle, planDayLabel } from "../core/planning/WorkPresentation";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
 import { renderPanelHeader } from "./primitives/PanelHeader";
@@ -16,14 +16,17 @@ const UPCOMING_SHOWN = 3;
 
 interface LoadedPlan extends AgendaPlan { warnings: string[] }
 
-// The daily view: the scheduled session to do now, the rest of today, and
-// the next day with work. It reads the active book's plan and the author's
-// goals, and changes nothing except a session's done mark.
+// The daily view: the scheduled session to do now, the rest of today, the
+// goals under way, and what comes next. It reads the active book's plan and
+// the author's goals. Beyond a session's done mark or day, it only records a
+// word goal's opening total for the day, as the author planner does.
 export class TodayPanel extends ItemView {
 	private plans: LoadedPlan[] = [];
 	private agenda: TodayAgenda | null = null;
 	private bookLabel: string | null = null;
 	private wordCounts: Record<string, number> = {};
+	private goals: AuthorTarget[] = [];
+	private goalWords: Record<string, number | null> = {};
 	private busy = false;
 	private day = localDate(new Date());
 	private refreshDebounced: Debouncer<[], void> | null = null;
@@ -72,7 +75,9 @@ export class TodayPanel extends ItemView {
 			this.plans = plans;
 			this.wordCounts = folder ? await this.plugin.materialWordCounts(plans[0]?.plan.project) : {};
 			this.bookLabel = folder ? scope.label : null;
+			this.goalWords = (await this.plugin.recordAuthorWordGoals()).counts;
 			this.day = localDate(new Date());
+			this.goals = activeGoals(this.plugin.getAuthorPlanningPlan().targets ?? [], this.day);
 			this.agenda = todayAgenda(plans, this.day);
 		} catch (error) {
 			console.error("Editorialist: Today could not load the plans", error);
@@ -105,6 +110,8 @@ export class TodayPanel extends ItemView {
 				overdue ? `${overdue} left from earlier ${overdue === 1 ? "day" : "days"}` : "",
 			].filter(Boolean);
 			if (parts.length) hero.createEl("p", { text: parts.join(" · ") });
+		} else if (this.goals.length) {
+			hero.createEl("p", { text: `No sessions scheduled. ${this.goals.length === 1 ? "Your goal is" : "Your goals are"} below.` });
 		} else {
 			hero.createEl("p", { text: "Sessions you schedule in the planners appear here on their day, with the next one ready to start." });
 			const actions = hero.createDiv({ cls: "editorialist-project__actions" });
@@ -117,6 +124,11 @@ export class TodayPanel extends ItemView {
 			root.createEl("h3", { cls: "editorialist-today__heading", text: "Up next" });
 			const list = root.createDiv({ cls: "editorialist-today__list" });
 			for (const item of rest) this.renderRow(list, item);
+		}
+		if (this.goals.length) {
+			root.createEl("h3", { cls: "editorialist-today__heading", text: this.goals.length === 1 ? "Your goal" : "Your goals" });
+			const list = root.createDiv({ cls: "editorialist-today__list" });
+			for (const goal of this.goals) this.renderGoal(list, goal);
 		}
 		// The next few scheduled sessions by name, each one movable to today
 		// when the author wants to get ahead of it.
@@ -172,6 +184,46 @@ export class TodayPanel extends ItemView {
 		open.addClass("clickable-icon", "editorialist-plan__icon-action");
 		open.setAttribute("aria-label", "Start this session");
 		setIcon(open, "arrow-up-right");
+	}
+
+	// A goal under way: its countdown, and for a word goal today's words
+	// against the pace that finishes on time.
+	private renderGoal(parent: HTMLElement, goal: AuthorTarget): void {
+		const timeline = goalTimeline(goal.start, goal.due, this.day);
+		const late = timeline.phase === "past" || timeline.phase === "due-today";
+		const row = parent.createDiv({ cls: `editorialist-today__row${late ? " is-overdue" : ""}`, attr: { "data-work-kind": "goal" } });
+		const head = row.createDiv({ cls: "editorialist-today__head" });
+		const badge = head.createSpan({ cls: "editorialist-plan__kind" });
+		setIcon(badge.createSpan(), "target");
+		badge.createSpan({ text: goal.bookLabel || "Writing goal" });
+		head.createSpan({ cls: "editorialist-today__day", text: timeline.phase === "past" ? `Overdue · ${planDayLabel(goal.due)}` : timeline.phase === "due-today" ? "Due today" : `${timeline.daysLeft} ${timeline.daysLeft === 1 ? "day" : "days"} left` });
+		row.createDiv({ cls: "editorialist-today__row-title", text: goal.title });
+		const words = goal.words, current = this.goalWords[goal.id];
+		const progress = words && typeof current === "number" ? wordProgress(words, goal.start, goal.due, current, this.day) : null;
+		const count = (value: number): string => value.toLocaleString();
+		if (words && progress?.written != null) {
+			const bar = row.createDiv({ cls: "editorialist-today__progress", attr: { role: "img", "aria-label": `${count(progress.written)} of ${count(words.target)} words written` } });
+			bar.style.setProperty("--editorialist-today-progress", `${Math.min(1, progress.written / words.target) * 100}%`);
+			bar.createDiv({ cls: "editorialist-today__progress-fill" });
+		}
+		const foot = row.createDiv({ cls: "editorialist-today__foot" });
+		const meta = foot.createDiv({ cls: "editorialist-today__meta" });
+		if (words && current === null) meta.createSpan({ cls: "editorialist-today__overdue", text: "The folder to count is unavailable" });
+		else if (words && progress) {
+			if (progress.today !== null) meta.createSpan({ cls: "editorialist-today__words-today", text: `Today ${progress.today < 0 ? "−" : "+"}${count(Math.abs(progress.today))}` });
+			if (progress.perDay !== null) meta.createSpan({ text: `${count(progress.perDay)} a day to finish on time` });
+			if (progress.written !== null) meta.createSpan({ text: progress.reached ? "Target reached" : `${count(progress.written)} of ${count(words.target)} words` });
+		} else meta.createSpan({ text: `Target ${planDayLabel(goal.due)}${goal.hardDeadline ? " · hard deadline" : ""}` });
+		const open = this.button(foot.createDiv({ cls: "editorialist-today__row-actions" }), "", () => { void this.openGoal(goal); });
+		open.addClass("clickable-icon", "editorialist-plan__icon-action");
+		open.setAttribute("aria-label", goal.file ? "Open the goal's document" : "Open the author planner");
+		setIcon(open, "arrow-up-right");
+	}
+
+	private async openGoal(goal: AuthorTarget): Promise<void> {
+		const file = goal.file ? this.app.vault.getAbstractFileByPath(goal.file) : null;
+		if (file instanceof TFile) await this.app.workspace.openLinkText(file.path, "", false);
+		else await this.plugin.openAuthorPlanner();
 	}
 
 	// The kind of work on the left and its day on the right; both turn red

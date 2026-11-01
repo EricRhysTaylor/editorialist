@@ -1,3 +1,4 @@
+import { goalTimeline, type AuthorTarget } from "./AuthorPlan";
 import { isPlanEntryComplete, progressDoneKeys, type PlanEntry, type RevisionPlan, type WorkCandidate } from "./RevisionPlan";
 
 // What to work on today, across the active book's plan and the author's
@@ -68,4 +69,15 @@ export function nextSession(plans: readonly AgendaPlan[], today: string): Agenda
 	if (scheduled) return scheduled;
 	const unscheduled = openEntries(plans).find((item) => item.entry.day === null);
 	return unscheduled ? { scope: unscheduled.scope, entry: unscheduled.entry, overdue: false } : null;
+}
+
+/**
+ * Open goals whose window includes today, or whose date has passed: the
+ * standing commitments behind today's sessions, which matter every day
+ * whether or not a session was scheduled. Soonest deadline first.
+ */
+export function activeGoals(targets: readonly AuthorTarget[], today: string): AuthorTarget[] {
+	return targets
+		.filter((target) => !target.done && goalTimeline(target.start, target.due, today).phase !== "upcoming")
+		.sort((a, b) => a.due.localeCompare(b.due) || a.title.localeCompare(b.title));
 }

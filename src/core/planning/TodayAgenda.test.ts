@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { emptyRevisionPlan, sourceKey, type PlanEntry, type WorkCandidate } from "./RevisionPlan";
-import { nextSession, todayAgenda } from "./TodayAgenda";
+import type { AuthorTarget } from "./AuthorPlan";
+import { activeGoals, nextSession, todayAgenda } from "./TodayAgenda";
 
 const entry = (id: string, day: string | null, extra: Partial<PlanEntry> = {}): PlanEntry => ({
 	id, source: { kind: "directive", path: "Ed/agenda.md", locator: id }, title: `Session ${id}`,
@@ -55,5 +56,18 @@ describe("nextSession", () => {
 		expect(nextSession([{ scope: "book", plan: plan([entry("free", null), entry("later", "2026-10-31")]), candidates: [] }], TODAY)?.entry.id).toBe("later");
 		expect(nextSession([{ scope: "book", plan: plan([entry("done", TODAY, { done: true }), entry("free", null)]), candidates: [] }], TODAY)?.entry.id).toBe("free");
 		expect(nextSession([{ scope: "book", plan: plan([]), candidates: [] }], TODAY)).toBeNull();
+	});
+});
+
+describe("activeGoals", () => {
+	const goal = (id: string, start: string | null, due: string, done = false): AuthorTarget => ({ id, title: id, description: "", due, hardDeadline: false, bookLabel: "", start, file: "", done, lowMinutes: null, highMinutes: null });
+
+	it("lists open goals under way or past due, soonest deadline first", () => {
+		const goals = [goal("month", "2026-10-01", "2026-11-30"), goal("late", null, "2026-10-20"), goal("later", "2026-11-05", "2026-12-01"), goal("finished", null, "2026-10-30", true), goal("no-start", null, "2026-11-10")];
+		expect(activeGoals(goals, TODAY).map((item) => item.id)).toEqual(["late", "no-start", "month"]);
+	});
+
+	it("includes a goal from its start day", () => {
+		expect(activeGoals([goal("month", TODAY, "2026-11-30")], TODAY).map((item) => item.id)).toEqual(["month"]);
 	});
 });
