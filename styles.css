@@ -8990,19 +8990,73 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	border-inline-start: 3px solid var(--text-success);
 }
 
-.editorialist-author__estimates {
-	margin-top: 12px;
-	padding: 10px 12px;
-	border: 1px solid var(--background-modifier-border);
-	border-radius: 6px;
-	background: var(--background-secondary);
+/* Writing goal dialog: fields grouped under small headings, rare options folded away. */
+.editorialist-goal__section,
+.editorialist-goal__more {
+	grid-column: 1 / -1;
+	margin-top: 6px;
+	padding-top: 12px;
+	border-top: 1px solid var(--background-modifier-border);
 }
 
-.editorialist-author__estimates > summary {
-	padding: 4px 0;
-	font-size: var(--font-small);
+.editorialist-goal__section:first-child {
+	margin-top: 0;
+	padding-top: 0;
+	border-top: none;
+}
+
+.editorialist-goal__section-title,
+.editorialist-goal__more > summary {
+	color: var(--text-muted);
+	font-size: var(--font-smallest);
 	font-weight: var(--font-semibold);
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.editorialist-goal__more > summary {
 	cursor: pointer;
+}
+
+.editorialist-goal__section-body .editorialist-project__field {
+	margin: 10px 0;
+}
+
+.editorialist-goal__section-body .editorialist-project__field-note {
+	margin: -4px 0 10px;
+}
+
+.editorialist-goal__picker-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.editorialist-goal__picker-row input {
+	flex: 1;
+}
+
+.editorialist-goal__picker-row button {
+	flex-shrink: 0;
+}
+
+.editorialist-project__actions .editorialist-goal__remove {
+	margin-inline-start: auto;
+}
+
+@media (width >= 700px) {
+	.editorialist-goal__section-body {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0 12px;
+	}
+
+	.editorialist-goal__section-body > p,
+	.editorialist-goal__section-body > .editorialist-project__field--area,
+	.editorialist-goal__section-body > .editorialist-project__field--checkbox,
+	.editorialist-goal__section-body > .editorialist-goal__picker {
+		grid-column: 1 / -1;
+	}
 }
 
 /* Manuscript selection follows the host theme and remains usable in a narrow panel. */

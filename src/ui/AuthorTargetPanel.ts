@@ -152,39 +152,40 @@ export class AuthorTargetPanel {
 	edit(existing?: AuthorTarget): void {
 		const expected = structuredClone(this.host.plan), next = structuredClone(expected);
 		const dialog = new ProjectDialog(this.host.app, existing ? "Edit writing goal" : "Add writing goal", (form) => {
-			if (existing) this.button(form, "Remove goal", () => {
-				next.targets = (next.targets ?? []).filter((target) => target.id !== existing.id);
-				next.entries = next.entries.filter((entry) => entry.source.path !== AUTHOR_PLAN_SCOPE || entry.source.locator !== existing.id);
-				void this.host.save(expected, next).then(() => dialog.close()).catch((error: unknown) => new Notice(error instanceof Error ? error.message : "Could not remove this goal."));
-			});
-			const title = field(form, "Goal title", existing?.title ?? ""); title.required = true;
-			const description = area(form, "What does complete mean?", existing?.description ?? "");
-			const start = field(form, "Start date (optional)", existing?.start ?? "", "date");
-			const due = field(form, "Target date", existing?.due ?? "", "date"); due.required = true;
-			const hard = field(form, "This is a hard deadline", "", "checkbox"); hard.checked = existing?.hardDeadline ?? false;
-			const book = field(form, "Book label (optional)", existing?.bookLabel ?? "");
+			form.addClass("editorialist-goal-form");
+			const goalSection = section(form, "Goal");
+			const title = field(goalSection, "Title", existing?.title ?? ""); title.required = true;
+			const description = area(goalSection, "Done means", existing?.description ?? ""); description.rows = 2;
+			const dates = section(form, "Dates");
+			const start = field(dates, "Start (optional)", existing?.start ?? "", "date");
+			const due = field(dates, "Target date", existing?.due ?? "", "date"); due.required = true;
+			const hard = field(dates, "Hard deadline", "", "checkbox"); hard.checked = existing?.hardDeadline ?? false;
+			// A goal either follows a Radial Timeline book's stage date or stands
+			// alone with its own label.
+			const bookSection = section(form, "Book");
 			const rtStatus = this.host.rt.status(), rtBooks = rtStatus.books;
 			const choices: [string, string][] = [["", "Standalone goal"], ...rtBooks.map((item): [string, string] => [item.id, item.title])];
 			if (existing?.rt && !rtBooks.some((item) => item.id === existing.rt!.bookId)) choices.push([existing.rt.bookId, `${existing.bookLabel || "Linked book"} · Unavailable`]);
-			const rtBook = select(form, "RT book project (optional)", choices, existing?.rt?.bookId ?? "");
-			const stage = select(form, "Publishing stage", Object.entries(RT_STAGES), existing?.rt?.stage ?? "Zero");
-			const syncHint = form.createEl("p", { cls: "editorialist-project__hint" });
+			const rtBook = select(bookSection, "Radial Timeline book", choices, existing?.rt?.bookId ?? "");
+			const stage = select(bookSection, "Stage", Object.entries(RT_STAGES), existing?.rt?.stage ?? "Zero");
+			const book = field(bookSection, "Book label (optional)", existing?.bookLabel ?? "");
+			const syncHint = bookSection.createEl("p", { cls: "editorialist-project__hint editorialist-project__field-note" });
 			const updateLink = (adoptDate: boolean): void => {
 				const selected = rtBooks.find((item) => item.id === rtBook.value), linked = Boolean(rtBook.value);
-				stage.disabled = !linked; book.readOnly = linked;
+				stage.parentElement?.toggle(linked); book.parentElement?.toggle(!linked);
 				due.disabled = linked && !selected;
 				if (selected) { book.value = selected.title; if (adoptDate && selected.dates[stage.value as RTStage]) due.value = selected.dates[stage.value as RTStage]!; }
-				syncHint.setText(linked ? selected ? "This goal shares the selected RT stage target. Changing this date updates RT; changes in RT appear here. Completion stays your decision." : "RT book unavailable. Unlink to edit the date; the saved link is preserved." : rtStatus.available && rtBooks.length ? "Optional: select an RT book to sync a publishing-stage target. Standalone goals keep their own dates." : rtStatus.available ? "Create a book in Radial Timeline to link its stage targets. Standalone goals keep their own dates." : "Enable a compatible Radial Timeline installation to link a book. Standalone goals keep their own dates.");
+				const text = linked ? selected ? "The target date stays in step with this stage in Radial Timeline." : "Radial Timeline book unavailable. Unlink it to edit the date; the saved link is kept." : rtStatus.available ? "" : "Enable Radial Timeline to follow a book's stage dates.";
+				syncHint.setText(text); syncHint.toggle(Boolean(text));
 			};
 			rtBook.addEventListener("change", () => { updateLink(true); updateFolder(); }); stage.addEventListener("change", () => updateLink(true)); updateLink(false);
 			const today = localDate(new Date());
-			const wordTarget = field(form, "Words to write (optional)", existing?.words ? String(existing.words.target) : "", "number"); wordTarget.min = "1"; wordTarget.step = "1";
-			const startCount = field(form, "Starting word count", existing?.words?.startCount === null || existing?.words?.startCount === undefined ? "" : String(existing.words.startCount), "number"); startCount.min = "0"; startCount.step = "1";
-			const folder = field(form, "Folder to count", existing?.words?.folder ?? ""); folder.readOnly = true;
-			const folderActions = form.createDiv({ cls: "editorialist-project__actions" });
-			const chooseFolder = folderActions.createEl("button", { text: "Choose folder", attr: { type: "button" } });
-			const clearFolder = folderActions.createEl("button", { text: "Clear folder", attr: { type: "button" } });
-			const wordHint = form.createEl("p", { cls: "editorialist-project__hint" });
+			const words = section(form, "Word count");
+			const wordTarget = field(words, "Words to write (optional)", existing?.words ? String(existing.words.target) : "", "number"); wordTarget.min = "1"; wordTarget.step = "1";
+			const startCount = field(words, "Starting count", existing?.words?.startCount === null || existing?.words?.startCount === undefined ? "" : String(existing.words.startCount), "number"); startCount.min = "0"; startCount.step = "1";
+			const folderPicker = picker(words, "Folder to count", existing?.words?.folder ?? "", "No folder");
+			const folder = folderPicker.input;
+			const wordHint = words.createEl("p", { cls: "editorialist-project__hint editorialist-project__field-note" });
 			// A saved count is the author's; a new folder or start date fills it
 			// from the folder's current total until the author types one.
 			let countSet = existing?.words?.startCount !== undefined && existing.words.startCount !== null;
@@ -199,25 +200,28 @@ export class AuthorTargetPanel {
 				const linked = Boolean(rtBook.value), selected = rtBooks.find((item) => item.id === rtBook.value);
 				const previous = folder.value;
 				if (selected) folder.value = selected.folder;
-				chooseFolder.disabled = clearFolder.disabled = linked;
-				wordHint.setText(linked && selected && !selected.folder ? "This RT book has no source folder. Set one in Radial Timeline to count its words." : `Counts new words in ${linked ? "the RT book's source folder" : "the folder"} and its subfolders since the starting count. Cutting words lowers the count. Lower the starting count to include words already written.`);
+				folderPicker.choose.toggle(!linked); folderPicker.clear.toggle(!linked);
+				wordHint.setText(linked && selected && !selected.folder ? "This book has no source folder. Set one in Radial Timeline to count its words." : `Counts new words in ${linked ? "the book's source folder" : "the folder"} since the starting count; cuts lower it.`);
 				if (folder.value !== previous) { countSet = false; void fillStartCount(); }
 			};
 			const pickFolder = (path: string): void => { folder.value = path; countSet = false; void fillStartCount(); };
-			chooseFolder.addEventListener("click", () => new VaultFolderPicker(this.host.app, (picked) => pickFolder(picked.path)).open());
-			clearFolder.addEventListener("click", () => pickFolder(""));
+			folderPicker.choose.addEventListener("click", () => new VaultFolderPicker(this.host.app, (picked) => pickFolder(picked.path)).open());
+			folderPicker.clear.addEventListener("click", () => pickFolder(""));
 			startCount.addEventListener("input", () => { countSet = startCount.value !== ""; });
 			start.addEventListener("change", () => { void fillStartCount(); });
 			updateFolder(); void fillStartCount();
-			const file = field(form, "Vault document (optional)", existing?.file ?? ""); file.readOnly = true;
-			const actions = form.createDiv({ cls: "editorialist-project__actions" });
-			this.button(actions, "Choose document", () => new VaultFilePicker(this.host.app, (picked) => { file.value = picked.path; }).open());
-			this.button(actions, "Clear document", () => { file.value = ""; });
-			const estimates = form.createEl("details", { cls: "editorialist-author__estimates" }); estimates.createEl("summary", { text: "Effort estimate (optional)" });
-			const estimateFields = estimates.createDiv({ cls: "editorialist-plan__fields" });
-			const low = field(estimateFields, "Low minutes", existing?.lowMinutes === null || existing?.lowMinutes === undefined ? "" : String(existing.lowMinutes), "number"); low.min = "0";
-			const high = field(estimateFields, "High minutes", existing?.highMinutes === null || existing?.highMinutes === undefined ? "" : String(existing.highMinutes), "number"); high.min = "1";
-			form.createEl("p", { cls: "editorialist-project__hint", text: "Completion is your decision. This card tracks your work without changing the linked document." });
+			// Rarely needed: a document to open from the card, and the effort range
+			// the scheduler uses. Open by default only when one is already set.
+			const more = form.createEl("details", { cls: "editorialist-goal__more" });
+			more.createEl("summary", { text: "More options" });
+			const moreBody = more.createDiv({ cls: "editorialist-goal__section-body" });
+			const filePicker = picker(moreBody, "Linked document", existing?.file ?? "", "No document");
+			const file = filePicker.input;
+			filePicker.choose.addEventListener("click", () => new VaultFilePicker(this.host.app, (picked) => { file.value = picked.path; }).open());
+			filePicker.clear.addEventListener("click", () => { file.value = ""; });
+			const low = field(moreBody, "Effort, low (minutes)", existing?.lowMinutes === null || existing?.lowMinutes === undefined ? "" : String(existing.lowMinutes), "number"); low.min = "0";
+			const high = field(moreBody, "Effort, high (minutes)", existing?.highMinutes === null || existing?.highMinutes === undefined ? "" : String(existing.highMinutes), "number"); high.min = "1";
+			more.open = Boolean(file.value || low.value || high.value);
 			return async () => {
 				if (!title.value.trim() || !isDate(due.value)) throw new Error("Enter a title and valid target date.");
 				if (start.value && (!isDate(start.value) || start.value > due.value)) throw new Error("Choose a start date on or before the target date, or leave it blank.");
@@ -242,9 +246,35 @@ export class AuthorTargetPanel {
 				next.targets ??= []; const index = next.targets.findIndex((item) => item.id === target.id); if (index < 0) next.targets.push(target); else next.targets[index] = target;
 				await this.host.save(expected, next, edit);
 			};
-		});
+		}, "Save", existing ? (actions) => {
+			const remove = actions.createEl("button", { cls: "mod-warning editorialist-goal__remove", text: "Remove goal", attr: { type: "button" } });
+			remove.disabled = this.host.busy;
+			remove.addEventListener("click", () => {
+				next.targets = (next.targets ?? []).filter((target) => target.id !== existing.id);
+				next.entries = next.entries.filter((entry) => entry.source.path !== AUTHOR_PLAN_SCOPE || entry.source.locator !== existing.id);
+				void this.host.save(expected, next).then(() => dialog.close()).catch((error: unknown) => new Notice(error instanceof Error ? error.message : "Could not remove this goal."));
+			});
+		} : undefined);
 		dialog.open();
 	}
+}
+
+function section(form: HTMLElement, title: string): HTMLElement {
+	const group = form.createDiv({ cls: "editorialist-goal__section" });
+	group.createDiv({ cls: "editorialist-goal__section-title", text: title });
+	return group.createDiv({ cls: "editorialist-goal__section-body" });
+}
+
+/** A read-only path with Choose and Clear beside it. */
+function picker(parent: HTMLElement, label: string, value: string, empty: string): { input: HTMLInputElement; choose: HTMLButtonElement; clear: HTMLButtonElement } {
+	const wrap = parent.createDiv({ cls: "editorialist-project__field editorialist-goal__picker" });
+	wrap.createSpan({ text: label });
+	const row = wrap.createDiv({ cls: "editorialist-goal__picker-row" });
+	const input = row.createEl("input", { type: "text", value, attr: { "aria-label": label, placeholder: empty } }); input.readOnly = true;
+	const choose = row.createEl("button", { text: "Choose…", attr: { type: "button" } });
+	const clear = row.createEl("button", { cls: "clickable-icon", attr: { type: "button", "aria-label": `Clear ${label.toLowerCase()}` } });
+	setIcon(clear, "x");
+	return { input, choose, clear };
 }
 
 function formatDay(day: string, withYear: boolean): string {

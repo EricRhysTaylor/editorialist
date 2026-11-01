@@ -71,13 +71,14 @@ export function select(parent: HTMLElement, label: string, options: [string, str
 	el.value = value; return el;
 }
 export class ProjectDialog extends Modal {
-	constructor(app: App, private readonly title: string, private readonly renderFields: (form: HTMLElement) => () => Promise<void>, private readonly saveLabel = "Save") { super(app); }
+	constructor(app: App, private readonly title: string, private readonly renderFields: (form: HTMLElement) => () => Promise<void>, private readonly saveLabel = "Save", private readonly footer?: (actions: HTMLElement) => void) { super(app); }
 	onOpen(): void {
 		this.contentEl.addClass("editorialist-project-dialog"); this.contentEl.createEl("h2", { text: this.title });
 		const form = this.contentEl.createEl("form"); const save = this.renderFields(form);
 		const actions = form.createDiv({ cls: "editorialist-project__actions" });
 		const submit = actions.createEl("button", { text: this.saveLabel, cls: "mod-cta", attr: { type: "submit" } });
 		button(actions, "Cancel", () => this.close());
+		this.footer?.(actions);
 		const error = form.createEl("p", { cls: "editorialist-project__warning", attr: { role: "alert" } });
 		form.addEventListener("submit", (event) => {
 			event.preventDefault(); if (submit.disabled || !form.reportValidity()) return;
