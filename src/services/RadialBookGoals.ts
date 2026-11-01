@@ -1,9 +1,10 @@
 import { isDate, type RevisionPlan } from "../core/planning/RevisionPlan";
 import { RT_STAGES, type RTStage, type RTGoalLink, type AuthorTarget } from "../core/planning/AuthorPlan";
 
-export interface RTBookTarget { id: string; title: string; dates: Partial<Record<RTStage, string>> }
+/** `folder` is the book's source folder, "" when RT has none. */
+export interface RTBookTarget { id: string; title: string; folder: string; dates: Partial<Record<RTStage, string>> }
 export interface RTDateEdit { link: RTGoalLink; expectedDate: string | null; date: string }
-interface LiveBook { id: string; title: string; stageTargetDates?: Partial<Record<RTStage, string>> }
+interface LiveBook { id: string; title: string; sourceFolder?: unknown; stageTargetDates?: Partial<Record<RTStage, string>> }
 interface LiveRT {
 	settings: { books: LiveBook[] };
 	saveSettings(): Promise<void>;
@@ -21,7 +22,7 @@ export class RadialBookGoals {
 		return plugin as unknown as LiveRT;
 	}
 	books(): RTBookTarget[] {
-		return (this.live()?.settings.books ?? []).map((book) => ({ id: book.id, title: book.title, dates: Object.fromEntries(Object.keys(RT_STAGES).flatMap((stage) => { const date = book.stageTargetDates?.[stage as RTStage]; return isDate(date) ? [[stage, date]] : []; })) }));
+		return (this.live()?.settings.books ?? []).map((book) => ({ id: book.id, title: book.title, folder: typeof book.sourceFolder === "string" ? book.sourceFolder.trim().replace(/^\/+|\/+$/g, "") : "", dates: Object.fromEntries(Object.keys(RT_STAGES).flatMap((stage) => { const date = book.stageTargetDates?.[stage as RTStage]; return isDate(date) ? [[stage, date]] : []; })) }));
 	}
 	status(): { available: boolean; books: RTBookTarget[] } { return { available: this.live() !== null, books: this.books() }; }
 	resolve(plan: RevisionPlan): { plan: RevisionPlan; warnings: string[]; unavailable: Set<string> } {
@@ -31,6 +32,7 @@ export class RadialBookGoals {
 			const book = books.find((item) => item.id === target.rt!.bookId), date = book?.dates[target.rt.stage];
 			if (!date) { unavailable.add(target.id); warnings.push(`${target.title}: ${book ? "the linked RT stage has no target date" : "the linked RT book is unavailable"}. Reconnect it or use a standalone goal before scheduling.`); continue; }
 			target.bookLabel = book.title; target.due = date;
+			if (target.words) target.words.folder = book.folder;
 		}
 		return { plan: next, warnings, unavailable };
 	}

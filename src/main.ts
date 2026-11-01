@@ -13,7 +13,8 @@ import { formatReviewerTypeLabel, normalizeReviewerType } from "./core/Contribut
 import { RevisionPlanPanel, REVISION_PLAN_VIEW_TYPE, AUTHOR_PLAN_VIEW_TYPE } from "./ui/RevisionPlanPanel";
 import { TodayPanel, TODAY_SHOWN_KEY, TODAY_VIEW_TYPE } from "./ui/TodayPanel";
 import { RadialBookGoals, type RTDateEdit } from "./services/RadialBookGoals";
-import { AUTHOR_PLAN_SCOPE, authorWork } from "./core/planning/AuthorPlan";
+import { FolderWordCounter } from "./services/FolderWordCounter";
+import { AUTHOR_PLAN_SCOPE, authorWork, recordWordDay } from "./core/planning/AuthorPlan";
 import { localDate, type RevisionPlan, type WorkCandidate } from "./core/planning/RevisionPlan";
 import { batchWork, directiveWork, pendingWork } from "./core/planning/RevisionWork";
 import { preparationWork, type EditorialProject } from "./core/planning/EditorialProject";
@@ -601,6 +602,15 @@ export default class EditorialistPlugin extends Plugin {
 		// fires once per file while the vault index is warming up.
 		this.app.workspace.onLayoutReady(() => {
 			this.showTodayOnNewDay();
+			// A word goal's day starts from the folder's first total that day, so
+			// it is taken whether or not the planner is open.
+			const recordWordGoals = (): void => {
+				void this.recordAuthorWordGoals().then(async (result) => {
+					if (result.saved) for (const leaf of this.app.workspace.getLeavesOfType(AUTHOR_PLAN_VIEW_TYPE)) if (leaf.view instanceof RevisionPlanPanel) await leaf.view.refresh();
+				}).catch((error: unknown) => console.error("Editorialist: word goal count failed", error));
+			};
+			recordWordGoals();
+			this.registerInterval(window.setInterval(recordWordGoals, 5 * 60 * 1000));
 			// Folder/note membership cannot be validated before the vault index
 			// is ready. Resolve the persisted target again at the actual boundary.
 			void this.registry.syncOperationalMetadata().then(() => {
@@ -921,6 +931,28 @@ export default class EditorialistPlugin extends Plugin {
 	collectAuthorWork(): { candidates: WorkCandidate[]; warnings: string[] } {
 		const resolved = this.radialBookGoals.resolve(this.getRevisionPlan(AUTHOR_PLAN_SCOPE));
 		return { candidates: authorWork(resolved.plan).map((item) => resolved.unavailable.has(item.locator) ? { ...item, inactive: true, due: null, targetDate: undefined } : item), warnings: resolved.warnings };
+	}
+	readonly folderWords = new FolderWordCounter(this.app, (path) => this.resolveOpenNoteText(path));
+	/**
+	 * Current folder totals of open word goals by goal id, null when a folder is
+	 * missing. Records each goal's starting count and the day's first total.
+	 */
+	async recordAuthorWordGoals(): Promise<{ counts: Record<string, number | null>; saved: boolean }> {
+		const raw = this.getRevisionPlan(AUTHOR_PLAN_SCOPE), plan = this.radialBookGoals.resolve(raw).plan, today = localDate(new Date());
+		const counts: Record<string, number | null> = {}, folders = new Map<string, number | null>();
+		let changed = false;
+		for (const target of plan.targets ?? []) {
+			if (!target.words || target.done) continue;
+			if (!folders.has(target.words.folder)) folders.set(target.words.folder, await this.folderWords.count(target.words.folder));
+			const count = folders.get(target.words.folder) ?? null;
+			counts[target.id] = count;
+			const next = count === null ? null : recordWordDay(target.words, target.start, target.due, count, today);
+			if (next) { target.words = next; changed = true; }
+		}
+		// A goal edit or RT sync during the count wins; the next count records the day.
+		const saved = changed && !this.authorGoalSaving && JSON.stringify(this.getRevisionPlan(AUTHOR_PLAN_SCOPE)) === JSON.stringify(raw);
+		if (saved) await this.saveRevisionPlan(AUTHOR_PLAN_SCOPE, plan);
+		return { counts, saved };
 	}
 	private authorGoalSaving = false;
 	async synchronizeAuthorTargets(): Promise<void> {

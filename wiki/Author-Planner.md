@@ -15,6 +15,16 @@ Each goal card counts down to its date. Before a goal’s start date, it shows t
 
 A document link opens the working file. Linking or editing it never completes the goal. **Mark complete** records your decision; **Reopen goal** brings it back. **Remove goal** removes that goal and its planned sessions while preserving the document.
 
+## Word targets
+
+A goal can also count words, such as 50,000 words in November. In goal details, enter **Words to write** and choose a **Folder to count**. Every note in that folder and its subfolders counts. When the goal is linked to a Radial Timeline book, it counts the book’s source folder instead.
+
+**Starting word count** is filled in with the folder’s current total. Words written after that count toward the goal. If you already wrote some words for this goal before you set it up, lower the starting count by that amount. When the start date is still ahead, leave the field blank and the folder is counted on your start date.
+
+The card shows the words written so far against the target, with a bar. Below it are the words written today and how many words a day finish the goal by its date. The count follows your writing as you type, and you don’t need to start a timer.
+
+The count is the folder’s total, so cutting words lowers it, and moving a note into the folder raises it. Cut files saved by Editorialist are not counted. The day’s count starts the first time Obsidian is open that day. Reaching the target doesn’t complete the goal; **Mark complete** is still your decision.
+
 ## Schedule your goals
 
 Choose **Schedule work** to open the planning dialog. Set a planning window, session length, weekday capacity, and reserve time, then review **Preview plan** before **Use this plan** saves the sessions. Estimates are editable assumptions; use your own effort ranges when known.

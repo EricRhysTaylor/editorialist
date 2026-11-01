@@ -14,6 +14,12 @@ describe("optional RT goal targets", () => {
 		expect(plan.targets[0]!.due).toBe("2026-12-31"); expect(rt.settings.activeBookId).toBe("b1");
 		expect(normalizeRevisionPlans({ version: 1, books: { [AUTHOR_PLAN_SCOPE]: plan } }).books[AUTHOR_PLAN_SCOPE]?.targets?.[0]?.rt).toEqual(goal.rt);
 	});
+	it("counts a linked word goal in the book's source folder", () => {
+		const { rt, bridge } = setup(); (rt.settings.books[1] as { sourceFolder?: string }).sourceFolder = "/Books/Saturn & Jupiter/";
+		const words = { target: 50000, folder: "Old folder", startCount: 0, days: {} };
+		expect(bridge.resolve({ ...emptyRevisionPlan(), targets: [{ ...goal, words }] }).plan.targets?.[0]?.words?.folder).toBe("Books/Saturn & Jupiter");
+		expect(bridge.books()[0]?.folder).toBe("");
+	});
 	it("updates only the selected stage using RT persistence and rejects stale or out-of-order edits", async () => {
 		const { rt, bridge } = setup(); const originalFirstBook = structuredClone(rt.settings.books[0]);
 		await bridge.update({ link: goal.rt!, expectedDate: "2026-12-20", date: "2026-12-31" });

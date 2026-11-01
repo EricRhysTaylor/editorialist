@@ -26,6 +26,29 @@ export interface AuthorTarget {
 	done: boolean;
 	lowMinutes: number | null;
 	highMinutes: number | null;
+	words?: WordGoal;
+}
+/**
+ * A words-to-write goal. Progress is the growth of a folder's prose since
+ * counting began, so it reads the notes themselves rather than tracking typing:
+ * cutting words lowers it, as it would lower a manuscript's total.
+ */
+export interface WordGoal {
+	target: number;
+	/** Counted with its subfolders. An RT-linked goal follows the book's source folder. */
+	folder: string;
+	/** Folder total when counting began; null until the start date. The author may set it. */
+	startCount: number | null;
+	/** Folder total first seen on each day of the goal, by local date. */
+	days: Record<string, number>;
+}
+function normalizeWordGoal(value: unknown): WordGoal | undefined {
+	if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+	const item = value as Record<string, unknown>;
+	const count = (value: unknown): value is number => typeof value === "number" && Number.isInteger(value) && value >= 0;
+	if (!count(item.target) || item.target === 0 || typeof item.folder !== "string") return undefined;
+	const days = item.days && typeof item.days === "object" && !Array.isArray(item.days) ? Object.fromEntries(Object.entries(item.days as Record<string, unknown>).filter((entry): entry is [string, number] => isDate(entry[0]) && count(entry[1]))) : {};
+	return { target: item.target, folder: item.folder, startCount: count(item.startCount) ? item.startCount : null, days };
 }
 export function normalizeAuthorTargets(raw: unknown): AuthorTarget[] {
 	const ids = new Set<string>();
@@ -36,7 +59,7 @@ export function normalizeAuthorTargets(raw: unknown): AuthorTarget[] {
 		ids.add(item.id);
 		const minutes = (value: unknown): number | null => typeof value === "number" && Number.isFinite(value) && value >= 0 ? Math.round(value) : null;
 		const low = minutes(item.lowMinutes), high = minutes(item.highMinutes);
-		return [{ ...(normalizeRTLink(item.rt) ? { rt: normalizeRTLink(item.rt) } : {}), id: item.id, title: item.title.trim(), description: typeof item.description === "string" ? item.description : "", file: typeof item.file === "string" ? item.file : "", bookLabel: typeof item.bookLabel === "string" ? item.bookLabel : "", start: isDate(item.start) ? item.start : null, due: item.due, hardDeadline: item.hardDeadline === true, done: item.done === true, lowMinutes: low, highMinutes: high === null ? null : Math.max(low ?? 0, high) }];
+		return [{ ...(normalizeRTLink(item.rt) ? { rt: normalizeRTLink(item.rt) } : {}), id: item.id, title: item.title.trim(), description: typeof item.description === "string" ? item.description : "", file: typeof item.file === "string" ? item.file : "", bookLabel: typeof item.bookLabel === "string" ? item.bookLabel : "", start: isDate(item.start) ? item.start : null, due: item.due, hardDeadline: item.hardDeadline === true, done: item.done === true, lowMinutes: low, highMinutes: high === null ? null : Math.max(low ?? 0, high), ...(normalizeWordGoal(item.words) ? { words: normalizeWordGoal(item.words) } : {}) }];
 	});
 }
 export function authorWork(plan: RevisionPlan): WorkCandidate[] {
@@ -76,4 +99,39 @@ export function goalTimeline(start: string | null, due: string, today: string): 
 		used,
 		closing: phase === "active" && daysLeft <= CLOSING_DAYS,
 	};
+}
+
+/**
+ * Takes the starting count once the goal begins, and the folder's total the
+ * first time it is seen each day until the deadline. Returns null when nothing
+ * changes, so callers save only real changes.
+ */
+export function recordWordDay(goal: WordGoal, start: string | null, due: string, current: number, today: string): WordGoal | null {
+	if ((start !== null && today < start) || today > due) return null;
+	const startCount = goal.startCount ?? current;
+	if (goal.startCount === startCount && goal.days[today] !== undefined) return null;
+	return { ...goal, startCount, days: { ...goal.days, [today]: goal.days[today] ?? current } };
+}
+
+export interface WordProgress {
+	/** Words written since counting began; null before it begins. Never below zero. */
+	written: number | null;
+	/** Net words since the folder was first seen today; null when it has not been seen today. */
+	today: number | null;
+	/** Words a day that finish on time, from today's opening total; null once reached or past due. */
+	perDay: number | null;
+	reached: boolean;
+}
+
+export function wordProgress(goal: WordGoal, start: string | null, due: string, current: number, today: string): WordProgress {
+	if (goal.startCount === null) {
+		const span = start === null ? null : daysBetween(start, due) + 1;
+		return { written: null, today: null, perDay: span !== null && span > 0 ? Math.ceil(goal.target / span) : null, reached: false };
+	}
+	const written = Math.max(0, current - goal.startCount);
+	const opening = goal.days[today];
+	const reached = written >= goal.target;
+	const daysLeft = daysBetween(today, due) + 1;
+	const remaining = goal.target - Math.max(0, (opening ?? current) - goal.startCount);
+	return { written, today: opening === undefined ? null : current - opening, perDay: reached || daysLeft < 1 || remaining <= 0 ? null : Math.ceil(remaining / daysLeft), reached };
 }

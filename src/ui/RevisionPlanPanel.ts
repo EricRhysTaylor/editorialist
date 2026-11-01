@@ -26,6 +26,7 @@ export class RevisionPlanPanel extends ItemView {
 	private book: string | null = null;
 	private candidates: WorkCandidate[] = [];
 	private wordCounts: Record<string, number> = {};
+	private goalWords: Record<string, number | null> = {};
 	private warnings: string[] = [];
 	private view: "queue" | "days" = "queue";
 	private section: "overview" | "materials" | "schedule" | "history" = "overview";
@@ -45,7 +46,7 @@ export class RevisionPlanPanel extends ItemView {
 	private refreshTimer: number | null = null;
 	constructor(leaf: WorkspaceLeaf, private readonly plugin: EditorialistPlugin, private readonly author = false) { super(leaf); }
 	private authorPanel(): AuthorTargetPanel {
-		return new AuthorTargetPanel({ app: this.app, plan: this.plan, busy: this.busy, rt: this.plugin.radialBookGoals, save: async (expected, next, edit) => { await this.plugin.saveAuthorGoalPlan(expected, next, edit); }, openSource: async (path) => { await this.app.workspace.openLinkText(path, "", false); }, openSchedule: () => this.plugin.openAuthorScheduler() });
+		return new AuthorTargetPanel({ app: this.app, plan: this.plan, busy: this.busy, rt: this.plugin.radialBookGoals, words: this.goalWords, countFolder: (folder) => this.plugin.folderWords.count(folder), save: async (expected, next, edit) => { await this.plugin.saveAuthorGoalPlan(expected, next, edit); }, openSource: async (path) => { await this.app.workspace.openLinkText(path, "", false); }, openSchedule: () => this.plugin.openAuthorScheduler() });
 	}
 	private projectService(): EditorialProjectService { return new EditorialProjectService(this.app); }
 	// What is next, by the same rule Today uses (see nextSession), so the
@@ -119,8 +120,12 @@ export class RevisionPlanPanel extends ItemView {
 	}
 	/** Rebuild only for manuscript work, agendas or references used by this plan. */
 	private isRelevantSource(file: TAbstractFile, oldPath?: string): boolean {
-		// Author goals live in plugin data; their RT link has its own change check.
-		if (this.author) return false;
+		// Author goals live in plugin data and their RT link has its own change
+		// check; only notes counted by a word goal change them.
+		if (this.author) {
+			const folders = (this.plan.targets ?? []).flatMap((target) => target.words && !target.done && target.words.folder ? [target.words.folder] : []);
+			return [file.path, oldPath].filter((path): path is string => Boolean(path)).some((path) => folders.some((root) => isPathInFolderScope(path, root) || (file instanceof TFolder && isPathInFolderScope(root, path))));
+		}
 		const folder = file instanceof TFolder;
 		const scope = this.plugin.getActiveBookScopeInfo();
 		const references = [
@@ -168,7 +173,8 @@ export class RevisionPlanPanel extends ItemView {
 		// Keep the existing page in place during background reads.
 		if (!this.loaded) this.render();
 		try {
-			if (this.author) await this.plugin.synchronizeAuthorTargets(); else await this.plugin.refreshActiveBookScope();
+			if (this.author) { await this.plugin.synchronizeAuthorTargets(); this.goalWords = (await this.plugin.recordAuthorWordGoals()).counts; }
+			else await this.plugin.refreshActiveBookScope();
 			const book = this.scopeKey();
 			const revision = this.sourceRevision;
 			const work = this.author ? this.plugin.collectAuthorWork() : await this.plugin.collectRevisionWork();

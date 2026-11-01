@@ -8954,6 +8954,30 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	color: var(--text-error);
 }
 
+.editorialist-author__words {
+	margin: 12px 0 10px;
+}
+
+.editorialist-author__words .editorialist-author__bar-fill {
+	width: var(--editorialist-goal-words);
+}
+
+.editorialist-author__words[data-reached="true"] .editorialist-author__bar-fill {
+	background: var(--text-success);
+}
+
+.editorialist-author__words + .editorialist-author__timeline {
+	margin-top: 16px;
+}
+
+.editorialist-author__folder {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
 .editorialist-author__card[data-target-status="overdue"] {
 	border-inline-start: 3px solid var(--text-warning);
 }

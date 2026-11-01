@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AUTHOR_PLAN_SCOPE, authorWork, goalTimeline, normalizeAuthorTargets, type AuthorTarget } from "./AuthorPlan";
+import { AUTHOR_PLAN_SCOPE, authorWork, goalTimeline, normalizeAuthorTargets, recordWordDay, wordProgress, type AuthorTarget, type WordGoal } from "./AuthorPlan";
 import { emptyRevisionPlan, normalizeRevisionPlans, sourceKey } from "./RevisionPlan";
 import { draftSchedule } from "./AutoSchedule";
 import { DEFAULT_SCHEDULE } from "./ScheduleDefaults";
@@ -73,5 +73,44 @@ describe("goalTimeline", () => {
 
 	it("has no window without a start", () => {
 		expect(goalTimeline(null, "2027-02-28", "2026-10-26")).toMatchObject({ phase: "active", daysLeft: 125, window: null, used: null });
+	});
+});
+
+describe("word goals", () => {
+	const words = (startCount: number | null, days: Record<string, number> = {}): WordGoal => ({ target: 50000, folder: "Book 2", startCount, days });
+	it("round-trips a word goal and drops malformed parts", () => {
+		const raw = (value: unknown) => normalizeAuthorTargets([{ id: "g", title: "November", due: "2026-11-30", words: value }])[0]?.words;
+		expect(raw({ target: 50000, folder: "Book 2", startCount: 1200, days: { "2026-11-01": 1200, "Nov 2": 5, "2026-11-03": -1 } })).toEqual(words(1200, { "2026-11-01": 1200 }));
+		expect(raw({ target: 50000, folder: "Book 2" })).toEqual(words(null));
+		expect(raw({ target: 0, folder: "Book 2" })).toBeUndefined();
+		expect(raw({ target: 1.5, folder: "Book 2" })).toBeUndefined();
+		expect(raw(undefined)).toBeUndefined();
+	});
+	it("waits for the start date, then takes the starting count and one total a day", () => {
+		expect(recordWordDay(words(null), "2026-11-01", "2026-11-30", 900, "2026-10-31")).toBeNull();
+		const first = recordWordDay(words(null), "2026-11-01", "2026-11-30", 900, "2026-11-02")!;
+		expect(first).toEqual(words(900, { "2026-11-02": 900 }));
+		// Later the same day keeps the day's opening total.
+		expect(recordWordDay(first, "2026-11-01", "2026-11-30", 1400, "2026-11-02")).toBeNull();
+		expect(recordWordDay(first, "2026-11-01", "2026-11-30", 1400, "2026-11-03")?.days).toEqual({ "2026-11-02": 900, "2026-11-03": 1400 });
+		expect(recordWordDay(first, "2026-11-01", "2026-11-30", 1400, "2026-12-01")).toBeNull();
+	});
+	it("keeps an author-set starting count", () => {
+		expect(recordWordDay(words(0), null, "2026-11-30", 4000, "2026-11-05")).toEqual(words(0, { "2026-11-05": 4000 }));
+	});
+	it("measures words written, today's words and the pace that finishes on time", () => {
+		// 30 days, 10,000 written before today, 800 so far today.
+		const progress = wordProgress(words(2000, { "2026-11-11": 12000 }), "2026-11-01", "2026-11-30", 12800, "2026-11-11");
+		expect(progress).toEqual({ written: 10800, today: 800, perDay: 2000, reached: false });
+	});
+	it("counts cuts against today's words but never below zero overall", () => {
+		expect(wordProgress(words(2000, { "2026-11-11": 2500 }), null, "2026-11-30", 1500, "2026-11-11")).toMatchObject({ written: 0, today: -1000 });
+	});
+	it("spreads the target across the window before counting begins", () => {
+		expect(wordProgress(words(null), "2026-11-01", "2026-11-30", 900, "2026-10-28")).toEqual({ written: null, today: null, perDay: 1667, reached: false });
+	});
+	it("stops asking for a pace once reached or past due", () => {
+		expect(wordProgress(words(0), null, "2026-11-30", 50000, "2026-11-20")).toMatchObject({ reached: true, perDay: null });
+		expect(wordProgress(words(0), null, "2026-11-30", 100, "2026-12-02").perDay).toBeNull();
 	});
 });
