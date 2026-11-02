@@ -216,7 +216,7 @@ Paste the reply into the review launcher: when it contains an editorialism file,
 
 ## Importing a Review Batch
 
-<p align="center"><img src="images/panel-import.png" alt="The review launcher with current-scene and clipboard choices and formatting instructions" width="560"></p>
+<p align="center"><img src="images/panel-import.png" alt="The review launcher in two numbered steps: Send your scenes out, with Copy instructions for AI, and Bring the notes back, with Paste AI reply and Word file with tracked changes" width="560"></p>
 
 Run **Open review launcher** (command palette). The launcher modal:
 

@@ -165,3 +165,17 @@ time window to show. No Author-vault content was used.
 
 Also checked in light and dark at 300 and 460 CSS pixels; the countdown wraps
 cleanly at 300 with no horizontal overflow.
+
+## Two-step launcher — November 2, 2026
+
+Captured from source commit `d894160` plus the copy-icon fix that follows it,
+Obsidian dark theme, 2x device scale, in the `Editorialist Capture Vault`
+(Pride & Prejudice sample) with its README open, so no review was waiting and
+the launcher shows its plain two-step state. Captured with
+`screencapture -l` on the window, so the pointer is not in the image. No
+Author-vault content was used.
+
+- `panel-import.png` — the whole launcher modal, cropped on its own border
+  (1226 × 1086 image pixels, 613 CSS pixels wide, shown at 560). The modal's
+  corners are 22 CSS pixels round, so it was rounded with `--radius 44`: the
+  default 24 left the page behind showing through the corners.
