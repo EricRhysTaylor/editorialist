@@ -9558,3 +9558,7 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 		margin-inline-start: 0;
 	}
 }
+
+.editorialist-control-modal__button--cta .editorialist-control-modal__button-icon {
+	color: inherit;
+}

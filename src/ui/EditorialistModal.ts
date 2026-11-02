@@ -1536,6 +1536,9 @@ export class EditorialistModal extends Modal {
 		if (spec.subtle) {
 			classNames.push("editorialist-control-modal__button--subtle");
 		}
+		if (spec.cta) {
+			classNames.push("editorialist-control-modal__button--cta");
+		}
 		return {
 			text: spec.text,
 			cta: spec.cta,
