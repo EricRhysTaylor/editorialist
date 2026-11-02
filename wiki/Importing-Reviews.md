@@ -2,7 +2,7 @@ This page documents what can come back from a reviewer or AI, where each object 
 
 The formats are written for an AI to produce. For an AI review, paste the formatting instructions into the conversation along with your prose. When the feedback comes from a human — margin notes on a printed page, a marked-up document, an email — hand their notes to an AI together with these same instructions, and it shapes them into Editorialist-ready output with your human reviewer credited as the contributor. A human never works from this format directly.
 
-> **Tip:** you never need to write this format by hand. The review launcher's **Copy formatting instructions** button puts the full specification — including your book's real scene IDs, or the names of notes that have none — on the clipboard, ready to paste into an AI conversation.
+> **Tip:** you never need to write this format by hand. The review launcher's **Copy instructions for AI** button (step 1) puts the full specification — including your book's real scene IDs, or the names of notes that have none — on the clipboard, ready to paste into an AI conversation.
 
 ---
 
@@ -221,9 +221,9 @@ Paste the reply into the review launcher: when it contains an editorialism file,
 Run **Open review launcher** (command palette). The launcher modal:
 
 1. **Checks your clipboard** — a recognized batch imports directly when placement is clear; entries needing attention open a preview.
-2. **Manual paste** — if the clipboard is empty or contains something else, open the manual-import area and paste; validation runs in real time with specific error messages.
+2. **Paste AI reply** — if the clipboard is empty or holds something else, choose **Paste AI reply** under **2 Bring the notes back** and paste; validation runs as you paste, with specific error messages. **Back** sets the paste aside.
 3. **Destination preview** — inspect placement warnings and unplaced entries. **Review mis-targeted entries** opens the correction step when needed. Otherwise use **Import placed entries** when some entries are omitted, or **Import and start review** when everything is placed. The action is disabled when nothing resolves.
-4. **Template copy** — the launcher's template button copies the full format guidance, both templates, and your book's actual scene-ID list to the clipboard.
+4. **Copy instructions for AI** — step 1 copies the full format guidance, both templates, and your book's actual scene-ID list to the clipboard.
 
 Import appends review blocks to the targeted scene notes. Nothing else in the note is touched, and no suggestion is applied until you act on it in [Line edits](Line-Edits).
 
@@ -233,7 +233,7 @@ Replies to the Editorialisms panel's **Draft fixes with AI…** and **Hand off t
 
 A copy editor or line editor who works in Word sends back a .docx with tracked changes and comments. Editorialist reads that file directly, so no AI sits between your editor's changes and your manuscript.
 
-1. Open the review launcher and choose **Import Word file with tracked changes**, then pick the .docx.
+1. Open the review launcher and choose **Word file with tracked changes** under **2 Bring the notes back**, then pick the .docx.
 2. The launcher says how many edits, cuts and comments it found, and whose they are. If more than one person tracked changes (your own replies in an earlier round, for example), choose whose changes to bring in under **Changes by**. Set **Their role**; it starts as **Copy editor**.
 3. Choose **Import and start review**, or **Preview destinations** to check where each change lands first.
 

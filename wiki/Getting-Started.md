@@ -55,7 +55,7 @@ A five-minute walkthrough of the core loop:
 
 ### 1. Copy the template
 
-Run **Open review launcher** and click **Copy formatting instructions**. This copies the review batch format, the Editorialism file format, and the scenes of your manuscript target — their scene IDs, or note names for notes without IDs — to the clipboard.
+Run **Open review launcher** and, under **1 Send your scenes out**, click **Copy instructions for AI**. **What's included** shows the format. This copies the review batch format, the Editorialism file format, and the scenes of your manuscript target — their scene IDs, or note names for notes without IDs — to the clipboard.
 
 <p align="center"><img src="images/panel-import.png" alt="The review launcher with current-scene and clipboard choices and formatting instructions" width="560"></p>
 
@@ -67,13 +67,13 @@ The formatting instructions are written for an AI — a human reviewer never wor
 
 **Human feedback:** your editor or beta reader works however they naturally work — margin notes on a printed page, comments in a document, an email. Collect their notes in whatever form they arrive (a photo of the handwritten page, the electronic doc) and hand them to an AI along with the formatting instructions. The AI shapes everything into a properly formatted batch for Editorialist, with your human reviewer credited as the contributor.
 
-**Word file with tracked changes:** if your copy editor or line editor returns a .docx with tracked changes, skip the AI. Choose **Import Word file with tracked changes** in the launcher and pick the file. See [Word files with tracked changes](Importing-Reviews#word-files-with-tracked-changes).
+**Word file with tracked changes:** if your copy editor or line editor returns a .docx with tracked changes, skip the AI. Choose **Word file with tracked changes** in the launcher and pick the file. See [Word files with tracked changes](Importing-Reviews#word-files-with-tracked-changes).
 
 For a normal review sweep, you want a **review batch**. It contains scene-targeted suggestions. An **Editorialism** is different: it is a separate structural checklist for broad guidance that spans scenes or the whole manuscript.
 
 ### 3. Import the batch
 
-Copy the reviewer's reply and run **Open review launcher** again. The launcher detects the review batch on your clipboard — the launcher imports directly when placement is clear, or opens a destination preview when entries need attention. Unplaced entries are flagged before you import the placed work. (If detection misses, paste manually; validation runs as you type.) Editorialist appends a review block to the bottom of each targeted scene note. **Nothing has been applied to your prose yet.**
+Copy the reviewer's reply and run **Open review launcher** again. The launcher detects the review batch on your clipboard — the launcher imports directly when placement is clear, or opens a destination preview when entries need attention. Unplaced entries are flagged before you import the placed work. (If detection misses, choose **Paste AI reply**; validation runs as you paste.) Editorialist appends a review block to the bottom of each targeted scene note. **Nothing has been applied to your prose yet.**
 
 ### 4. Walk the sweep
 
