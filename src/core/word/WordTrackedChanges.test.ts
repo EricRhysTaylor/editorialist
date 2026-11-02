@@ -178,6 +178,13 @@ describe("convertWordTrackedChanges", () => {
 		expect(result.edits).toBe(1);
 	});
 
+	it("does not count the break Word records before an added paragraph as a split", () => {
+		const markInserted = `<w:pPr><w:rPr><w:ins w:id="5" w:author="${ED}"/></w:rPr></w:pPr>`;
+		const document = documentOf(body(`<w:p>${markInserted}${run(LONG)}</w:p>`, para(ins("Then the lights went out."))));
+		const result = convert(document);
+		expect(result).toMatchObject({ edits: 1, skipped: { paragraphBreaks: 0 } });
+	});
+
 	it("drops an entry whose added paragraph would read as a field", () => {
 		const document = documentOf(body(para(run(LONG)), para(ins("Captain: Hold the line."))));
 		const result = convert(document);

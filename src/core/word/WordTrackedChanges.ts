@@ -152,7 +152,7 @@ export function convertWordTrackedChanges(document: WordDocument, options: { aut
 	let previous: { original: string; sceneId?: string; tail?: Entry } | null = null;
 	let addedParagraphs: Entry | null = null;
 
-	for (const paragraph of paragraphs) {
+	for (const [index, paragraph] of paragraphs.entries()) {
 		const original = joinText(paragraph.segments, "ins");
 		const revised = joinText(paragraph.segments, "del");
 		const changed = paragraph.segments.some((segment) => segment.kind !== "same");
@@ -210,7 +210,11 @@ export function convertWordTrackedChanges(document: WordDocument, options: { aut
 			continue;
 		}
 
-		if (paragraph.markChanged) skipped.paragraphBreaks++;
+		// Word records a paragraph added after this one as a break inserted at
+		// the end of this one; that break comes in with the added paragraph.
+		const next = paragraphs[index + 1];
+		const breakBeforeAdded = next !== undefined && !joinText(next.segments, "ins").trim() && Boolean(joinText(next.segments, "del").trim());
+		if (paragraph.markChanged && !breakBeforeAdded) skipped.paragraphBreaks++;
 		let tail: Entry | undefined;
 		if (changed) {
 			for (const window of changeWindows(paragraph.segments)) {
