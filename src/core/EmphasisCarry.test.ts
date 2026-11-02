@@ -33,9 +33,19 @@ describe("planEmphasisReplacement", () => {
 		expect(plan("how _very_ much she admired him", "how _very_ much", "how much")).toBe("how much");
 	});
 
-	it("tolerates the reviewer's quotes and dashes while lining up", () => {
+	it("tolerates the reviewer's quotes and dashes while lining up, keeping the note's own", () => {
 		const note = "“_Yes_,” she said--quietly.";
-		expect(plan(note, "“_Yes_,” she said--quietly", "“Yes,” she said—softly")).toBe("“_Yes_,” she said—softly");
+		expect(plan(note, "“_Yes_,” she said--quietly", "“Yes,” she said—softly")).toBe("“_Yes_,” she said--softly");
+	});
+
+	it("keeps the note's straight quotes in wording the suggestion leaves alone", () => {
+		const note = "\"Go home,\" he said, and the door shut.";
+		expect(plan(note, note, "“Go home,” he said, and the door closed.")).toBe("\"Go home,\" he said, and the door closed.");
+	});
+
+	it("still applies a change that is only to the quotes", () => {
+		const note = "\"Go home,\" he said.";
+		expect(plan(note, note, "“Go home,” he said.")).toBe("“Go home,” he said.");
 	});
 
 	it("refuses to guess the formatting of rewritten italic words", () => {

@@ -38,16 +38,49 @@ export function planEmphasisReplacement(noteText: string, from: number, to: numb
 	if (replacement === "") ({ from, to } = widenToWrappingEmphasis(noteText, from, to));
 	const span = noteText.slice(from, to);
 	const markers = findEmphasisMarkers(noteText, from, to);
+	const kept = keepUnchangedCharacters(plainText(span, from, markers), replacement);
 	// A reviewer who wrote markers chose the formatting; their text stands.
 	const carried = markers.length === 0 || findEmphasisMarkers(replacement).length > 0
-		? replacement
-		: carryMarkers(span, from, markers, replacement);
+		? kept
+		: carryMarkers(span, from, markers, kept);
 	if (carried === null) return null;
 	// Carrying that gives back the passage exactly means the suggestion changes
 	// no wording, so its only change is taking the formatting off
 	// (`*can't*` → `can't`): writing the markers back would apply nothing.
 	const text = carried === span && replacement !== span ? replacement : carried;
 	return keepsEmphasisIntact(noteText, from, to, text) ? { from, to, text } : null;
+}
+
+// The reviewer's text, with the wording it leaves unchanged at either end
+// written as the note has it. A reviewer quoting from Word sends curly quotes
+// and real dashes; a sentence they changed one word in should not come back
+// with the note's own straight quotes or `--` swapped for theirs.
+function keepUnchangedCharacters(plain: string, replacement: string): string {
+	const original = tokenize(plain);
+	const revised = tokenize(replacement);
+	let prefix = 0;
+	while (prefix < original.length && prefix < revised.length && fold(original[prefix]!) === fold(revised[prefix]!)) prefix++;
+	let suffix = 0;
+	while (
+		suffix < Math.min(original.length, revised.length) - prefix
+		&& fold(original[original.length - 1 - suffix]!) === fold(revised[revised.length - 1 - suffix]!)
+	) suffix++;
+	return [
+		...original.slice(0, prefix),
+		...revised.slice(prefix, revised.length - suffix),
+		...original.slice(original.length - suffix),
+	].join("");
+}
+
+// The passage without its emphasis markers.
+function plainText(span: string, offset: number, markers: readonly EmphasisMarker[]): string {
+	let plain = "";
+	let cursor = 0;
+	for (const marker of markers) {
+		plain += span.slice(cursor, marker.start - offset);
+		cursor = marker.end - offset;
+	}
+	return plain + span.slice(cursor);
 }
 
 function carryMarkers(span: string, offset: number, markers: readonly EmphasisMarker[], replacement: string): string | null {
