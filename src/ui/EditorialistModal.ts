@@ -247,6 +247,8 @@ export class EditorialistModal extends Modal {
 			this.renderUnimportedNoteState(shell);
 		} else {
 			this.renderContinue(shell);
+			this.renderWordRoute(shell);
+			shell.createDiv({ cls: "editorialist-control-modal__route-label", text: "Or work with an AI" });
 			this.renderSendStep(shell);
 			this.renderBringBackStep(shell);
 			if (this.showManualPaste) this.renderManualPaste(shell);
@@ -272,7 +274,7 @@ export class EditorialistModal extends Modal {
 		});
 		text.createDiv({
 			cls: "editorialist-control-modal__description",
-			text: "Send your scenes to an AI with Editorialist's instructions, then bring its notes back. A Word file with tracked changes comes straight in.",
+			text: "Bring in your editor's Word file directly, or send your scenes to an AI and bring its notes back.",
 		});
 	}
 
@@ -287,6 +289,35 @@ export class EditorialistModal extends Modal {
 			text: this.options.currentNoteStatus === "completed" ? `This ${unitLabel} is reviewed` : "Continue reviewing",
 		});
 		this.renderDetectionGrid(card, items);
+	}
+
+	// An editor's tracked changes need no AI at all, so this route leads. It
+	// folds to one line while an AI reply on the clipboard is waiting to come in.
+	private renderWordRoute(parent: HTMLElement): void {
+		const replyWaiting = Boolean(this.clipboardBatch || this.clipboardEditorialism);
+		const card = parent.createDiv({ cls: "editorialist-control-modal__card editorialist-control-modal__word-route" });
+		card.toggleClass("is-compact", replyWaiting);
+		const head = card.createDiv({ cls: "editorialist-control-modal__step-head" });
+		setIcon(head.createSpan({ cls: "editorialist-control-modal__word-route-icon" }), "file-text");
+		head.createSpan({ cls: "editorialist-control-modal__card-title", text: "Your editor's Word file" });
+		if (!replyWaiting) {
+			card.createDiv({
+				cls: "editorialist-control-modal__step-copy",
+				text: "Tracked changes and comments come straight in as suggestions to accept or reject in each scene. No AI involved: what you review is exactly what your editor changed.",
+			});
+		}
+		buildModalFooter(card, {
+			className: "editorialist-control-modal__step-actions",
+			buttons: [
+				this.makeActionButtonSpec({
+					text: "Choose Word file…",
+					cta: !replyWaiting && !this.options.currentNoteHasReviewBlock,
+					icon: "file-input",
+					subtle: replyWaiting,
+					onClick: async () => this.chooseWordFile(),
+				}),
+			],
+		});
 	}
 
 	// Numbered so the round trip reads in order: out to the AI, then back.
@@ -314,7 +345,6 @@ export class EditorialistModal extends Modal {
 			buttons: [
 				this.makeActionButtonSpec({
 					text: "Copy instructions for AI",
-					cta: !notesBack && !this.options.currentNoteHasReviewBlock,
 					icon: "copy",
 					subtle: notesBack,
 					onClick: async () => {
@@ -350,7 +380,7 @@ export class EditorialistModal extends Modal {
 		} else if (items.length === 0) {
 			step.createDiv({
 				cls: "editorialist-control-modal__step-copy",
-				text: "Copy your AI's whole reply, then open this again: Editorialist finds it on the clipboard. An editor who tracked changes in Word can send the file instead.",
+				text: "Copy your AI's whole reply, then open this again: Editorialist finds it on the clipboard.",
 			});
 		}
 		if (items.length > 0) this.renderDetectionGrid(step, items);
@@ -381,12 +411,6 @@ export class EditorialistModal extends Modal {
 							}
 						}
 					},
-				}),
-				this.makeActionButtonSpec({
-					text: "Word file with tracked changes",
-					icon: "file-input",
-					subtle: true,
-					onClick: async () => this.chooseWordFile(),
 				}),
 			],
 		});

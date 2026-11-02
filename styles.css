@@ -9703,3 +9703,44 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	font-size: var(--font-ui-smaller);
 	color: var(--text-muted);
 }
+
+/* The Word route leads the launcher: no AI between the editor and the scene. */
+.editorialist-control-modal__word-route {
+	border-color: color-mix(in srgb, var(--interactive-accent) 45%, var(--background-modifier-border));
+}
+
+.editorialist-control-modal__word-route-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	width: 1.5rem;
+	height: 1.5rem;
+	color: var(--interactive-accent);
+}
+
+.editorialist-control-modal__word-route-icon svg {
+	width: 1.1rem;
+	height: 1.1rem;
+}
+
+.editorialist-control-modal__word-route.is-compact {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.4rem 1rem;
+}
+
+.editorialist-control-modal__word-route.is-compact .editorialist-control-modal__step-actions {
+	margin: 0;
+}
+
+.editorialist-control-modal__route-label {
+	margin: 0.2rem 0 -0.4rem;
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-semibold);
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
