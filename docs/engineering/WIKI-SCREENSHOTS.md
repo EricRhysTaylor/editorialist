@@ -176,6 +176,8 @@ the launcher shows its plain two-step state. Captured with
 Author-vault content was used.
 
 - `panel-import.png` — the whole launcher modal, cropped on its own border
-  (1226 × 1086 image pixels, 613 CSS pixels wide, shown at 560). The modal's
+  (613 CSS pixels wide, shown at 560). Recaptured the same day once the Word
+  file became the launcher's first route (1226 × 1490 image pixels), with
+  the same vault, theme and method. The modal's
   corners are 22 CSS pixels round, so it was rounded with `--radius 44`: the
   default 24 left the page behind showing through the corners.

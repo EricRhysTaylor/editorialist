@@ -216,12 +216,12 @@ Paste the reply into the review launcher: when it contains an editorialism file,
 
 ## Importing a Review Batch
 
-<p align="center"><img src="images/panel-import.png" alt="The review launcher in two numbered steps: Send your scenes out, with Copy instructions for AI, and Bring the notes back, with Paste AI reply and Word file with tracked changes" width="560"></p>
+<p align="center"><img src="images/panel-import.png" alt="The review launcher: Your editor's Word file with Choose Word file first, then Or work with an AI with two numbered steps, Send your scenes out and Bring the notes back" width="560"></p>
 
 Run **Open review launcher** (command palette). The launcher modal:
 
 1. **Checks your clipboard** — a recognized batch imports directly when placement is clear; entries needing attention open a preview.
-2. **Paste AI reply** — if the clipboard is empty or holds something else, choose **Paste AI reply** under **2 Bring the notes back** and paste; validation runs as you paste, with specific error messages. **Back** sets the paste aside.
+2. **Paste AI reply** — if the clipboard is empty or holds something else, choose **Paste AI reply** under **2 Bring the notes back** (in **Or work with an AI**) and paste; validation runs as you paste, with specific error messages. **Back** sets the paste aside.
 3. **Destination preview** — inspect placement warnings and unplaced entries. **Review mis-targeted entries** opens the correction step when needed. Otherwise use **Import placed entries** when some entries are omitted, or **Import and start review** when everything is placed. The action is disabled when nothing resolves.
 4. **Copy instructions for AI** — step 1 copies the full format guidance, both templates, and your book's actual scene-ID list to the clipboard.
 
@@ -233,7 +233,7 @@ Replies to the Editorialisms panel's **Draft fixes with AI…** and **Hand off t
 
 A copy editor or line editor who works in Word sends back a .docx with tracked changes and comments. Editorialist reads that file directly, so no AI sits between your editor's changes and your manuscript.
 
-1. Open the review launcher and choose **Word file with tracked changes** under **2 Bring the notes back**, then pick the .docx.
+1. Open the review launcher. Its first card is **Your editor's Word file**: choose **Choose Word file…** and pick the .docx.
 2. The launcher says how many edits, cuts and comments it found, and whose they are. If more than one person tracked changes (your own replies in an earlier round, for example), choose whose changes to bring in under **Changes by**. Set **Their role**; it starts as **Copy editor**.
 3. Choose **Import and start review**, or **Preview destinations** to check where each change lands first.
 

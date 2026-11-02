@@ -57,7 +57,7 @@ A five-minute walkthrough of the core loop:
 
 Run **Open review launcher** and, under **1 Send your scenes out**, click **Copy instructions for AI**. **What's included** shows the format. This copies the review batch format, the Editorialism file format, and the scenes of your manuscript target — their scene IDs, or note names for notes without IDs — to the clipboard.
 
-<p align="center"><img src="images/panel-import.png" alt="The review launcher in two numbered steps: Send your scenes out, with Copy instructions for AI, and Bring the notes back, with Paste AI reply and Word file with tracked changes" width="560"></p>
+<p align="center"><img src="images/panel-import.png" alt="The review launcher: Your editor's Word file with Choose Word file first, then Or work with an AI with two numbered steps, Send your scenes out and Bring the notes back" width="560"></p>
 
 ### 2. Get suggestions
 
@@ -67,7 +67,7 @@ The formatting instructions are written for an AI — a human reviewer never wor
 
 **Human feedback:** your editor or beta reader works however they naturally work — margin notes on a printed page, comments in a document, an email. Collect their notes in whatever form they arrive (a photo of the handwritten page, the electronic doc) and hand them to an AI along with the formatting instructions. The AI shapes everything into a properly formatted batch for Editorialist, with your human reviewer credited as the contributor.
 
-**Word file with tracked changes:** if your copy editor or line editor returns a .docx with tracked changes, skip the AI. Choose **Word file with tracked changes** in the launcher and pick the file. See [Word files with tracked changes](Importing-Reviews#word-files-with-tracked-changes).
+**Word file with tracked changes:** if your copy editor or line editor returns a .docx with tracked changes, skip the AI entirely. The launcher's first card, **Your editor's Word file**, has a **Choose Word file…** button: pick the file and its changes come straight in. See [Word files with tracked changes](Importing-Reviews#word-files-with-tracked-changes).
 
 For a normal review sweep, you want a **review batch**. It contains scene-targeted suggestions. An **Editorialism** is different: it is a separate structural checklist for broad guidance that spans scenes or the whole manuscript.
 

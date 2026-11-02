@@ -47,6 +47,16 @@ Starting a workflow card (or importing a review batch) begins a **guided review 
 | **Expand** | Add development, pacing, interiority, or connective tissue. |
 | **Memo** | Capture general scene thoughts, strengths, issues, or reviewer context without applying a line edit. |
 
+### Copy edits
+
+A copy edit is many small changes: a comma, a hyphen, a spelling. When a scene has two or more of them, they appear together in one list at the top of the panel instead of as a card each. Each row shows the change inside its sentence, the old words struck through and the new ones highlighted. Select a row to see that change in the scene.
+
+Every change starts ticked. Untick any you don't want, then choose **Accept ticked** (or **Accept all**). **Reject unticked** turns down the rest in one step; leave them unticked to think about later instead. A change counts as small when it alters a few words in one or two places; larger rewrites, moves, and suggestions that only give direction keep their full cards below.
+
+**Undo all** takes back everything you just accepted in that scene, even after the scene is complete. It works as long as you haven't changed the scene in any other way since; after that, use Obsidian's own undo.
+
+When the same fix appears in a later scene of the same import, such as *grey → gray*, its row says where you accepted or rejected it before, and a fix you rejected more often than you accepted arrives unticked. This is remembered until you close Obsidian.
+
 ### Advisory suggestions
 
 **Condense** and **Expand** sometimes arrive as direction rather than replacement prose — there is nothing for Editorialist to write, so the card is labelled **Advisory** instead of Pending, and you resolve it by rewriting the passage yourself and clicking **Mark as rewritten**, or by rejecting it.
