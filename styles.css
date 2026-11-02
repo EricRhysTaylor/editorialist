@@ -4942,26 +4942,12 @@
 .editorialist-control-modal__card,
 .editorialist-control-modal__manual,
 .editorialist-control-modal__summary,
-.editorialist-control-modal__group,
-.editorialist-control-modal__example {
+.editorialist-control-modal__group {
 	padding: 0.9rem;
 	border: 1px solid var(--background-modifier-border);
 	border-radius: var(--editorialist-radius-md);
 	background: var(--background-secondary);
 	contain: paint;
-}
-
-.editorialist-control-modal__example-header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: var(--editorialist-space-md);
-}
-
-.editorialist-control-modal__example-actions {
-	display: flex;
-	align-items: center;
-	gap: 0.4rem;
 }
 
 .editorialist-control-modal__section-title,
@@ -5344,27 +5330,13 @@
 	font-family: var(--font-default);
 }
 
-.editorialist-control-modal__button--subtle,
-.editorialist-control-modal__example-button {
+.editorialist-control-modal__button--subtle {
 	background: transparent;
 	box-shadow: none;
 }
 
 .editorialist-control-modal__button-icon {
 	color: var(--text-muted);
-}
-
-.editorialist-control-modal__example-toggle {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	padding: 0.35rem;
-}
-
-.editorialist-control-modal__example-button {
-	display: inline-flex;
-	align-items: center;
-	gap: 0.35rem;
 }
 
 .editorialist-control-modal__list {
@@ -9493,4 +9465,96 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	font-size: var(--font-ui-smaller);
 	color: var(--text-muted);
 	line-height: 1.45;
+}
+
+/* The launcher's two steps: out to the AI, then back. */
+.editorialist-control-modal__step-head {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+}
+
+.editorialist-control-modal__step-number {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	width: 1.5rem;
+	height: 1.5rem;
+	border-radius: 50%;
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-semibold);
+}
+
+.editorialist-control-modal__step-copy {
+	margin: 0.45rem 0 0 2.1rem;
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+	line-height: 1.45;
+	max-width: 62ch;
+}
+
+.editorialist-control-modal__step-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.4rem;
+	margin: var(--editorialist-space-md) 0 0 2.1rem;
+}
+
+.editorialist-control-modal__step .editorialist-control-modal__detection-grid,
+.editorialist-control-modal__step .editorialist-control-modal__example-description,
+.editorialist-control-modal__step .editorialist-control-modal__example-block {
+	margin-inline-start: 2.1rem;
+}
+
+.editorialist-control-modal__step .editorialist-control-modal__detection-grid,
+.editorialist-control-modal__step .editorialist-control-modal__example-description {
+	margin-top: var(--editorialist-space-md);
+}
+
+/* A finished step folds to one line, its button beside the title. */
+.editorialist-control-modal__step.is-compact {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.4rem 1rem;
+}
+
+.editorialist-control-modal__step.is-compact .editorialist-control-modal__step-number {
+	background: var(--background-modifier-hover);
+	color: var(--text-muted);
+}
+
+.editorialist-control-modal__step.is-compact .editorialist-control-modal__step-actions {
+	margin: 0;
+}
+
+.editorialist-control-modal__step.is-compact .editorialist-control-modal__example-description,
+.editorialist-control-modal__step.is-compact .editorialist-control-modal__example-block {
+	flex-basis: 100%;
+}
+
+.editorialist-control-modal__back {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3rem;
+	margin-bottom: var(--editorialist-space-md);
+	padding: 0.2rem 0.5rem;
+	background: transparent;
+	box-shadow: none;
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+
+@media (width <= 720px) {
+	.editorialist-control-modal__step-copy,
+	.editorialist-control-modal__step-actions,
+	.editorialist-control-modal__step .editorialist-control-modal__detection-grid,
+	.editorialist-control-modal__step .editorialist-control-modal__example-description,
+	.editorialist-control-modal__step .editorialist-control-modal__example-block {
+		margin-inline-start: 0;
+	}
 }

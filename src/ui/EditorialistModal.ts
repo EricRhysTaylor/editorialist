@@ -1,11 +1,10 @@
-import { setAccessibleLabel } from "./primitives/AccessibleLabel";
 import {
 	extractEditorialismFileFromText,
 	removeEditorialismFromText,
 	type ExtractedEditorialismFile,
 } from "../core/EditorialismImport";
 import { parseEditorialism } from "../core/EditorialismParser";
-import { ButtonComponent, DropdownComponent, Modal, Notice, TextAreaComponent, setIcon, type App } from "obsidian";
+import { DropdownComponent, Modal, Notice, TextAreaComponent, setIcon, type App } from "obsidian";
 import { buildModalFooter, type ModalFooterButtonSpec } from "./primitives/ModalFooter";
 import { getReviewBlockFenceLabel, type NoteReviewBlockState } from "../core/ReviewBlockFormat";
 import {
@@ -121,7 +120,7 @@ interface DetectionItem {
 	done?: boolean;
 	emphasized?: boolean;
 	icon: string;
-	id: "active-book" | "clipboard" | "current-note" | "editorialism" | "next-note" | "template";
+	id: "active-book" | "current-note" | "editorialism" | "next-note";
 	label: string;
 	tone: DetectionTone;
 }
@@ -236,12 +235,21 @@ export class EditorialistModal extends Modal {
 	private render(): void {
 		this.contentEl.empty();
 		const shell = this.contentEl.createDiv({ cls: "editorialist-control-modal__content" });
-
 		this.renderHeader(shell);
-		if (!this.showManualPaste || !this.manualText.trim()) this.renderPrimaryState(shell);
 
-		if (this.showManualPaste) {
+		// A paste or Word file being checked takes the launcher over until it is
+		// imported or set aside.
+		if (this.showManualPaste && this.manualText.trim()) {
 			this.renderManualPaste(shell);
+		} else if (this.clipboardState === "checking") {
+			this.renderMessageCard(shell, "Checking your clipboard…", "Looking for revision notes from your AI.");
+		} else if (this.shouldOfferAuthoredImport()) {
+			this.renderUnimportedNoteState(shell);
+		} else {
+			this.renderContinue(shell);
+			this.renderSendStep(shell);
+			this.renderBringBackStep(shell);
+			if (this.showManualPaste) this.renderManualPaste(shell);
 		}
 
 		const batchToPreview = this.getPreviewBatch();
@@ -249,8 +257,6 @@ export class EditorialistModal extends Modal {
 			// The manual section already carries its own import button above.
 			this.renderAssignments(shell, batchToPreview, !this.showManualPaste);
 		}
-
-		this.renderExample(shell);
 	}
 
 	private renderHeader(parent: HTMLElement): void {
@@ -262,80 +268,128 @@ export class EditorialistModal extends Modal {
 		const text = header.createDiv({ cls: "editorialist-control-modal__header-text" });
 		text.createDiv({
 			cls: "editorialist-control-modal__title",
-			text: "Editorialist",
+			text: "Revision notes",
 		});
 		text.createDiv({
 			cls: "editorialist-control-modal__description",
-			text: "Import formatted revision notes or a Word file with tracked changes, continue in this note, or copy formatting instructions for your AI.",
+			text: "Send your scenes to an AI with Editorialist's instructions, then bring its notes back. A Word file with tracked changes comes straight in.",
 		});
 	}
 
-	private renderPrimaryState(parent: HTMLElement): void {
-		if (this.clipboardState === "checking") {
-			this.renderMessageCard(
-				parent,
-				"Checking clipboard and current note.",
-				`Looking for ${getReviewBlockFenceLabel()} formatted revision notes.`,
-			);
-			return;
-		}
-
-		if (this.clipboardBatch) {
-			this.renderClipboardState(parent, this.clipboardBatch);
-			return;
-		}
-
-		if (this.shouldOfferAuthoredImport()) {
-			this.renderUnimportedNoteState(parent);
-			return;
-		}
-
-		if (this.options.currentNoteHasReviewBlock) {
-			this.renderCurrentNoteState(parent);
-			return;
-		}
-
-		this.renderEmptyState(parent);
+	// A review already under way in this scene comes before starting another.
+	private renderContinue(parent: HTMLElement): void {
+		const items = this.getContinueItems();
+		if (items.length === 0) return;
+		const unitLabel = this.options.noteUnitLabel ?? "note";
+		const card = parent.createDiv({ cls: "editorialist-control-modal__card" });
+		card.createDiv({
+			cls: "editorialist-control-modal__card-title",
+			text: this.options.currentNoteStatus === "completed" ? `This ${unitLabel} is reviewed` : "Continue reviewing",
+		});
+		this.renderDetectionGrid(card, items);
 	}
 
-	private renderClipboardState(parent: HTMLElement, clipboardBatch: ClipboardReviewBatch): void {
-		const card = parent.createDiv({ cls: "editorialist-control-modal__card" });
-		this.renderSelectionSummary(card, clipboardBatch.batch);
-
-		this.renderDetectionGrid(card, clipboardBatch.batch);
-		this.renderSecondaryActions(card, [
-			{
-				icon: "clipboard",
-				label: this.showManualPaste ? "Hide pasted notes" : "Paste formatted revision notes",
-				onClick: async () => {
-					this.showManualPaste = !this.showManualPaste;
-					if (this.showManualPaste && !this.manualText.trim()) {
-						this.manualText = clipboardBatch.rawText;
-						this.scheduleManualValidation();
-					}
-					this.render();
-				},
-			},
-			this.wordFileAction(),
-		]);
+	// Numbered so the round trip reads in order: out to the AI, then back.
+	private renderStep(parent: HTMLElement, number: number, title: string, compact: boolean): HTMLElement {
+		const step = parent.createDiv({ cls: "editorialist-control-modal__card editorialist-control-modal__step" });
+		step.toggleClass("is-compact", compact);
+		const head = step.createDiv({ cls: "editorialist-control-modal__step-head" });
+		head.createSpan({ cls: "editorialist-control-modal__step-number", text: String(number) });
+		head.createSpan({ cls: "editorialist-control-modal__card-title", text: title });
+		return step;
 	}
 
-	private renderCurrentNoteState(parent: HTMLElement): void {
-		const card = parent.createDiv({ cls: "editorialist-control-modal__card" });
-		this.renderSelectionSummary(card);
+	private renderSendStep(parent: HTMLElement): void {
+		// With notes already back, this step is done for now: one line.
+		const notesBack = Boolean(this.clipboardBatch || this.clipboardEditorialism);
+		const step = this.renderStep(parent, 1, "Send your scenes out", notesBack);
+		if (!notesBack) {
+			step.createDiv({
+				cls: "editorialist-control-modal__step-copy",
+				text: "Copy the instructions and paste them into your AI with the scenes you want reviewed. For an editor's or reader's notes, paste their notes in too, and the AI puts them in Editorialist's format.",
+			});
+		}
+		buildModalFooter(step, {
+			className: "editorialist-control-modal__step-actions",
+			buttons: [
+				this.makeActionButtonSpec({
+					text: "Copy instructions for AI",
+					cta: !notesBack && !this.options.currentNoteHasReviewBlock,
+					icon: "copy",
+					subtle: notesBack,
+					onClick: async () => {
+						await this.options.onCopyTemplate();
+					},
+				}),
+				this.makeActionButtonSpec({
+					text: this.showExample ? "Hide what's included" : "What's included",
+					icon: this.showExample ? "chevron-up" : "chevron-down",
+					subtle: true,
+					onClick: async () => {
+						this.showExample = !this.showExample;
+					},
+				}),
+			],
+		});
+		if (!this.showExample) return;
+		step.createDiv({
+			cls: "editorialist-control-modal__example-description",
+			text: `${ADVANCED_REVIEW_TEMPLATE_TITLE}. Your AI can suggest ${SUPPORTED_REVIEW_OPERATION_SUMMARY}, and the instructions list your scenes so each note lands in the right one.`,
+		});
+		step.createEl("pre", {
+			cls: "editorialist-control-modal__example-block",
+			text: REVIEW_TEMPLATE_BLOCK,
+		});
+	}
 
-		this.renderDetectionGrid(card);
-		this.renderSecondaryActions(card, [
-			...(this.options.isReviewPanelOpen ? [] : [{
-				icon: "pen-tool",
-				label: "Open revisions side-panel",
-				onClick: async () => {
-					await this.options.onOpenReviewPanel();
-					this.close();
-				},
-			}]),
-			this.wordFileAction(),
-		]);
+	private renderBringBackStep(parent: HTMLElement): void {
+		const step = this.renderStep(parent, 2, "Bring the notes back", false);
+		const items = this.getClipboardItems();
+		if (this.hasTwoParts()) {
+			step.createDiv({ cls: "editorialist-control-modal__step-copy", text: this.describeTwoPartProgress() });
+		} else if (items.length === 0) {
+			step.createDiv({
+				cls: "editorialist-control-modal__step-copy",
+				text: "Copy your AI's whole reply, then open this again: Editorialist finds it on the clipboard. An editor who tracked changes in Word can send the file instead.",
+			});
+		}
+		if (items.length > 0) this.renderDetectionGrid(step, items);
+
+		const clipboardBatch = this.clipboardBatch;
+		buildModalFooter(step, {
+			className: "editorialist-control-modal__step-actions",
+			buttons: [
+				...(clipboardBatch ? [this.makeActionButtonSpec({
+					text: "Preview destinations",
+					icon: "navigation",
+					subtle: true,
+					onClick: async () => {
+						this.showAssignments = true;
+					},
+				})] : []),
+				this.makeActionButtonSpec({
+					text: this.showManualPaste ? "Hide pasted reply" : "Paste AI reply",
+					icon: "clipboard",
+					subtle: true,
+					onClick: async () => {
+						this.showManualPaste = !this.showManualPaste;
+						if (this.showManualPaste && !this.manualText.trim()) {
+							const pasted = clipboardBatch?.rawText ?? (this.clipboardEditorialism ? this.clipboardText : "");
+							if (pasted) {
+								this.manualText = pasted;
+								this.scheduleManualValidation();
+							}
+						}
+					},
+				}),
+				this.makeActionButtonSpec({
+					text: "Word file with tracked changes",
+					icon: "file-input",
+					subtle: true,
+					onClick: async () => this.chooseWordFile(),
+				}),
+			],
+		});
 	}
 
 	private renderUnimportedNoteState(parent: HTMLElement): void {
@@ -374,32 +428,6 @@ export class EditorialistModal extends Modal {
 				}),
 			],
 		});
-	}
-
-	private renderEmptyState(parent: HTMLElement): void {
-		const card = parent.createDiv({ cls: "editorialist-control-modal__card" });
-		this.renderSelectionSummary(card);
-
-		this.renderDetectionGrid(card);
-		this.renderSecondaryActions(card, [
-			{
-				icon: "clipboard",
-				label: this.showManualPaste ? "Hide pasted notes" : "Paste formatted revision notes",
-				onClick: async () => {
-					this.showManualPaste = !this.showManualPaste;
-					this.render();
-				},
-			},
-			this.wordFileAction(),
-		]);
-	}
-
-	private wordFileAction(): { icon: string; label: string; onClick: () => Promise<void> } {
-		return {
-			icon: "file-input",
-			label: "Import Word file with tracked changes",
-			onClick: async () => this.chooseWordFile(),
-		};
 	}
 
 	private chooseWordFile(): void {
@@ -506,25 +534,47 @@ export class EditorialistModal extends Modal {
 		}
 	}
 
+	// Set the paste or Word file aside and return to the two steps.
+	private renderBackToSteps(parent: HTMLElement): void {
+		const back = parent.createEl("button", { cls: "editorialist-control-modal__back" });
+		setIcon(back.createSpan({ cls: "editorialist-control-modal__button-icon" }), "arrow-left");
+		back.createSpan({ text: "Back" });
+		back.addEventListener("click", () => {
+			if (this.manualValidationTimer !== null) {
+				window.clearTimeout(this.manualValidationTimer);
+				this.manualValidationTimer = null;
+			}
+			this.showManualPaste = false;
+			this.showAssignments = false;
+			this.manualText = "";
+			this.manualBatch = null;
+			this.wordImport = null;
+			this.manualImportError = null;
+			this.manualValidationState = "idle";
+			this.render();
+		});
+	}
+
 	private renderManualPaste(parent: HTMLElement): void {
 		const section = parent.createDiv({ cls: "editorialist-control-modal__manual" });
+		if (this.manualText.trim()) this.renderBackToSteps(section);
 		const word = this.wordImport && this.manualText === this.wordImport.conversion.text ? this.wordImport : null;
 		if (word) {
 			this.renderWordSummary(section, word);
 		} else {
 			section.createDiv({
 				cls: "editorialist-control-modal__section-title",
-				text: "Paste formatted revision notes",
+				text: "Paste your AI's reply",
 			});
 			section.createDiv({
 				cls: "editorialist-control-modal__section-copy",
-				text: "Paste formatted revision notes here.",
+				text: "Paste the whole reply. Editorialist checks it as you paste.",
 			});
 
 			const inputContainer = section.createDiv({ cls: "editorialist-control-modal__input" });
 			const textArea = new TextAreaComponent(inputContainer);
 			textArea.inputEl.addClass("editorialist-control-modal__textarea");
-			textArea.setPlaceholder("Paste formatted revision notes here");
+			textArea.setPlaceholder("Paste your AI's reply here");
 			textArea.setValue(this.manualText);
 			textArea.onChange((value) => {
 				this.manualText = value;
@@ -921,51 +971,7 @@ export class EditorialistModal extends Modal {
 		return `${group.suggestions.length} formatted revision notes • ${group.exactCount} exact • ${group.advisoryCount} advisory • ${group.mismatchCount} mismatched • ${group.unresolvedCount} unresolved${memoSuffix}`;
 	}
 
-	private renderExample(parent: HTMLElement): void {
-		const example = parent.createDiv({ cls: "editorialist-control-modal__example" });
-		const header = example.createDiv({ cls: "editorialist-control-modal__example-header" });
-		header.createDiv({
-			cls: "editorialist-control-modal__section-title",
-			text: ADVANCED_REVIEW_TEMPLATE_TITLE,
-		});
-
-		const actions = header.createDiv({ cls: "editorialist-control-modal__example-actions" });
-		const copy = new ButtonComponent(actions)
-			.setButtonText("Copy formatting instructions")
-			.onClick(() => {
-				void this.runAction(async () => {
-					await this.options.onCopyTemplate();
-				});
-			});
-		copy.buttonEl.addClass("editorialist-control-modal__example-button");
-		setIcon(copy.buttonEl.createSpan({ cls: "editorialist-control-modal__button-icon" }), "copy");
-
-		const toggle = new ButtonComponent(actions)
-			.setIcon(this.showExample ? "chevron-up" : "chevron-down")
-			.onClick(() => {
-				this.showExample = !this.showExample;
-				this.render();
-			});
-		setAccessibleLabel(toggle.buttonEl, this.showExample ? "Hide formatting instructions" : "Show formatting instructions");
-		toggle.buttonEl.addClass("editorialist-control-modal__example-toggle");
-
-		if (!this.showExample) {
-			return;
-		}
-
-		example.createDiv({
-			cls: "editorialist-control-modal__example-description",
-			text: `Use this advanced template with your AI. Supported operations: ${SUPPORTED_REVIEW_OPERATION_SUMMARY}. Return only the fenced block. No extra text.`,
-		});
-
-		example.createEl("pre", {
-			cls: "editorialist-control-modal__example-block",
-			text: REVIEW_TEMPLATE_BLOCK,
-		});
-	}
-
-	private renderDetectionGrid(parent: HTMLElement, batch?: ReviewImportBatch): void {
-		const items = this.getDetectionItems(batch);
+	private renderDetectionGrid(parent: HTMLElement, items: readonly DetectionItem[]): void {
 		const grid = parent.createDiv({ cls: "editorialist-control-modal__detection-grid" });
 		if (items.length >= 3) {
 			grid.addClass("editorialist-control-modal__detection-grid--triple");
@@ -1006,22 +1012,6 @@ export class EditorialistModal extends Modal {
 		}
 	}
 
-	private renderSelectionSummary(parent: HTMLElement, batch?: ReviewImportBatch): void {
-		const items = this.getDetectionItems(batch);
-		const availableCount = items.filter((item) => !item.disabled).length;
-		const selectionSummary = this.getSelectionSummary(items);
-		parent.createDiv({
-			cls: "editorialist-control-modal__card-title",
-			text: selectionSummary.title,
-		});
-		parent.createDiv({
-			cls: "editorialist-control-modal__card-copy",
-			text: selectionSummary.omitCount
-				? selectionSummary.copy ?? ""
-				: `${availableCount} option${availableCount === 1 ? "" : "s"} available${selectionSummary.copy ? ` • ${selectionSummary.copy}` : ""}`,
-		});
-	}
-
 	private describeTwoPartProgress(): string {
 		if (this.batchImported && this.editorialismSaved) {
 			return "Both parts are imported.";
@@ -1033,32 +1023,6 @@ export class EditorialistModal extends Modal {
 			return "Editorialism imported. Import the revision notes too.";
 		}
 		return "Revision notes for your scenes and an editorialism for your library. Import each one.";
-	}
-
-	private renderSecondaryActions(
-		parent: HTMLElement,
-		actionsConfig: Array<{
-			icon: string;
-			label: string;
-			onClick: () => Promise<void>;
-		}>,
-	): void {
-		if (actionsConfig.length === 0) {
-			return;
-		}
-
-		parent.createEl("hr", { cls: "editorialist-control-modal__divider" });
-		buildModalFooter(parent, {
-			className: "editorialist-control-modal__secondary-actions",
-			buttons: actionsConfig.map((action) =>
-				this.makeActionButtonSpec({
-					text: action.label,
-					icon: action.icon,
-					subtle: true,
-					onClick: action.onClick,
-				}),
-			),
-		});
 	}
 
 	private renderManualImportError(parent: HTMLElement, error: ManualImportError): void {
@@ -1348,71 +1312,45 @@ export class EditorialistModal extends Modal {
 		return this.options.detectFileWrittenReviewBlocks && this.options.currentNoteReviewBlockState === "unimported";
 	}
 
-	private getClipboardTone(): DetectionTone {
-		if (this.clipboardState === "ready") {
-			return "success";
-		}
-
-		if (this.clipboardState === "empty") {
-			return "danger";
-		}
-
-		return "muted";
-	}
-
 	private getHeaderIconTone(): DetectionTone {
-		return this.getClipboardTone();
+		return this.clipboardState === "ready" ? "success" : "muted";
 	}
 
-	private getSelectionSummary(items: DetectionItem[]): { copy?: string; title: string; omitCount?: boolean } {
-		if (this.hasTwoParts()) {
-			return { title: "This paste has two parts", copy: this.describeTwoPartProgress(), omitCount: true };
-		}
+	private getContinueItems(): DetectionItem[] {
+		if (!this.options.currentNoteHasReviewBlock) return [];
 		const currentUnitLabel = this.options.noteUnitLabel ?? "note";
-		const nextLabel = this.options.nextNoteLabel;
-		const isCurrentComplete = this.options.currentNoteHasReviewBlock && this.options.currentNoteStatus === "completed";
-		if (isCurrentComplete && nextLabel) {
-			return {
-				title: `Current ${currentUnitLabel} complete`,
-				copy: `Continue with ${nextLabel} or reopen this ${currentUnitLabel}`,
-			};
+		const isCurrentComplete = this.options.currentNoteStatus === "completed";
+		const items: DetectionItem[] = [
+			{
+				actionHint: isCurrentComplete ? `→ Open completed ${currentUnitLabel}` : "→ Start review",
+				emphasized: !isCurrentComplete,
+				icon: "file-text",
+				id: "current-note",
+				label: this.options.activeNoteLabel ? `Current ${currentUnitLabel}: ${this.options.activeNoteLabel}` : `Current ${currentUnitLabel}`,
+				description: isCurrentComplete ? "All revision notes already processed" : "Revision notes waiting",
+				tone: isCurrentComplete ? "muted" : "success",
+			},
+		];
+		if (isCurrentComplete && this.options.nextNoteLabel) {
+			items.push({
+				actionHint: `→ Open next ${currentUnitLabel}`,
+				emphasized: true,
+				icon: "arrow-right",
+				id: "next-note",
+				label: `Next ${currentUnitLabel}: ${this.options.nextNoteLabel}`,
+				description: `Continue review in the next ${currentUnitLabel}`,
+				tone: "success",
+			});
 		}
-
-		if (isCurrentComplete) {
-			return {
-				title: `Current ${currentUnitLabel} complete`,
-				copy: `This ${currentUnitLabel} is already processed`,
-			};
-		}
-
-		if (items.some((item) => item.id === "next-note")) {
-			return {
-				title: "Please make your selection",
-				copy: `Continue with the next ${currentUnitLabel} when you are ready`,
-			};
-		}
-
-		return {
-			title: "Please make your selection",
-		};
+		return items;
 	}
 
-	private getDetectionItems(batch?: ReviewImportBatch): DetectionItem[] {
-		const items = this.getReviewDetectionItems(batch);
+	// What the clipboard holds: revision notes and where they go, an
+	// editorialism, or both.
+	private getClipboardItems(): DetectionItem[] {
 		const editorialism = this.getEditorialismDetectionItem();
-		if (!editorialism) {
-			return items;
-		}
-		// Without a batch the clipboard card would read "No formatted revision
-		// notes", which is wrong when it holds an editorialism.
-		return [
-			...items.map((item) =>
-				item.id === "clipboard" && !this.clipboardBatch
-					? { ...item, description: "Editorialism found", tone: "success" as const }
-					: item,
-			),
-			editorialism,
-		];
+		const items = this.getBatchDetectionItems();
+		return editorialism ? [...items, editorialism] : items;
 	}
 
 	private getEditorialismDetectionItem(): DetectionItem | null {
@@ -1444,156 +1382,58 @@ export class EditorialistModal extends Modal {
 		};
 	}
 
-	private getReviewDetectionItems(batch?: ReviewImportBatch): DetectionItem[] {
-		const activeBatch = this.clipboardBatch?.batch ?? batch;
-		const localNoteBatch = activeBatch ? isLocalNoteBatch(activeBatch) : false;
-		const currentUnitLabel = this.options.noteUnitLabel ?? "note";
-		const currentNoteStatus = this.options.currentNoteStatus ?? "ready";
-		const isCurrentComplete = currentNoteStatus === "completed";
-		const clipboardDescription =
-			this.clipboardState === "ready"
-				? "Formatted revision notes found"
-				: this.clipboardState === "empty"
-					? "No formatted revision notes"
-					: "Checking clipboard";
+	private getBatchDetectionItems(): DetectionItem[] {
+		const activeBatch = this.clipboardBatch?.batch;
+		if (!activeBatch) return [];
+		const localNoteBatch = isLocalNoteBatch(activeBatch);
+		const label = localNoteBatch
+			? (this.options.activeNoteLabel ? `Current note: ${this.options.activeNoteLabel}` : "Current note")
+			: "Matching scenes";
 
-		if (this.options.currentNoteHasReviewBlock) {
-			const items: DetectionItem[] = [
-				{
-					actionHint: isCurrentComplete ? `→ Open completed ${currentUnitLabel}` : "→ Start review",
-					emphasized: !isCurrentComplete,
-					icon: "file-text",
-					id: "current-note",
-					label: this.options.activeNoteLabel ? `Current ${currentUnitLabel}: ${this.options.activeNoteLabel}` : `Current ${currentUnitLabel}`,
-					description: isCurrentComplete ? "All revision notes already processed" : "Formatted revision notes found",
-					tone: isCurrentComplete ? "muted" : "success",
-				},
-			];
-
-			if (isCurrentComplete && this.options.nextNoteLabel) {
-				items.push({
-					actionHint: `→ Open next ${currentUnitLabel}`,
-					emphasized: true,
-					icon: "arrow-right",
-					id: "next-note",
-					label: `Next ${currentUnitLabel}: ${this.options.nextNoteLabel}`,
-					description: `Continue review in the next ${currentUnitLabel}`,
-					tone: "success",
-				});
-			}
-
-			items.push({
-				actionHint:
-					this.clipboardState === "ready"
-						? "→ Preview notes"
-						: "→ Paste review",
-				emphasized: false,
-				icon: "clipboard",
-				id: "clipboard",
-				label: "Clipboard",
-				description: this.batchImported
-					? "Revision notes already imported"
-					: this.hasTwoParts()
-						? "Revision notes and an editorialism"
-						: clipboardDescription,
-				tone: this.getClipboardTone(),
-			});
-
-			return items;
+		// Imported before: say so. Clicking still runs the import, whose
+		// duplicate prompt offers to open the existing review.
+		if (this.batchImported) {
+			const scenes = this.getReadySceneShortLabels(activeBatch);
+			return [{
+				actionHint: "✓ Imported",
+				done: true,
+				icon: "check-circle-2",
+				id: "active-book",
+				label,
+				description: scenes.length > 0
+					? `${this.describeBatchEntries(activeBatch)} · ${scenes.slice(0, 6).join(", ")}${scenes.length > 6 ? ` +${scenes.length - 6}` : ""}`
+					: this.describeBatchEntries(activeBatch),
+				tone: "success",
+			}];
 		}
 
-		if (this.clipboardBatch || batch) {
-			const readyGroups = activeBatch ? this.hasImportReadyGroup(activeBatch) : false;
-			const hasSceneMatches = activeBatch ? this.hasAnySceneMatch(activeBatch) : false;
-			const clipboardItem: DetectionItem = {
-				actionHint: "→ Preview notes",
-				emphasized: !readyGroups && !this.batchImported,
-				icon: "clipboard",
-				id: "clipboard",
-				label: "Clipboard",
-				description: this.hasTwoParts() ? "Revision notes and an editorialism" : "Formatted revision notes found",
-				tone: "success",
-			};
-
-			// Imported before: say so. Clicking still runs the import, whose
-			// duplicate prompt offers to open the existing review.
-			if (this.batchImported && activeBatch) {
-				const scenes = this.getReadySceneShortLabels(activeBatch);
-				return [
-					clipboardItem,
-					{
-						actionHint: "✓ Imported",
-						done: true,
-						icon: "check-circle-2",
-						id: "active-book",
-						label: localNoteBatch
-							? (this.options.activeNoteLabel ? `Current note: ${this.options.activeNoteLabel}` : "Current note")
-							: "Matching scenes",
-						description: scenes.length > 0
-							? `${this.describeBatchEntries(activeBatch)} · ${scenes.slice(0, 6).join(", ")}${scenes.length > 6 ? ` +${scenes.length - 6}` : ""}`
-							: this.describeBatchEntries(activeBatch),
-						tone: "success",
-					},
-				];
-			}
-
-			return [
-				clipboardItem,
-				{
-					actionHint: readyGroups
-						? "→ Import review"
-						: hasSceneMatches
-							? "→ Review matches"
-							: "→ No valid destination",
-					disabled: localNoteBatch ? false : !readyGroups && !hasSceneMatches,
-					emphasized: localNoteBatch || readyGroups,
-					icon: localNoteBatch ? "file-text" : readyGroups ? "map-pinned" : "triangle-alert",
-					id: "active-book",
-					label: localNoteBatch
-						? (this.options.activeNoteLabel ? `Current note: ${this.options.activeNoteLabel}` : "Current note")
-						: "Matching scenes",
-					description: localNoteBatch
-						? "Ready for this note"
-						: readyGroups && activeBatch
-							? this.formatReadyScenesDescription(activeBatch) + this.formatUnroutedMemoSuffix(activeBatch)
-						: hasSceneMatches
-							? "Only ambiguous or unresolved scene matches found"
-							: activeBatch && activeBatch.unroutedMemos.length > 0
-								? "Memo SceneIds matched no scene in the active book"
-								: "No matching scene text found",
-					tone: localNoteBatch || readyGroups ? "success" : "danger",
-				},
-			];
-		}
-
-		return [
-			{
-				actionHint: "→ Copy instructions",
-				emphasized: true,
-				icon: "copy",
-				id: "template",
-				label: "Copy instructions",
-				description: `${ADVANCED_REVIEW_TEMPLATE_TITLE} for ${SUPPORTED_REVIEW_OPERATION_SUMMARY}`,
-				tone: "success",
-			},
-			{
-				actionHint: "→ Paste review",
-				emphasized: false,
-				icon: "clipboard",
-				id: "clipboard",
-				label: "Clipboard",
-				description: "No formatted revision notes",
-				tone: "danger",
-			},
-		];
+		const readyGroups = this.hasImportReadyGroup(activeBatch);
+		const hasSceneMatches = this.hasAnySceneMatch(activeBatch);
+		return [{
+			actionHint: readyGroups
+				? "→ Import and start review"
+				: hasSceneMatches
+					? "→ Review matches"
+					: "→ No valid destination",
+			disabled: localNoteBatch ? false : !readyGroups && !hasSceneMatches,
+			emphasized: localNoteBatch || readyGroups,
+			icon: localNoteBatch ? "file-text" : readyGroups ? "map-pinned" : "triangle-alert",
+			id: "active-book",
+			label,
+			description: localNoteBatch
+				? "AI reply found, ready for this note"
+				: readyGroups
+					? `AI reply found · ${this.formatReadyScenesDescription(activeBatch)}${this.formatUnroutedMemoSuffix(activeBatch)}`
+					: hasSceneMatches
+						? "AI reply found, but only ambiguous or unresolved scene matches"
+						: activeBatch.unroutedMemos.length > 0
+							? "AI reply found, but its SceneIds match no scene in the active book"
+							: "AI reply found, but no matching scene text",
+			tone: localNoteBatch || readyGroups ? "success" : "danger",
+		}];
 	}
 
 	private async handleDetectionAction(id: DetectionItem["id"]): Promise<void> {
-		if (id === "template") {
-			await this.options.onCopyTemplate();
-			return;
-		}
-
 		if (id === "current-note") {
 			if (!this.options.currentNoteHasReviewBlock) {
 				return;
@@ -1607,22 +1447,6 @@ export class EditorialistModal extends Modal {
 		if (id === "next-note") {
 			await this.options.onStartReviewInNextNote();
 			this.close();
-			return;
-		}
-
-		if (id === "clipboard") {
-			if (this.clipboardBatch) {
-				this.showAssignments = true;
-				this.render();
-				return;
-			}
-
-			this.showManualPaste = true;
-			if (this.clipboardEditorialism && !this.manualText.trim()) {
-				this.manualText = this.clipboardText;
-				this.scheduleManualValidation();
-			}
-			this.render();
 			return;
 		}
 
