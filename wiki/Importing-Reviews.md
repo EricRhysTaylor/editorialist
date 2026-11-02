@@ -229,6 +229,27 @@ Import appends review blocks to the targeted scene notes. Nothing else in the no
 
 Replies to the Editorialisms panel's **Draft fixes with AI…** and **Hand off to AI** prompts are ordinary review batches and come in the same way — see [Handing directives to AI](Editorialisms-Panel#handing-directives-to-ai).
 
+## Word files with tracked changes
+
+A copy editor or line editor who works in Word sends back a .docx with tracked changes and comments. Editorialist reads that file directly, so no AI sits between your editor's changes and your manuscript.
+
+1. Open the review launcher and choose **Import Word file with tracked changes**, then pick the .docx.
+2. The launcher says how many edits, cuts and comments it found, and whose they are. If more than one person tracked changes (your own replies in an earlier round, for example), choose whose changes to bring in under **Changes by**. Set **Their role**; it starts as **Copy editor**.
+3. Choose **Import and start review**, or **Preview destinations** to check where each change lands first.
+
+Each tracked change becomes a suggestion covering the sentence it sits in, as the sentence read before the edit and as your editor left it. Changes in the same sentence come in as one suggestion. A deleted paragraph becomes a cut, and a paragraph your editor added joins the end of the paragraph above it. A comment on a changed sentence becomes that suggestion's reason; any other comment becomes a memo on its scene. Your editor is credited as the contributor, and the import joins their editorial delivery like any other.
+
+When you apply a suggestion, only the words your editor changed are written. Your own quotation marks, dashes, italics and bold stay as they are in the rest of the sentence, even though Word shows them differently.
+
+**Send a file that keeps scene IDs.** Export the manuscript with Radial Timeline's **Editor round** option, which puts each scene's ID in its heading. Editorialist then knows which scene every change belongs to. Without scene IDs, each change is placed by finding its sentence in your book, and a comment that is not on a changed sentence cannot be placed at all.
+
+The launcher lists anything it leaves out:
+
+- **Formatting changes**, such as a word put in italics. Make these by hand.
+- **Changes to headings.**
+- **Paragraphs split or joined.** The wording comes in; the paragraph break does not.
+- **Comments** that cannot be tied to a scene.
+
 ## After import: deliveries and planning
 
 The canonical formatting instructions include both formats, actual-reviewer attribution, supported effort metadata, and guidance for stable checklist updates. Copy them afresh from the launcher when starting a new review.

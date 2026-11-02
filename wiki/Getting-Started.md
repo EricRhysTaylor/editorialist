@@ -67,6 +67,8 @@ The formatting instructions are written for an AI — a human reviewer never wor
 
 **Human feedback:** your editor or beta reader works however they naturally work — margin notes on a printed page, comments in a document, an email. Collect their notes in whatever form they arrive (a photo of the handwritten page, the electronic doc) and hand them to an AI along with the formatting instructions. The AI shapes everything into a properly formatted batch for Editorialist, with your human reviewer credited as the contributor.
 
+**Word file with tracked changes:** if your copy editor or line editor returns a .docx with tracked changes, skip the AI. Choose **Import Word file with tracked changes** in the launcher and pick the file. See [Word files with tracked changes](Importing-Reviews#word-files-with-tracked-changes).
+
 For a normal review sweep, you want a **review batch**. It contains scene-targeted suggestions. An **Editorialism** is different: it is a separate structural checklist for broad guidance that spans scenes or the whole manuscript.
 
 ### 3. Import the batch

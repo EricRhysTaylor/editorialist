@@ -5,7 +5,7 @@ import {
 	type ExtractedEditorialismFile,
 } from "../core/EditorialismImport";
 import { parseEditorialism } from "../core/EditorialismParser";
-import { ButtonComponent, Modal, Notice, TextAreaComponent, setIcon, type App } from "obsidian";
+import { ButtonComponent, DropdownComponent, Modal, Notice, TextAreaComponent, setIcon, type App } from "obsidian";
 import { buildModalFooter, type ModalFooterButtonSpec } from "./primitives/ModalFooter";
 import { getReviewBlockFenceLabel, type NoteReviewBlockState } from "../core/ReviewBlockFormat";
 import {
@@ -20,6 +20,14 @@ import {
 	hasAnySceneMatch,
 	hasImportReadyGroup,
 } from "../core/review/ClipboardImportDecision";
+import {
+	convertWordTrackedChanges,
+	listWordAuthors,
+	readWordDocument,
+	type WordAuthor,
+	type WordConversion,
+	type WordDocument,
+} from "../core/word/WordTrackedChanges";
 import {
 	hasImportableEntries,
 	isLocalNoteBatch,
@@ -82,6 +90,27 @@ interface ManualImportError {
 }
 
 type ClipboardState = "checking" | "ready" | "empty";
+
+// A Word file read for its tracked changes, converted for one author at a time.
+interface WordImport {
+	fileName: string;
+	document: WordDocument;
+	authors: WordAuthor[];
+	author: string;
+	reviewerType: string;
+	conversion: WordConversion;
+}
+
+const WORD_REVIEWER_ROLES: ReadonlyArray<[string, string]> = [
+	["copy-editor", "Copy editor"],
+	["line-editor", "Line editor"],
+	["editor", "Editor"],
+	["developmental-editor", "Developmental editor"],
+	["publisher-editor", "Publisher's editor"],
+	["agent", "Agent"],
+	["beta-reader", "Beta reader"],
+	["sensitivity-reader", "Sensitivity reader"],
+];
 type DetectionTone = "danger" | "muted" | "success";
 
 interface DetectionItem {
@@ -116,6 +145,7 @@ export class EditorialistModal extends Modal {
 	private showAssignments = false;
 	private showExample = false;
 	private showManualPaste = false;
+	private wordImport: WordImport | null = null;
 
 	constructor(app: App, private readonly options: EditorialistModalOptions) {
 		super(app);
@@ -236,7 +266,7 @@ export class EditorialistModal extends Modal {
 		});
 		text.createDiv({
 			cls: "editorialist-control-modal__description",
-			text: "Import formatted revision notes, continue in this note, or copy formatting instructions for your AI.",
+			text: "Import formatted revision notes or a Word file with tracked changes, continue in this note, or copy formatting instructions for your AI.",
 		});
 	}
 
@@ -286,6 +316,7 @@ export class EditorialistModal extends Modal {
 					this.render();
 				},
 			},
+			this.wordFileAction(),
 		]);
 	}
 
@@ -294,18 +325,17 @@ export class EditorialistModal extends Modal {
 		this.renderSelectionSummary(card);
 
 		this.renderDetectionGrid(card);
-		if (!this.options.isReviewPanelOpen) {
-			this.renderSecondaryActions(card, [
-				{
-					icon: "pen-tool",
-					label: "Open revisions side-panel",
-					onClick: async () => {
-						await this.options.onOpenReviewPanel();
-						this.close();
-					},
+		this.renderSecondaryActions(card, [
+			...(this.options.isReviewPanelOpen ? [] : [{
+				icon: "pen-tool",
+				label: "Open revisions side-panel",
+				onClick: async () => {
+					await this.options.onOpenReviewPanel();
+					this.close();
 				},
-			]);
-		}
+			}]),
+			this.wordFileAction(),
+		]);
 	}
 
 	private renderUnimportedNoteState(parent: HTMLElement): void {
@@ -360,30 +390,148 @@ export class EditorialistModal extends Modal {
 					this.render();
 				},
 			},
+			this.wordFileAction(),
 		]);
+	}
+
+	private wordFileAction(): { icon: string; label: string; onClick: () => Promise<void> } {
+		return {
+			icon: "file-input",
+			label: "Import Word file with tracked changes",
+			onClick: async () => this.chooseWordFile(),
+		};
+	}
+
+	private chooseWordFile(): void {
+		const input = createEl("input", {
+			type: "file",
+			attr: { accept: ".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" },
+		});
+		input.addEventListener("change", () => {
+			const file = input.files?.[0];
+			if (file) void this.loadWordFile(file);
+		});
+		input.click();
+	}
+
+	private async loadWordFile(file: File): Promise<void> {
+		try {
+			const document = await readWordDocument(new Uint8Array(await file.arrayBuffer()));
+			const authors = listWordAuthors(document);
+			const first = authors[0];
+			if (!first) {
+				new Notice(`${file.name} has no tracked changes or comments.`);
+				return;
+			}
+			const reviewerType = "copy-editor";
+			this.wordImport = {
+				fileName: file.name,
+				document,
+				authors,
+				author: first.name,
+				reviewerType,
+				conversion: convertWordTrackedChanges(document, { author: first.name, reviewerType }),
+			};
+			this.showWordConversion();
+		} catch (error) {
+			new Notice(error instanceof Error ? error.message : "Could not read that Word file.");
+		}
+	}
+
+	// The converted batch goes through the same check, preview and import as
+	// pasted notes.
+	private showWordConversion(): void {
+		const word = this.wordImport;
+		if (!word) return;
+		word.conversion = convertWordTrackedChanges(word.document, { author: word.author, reviewerType: word.reviewerType });
+		this.manualText = word.conversion.text;
+		this.manualBatch = null;
+		this.showManualPaste = true;
+		this.showAssignments = false;
+		this.scheduleManualValidation();
+		this.render();
+	}
+
+	private renderWordSummary(parent: HTMLElement, word: WordImport): void {
+		const { conversion } = word;
+		const name = word.author.trim() || "Unknown reviewer";
+		parent.createDiv({
+			cls: "editorialist-control-modal__section-title",
+			text: `Tracked changes from ${word.fileName}`,
+		});
+		const counts = [
+			countLabel(conversion.edits, "edit"),
+			countLabel(conversion.cuts, "cut"),
+			countLabel(conversion.memos, "comment"),
+		].filter(Boolean);
+		parent.createDiv({
+			cls: "editorialist-control-modal__section-copy",
+			text: counts.length > 0
+				? `${counts.join(", ")} by ${name}. Nothing in your manuscript changes until you accept each one.`
+				: `Nothing by ${name} could be brought in.`,
+		});
+
+		const controls = parent.createDiv({ cls: "editorialist-control-modal__word-controls" });
+		if (word.authors.length > 1) {
+			const label = controls.createEl("label", { cls: "editorialist-control-modal__word-field", text: "Changes by" });
+			const authors = new DropdownComponent(label);
+			for (const author of word.authors) {
+				authors.addOption(author.name, `${author.name.trim() || "Unknown reviewer"} · ${countLabel(author.changes, "change") || "comments only"}`);
+			}
+			authors.setValue(word.author).onChange((value) => {
+				word.author = value;
+				this.showWordConversion();
+			});
+		}
+		const roleLabel = controls.createEl("label", { cls: "editorialist-control-modal__word-field", text: "Their role" });
+		const roles = new DropdownComponent(roleLabel);
+		for (const [value, text] of WORD_REVIEWER_ROLES) roles.addOption(value, text);
+		roles.setValue(word.reviewerType).onChange((value) => {
+			word.reviewerType = value;
+			this.showWordConversion();
+		});
+
+		const { skipped } = conversion;
+		const notes = [
+			conversion.hasSceneIds ? "" : "This file has no scene IDs, so each change is placed by finding its sentence in your book. Export with Radial Timeline's Editor round to keep them.",
+			skipped.formatting ? `${countLabel(skipped.formatting, "formatting change")}, such as italics, not brought in. Make ${skipped.formatting === 1 ? "it" : "them"} by hand.` : "",
+			skipped.headings ? `${countLabel(skipped.headings, "change")} to headings not brought in.` : "",
+			skipped.paragraphBreaks ? `${countLabel(skipped.paragraphBreaks, "paragraph")} split or joined: the wording comes in, the paragraph break does not.` : "",
+			skipped.unplacedComments ? `${countLabel(skipped.unplacedComments, "comment")} not tied to a scene, left out.` : "",
+			skipped.unconverted ? `${countLabel(skipped.unconverted, "change")} could not be brought in. Check ${skipped.unconverted === 1 ? "it" : "them"} in Word.` : "",
+		].filter(Boolean);
+		if (notes.length > 0) {
+			const list = parent.createEl("ul", { cls: "editorialist-control-modal__word-notes" });
+			for (const note of notes) list.createEl("li", { text: note });
+		}
 	}
 
 	private renderManualPaste(parent: HTMLElement): void {
 		const section = parent.createDiv({ cls: "editorialist-control-modal__manual" });
-		section.createDiv({
-			cls: "editorialist-control-modal__section-title",
-			text: "Paste formatted revision notes",
-		});
-		section.createDiv({
-			cls: "editorialist-control-modal__section-copy",
-			text: "Paste formatted revision notes here.",
-		});
+		const word = this.wordImport && this.manualText === this.wordImport.conversion.text ? this.wordImport : null;
+		if (word) {
+			this.renderWordSummary(section, word);
+		} else {
+			section.createDiv({
+				cls: "editorialist-control-modal__section-title",
+				text: "Paste formatted revision notes",
+			});
+			section.createDiv({
+				cls: "editorialist-control-modal__section-copy",
+				text: "Paste formatted revision notes here.",
+			});
 
-		const inputContainer = section.createDiv({ cls: "editorialist-control-modal__input" });
-		const textArea = new TextAreaComponent(inputContainer);
-		textArea.inputEl.addClass("editorialist-control-modal__textarea");
-		textArea.setPlaceholder("Paste formatted revision notes here");
-		textArea.setValue(this.manualText);
-		textArea.onChange((value) => {
-			this.manualText = value;
-			this.manualBatch = null;
-			this.scheduleManualValidation();
-		});
+			const inputContainer = section.createDiv({ cls: "editorialist-control-modal__input" });
+			const textArea = new TextAreaComponent(inputContainer);
+			textArea.inputEl.addClass("editorialist-control-modal__textarea");
+			textArea.setPlaceholder("Paste formatted revision notes here");
+			textArea.setValue(this.manualText);
+			textArea.onChange((value) => {
+				this.manualText = value;
+				this.manualBatch = null;
+				this.scheduleManualValidation();
+			});
+		}
 
 		const corrections =
 			this.manualValidationState === "ok" && this.manualBatch
@@ -1638,4 +1786,8 @@ export class EditorialistModal extends Modal {
 		return isLocalNoteBatch(batch) ? "notes" : "scenes";
 	}
 
+}
+
+function countLabel(count: number, noun: string): string {
+	return count === 0 ? "" : `${count} ${noun}${count === 1 ? "" : "s"}`;
 }
