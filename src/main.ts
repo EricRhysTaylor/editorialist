@@ -2696,7 +2696,7 @@ export default class EditorialistPlugin extends Plugin {
 		return hasLiveActionableSuggestionsShared(suggestions);
 	}
 
-	private canApplySuggestionInReviewAllMode(suggestion: ReviewSuggestion): boolean {
+	canApplySuggestionInReviewAllMode(suggestion: ReviewSuggestion): boolean {
 		return suggestion.status !== "unresolved" && suggestion.operation !== "move" && this.canAcceptSuggestion(suggestion.id);
 	}
 

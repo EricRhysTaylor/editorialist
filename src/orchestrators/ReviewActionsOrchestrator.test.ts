@@ -60,6 +60,8 @@ interface FakeConfig {
 	canApplyAndReviewScene?: boolean;
 	completedSweep?: CompletedSweepState | null;
 	bulkApplyConfirm?: BulkApplyConfirmState | null;
+	unapplicableIds?: string[];
+	undoSucceeds?: boolean;
 }
 
 function makeFakeHost(config: FakeConfig = {}) {
@@ -102,6 +104,17 @@ function makeFakeHost(config: FakeConfig = {}) {
 		applySuggestionById: vi.fn().mockImplementation(async (id: string) => {
 			calls.push(`sm.applySuggestionById:${id}`);
 			return { suggestionId: id, start: 0, end: 1 };
+		}),
+		applySuggestionsAsBatch: vi.fn().mockImplementation(async (ids: readonly string[]) => {
+			calls.push(`sm.applySuggestionsAsBatch:${ids.join(",")}`);
+			const applied = ids.filter((id) => !config.unapplicableIds?.includes(id));
+			return applied.length > 0
+				? { notePath: "a.md", textBefore: "before", fingerprintAfter: "after", suggestionIds: applied }
+				: null;
+		}),
+		undoAppliedBatch: vi.fn().mockImplementation(async () => {
+			calls.push("sm.undoAppliedBatch");
+			return config.undoSucceeds ?? true;
 		}),
 	};
 
@@ -544,6 +557,65 @@ describe("ReviewActionsOrchestrator", () => {
 			const leafIdx = calls.indexOf("closeReviewPanelLeaf");
 			expect(closeIdx).toBeGreaterThanOrEqual(0);
 			expect(leafIdx).toBeGreaterThan(closeIdx);
+		});
+	});
+
+	describe("copy edits", () => {
+		it("accepts the ticked ids as one batch and offers it for undo in that scene only", async () => {
+			const { host, calls } = makeFakeHost({ priorSession: makeSession("a.md") });
+			const controller = new ReviewActionsOrchestrator(host);
+
+			await controller.acceptCopyEdits(["s1", "s2"], [{ batchId: "b", key: "grey → gray" }]);
+
+			expect(calls).toContain("sm.applySuggestionsAsBatch:s1,s2");
+			expect(controller.getUndoableCopyEdits("a.md")?.suggestionIds).toEqual(["s1", "s2"]);
+			expect(controller.getUndoableCopyEdits("b.md")).toBeNull();
+		});
+
+		it("keeps the batch when undo is refused, and drops it once undone", async () => {
+			const refused = makeFakeHost({ priorSession: makeSession("a.md"), undoSucceeds: false });
+			const keeps = new ReviewActionsOrchestrator(refused.host);
+			await keeps.acceptCopyEdits(["s1"], []);
+			await keeps.undoCopyEdits();
+			expect(keeps.getUndoableCopyEdits("a.md")).not.toBeNull();
+
+			const undone = makeFakeHost({ priorSession: makeSession("a.md") });
+			const drops = new ReviewActionsOrchestrator(undone.host);
+			await drops.acceptCopyEdits(["s1"], []);
+			await drops.undoCopyEdits();
+			expect(undone.calls).toContain("sm.undoAppliedBatch");
+			expect(drops.getUndoableCopyEdits("a.md")).toBeNull();
+		});
+
+		it("counts the other scenes where a fix was accepted or rejected, not this one", async () => {
+			const first = makeFakeHost({ priorSession: makeSession("a.md") });
+			const controller = new ReviewActionsOrchestrator(first.host);
+			await controller.acceptCopyEdits(["s1", "s2"], [
+				{ batchId: "b", key: "grey → gray" },
+				{ batchId: "b", key: "grey → gray" },
+			]);
+			await controller.rejectCopyEdits(["s3"], [{ batchId: "b", key: "OK → okay" }]);
+
+			expect(controller.getCopyEditHistory("b", "grey → gray", "a.md")).toBeNull();
+			expect(controller.getCopyEditHistory("b", "grey → gray", "b.md")).toEqual({ accepted: 1, declined: 0 });
+			expect(controller.getCopyEditHistory("b", "OK → okay", "b.md")).toEqual({ accepted: 0, declined: 1 });
+			expect(controller.getCopyEditHistory("other", "grey → gray", "b.md")).toBeNull();
+		});
+
+		it("forgets a fix's acceptance when the batch is undone", async () => {
+			const { host } = makeFakeHost({ priorSession: makeSession("a.md") });
+			const controller = new ReviewActionsOrchestrator(host);
+			await controller.acceptCopyEdits(["s1"], [{ batchId: "b", key: "grey → gray" }]);
+			await controller.undoCopyEdits();
+			expect(controller.getCopyEditHistory("b", "grey → gray", "b.md")).toBeNull();
+		});
+
+		it("forgets the undoable batch when the review closes", async () => {
+			const { host } = makeFakeHost({ priorSession: makeSession("a.md") });
+			const controller = new ReviewActionsOrchestrator(host);
+			await controller.acceptCopyEdits(["s1"], []);
+			await controller.closeActiveReviewContext();
+			expect(controller.getUndoableCopyEdits("a.md")).toBeNull();
 		});
 	});
 });

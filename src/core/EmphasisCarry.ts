@@ -13,15 +13,15 @@ export const FORMATTING_CONFLICT_REASON =
 
 export const FORMATTING_KEPT_REASON = "Your italics and bold stay in place when you apply.";
 
-const TOKEN = /\s+|[\p{L}\p{N}]+(?:['’ʼ][\p{L}\p{N}]+)*|-{2,3}|[^\s\p{L}\p{N}]/gu;
+export const WORD_TOKEN = /\s+|[\p{L}\p{N}]+(?:['’ʼ][\p{L}\p{N}]+)*|-{2,3}|[^\s\p{L}\p{N}]/gu;
 
-function tokenize(text: string): string[] {
-	return text.match(TOKEN) ?? [];
+export function tokenize(text: string): string[] {
+	return text.match(WORD_TOKEN) ?? [];
 }
 
 // Tokens compare the way passages do, so the reviewer's curly quotes or `—`
 // still line up with the note's straight quotes or `--`.
-function fold(token: string): string {
+export function fold(token: string): string {
 	return /^\s+$/.test(token) ? " " : normalizeMatchText(token);
 }
 

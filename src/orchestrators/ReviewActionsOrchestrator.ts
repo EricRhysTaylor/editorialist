@@ -17,6 +17,7 @@
 import { Notice } from "obsidian";
 import { getSuggestionAnchorTarget } from "../core/OperationSupport";
 import { getUnmatchedOpenSuggestionIds as getUnmatchedOpenSuggestionIdsShared } from "../core/review/SuggestionTraversal";
+import type { AppliedSuggestionBatch } from "../core/review/ReviewStateMachine";
 import type {
 	ReviewSession,
 	ReviewSuggestion,
@@ -44,6 +45,8 @@ export interface ReviewActionsStateMachine {
 	markSuggestionsRewritten(ids: string[]): Promise<number>;
 	deferSuggestion(id: string): Promise<void>;
 	undoLastAppliedSuggestion(): Promise<void>;
+	applySuggestionsAsBatch(ids: readonly string[]): Promise<AppliedSuggestionBatch | null>;
+	undoAppliedBatch(batch: AppliedSuggestionBatch): Promise<boolean>;
 	jumpToSuggestionTarget(id: string): Promise<void>;
 	applySuggestionById(
 		id: string,
@@ -106,7 +109,21 @@ export interface ReviewActionsOrchestratorHost {
 	clearToolbarDismissedSignature(): void;
 }
 
+// The fixes a set of copy edits makes, by copyEditKey, each with the import it
+// came from.
+export type CopyEditMemory = ReadonlyArray<{ batchId: string; key: string }>;
+
 export class ReviewActionsOrchestrator {
+	// The last copy edits accepted together, while they can still be undone as
+	// one step.
+	private copyEditBatch: AppliedSuggestionBatch | null = null;
+	// Which fixes that batch made, so undoing it also forgets them.
+	private copyEditBatchMemory: CopyEditMemory = [];
+	// The scenes where each fix (by copyEditKey) was accepted or rejected, per
+	// import, so the same fix in a later scene arrives ticked or unticked to
+	// match. Kept for this Obsidian session.
+	private readonly copyEditChoices = new Map<string, Map<string, { accepted: Set<string>; declined: Set<string> }>>();
+
 	constructor(private readonly host: ReviewActionsOrchestratorHost) {}
 
 	// ─── Selection ────────────────────────────────────────────────────────
@@ -367,6 +384,76 @@ export class ReviewActionsOrchestrator {
 		await this.host.focusEditorRange(start, end);
 	}
 
+	// ─── Copy edits ───────────────────────────────────────────────────────
+
+	async acceptCopyEdits(ids: readonly string[], memory: CopyEditMemory): Promise<void> {
+		this.host.setBulkApplyConfirmState(null);
+		const batch = await this.host.getReviewStateMachine().applySuggestionsAsBatch(ids);
+		if (!batch) {
+			new Notice("None of the ticked changes could be applied safely.");
+			return;
+		}
+		this.copyEditBatch = batch;
+		this.copyEditBatchMemory = memory;
+		this.rememberCopyEdits(memory, "accepted", batch.notePath);
+		const skipped = ids.length - batch.suggestionIds.length;
+		new Notice(
+			`Accepted ${batch.suggestionIds.length} change${batch.suggestionIds.length === 1 ? "" : "s"}.`
+			+ (skipped > 0 ? ` ${skipped} could not be applied safely and ${skipped === 1 ? "is" : "are"} still open.` : ""),
+		);
+		this.host.refreshReviewPanel();
+	}
+
+	async rejectCopyEdits(ids: readonly string[], memory: CopyEditMemory): Promise<void> {
+		this.host.setBulkApplyConfirmState(null);
+		const notePath = this.host.getReviewSession()?.notePath;
+		for (const id of ids) {
+			await this.rejectSuggestion(id);
+		}
+		if (notePath) this.rememberCopyEdits(memory, "declined", notePath);
+		this.host.refreshReviewPanel();
+	}
+
+	getUndoableCopyEdits(notePath: string): AppliedSuggestionBatch | null {
+		return this.copyEditBatch?.notePath === notePath ? this.copyEditBatch : null;
+	}
+
+	async undoCopyEdits(): Promise<void> {
+		const batch = this.copyEditBatch;
+		if (!batch) {
+			return;
+		}
+		if (await this.host.getReviewStateMachine().undoAppliedBatch(batch)) {
+			for (const { batchId, key } of this.copyEditBatchMemory) {
+				this.copyEditChoices.get(batchId)?.get(key)?.accepted.delete(batch.notePath);
+			}
+			this.copyEditBatch = null;
+			this.copyEditBatchMemory = [];
+		}
+		this.host.refreshReviewPanel();
+	}
+
+	// In how many other scenes of the same import a fix was accepted or
+	// rejected; null when it has not come up anywhere else yet.
+	getCopyEditHistory(batchId: string, key: string, notePath: string): { accepted: number; declined: number } | null {
+		const entry = this.copyEditChoices.get(batchId)?.get(key);
+		if (!entry) return null;
+		const elsewhere = (scenes: Set<string>): number => scenes.size - (scenes.has(notePath) ? 1 : 0);
+		const history = { accepted: elsewhere(entry.accepted), declined: elsewhere(entry.declined) };
+		return history.accepted + history.declined > 0 ? history : null;
+	}
+
+	private rememberCopyEdits(memory: CopyEditMemory, field: "accepted" | "declined", notePath: string): void {
+		for (const { batchId, key } of memory) {
+			const choices = this.copyEditChoices.get(batchId) ?? new Map<string, { accepted: Set<string>; declined: Set<string> }>();
+			this.copyEditChoices.set(batchId, choices);
+			const entry = choices.get(key) ?? { accepted: new Set<string>(), declined: new Set<string>() };
+			entry[field].add(notePath);
+			(field === "accepted" ? entry.declined : entry.accepted).delete(notePath);
+			choices.set(key, entry);
+		}
+	}
+
 	// ─── Bulk apply & review ──────────────────────────────────────────────
 
 	async enterApplyAndReviewConfirmMode(): Promise<void> {
@@ -522,6 +609,8 @@ export class ReviewActionsOrchestrator {
 	async closeActiveReviewContext(): Promise<void> {
 		const completedSweep = this.host.getResolvedCompletedSweepState();
 		this.host.setBulkApplyConfirmState(null);
+		this.copyEditBatch = null;
+		this.copyEditBatchMemory = [];
 		this.host.store.batch(() => {
 			this.host.store.setAppliedReview(null);
 			this.host.store.setCompletedSweep(null);

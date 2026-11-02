@@ -9562,3 +9562,144 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 .editorialist-control-modal__button--cta .editorialist-control-modal__button-icon {
 	color: inherit;
 }
+
+/* Copy edits: a scene's small direct edits as one ticked list. */
+.editorialist-copyedits {
+	display: flex;
+	flex-direction: column;
+	gap: 0.55rem;
+	margin-bottom: 0.95rem;
+	padding: 0.72rem 0.82rem;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--editorialist-radius-md);
+	background: var(--background-secondary);
+}
+
+.editorialist-copyedits__header {
+	display: flex;
+	align-items: center;
+	gap: 0.42rem;
+}
+
+.editorialist-copyedits__icon,
+.editorialist-copyedits__icon svg {
+	display: inline-flex;
+	width: 0.95rem;
+	height: 0.95rem;
+	color: var(--text-muted);
+}
+
+.editorialist-copyedits__title {
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+}
+
+.editorialist-copyedits__copy,
+.editorialist-copyedits__undo {
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+	line-height: 1.45;
+}
+
+.editorialist-copyedits__undo {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.4rem;
+}
+
+.editorialist-copyedits__list {
+	display: flex;
+	flex-direction: column;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.editorialist-copyedits__row {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.5rem;
+	padding: 0.45rem 0.2rem;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.editorialist-copyedits__row.is-selected {
+	background: var(--background-modifier-hover);
+}
+
+.editorialist-copyedits__check {
+	flex: 0 0 auto;
+	margin-top: 0.2rem;
+}
+
+.editorialist-copyedits__body {
+	display: flex;
+	flex-direction: column;
+	gap: 0.15rem;
+	min-width: 0;
+}
+
+.editorialist-copyedits__row .editorialist-copyedits__text {
+	display: block;
+	height: auto;
+	padding: 0;
+	background-color: transparent;
+	box-shadow: none;
+	border: none;
+	font-family: var(--font-text);
+	font-size: var(--font-ui-small);
+	line-height: 1.5;
+	color: var(--text-normal);
+	text-align: start;
+	white-space: normal;
+	cursor: pointer;
+}
+
+.editorialist-copyedits__row.is-unticked .editorialist-copyedits__text {
+	color: var(--text-faint);
+}
+
+.editorialist-copyedits__part--del {
+	color: var(--text-error);
+	text-decoration: line-through;
+}
+
+/* A replaced word and its replacement stay apart: "grey gray", not "greygray". */
+.editorialist-copyedits__part--del + .editorialist-copyedits__part--ins {
+	margin-inline-start: 0.25em;
+}
+
+.editorialist-copyedits__part--ins {
+	padding: 0 0.1em;
+	border-radius: 2px;
+	background: color-mix(in srgb, var(--color-green) 18%, transparent);
+	color: var(--text-normal);
+}
+
+.editorialist-copyedits__row.is-unticked .editorialist-copyedits__part--del,
+.editorialist-copyedits__row.is-unticked .editorialist-copyedits__part--ins {
+	color: var(--text-faint);
+	background: none;
+}
+
+.editorialist-copyedits__history {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.editorialist-copyedits__actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--editorialist-space-sm);
+}
+
+.editorialist-copyedits__toggle {
+	margin-inline-start: auto;
+	padding: 0.2rem 0.4rem;
+	background: none;
+	box-shadow: none;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}

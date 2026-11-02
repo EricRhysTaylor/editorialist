@@ -7,6 +7,7 @@ import { formatContributorIdentityLabel } from "../core/ContributorIdentity";
 import { getEffectiveSuggestionStatus, getSuggestionCopyBlocks, getSuggestionReason as getOperationSuggestionReason, isImplicitlyAcceptedSuggestion, isMoveSuggestion } from "../core/OperationSupport";
 import { FORMATTING_CONFLICT_REASON } from "../core/EmphasisCarry";
 import { isOpenStatus, reviewStatusLabel } from "../core/status/ReviewStatusModel";
+import { copyEditKey, diffExcerpt, isCopyEdit, wordDiff } from "../core/review/CopyEdits";
 import type { ReviewSuggestion, SceneMemo } from "../models/ReviewSuggestion";
 import type { default as EditorialistPlugin, ReviewStateIndexEntry } from "../main";
 import {
@@ -61,6 +62,9 @@ import {
 } from "./panels/ReviewPanelIdleSections";
 
 export const REVIEW_PANEL_VIEW_TYPE = "editorialist-review-panel";
+
+// Fewer small edits than this read just as well as cards.
+const MIN_COPY_EDIT_LIST = 2;
 
 function compareReviewStateEntriesByNarrativeOrder(a: ReviewStateIndexEntry, b: ReviewStateIndexEntry): number {
 	return compareSceneTitles(a.noteTitle, b.noteTitle);
@@ -154,6 +158,9 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	// null = follow the cold-start default; an explicit boolean once the user
 	// toggles the onboarding disclosure within this view session.
 	private onboardingExpanded: boolean | null = null;
+	// Copy edits the author ticked or unticked, by suggestion id. A row not in
+	// here follows copyEditTickedByDefault.
+	private readonly copyEditTicks = new Map<string, boolean>();
 
 	constructor(
 		leaf: WorkspaceLeaf,
@@ -265,6 +272,11 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 				throw new Error("ReviewPanel: completed_sweep branch selected without a completed sweep state.");
 			}
 			renderCompletedSweepCard(this, this.plugin, this.contentEl, completedSweep);
+			// Accepting the last copy edits is what completes a scene, so their
+			// Undo has to survive into the completion view.
+			if (session) {
+				this.renderCopyEditCard(session.notePath, [], null);
+			}
 			this.renderNextBatchesAfterCompletion(completedSweep.otherPendingNotePaths);
 
 			// Finishing a pass is exactly when the reviewer's framing is worth
@@ -369,6 +381,18 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		this.ensureSceneDirectivesLoaded();
 		this.renderSceneDirectivesCard();
 
+		// Small direct edits are reviewed together as a ticked list rather than a
+		// card each. Rendered before the branch checks so Undo stays in reach at
+		// the scene-complete handoff that accepting them all leads to.
+		const copyEdits = this.getFilteredSuggestions(session.suggestions)
+			.filter((suggestion) => isCopyEdit(suggestion) && this.plugin.canApplySuggestionInReviewAllMode(suggestion));
+		// Changes accepted together are summed up on the copy-edit card, and the
+		// rest of a list the author already started on stays a list.
+		const acceptedTogether = this.plugin.reviewActions.getUndoableCopyEdits(session.notePath)?.suggestionIds ?? [];
+		const listedCopyEdits = copyEdits.length >= MIN_COPY_EDIT_LIST || acceptedTogether.length > 0 ? copyEdits : [];
+		this.renderCopyEditCard(session.notePath, listedCopyEdits, selectedSuggestionId);
+		const listedCopyEditIds = new Set([...listedCopyEdits.map((suggestion) => suggestion.id), ...acceptedTogether]);
+
 		if (branch === "session:no-suggestions") {
 			if (memos.length === 0) {
 				this.contentEl.createDiv({
@@ -407,7 +431,8 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		}
 
 		const list = this.contentEl.createDiv({ cls: "editorialist-suggestion-list" });
-		const filteredSuggestions = this.getFilteredSuggestions(session.suggestions);
+		const filteredSuggestions = this.getFilteredSuggestions(session.suggestions)
+			.filter((suggestion) => !listedCopyEditIds.has(suggestion.id));
 		if (branch === "session:filtered-empty") {
 			list.createDiv({
 				cls: "editorialist-panel__empty",
@@ -692,6 +717,138 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		resolve.buttonEl.setAttribute("aria-label", "Mark every unmatched item in this scene as rewritten");
 		this.bindImmediateAction(resolve.buttonEl, () => {
 			void this.plugin.reviewActions.resolveUnmatchedSuggestions();
+		});
+	}
+
+	private renderCopyEditCard(notePath: string, copyEdits: ReviewSuggestion[], selectedSuggestionId: string | null): void {
+		const undoable = this.plugin.reviewActions.getUndoableCopyEdits(notePath);
+		if (copyEdits.length === 0 && !undoable) {
+			return;
+		}
+		const card = this.contentEl.createDiv({ cls: "editorialist-copyedits" });
+		const header = card.createDiv({ cls: "editorialist-copyedits__header" });
+		setIcon(header.createSpan({ cls: "editorialist-copyedits__icon" }), "spell-check");
+		header.createSpan({
+			cls: "editorialist-copyedits__title",
+			text: copyEdits.length > 0
+				? `${copyEdits.length} small change${copyEdits.length === 1 ? "" : "s"} in this scene`
+				: "Copy edits",
+		});
+
+		if (undoable) {
+			const count = undoable.suggestionIds.length;
+			const undoRow = card.createDiv({ cls: "editorialist-copyedits__undo" });
+			undoRow.createSpan({ text: `Accepted ${count} change${count === 1 ? "" : "s"}.` });
+			const undo = new ButtonComponent(undoRow).setButtonText(count === 1 ? "Undo" : `Undo all ${count}`);
+			undo.buttonEl.addClass("editorialist-copyedits__undo-button");
+			this.bindImmediateAction(undo.buttonEl, () => {
+				void this.plugin.reviewActions.undoCopyEdits();
+			});
+		}
+		if (copyEdits.length === 0) {
+			return;
+		}
+
+		card.createDiv({
+			cls: "editorialist-copyedits__copy",
+			text: "Untick any you don't want, then accept the rest. Select a change to see it in the scene.",
+		});
+		const list = card.createDiv({ cls: "editorialist-copyedits__list" });
+		for (const suggestion of copyEdits) {
+			if (suggestion.operation !== "edit") continue;
+			const ticked = this.isCopyEditTicked(suggestion, notePath);
+			const row = list.createDiv({ cls: "editorialist-copyedits__row" });
+			row.toggleClass("is-selected", suggestion.id === selectedSuggestionId);
+			row.toggleClass("is-unticked", !ticked);
+			const box = row.createEl("input", { cls: "editorialist-copyedits__check", type: "checkbox" });
+			box.checked = ticked;
+			setAccessibleLabel(box, "Accept this change");
+			box.addEventListener("change", () => {
+				this.copyEditTicks.set(suggestion.id, box.checked);
+				this.requestRender();
+			});
+			const body = row.createDiv({ cls: "editorialist-copyedits__body" });
+			const text = body.createEl("button", { cls: "editorialist-copyedits__text" });
+			for (const part of diffExcerpt(wordDiff(suggestion.payload.original, suggestion.payload.revised))) {
+				text.createSpan({ cls: `editorialist-copyedits__part editorialist-copyedits__part--${part.kind}`, text: part.text });
+			}
+			setAccessibleLabel(text, "Show this change in the scene");
+			this.bindImmediateAction(text, () => {
+				void this.plugin.reviewActions.selectSuggestion(suggestion.id);
+			});
+			const history = this.describeCopyEditHistory(suggestion, notePath);
+			if (history) {
+				body.createDiv({ cls: "editorialist-copyedits__history", text: history });
+			}
+		}
+
+		const tickedEdits = copyEdits.filter((suggestion) => this.isCopyEditTicked(suggestion, notePath));
+		const untickedEdits = copyEdits.filter((suggestion) => !this.isCopyEditTicked(suggestion, notePath));
+		const actions = card.createDiv({ cls: "editorialist-copyedits__actions" });
+		if (tickedEdits.length > 0) {
+			const accept = new ButtonComponent(actions)
+				.setButtonText(tickedEdits.length === copyEdits.length ? `Accept all ${tickedEdits.length}` : `Accept ${tickedEdits.length} ticked`)
+				.setCta();
+			this.bindImmediateAction(accept.buttonEl, () => {
+				void this.plugin.reviewActions.acceptCopyEdits(
+					tickedEdits.map((suggestion) => suggestion.id),
+					this.copyEditMemory(tickedEdits),
+				);
+			});
+		}
+		if (untickedEdits.length > 0) {
+			const reject = new ButtonComponent(actions).setButtonText(`Reject ${untickedEdits.length} unticked`);
+			if (tickedEdits.length === 0) reject.setCta();
+			this.bindImmediateAction(reject.buttonEl, () => {
+				void this.plugin.reviewActions.rejectCopyEdits(
+					untickedEdits.map((suggestion) => suggestion.id),
+					this.copyEditMemory(untickedEdits),
+				);
+			});
+		}
+		const allTicked = untickedEdits.length === 0;
+		const toggle = actions.createEl("button", {
+			cls: "editorialist-copyedits__toggle",
+			text: allTicked ? "Untick all" : "Tick all",
+		});
+		this.bindImmediateAction(toggle, () => {
+			for (const suggestion of copyEdits) this.copyEditTicks.set(suggestion.id, !allTicked);
+			this.requestRender();
+		});
+	}
+
+	private isCopyEditTicked(suggestion: ReviewSuggestion, notePath: string): boolean {
+		return this.copyEditTicks.get(suggestion.id) ?? this.copyEditTickedByDefault(suggestion, notePath);
+	}
+
+	// Ticked, unless the same fix was rejected in more earlier scenes of this
+	// import than it was accepted in.
+	private copyEditTickedByDefault(suggestion: ReviewSuggestion, notePath: string): boolean {
+		const history = this.copyEditHistory(suggestion, notePath);
+		return !history || history.declined <= history.accepted;
+	}
+
+	private copyEditHistory(suggestion: ReviewSuggestion, notePath: string): { accepted: number; declined: number } | null {
+		const batchId = suggestion.source.batchId;
+		const key = copyEditKey(suggestion);
+		return batchId && key ? this.plugin.reviewActions.getCopyEditHistory(batchId, key, notePath) : null;
+	}
+
+	private describeCopyEditHistory(suggestion: ReviewSuggestion, notePath: string): string | null {
+		const history = this.copyEditHistory(suggestion, notePath);
+		if (!history) return null;
+		const scenes = (count: number): string => `${count} other scene${count === 1 ? "" : "s"}`;
+		if (history.accepted > 0 && history.declined > 0) {
+			return `Accepted in ${scenes(history.accepted)}, rejected in ${history.declined}`;
+		}
+		return history.accepted > 0 ? `Accepted in ${scenes(history.accepted)}` : `Rejected in ${scenes(history.declined)}`;
+	}
+
+	private copyEditMemory(suggestions: readonly ReviewSuggestion[]): Array<{ batchId: string; key: string }> {
+		return suggestions.flatMap((suggestion) => {
+			const batchId = suggestion.source.batchId;
+			const key = copyEditKey(suggestion);
+			return batchId && key ? [{ batchId, key }] : [];
 		});
 	}
 

@@ -27,6 +27,15 @@ export interface AppliedReviewChangeResult {
 	suggestionId: string;
 }
 
+// Suggestions accepted together, with the note as it read before them, so the
+// whole set can be taken back in one step while nothing else has changed.
+export interface AppliedSuggestionBatch {
+	notePath: string;
+	textBefore: string;
+	fingerprintAfter: string;
+	suggestionIds: string[];
+}
+
 export interface ApplySuggestionOptions {
 	highlightMode?: "muted" | "none";
 	preserveSelection?: boolean;
@@ -446,6 +455,81 @@ export class ReviewStateMachine {
 		this.host.store.selectSuggestion(change.suggestionId);
 		await this.host.revealSuggestionContext(change.suggestionId);
 		this.host.notify("Applied change undone.");
+	}
+
+	// Accepts each suggestion in turn, as Accept does, then records the batch
+	// for undoAppliedBatch. The editor's own undo steps back one edit at a time,
+	// so the single-change undo is cleared: it would take back only the last.
+	async applySuggestionsAsBatch(ids: readonly string[]): Promise<AppliedSuggestionBatch | null> {
+		const context = this.host.getReviewNoteContext();
+		if (!context) {
+			this.host.notify("The active note does not match the current review session.");
+			return null;
+		}
+		const editor = (context.view as { editor: EditorLike }).editor;
+		const textBefore = editor.getValue();
+		const applied: string[] = [];
+		for (const id of ids) {
+			const change = await this.applySuggestionById(id, {
+				highlightMode: "none",
+				preserveSelection: true,
+				syncSceneInventory: false,
+			});
+			if (change) applied.push(id);
+		}
+		if (applied.length === 0) {
+			return null;
+		}
+		await this.host.registry.syncSceneInventoryForSession(this.host.store.getSession());
+		this.host.setLastAppliedChange(null);
+		return {
+			notePath: context.filePath,
+			textBefore,
+			fingerprintAfter: computeNoteTextFingerprint(editor.getValue()),
+			suggestionIds: applied,
+		};
+	}
+
+	// Puts the note back as it read before the batch and reopens its
+	// suggestions. Refused once the note has changed in any other way, since
+	// restoring the old text would also throw that change away.
+	async undoAppliedBatch(batch: AppliedSuggestionBatch): Promise<boolean> {
+		const context = this.host.getReviewNoteContext();
+		if (!context || context.filePath !== batch.notePath) {
+			this.host.notify("Open the scene these changes were made in to undo them.");
+			return false;
+		}
+		const editor = (context.view as { editor: EditorLike }).editor;
+		const current = editor.getValue();
+		if (computeNoteTextFingerprint(current) !== batch.fingerprintAfter) {
+			this.host.notify("This scene has changed since you accepted those changes, so they can no longer be undone together.");
+			return false;
+		}
+
+		editor.replaceRange(batch.textBefore, editor.offsetToPos(0), editor.offsetToPos(current.length));
+		for (const id of batch.suggestionIds) {
+			const suggestion = this.host.getSuggestionById(id);
+			if (suggestion) {
+				await this.host.registry.clearPersistedReviewDecision(batch.notePath, suggestion, { persist: false });
+			}
+			this.host.store.updateSuggestionStatus(id, "pending");
+		}
+		this.host.setLastAppliedChange(null);
+		const completedSweep = this.host.store.getCompletedSweep();
+		if (completedSweep) {
+			this.host.store.setCompletedSweep(null);
+			this.host.store.setGuidedSweep({
+				batchId: completedSweep.batchId,
+				currentNoteIndex: completedSweep.currentNoteIndex,
+				notePaths: [...completedSweep.notePaths],
+				startedAt: completedSweep.startedAt,
+			});
+		}
+		this.host.resyncSessionForActiveNote();
+		await this.host.registry.syncSceneInventoryForSession(this.host.store.getSession());
+		const count = batch.suggestionIds.length;
+		this.host.notify(`Undid ${count} accepted change${count === 1 ? "" : "s"}.`);
+		return true;
 	}
 
 	async jumpToSuggestionTarget(id: string): Promise<void> {
