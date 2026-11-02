@@ -8,6 +8,7 @@ import { getEffectiveSuggestionStatus, getSuggestionCopyBlocks, getSuggestionRea
 import { FORMATTING_CONFLICT_REASON } from "../core/EmphasisCarry";
 import { isOpenStatus, reviewStatusLabel } from "../core/status/ReviewStatusModel";
 import { copyEditKey, diffExcerpt, isCopyEdit, wordDiff } from "../core/review/CopyEdits";
+import { editorReplyKey } from "../core/review/EditorResponse";
 import type { ReviewSuggestion, SceneMemo } from "../models/ReviewSuggestion";
 import type { default as EditorialistPlugin, ReviewStateIndexEntry } from "../main";
 import {
@@ -1418,6 +1419,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 				this.renderQueryEntry(body, memo);
 			} else {
 				this.renderMemoEntry(body, memo);
+				this.renderEditorReply(body.lastElementChild as HTMLElement, memo, "Reply", "Your reply", true);
 			}
 		});
 	}
@@ -1537,6 +1539,41 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			});
 			block.createDiv({ cls: "editorialist-panel__comment-entry-block-text", text: memo.body });
 		}
+	}
+
+	// An editor's comment, or a change of theirs the author kept as written, gets
+	// a reply for the response to the editor: the saved reply, and a link that
+	// opens the response at this item. Only a person's pass gets a response.
+	private renderEditorReply(
+		parent: HTMLElement,
+		item: ReviewSuggestion | SceneMemo,
+		prompt: string,
+		label: string,
+		showPrompt: boolean,
+	): void {
+		const notePath = this.plugin.getCurrentReviewSession()?.notePath;
+		const batchId = item.source.batchId;
+		if (!notePath || !batchId || item.contributor.kind !== "human") {
+			return;
+		}
+		const key = editorReplyKey(notePath, batchId, item);
+		const reply = this.plugin.getEditorReply(key).trim();
+		if (reply) {
+			const block = parent.createDiv({ cls: "editorialist-panel__comment-entry-block editorialist-panel__editor-reply" });
+			block.createDiv({ cls: "editorialist-panel__comment-entry-block-label", text: label });
+			block.createDiv({ cls: "editorialist-panel__comment-entry-block-text", text: reply });
+		} else if (!showPrompt) {
+			return;
+		}
+		const action = parent.createDiv({ cls: "editorialist-panel__comment-entry-action" });
+		const link = action.createEl("a", {
+			cls: "editorialist-panel__comment-entry-action-link",
+			text: reply ? "Edit in your response" : prompt,
+			attr: { href: "#" },
+		});
+		this.bindImmediateAction(link, () => {
+			void this.plugin.openEditorResponse(batchId, key);
+		});
 	}
 
 	private renderFilters(): void {
@@ -1715,6 +1752,10 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			cls: "editorialist-suggestion__reason-text",
 			text: this.getSuggestionReason(suggestion),
 		});
+
+		if (suggestion.status === "rejected" || suggestion.status === "rewritten") {
+			this.renderEditorReply(card, suggestion, "Say why you kept it", "Your reason for the editor", selected);
+		}
 
 		if (selected) {
 			const passageDirectives = this.passageDirectivesFor(suggestion);

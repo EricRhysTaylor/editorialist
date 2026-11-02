@@ -39,7 +39,7 @@ export function reassociateManuscript(data: EditorialistPluginData, change: Manu
 	const affected = knownManuscriptFolders(data).filter((path) => moveFolderPath(path, oldFolder, newFolder) !== path);
 	if (oldFolder !== newFolder) {
 		const destinations = new Set(affected.map((path) => moveFolderPath(path, oldFolder, newFolder)));
-		for (const index of [data.sceneReviewIndex, data.reviewDecisionIndex, data.reviewerSignalIndex, data.authorQueryDecisions]) {
+		for (const index of [data.sceneReviewIndex, data.reviewDecisionIndex, data.reviewerSignalIndex, data.authorQueryDecisions, data.editorReplies ?? {}]) {
 			if (Object.keys(index).some((key) => key.startsWith(`${newFolder}/`))) throw new Error(`“${newFolder}” already has review history. Both sets are retained. Choose a different replacement folder.`);
 		}
 		for (const folder of knownManuscriptFolders(data)) {
@@ -66,9 +66,9 @@ export function reassociateManuscript(data: EditorialistPluginData, change: Manu
 		return result;
 	}
 	next.sceneReviewIndex = remapIndex(next.sceneReviewIndex, move, (record, key) => { if (record.notePath === oldFolder || record.notePath.startsWith(`${oldFolder}/`)) record.bookLabel = changeLabel(record.bookLabel); record.notePath = key; });
-	for (const name of ["reviewDecisionIndex", "reviewerSignalIndex", "authorQueryDecisions"] as const) {
-		// The three index shapes share only the key field; retain every other field unchanged.
-		const index = next[name];
+	for (const name of ["reviewDecisionIndex", "reviewerSignalIndex", "authorQueryDecisions", "editorReplies"] as const) {
+		// The index shapes share only the key field; retain every other field unchanged.
+		const index = next[name] ?? {};
 		const mapped = remapIndex(index as Record<string, { key: string }>, moveIndexKey, (record, key) => { record.key = key; });
 		Object.assign(next, { [name]: mapped });
 	}

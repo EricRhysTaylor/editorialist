@@ -12,7 +12,7 @@ describe("localized command registration preserves the command contract", () => 
 			...Object.fromEntries([
 				"openTodayPanel", "openAuthorPlanner", "openRevisionPlanPanel", "openEditorialProjectWorkspace",
 				"openEditorialistModal", "openReviewPanel", "openEditorialismPanel", "openPendingEditsPanel",
-				"endCurrentReviewRound", "rescanReviewBlocks", "insertAuthorQuery"
+				"endCurrentReviewRound", "rescanReviewBlocks", "insertAuthorQuery", "openEditorResponse"
 			].map(method => [method, () => { invoked.push(method); }])),
 			pendingEdits: { startPendingEditsReview: () => { invoked.push("startPendingEditsReview"); } },
 			cutFiles: { backupSelectionToCutFile: () => { invoked.push("backupSelectionToCutFile"); } },
@@ -37,6 +37,7 @@ describe("localized command registration preserves the command contract", () => 
 			["rescan-review-blocks", "Rescan review blocks for cleanup"],
 			["backup-selection-to-cut-file", "Backup selection to cut file"],
 			["insert-author-query", "Insert author query"],
+			["respond-to-editor", "Write your response to the editor"],
 			["anchor-selection-to-editorialism", "Anchor selection to editorialism directive"],
 			["go-to-next-anchor", "Go to next unprocessed anchor"],
 			["mark-anchor-processed", "Mark anchor processed and go to next"]
@@ -50,7 +51,7 @@ describe("localized command registration preserves the command contract", () => 
 			"openTodayPanel", "openAuthorPlanner", "openRevisionPlanPanel", "openEditorialProjectWorkspace",
 			"openEditorialistModal", "openReviewPanel", "openEditorialismPanel", "openPendingEditsPanel",
 			"startPendingEditsReview", "endCurrentReviewRound", "rescanReviewBlocks",
-			"backupSelectionToCutFile", "insertAuthorQuery", "anchorSelectionToEditorialismItem",
+			"backupSelectionToCutFile", "insertAuthorQuery", "openEditorResponse", "anchorSelectionToEditorialismItem",
 			"goToNextEditorialismAnchor", "markCurrentEditorialismAnchorProcessed"
 		]);
 	});

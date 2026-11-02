@@ -166,6 +166,7 @@ describe("migratePluginData", () => {
 		expect(Object.keys(out).sort()).toEqual(
 			[
 				"authorQueryDecisions",
+				"editorReplies",
 				"reviewDecisionIndex",
 				"reviewerProfiles",
 				"reviewerSignalIndex",

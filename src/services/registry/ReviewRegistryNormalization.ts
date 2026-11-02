@@ -13,6 +13,7 @@
 
 import type {
 	AuthorQueryDecisionRecord,
+	EditorReplyRecord,
 	PersistedReviewDecisionRecord,
 	ReviewerSignalRecord,
 	SceneReviewRecord,
@@ -81,6 +82,21 @@ export function normalizeAuthorQueryDecisions(
 			status,
 			updatedAt: record?.updatedAt ?? Date.now(),
 		};
+	}
+	return result;
+}
+
+// Replies with no text are not stored, so an emptied reply reads as none.
+export function normalizeEditorReplies(index: unknown): Record<string, EditorReplyRecord> {
+	if (!index || typeof index !== "object") {
+		return {};
+	}
+	const result: Record<string, EditorReplyRecord> = {};
+	for (const [key, record] of Object.entries(index as Record<string, Partial<EditorReplyRecord> | undefined>)) {
+		if (typeof record?.text !== "string" || !record.text.trim()) {
+			continue;
+		}
+		result[key] = { key, text: record.text, updatedAt: typeof record.updatedAt === "number" ? record.updatedAt : Date.now() };
 	}
 	return result;
 }

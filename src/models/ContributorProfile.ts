@@ -166,6 +166,14 @@ export interface AuthorQueryDecisionRecord {
 	updatedAt: number;
 }
 
+// The author's reply to one item of an editor's pass: the answer to a query,
+// or the reason for keeping a passage as written. Keyed by editorReplyKey.
+export interface EditorReplyRecord {
+	key: string;
+	text: string;
+	updatedAt: number;
+}
+
 export interface EditorialistPluginData {
 	revisionPlans?: RevisionPlanStore;
 	editorialDeliveries?: EditorialDeliveryStore;
@@ -182,6 +190,8 @@ export interface EditorialistPluginData {
 	reviewerSignalIndex: Record<string, ReviewerSignalRecord>;
 	reviewDecisionIndex: Record<string, PersistedReviewDecisionRecord>;
 	authorQueryDecisions: Record<string, AuthorQueryDecisionRecord>;
+	// Absent in data saved before replies existed.
+	editorReplies?: Record<string, EditorReplyRecord>;
 	sceneReviewIndex: Record<string, SceneReviewRecord>;
 	sweepRegistry: Record<string, ReviewSweepRegistryEntry>;
 	settings: EditorialistSettings;

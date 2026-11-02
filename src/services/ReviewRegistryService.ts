@@ -24,6 +24,7 @@ import type {
 import type { AuthorQueryStatus, ReviewSession, ReviewSuggestion } from "../models/ReviewSuggestion";
 import type {
 	AuthorQueryDecisionRecord,
+	EditorReplyRecord,
 	EditorialistEffortSettings,
 	EditorialistPluginData,
 	EditorialistSettings,
@@ -37,6 +38,7 @@ import { ReviewerStatsProjector } from "./registry/ReviewerStatsProjector";
 import { ReviewDecisionIndex } from "./registry/ReviewDecisionIndex";
 import {
 	normalizeAuthorQueryDecisions,
+	normalizeEditorReplies,
 	normalizeReviewDecisionIndex,
 	normalizeReviewerSignalIndex,
 	normalizeSceneReviewIndex,
@@ -111,6 +113,7 @@ export class ReviewRegistryService {
 	};
 	private reviewDecisionIndex: Record<string, PersistedReviewDecisionRecord> = {};
 	private authorQueryDecisions: Record<string, AuthorQueryDecisionRecord> = {};
+	private editorReplies: Record<string, EditorReplyRecord> = {};
 	private reviewerSignalIndex: Record<string, ReviewerSignalRecord> = {};
 	private sceneReviewIndex: Record<string, SceneReviewRecord> = {};
 	private sweepRegistry: Record<string, ReviewSweepRegistryEntry> = {};
@@ -183,8 +186,8 @@ export class ReviewRegistryService {
 			return next;
 		};
 		// Validate every index before moving any live state.
-		const decisions = moveIndex(this.reviewDecisionIndex), signals = moveIndex(this.reviewerSignalIndex), queries = moveIndex(this.authorQueryDecisions);
-		this.reviewDecisionIndex = decisions; this.reviewerSignalIndex = signals; this.authorQueryDecisions = queries;
+		const decisions = moveIndex(this.reviewDecisionIndex), signals = moveIndex(this.reviewerSignalIndex), queries = moveIndex(this.authorQueryDecisions), replies = moveIndex(this.editorReplies);
+		this.reviewDecisionIndex = decisions; this.reviewerSignalIndex = signals; this.authorQueryDecisions = queries; this.editorReplies = replies;
 		const target = this.settings.manuscriptTarget;
 		if (target?.kind === "note" && target.path === oldPath) {
 			this.setManuscriptTarget({ ...target, path: newPath });
@@ -247,6 +250,7 @@ export class ReviewRegistryService {
 		this.inventoryResolution++;
 		this.reviewDecisionIndex = normalizeReviewDecisionIndex(savedData?.reviewDecisionIndex);
 		this.authorQueryDecisions = normalizeAuthorQueryDecisions(savedData?.authorQueryDecisions);
+		this.editorReplies = normalizeEditorReplies(savedData?.editorReplies);
 		this.reviewerSignalIndex = normalizeReviewerSignalIndex(savedData?.reviewerSignalIndex);
 		this.sceneReviewIndex = normalizeSceneReviewIndex(savedData?.sceneReviewIndex);
 		this.sweepRegistry = normalizeSweepRegistry(savedData?.sweepRegistry);
@@ -369,6 +373,7 @@ export class ReviewRegistryService {
 			reviewerSignalIndex: this.reviewerSignalIndex,
 			reviewDecisionIndex: this.reviewDecisionIndex,
 			authorQueryDecisions: this.authorQueryDecisions,
+			editorReplies: this.editorReplies,
 			sceneReviewIndex: this.sceneReviewIndex,
 			sweepRegistry: this.sweepRegistry,
 			settings: { ...this.settings },
@@ -627,6 +632,21 @@ export class ReviewRegistryService {
 		this.authorQueryDecisions[key] = { key, status, updatedAt: Date.now() };
 		if (options?.persist !== false) {
 			await this.persistData();
+		}
+	}
+
+	getEditorReplies(): Readonly<Record<string, string>> {
+		return Object.fromEntries(Object.values(this.editorReplies).map((record) => [record.key, record.text]));
+	}
+
+	// Saves the author's reply to one item of an editor's pass; an empty reply
+	// removes it. The caller decides when to write data.json, so a reply typed
+	// in a text box is saved once the author pauses rather than on every key.
+	setEditorReply(key: string, text: string): void {
+		if (text.trim()) {
+			this.editorReplies[key] = { key, text, updatedAt: Date.now() };
+		} else {
+			delete this.editorReplies[key];
 		}
 	}
 

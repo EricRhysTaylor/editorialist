@@ -130,6 +130,23 @@ export function renderCompletedSweepCard(
 			return;
 		}
 
+		if (step.action === "respond") {
+			const link = item.createEl("a", {
+				cls: "editorialist-panel__completion-step-link",
+				attr: {
+					href: "#",
+				},
+			});
+			link.createSpan({
+				cls: "editorialist-panel__completion-link-text",
+				text: step.label,
+			});
+			host.bindAction(link, () => {
+				void plugin.openEditorResponse(completedSweep.batchId);
+			});
+			return;
+		}
+
 		if (step.action === "clean") {
 			const link = item.createEl("a", {
 				cls: "editorialist-panel__completion-step-link",

@@ -22,6 +22,7 @@ export const en = {
 	"commands.rescanReviewBlocks": "Rescan review blocks for cleanup",
 	"commands.backupSelection": "Backup selection to cut file",
 	"commands.insertAuthorQuery": "Insert author query",
+	"commands.respondToEditor": "Write your response to the editor",
 	"commands.anchorSelection": "Anchor selection to editorialism directive",
 	"commands.nextAnchor": "Go to next unprocessed anchor",
 	"commands.markAnchorProcessed": "Mark anchor processed and go to next",

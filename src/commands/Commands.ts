@@ -81,6 +81,14 @@ export function registerCommands(plugin: EditorialistPlugin): void {
 	});
 
 	plugin.addCommand({
+		id: "respond-to-editor",
+		name: t("commands.respondToEditor"),
+		callback: () => {
+			void plugin.openEditorResponse();
+		},
+	});
+
+	plugin.addCommand({
 		id: "anchor-selection-to-editorialism",
 		name: t("commands.anchorSelection"),
 		editorCallback: () => {

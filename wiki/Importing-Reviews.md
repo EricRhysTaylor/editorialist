@@ -250,6 +250,18 @@ The launcher lists anything it leaves out:
 - **Paragraphs split or joined.** The wording comes in; the paragraph break does not.
 - **Comments** that cannot be tied to a scene.
 
+## Responding to your editor
+
+At the end of a copy edit, your editor expects an answer: a reply to their comments and queries, and a note on any change you kept as written (a *stet*). Editorialist writes that response for you as a Word file.
+
+- **Reply to a comment.** Under each comment from your editor in the review panel, choose **Reply**.
+- **Say why you kept a change.** When you reject one of your editor's changes, or mark it as rewritten, choose **Say why you kept it** on its card. A reason is optional.
+- **Save the file.** When a person's pass is finished, the completion card leads with **Write your response to** *(your editor)*. You can also run **Write your response to the editor** from the command palette at any point.
+
+The response window lists every comment and every change you kept or rewrote, scene by scene, each with a box for your reply. A comment that came in on several scenes is listed once, under **General comments**. Replies are saved as you type, so you can close the window and come back. **Save Word file** writes the response to the **Editorialist/Responses** folder in your vault. It opens with a tally: how many changes you accepted, kept, rewrote or haven't decided yet, and how many comments you replied to. Each kept change shows your editor's wording with their deleted words struck through and added words underlined, then your reason.
+
+Write the response before you clean the review blocks out of your scenes. It is built from those blocks, so once they are cleaned it can no longer be made. Passes from an AI get no response.
+
 ## After import: deliveries and planning
 
 The canonical formatting instructions include both formats, actual-reviewer attribution, supported effort metadata, and guidance for stable checklist updates. Copy them afresh from the launcher when starting a new review.

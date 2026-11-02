@@ -158,7 +158,7 @@ export function deriveSweepSummary(
 	};
 }
 
-export type CompletedSweepStepAction = "clean" | "import" | "start";
+export type CompletedSweepStepAction = "clean" | "import" | "respond" | "start";
 
 export interface CompletedSweepNextStep {
 	action: CompletedSweepStepAction;
@@ -178,9 +178,15 @@ export interface CompletedSweepNextStep {
 // the audit walk-through, it only works while the blocks are still there, and
 // cleaning destroys it. The clean confirmation says exactly that before
 // anything is removed.
+//
+// A pass from a person (an editor, not an AI) is answered before it is
+// cleaned: the response is built from the review blocks, so writing it leads
+// and cleaning follows it.
 export function buildCompletedSweepNextSteps(input: {
 	isCleaned: boolean;
 	hasImportedNotes: boolean;
+	// The person to send a response to, when the pass came from one.
+	respondTo?: string;
 }): CompletedSweepNextStep[] {
 	// Once cleaned there is nothing left to remove and no block data for the
 	// audit to render, so only the forward-looking action remains.
@@ -189,6 +195,9 @@ export function buildCompletedSweepNextSteps(input: {
 	}
 
 	const steps: CompletedSweepNextStep[] = [];
+	if (input.respondTo && input.hasImportedNotes) {
+		steps.push({ action: "respond", label: `Write your response to ${input.respondTo}` });
+	}
 	if (input.hasImportedNotes) {
 		steps.push({ action: "clean", label: "Clean review blocks" });
 	}

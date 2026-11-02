@@ -19,6 +19,7 @@ import type {
 import type { ReviewSweepRegistryEntry } from "../models/ReviewImport";
 import {
 	normalizeAuthorQueryDecisions,
+	normalizeEditorReplies,
 	normalizeReviewDecisionIndex,
 	normalizeReviewerSignalIndex,
 	normalizeSceneReviewIndex,
@@ -124,6 +125,7 @@ export function emptyPluginData(): EditorialistPluginData {
 		reviewerSignalIndex: {},
 		reviewDecisionIndex: {},
 		authorQueryDecisions: {},
+		editorReplies: {},
 		sceneReviewIndex: {},
 		sweepRegistry: {},
 		settings: { ...defaultEditorialistSettings(), manuscriptTarget: createManuscriptTarget("none") },
@@ -180,6 +182,7 @@ function normalizeIntoCurrent(raw: Record<string, unknown>): EditorialistPluginD
 				| Partial<Record<string, Partial<AuthorQueryDecisionRecord>>>
 				| undefined,
 		),
+		editorReplies: normalizeEditorReplies(pickObject(raw.editorReplies)),
 		sceneReviewIndex: normalizeSceneReviewIndex(
 			pickObject(raw.sceneReviewIndex) as
 				| Partial<Record<string, Partial<SceneReviewRecord> & { resolvedCount?: number; status?: SceneReviewRecord["status"] | "not_started" }>>

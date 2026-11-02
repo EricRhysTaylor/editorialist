@@ -96,6 +96,9 @@ import { openContributorStrengthsModal } from "./ui/ContributorStrengthsModal";
 import { EDITORIALISM_PANEL_VIEW_TYPE, EditorialismPanel } from "./ui/EditorialismPanel";
 import { PENDING_EDITS_PANEL_VIEW_TYPE, PendingEditsPanel } from "./ui/PendingEditsPanel";
 import { AuthorQueryModal } from "./ui/modals/AuthorQueryModal";
+import { EditorResponseModal } from "./ui/modals/EditorResponseModal";
+import { composeEditorResponse, editorResponseParagraphs, type EditorResponse } from "./core/review/EditorResponse";
+import { writeDocx } from "./core/word/DocxWriter";
 import {
 	formatAuthorQueryMarker,
 	stripAuthorQueryMarkerFromText,
@@ -199,7 +202,7 @@ interface CompletedSweepPanelState {
 	editsReviewedLabel: string;
 	durationLabel?: string;
 	nextSteps: Array<{
-		action?: "clean" | "import" | "start";
+		action?: "clean" | "import" | "respond" | "start";
 		label: string;
 	}>;
 	title: string;
@@ -1488,6 +1491,107 @@ export default class EditorialistPlugin extends Plugin {
 		await this.applyAuthorQueryDecision(id, "resolved");
 	}
 
+	// The editor's pass the author is answering: the batch under review, or
+	// else the most recent pass from a person whose review blocks are still in
+	// the scenes. An AI's pass gets no response; nobody reads it.
+	async findRespondableBatchId(): Promise<string | null> {
+		const current = this.getGuidedSweep()?.batchId ?? this.getCurrentBatchId();
+		const candidates = this.getSweepRegistryEntries()
+			.filter((entry) => entry.status !== "cleaned")
+			.sort((a, b) => (b.batchId === current ? 1 : 0) - (a.batchId === current ? 1 : 0) || b.importedAt - a.importedAt);
+		for (const entry of candidates) {
+			const response = await this.collectEditorResponse(entry.batchId);
+			if (response) return entry.batchId;
+		}
+		return null;
+	}
+
+	// Who made a batch, read from the review session on screen. Null when the
+	// session holds nothing from that batch.
+	private getBatchContributor(batchId: string): ReviewContributor | null {
+		const session = this.store.getSession();
+		const item = [...(session?.suggestions ?? []), ...(session?.memos ?? [])].find((entry) => entry.source.batchId === batchId);
+		return item?.contributor ?? null;
+	}
+
+	// The response to one batch, read from its scenes as they are now and the
+	// replies saved so far. Null when the batch is gone from the scenes or was
+	// made by an AI.
+	async collectEditorResponse(batchId: string): Promise<EditorResponse | null> {
+		const entry = this.getSweepRegistryEntry(batchId);
+		if (!entry || entry.status === "cleaned") return null;
+		const paths = [...entry.sceneOrder.filter((path) => entry.importedNotePaths.includes(path)), ...entry.importedNotePaths.filter((path) => !entry.sceneOrder.includes(path))];
+		const scenes: Parameters<typeof composeEditorResponse>[0]["scenes"][number][] = [];
+		let reviewer: ReviewContributor | null = null;
+		for (const path of paths) {
+			const file = this.app.vault.getAbstractFileByPath(path);
+			if (!(file instanceof TFile)) continue;
+			const text = this.resolveOpenNoteText(path) ?? await this.app.vault.cachedRead(file);
+			const session = this.registry.applyPersistedReviewState(this.reviewEngine.buildSession(path, text, null));
+			reviewer ??= [...session.suggestions, ...session.memos].find((item) => item.source.batchId === batchId)?.contributor ?? null;
+			scenes.push({ notePath: path, title: this.getNoteDisplayLabel(path), suggestions: session.suggestions, memos: session.memos });
+		}
+		if (!reviewer || reviewer.kind !== "human") return null;
+		return composeEditorResponse({
+			batchId,
+			reviewer: reviewer.displayName,
+			bookLabel: entry.activeBookLabel,
+			date: new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }),
+			scenes,
+			replies: this.registry.getEditorReplies(),
+		});
+	}
+
+	async openEditorResponse(batchId?: string, focusKey?: string): Promise<void> {
+		const id = batchId ?? await this.findRespondableBatchId();
+		const response = id ? await this.collectEditorResponse(id) : null;
+		if (!id || !response) {
+			new Notice("There is no editor's pass to respond to. A response is made from an editor's changes while they are still in your scenes.");
+			return;
+		}
+		new EditorResponseModal(this.app, this, id, response, focusKey).open();
+	}
+
+	saveEditorReply(key: string, text: string): void {
+		this.registry.setEditorReply(key, text);
+		void this.savePluginData();
+	}
+
+	getEditorReply(key: string): string {
+		return this.registry.getEditorReplies()[key] ?? "";
+	}
+
+	// Writes the response as a Word file in Editorialist/Responses and returns
+	// its path. A second save on the same day replaces that day's file.
+	async saveEditorResponseFile(batchId: string): Promise<string | null> {
+		const response = await this.collectEditorResponse(batchId);
+		if (!response) {
+			new Notice("This editor's changes are no longer in your scenes, so the response cannot be made.");
+			return null;
+		}
+		const folder = "Editorialist/Responses";
+		const parts = folder.split("/");
+		for (let index = 1; index <= parts.length; index++) {
+			const part = parts.slice(0, index).join("/");
+			const existing = this.app.vault.getAbstractFileByPath(part);
+			if (!existing) await this.app.vault.createFolder(part);
+			else if (!(existing instanceof TFolder)) {
+				new Notice(`A file named “${part}” is in the way of the Responses folder.`);
+				return null;
+			}
+		}
+		const day = new Date().toISOString().slice(0, 10);
+		const name = `Response to ${response.reviewer} ${day}`.replace(/[\\/:*?"<>|#^[\]]/g, "-");
+		const path = normalizePath(`${folder}/${name}.docx`);
+		const bytes = writeDocx(editorResponseParagraphs(response));
+		// A copy, so the vault gets a plain ArrayBuffer of exactly these bytes.
+		const data = new Uint8Array(bytes).buffer;
+		const existing = this.app.vault.getAbstractFileByPath(path);
+		if (existing instanceof TFile) await this.app.vault.modifyBinary(existing, data);
+		else await this.app.vault.createBinary(path, data);
+		return path;
+	}
+
 	// Dismiss a query: persist the decision but leave the note untouched — the
 	// author chose not to act, and the marker stays for a later pass.
 	async dismissAuthorQuery(id: string): Promise<void> {
@@ -2001,6 +2105,9 @@ export default class EditorialistPlugin extends Plugin {
 			? buildCompletedSweepNextSteps({
 				isCleaned,
 				hasImportedNotes: (entry?.importedNotePaths.length ?? 0) > 0,
+				respondTo: this.getBatchContributor(completedSweep.batchId)?.kind === "human"
+					? this.getBatchContributor(completedSweep.batchId)?.displayName
+					: undefined,
 			})
 			: [{ action: "start", label: "Review changes" }];
 
@@ -2269,7 +2376,7 @@ export default class EditorialistPlugin extends Plugin {
 		return Boolean(source && source.startOffset !== undefined && source.endOffset !== undefined);
 	}
 
-	private refreshReviewPanel(): void {
+	refreshReviewPanel(): void {
 		for (const leaf of this.app.workspace.getLeavesOfType(REVIEW_PANEL_VIEW_TYPE)) {
 			const view = leaf.view;
 			if (view instanceof ReviewPanel) {

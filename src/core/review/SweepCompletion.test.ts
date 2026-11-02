@@ -295,6 +295,16 @@ describe("buildCompletedSweepNextSteps", () => {
 		expect(steps(false, false)).toEqual(["start", "import"]);
 	});
 
+	it("leads with the response to a person, before cleaning removes what it is built from", () => {
+		const order = buildCompletedSweepNextSteps({ isCleaned: false, hasImportedNotes: true, respondTo: "Morgan Lee" });
+		expect(order.map((step) => step.action)).toEqual(["respond", "clean", "start", "import"]);
+		expect(order[0]?.label).toBe("Write your response to Morgan Lee");
+	});
+
+	it("offers no response once the batch is cleaned", () => {
+		expect(buildCompletedSweepNextSteps({ isCleaned: true, hasImportedNotes: true, respondTo: "Morgan Lee" }).map((step) => step.action)).toEqual(["import"]);
+	});
+
 	it("labels every step", () => {
 		for (const step of buildCompletedSweepNextSteps({ isCleaned: false, hasImportedNotes: true })) {
 			expect(step.label.length).toBeGreaterThan(0);
