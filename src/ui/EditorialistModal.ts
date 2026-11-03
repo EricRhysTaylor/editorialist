@@ -436,7 +436,7 @@ export class EditorialistModal extends Modal {
 		});
 		card.createDiv({
 			cls: "editorialist-control-modal__card-copy",
-			text: `A ${getReviewBlockFenceLabel()} was written directly into this ${unitLabel}. Import it to stamp the block, register the sweep, and review it with the normal workflow.`,
+			text: `A ${getReviewBlockFenceLabel()} was written directly into this ${unitLabel}. Import it to review it like any other pass.`,
 		});
 
 		card.createEl("hr", { cls: "editorialist-control-modal__divider" });

@@ -9,7 +9,7 @@ The Line edits mode is traditional Editorialist: scene-level review batches with
 Between sessions the panel shows:
 
 - **Active book** — which book Editorialist is currently scoped to (via [Radial Timeline](Radial-Timeline-Integration) when installed).
-- **Continue review / Next in sweep** — the scene to pick up next, with **Resume review** or **Start scene**. Pending edits has its own mode.
+- **Continue review / Next in this pass** — the scene to pick up next, with **Resume review** or **Start scene**. Pending edits has its own mode.
 - **Up next** — the other scenes with suggestions still to review, in story order. Click a row to open that scene's review.
 - **Reviewed** — every scene you have finished, in the same rows and story order as Up next, directly beneath it. Click a row to reopen that scene's review and step back through what you decided. A scene you have already cleaned has no review block left, so its row simply opens the scene and shows when it was cleaned; rows whose review block is still in the note keep a **Clean** button.
 - **Recent review rounds** — a disclosure with your recent import rounds and each round's accepted, rejected, and rewritten counts.
@@ -33,12 +33,12 @@ Use the editor toolbar, right-click menu, or command palette to back up selected
 
 ## Review sessions
 
-Starting a workflow card (or importing a review batch) begins a **guided review sweep**. The imported batch has already been split into review blocks at the bottom of the targeted scene notes; the panel reads those blocks and walks their suggestions scene by scene. A scene can hold multiple batches from different manuscript shares or review passes.
+Starting a workflow card (or importing a review batch) begins a **guided review pass**. The imported batch has already been split into review blocks at the bottom of the targeted scene notes; the panel reads those blocks and walks their suggestions scene by scene. A scene can hold multiple batches from different manuscript shares or review passes.
 
 
 ### What a batch can ask you to do
 
-| Type | How it helps during a sweep |
+| Type | How it helps during a pass |
 |---|---|
 | **Edit** | Compare the original passage with a proposed replacement. |
 | **Move** | Send a passage to a specific before / after destination. |
@@ -66,7 +66,7 @@ When the same fix appears in a later scene of the same import, such as *grey →
 
 ### Navigation and filters
 
-- **Previous / next** moves through suggestions; the sweep hands off to the next scene when the current one is resolved.
+- **Previous / next** moves through suggestions; the pass hands off to the next scene when the current one is resolved.
 - **Jump to** — each suggestion card has a jump menu: jump to the suggested text in the editor, to its source review block, or (for a move) to the destination anchor.
 - **Contributor filter** — appears only when a session contains suggestions from **more than one contributor**. A dropdown limits the view to one contributor, and a star button shows only [starred contributors](Settings-Reference#contributors-tab). With a single-reviewer batch the row stays hidden.
 - **Collapse controls** — fold away processed suggestions, pending edits, and comments to reduce noise.
@@ -84,7 +84,7 @@ Each highlighted suggestion gets an inline toolbar in the editor:
 | **Apply** (Edit / Cut / Condense / Expand / Move) | Click | Apply this suggestion to the prose |
 | **Apply and advance** | Shift + click | Apply, then jump to the next suggestion |
 | **Apply to all** | Shift + Cmd + click | Stage every eligible suggestion in this scene and show a Cancel/Confirm bar — see [Apply to all](#apply-to-all) below |
-| **Defer** | Click | Skip for now; the sweep can finish later |
+| **Defer** | Click | Skip for now; the pass can finish later |
 | **Rewrite myself** | Click | Take the suggestion as a prompt and write your own version |
 | **Backup to cut file** | Click | Archive the target text to the [cut file](Settings-Reference#configuration-tab) before deciding |
 | **Open cut file** | Shift + click Backup to cut file | Open the scene's cut file |
@@ -99,10 +99,10 @@ An **↑ / ↓** indicator next to the Hide-toolbar button shows, for Move sugge
 
 The toolbar's meta row shows the current operation type, plus:
 
-- **Scene progress** — a label for where this scene sits in a multi-scene sweep.
+- **Scene progress** — a label for where this scene sits in a multi-scene pass.
 - **`Entry n/N`** — the selected suggestion's position among all suggestions in the session.
 - Conditional counts, shown only when their count is greater than 0: **N accepted**, **N pending**, **N rejected**, **N unresolved** (hover for which suggestion numbers), **N deferred**, **N rewritten**.
-- A green **"sweep complete"** chip once every suggestion in the scene has a resolved status.
+- A green **"pass complete"** chip once every suggestion in the scene has a resolved status.
 
 ### Apply to all
 
@@ -110,7 +110,7 @@ Shift + Cmd + click on **Apply** stages every eligible suggestion in the current
 
 ### Toolbar modes
 
-The toolbar isn't only the per-suggestion editor above — it switches to a different mode depending on where you are in the sweep. In order of priority:
+The toolbar isn't only the per-suggestion editor above — it switches to a different mode depending on where you are in the pass. In order of priority:
 
 | Mode | When you see it | Title | Actions |
 |---|---|---|---|
@@ -118,12 +118,12 @@ The toolbar isn't only the per-suggestion editor above — it switches to a diff
 | **applied_review** | Reviewing changes just written by Apply to all | "Review applied changes" | Previous, Next, Undo |
 | **completed_review** | Every suggestion in the review you're in is decided | The same title as the panel's completion card: "Scene complete", "Batch complete", or "All revisions complete" | Previous, Next, Undo (if a change is still undoable) |
 | **accepted_review** | Nothing else needs a decision but you're looking back at what was accepted | "Review accepted changes" | Previous, Next, Undo (if available) |
-| **handoff** | The current scene's revision notes are all resolved and the sweep can move on | "Scene complete" (or "Note complete"), or "All revision notes are resolved" on the final scene | Next scene / Finish sweep |
+| **handoff** | The current scene's revision notes are all resolved and the pass can move on | "Scene complete" (or "Note complete"), or "All revision notes are resolved" on the final scene | Next scene / Finish pass |
 | **panel** | Open suggestions remain further down the note than the visible editor viewport | "Continue in this scene" / "this note" | none — resume from the side panel, not the editor toolbar |
 | **bulk_confirm** | Right after Shift + Cmd + click on Apply | "Apply to all?" | Cancel, Confirm |
 | **review** | A suggestion is selected and still open | operation badge + status chips | the full action set above |
 
-`handoff`, `panel`, and `completed_review` are ordinary stops in a normal sweep, not error states — they mean, respectively: this scene is done and ready to advance; there's more to do further down the note than fits the current view; and everything in the review you're in is decided. For what each completion title means, see [Sweep completion](#sweep-completion).
+`handoff`, `panel`, and `completed_review` are ordinary stops in a normal pass, not error states — they mean, respectively: this scene is done and ready to advance; there's more to do further down the note than fits the current view; and everything in the review you're in is decided. For what each completion title means, see [Pass completion](#pass-completion).
 
 ### Editorialisms
 
@@ -149,13 +149,13 @@ Within each group, directives with open passages here come first, and a directiv
 
 **Decisions and questions.** A directive that asks you to choose ("Choose her age", or a `[?]` item) shows **Decision needed** with a **Decide** button. Your answer is written to the directive's line as `[decision:: …]`. From then on **Decided: …** leads the directive, with **Change** beside it, so each passage becomes a quick check against an answer you already gave. Choosing **Question** from a status menu, or **Ask a question…**, asks you to write the question down. It is saved on the line as `[question:: …]` and shown under the directive as **Your question**, with **Edit**. Cancelling changes nothing. See [Decisions](Editorialisms-Panel#decisions) and [Questions](Editorialisms-Panel#questions) for the full behavior.
 
-**Passages in other scenes.** A directive whose passages all sit elsewhere says where they are, for example "2 passages in scenes 26 and 27". Those scenes are named, not linked. Leaving mid-sweep would abandon the batch you are working, so walking a directive across scenes stays the [Editorialisms panel](Editorialisms-Panel)'s job.
+**Passages in other scenes.** A directive whose passages all sit elsewhere says where they are, for example "2 passages in scenes 26 and 27". Those scenes are named, not linked. Leaving mid-pass would abandon the batch you are working, so walking a directive across scenes stays the [Editorialisms panel](Editorialisms-Panel)'s job.
 
 **On the suggestion card.** When the selected suggestion sits in a paragraph that an open passage of an unfinished directive also names, the suggestion card shows that directive under **Editorialism on this passage**. Its **Done** button marks just this passage done, so you can deal with the structural note while you are already in the prose. Whether the directive as a whole is finished is still yours to set in the Editorialisms card. A directive that needs a decision shows **Decision needed** and **Decide** here too. Matching works by paragraph, so a line edit and a directive's quoted fragment don't need to cover the same words. A passage you have rewritten past recognition stops matching rather than pointing somewhere wrong.
 
 Two behaviors are deliberate:
 
-- **Directives never block sweep completion.** They are not part of the batch. A sweep finishes on its suggestions alone, whatever state the directives are in.
+- **Directives never keep a pass from finishing.** They are not part of the batch. A pass finishes on its suggestions alone, whatever state the directives are in.
 - **There is no Apply.** A directive carries no replacement prose, so nothing here is ever written to the manuscript. Marking every passage in a scene done also does not mark the directive done — that stays your call.
 
 Directives scoped to the whole manuscript do not appear here: they apply everywhere, so they cannot point at a passage in this scene.
@@ -193,7 +193,7 @@ Every suggestion moves through an explicit lifecycle:
 pending ──→ accepted
        ──→ rejected
        ──→ rewritten   (you applied your own version)
-       ──→ deferred    (decide later; blocks sweep completion until resolved)
+       ──→ deferred    (decide later; keeps the pass open until resolved)
        ──→ unresolved  (couldn't be matched or needs attention)
 ```
 
@@ -201,9 +201,9 @@ pending ──→ accepted
 
 Only the single most-recently applied change can be undone, and only for as long as you stay on that note — navigate away and it's final. Rejecting, deferring, and rewriting have no undo. Suggestions whose target text can't be found in the note (paraphrased targets, already-applied edits) are flagged by match type — exact, multiple matches, not found, or already applied — so nothing is ever applied against the wrong text. A suggestion that would break the italics or bold in its passage is shown but left for you to make by hand; see [Matching against the manuscript](Importing-Reviews#matching-against-the-manuscript).
 
-### Sweep completion
+### Pass completion
 
-A sweep finishes only when every suggestion in the batch has a resolved status (accepted, rejected, or rewritten). If pending, unresolved, or deferred items remain, Editorialist pauses and tells you what's left. On completion, the batch is recorded: per-scene polish frontmatter (`Editorialist.revision`, `Editorialist.revision_updated`), contributor acceptance stats, and the activity history all update.
+A pass finishes only when every suggestion in the batch has a resolved status (accepted, rejected, or rewritten). If pending, unresolved, or deferred items remain, Editorialist pauses and tells you what's left. On completion, the batch is recorded: per-scene polish frontmatter (`Editorialist.revision`, `Editorialist.revision_updated`), contributor acceptance stats, and the activity history all update.
 
 The completion card depends on whether the whole import batch is decided, not just the scene in front of you:
 
@@ -215,11 +215,11 @@ The completion card depends on whether the whole import batch is decided, not ju
 
 The checkpoint never offers Clean. Cleaning removes review blocks from every scene in a batch, so cleaning early would strip them from scenes you haven't reviewed yet. Editorialist won't clean a batch until all its scenes are decided. Once a batch has been cleaned, its card offers only **Import new revision notes** and **Close review**.
 
-When other scenes still hold pending batches, the **Continue review** / **Next in sweep** card and the **Up next** list follow the completion card, so you can go straight on to the next one.
+When other scenes still hold pending batches, the **Continue review** / **Next in this pass** card and the **Up next** list follow the completion card, so you can go straight on to the next one.
 
 A completion duration is shown only for a finished batch that recorded a real start time. A pass that finished as a single-scene session has no such timestamp, so it reports no duration rather than an approximate one.
 
-The completion card keeps the scene's memos and any [Editorialisms](#editorialisms) beneath it, so the reviewer's framing is still readable after the pass rather than only during it. A comments card you collapsed while sweeping is reopened when the pass completes; collapsing it again in the completion view stays collapsed. **Review changes** re-enters the batch to walk what you accepted, and the memos stay in view there too.
+The completion card keeps the scene's memos and any [Editorialisms](#editorialisms) beneath it, so the reviewer's framing is still readable after the pass rather than only during it. A comments card you collapsed while reviewing is reopened when the pass completes; collapsing it again in the completion view stays collapsed. **Review changes** re-enters the batch to walk what you accepted, and the memos stay in view there too.
 
 ## Pending-edits review
 

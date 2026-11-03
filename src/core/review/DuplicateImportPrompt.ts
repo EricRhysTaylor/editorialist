@@ -53,7 +53,7 @@ export function buildDuplicateImportPrompt(input: DuplicateImportPromptInput): D
 				"You imported this batch and have not finished it. Open the existing sweep to carry on where you left off, or import again to start a second copy alongside it.",
 			details,
 			choices: [
-				{ label: "Open existing sweep", value: "open" },
+				{ label: "Open existing pass", value: "open" },
 				{ label: "Import anyway", value: "import" },
 				{ label: "Cancel", value: "cancel" },
 			],

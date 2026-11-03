@@ -2207,12 +2207,12 @@ export default class EditorialistPlugin extends Plugin {
 			isFinal,
 			nextLabel: nextPath ? this.getNoteDisplayLabel(nextPath) : undefined,
 			nextPath,
-			primaryActionLabel: isFinal ? "Finish sweep" : `Next ${unitLabel}`,
+			primaryActionLabel: isFinal ? "Finish pass" : `Next ${unitLabel}`,
 			progressLabel: isFinal
 				? "You're done with this pass."
 				: `${guidedSweep.currentNoteIndex + 1} of ${guidedSweep.notePaths.length}`,
 			panelProgressLabel: `${unitTitle} ${guidedSweep.currentNoteIndex + 1} of ${guidedSweep.notePaths.length}`,
-			secondaryActionLabel: isFinal ? undefined : "Finish sweep",
+			secondaryActionLabel: isFinal ? undefined : "Finish pass",
 			summary: isFinal
 				? "You're done with this pass."
 				: `All revision notes in this ${unitLabel} are resolved.`,

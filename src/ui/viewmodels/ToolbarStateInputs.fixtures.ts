@@ -309,7 +309,7 @@ export const TOOLBAR_FIXTURES: ToolbarFixture[] = [
 		expected: {
 			mode: "review",
 			anchorDirection: "below",
-			completionLabel: "sweep complete",
+			completionLabel: "pass complete",
 			pendingCount: 0,
 			acceptedCount: 1,
 			rejectedCount: 1,

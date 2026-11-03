@@ -42,9 +42,14 @@ export class EditorialistSettingTab extends PluginSettingTab {
 	private activeBookOnly = true;
 	private activeTab: SettingsTabId = "core";
 
-	// The tab to show the next time the settings open.
+	// The tab to show. When the settings are already on screen, show it now:
+	// recording it alone left the old tab drawn, and a click on the new tab then
+	// did nothing because it already counted as active. Otherwise display()
+	// shows it when the settings open.
 	selectTab(tab: SettingsTabId): void {
+		if (this.activeTab === tab) return;
 		this.activeTab = tab;
+		if (this.containerEl.isConnected) void this.displayAsync(false);
 	}
 	private displayRunId = 0;
 	private contributorEvents = new Component();

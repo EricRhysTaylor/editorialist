@@ -3933,6 +3933,10 @@
 
 .editorialist-settings__inventory-table {
 	width: 100%;
+
+	/* Below this the wrapper scrolls sideways, so a narrow settings window
+	   never squeezes the scene name out of its column. */
+	min-width: 36rem;
 	border-collapse: collapse;
 	font-size: var(--font-ui-small);
 	table-layout: fixed;
@@ -3981,6 +3985,7 @@
 	align-items: center;
 	gap: var(--editorialist-space-sm);
 	min-width: 0;
+	container-type: inline-size;
 }
 
 .editorialist-settings__inventory-rt-glyph {
@@ -4042,10 +4047,11 @@
 	color: color-mix(in srgb, var(--color-red) 38%, var(--text-normal));
 }
 
+/* The name keeps its first few characters; the Pending badge gives way first. */
 .editorialist-settings__inventory-note-link {
 	display: inline-block;
 	flex: 1 1 auto;
-	min-width: 0;
+	min-width: 4.5rem;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -4079,6 +4085,7 @@
 
 .editorialist-settings__inventory-pending-badge-icon {
 	display: inline-flex;
+	flex: 0 0 auto;
 	align-items: center;
 	justify-content: center;
 }
@@ -4092,8 +4099,23 @@
 	line-height: 1.1;
 }
 
-.editorialist-settings__inventory-col-number {
-	width: 7.2rem;
+/* A narrow scene column keeps the badge's icon and drops its word, so the
+   scene name keeps the room. The badge's label still names it. */
+@container (max-width: 13rem) {
+	.editorialist-settings__inventory-pending-badge {
+		padding: 0.1rem 0.3rem;
+	}
+
+	.editorialist-settings__inventory-pending-badge-text {
+		display: none;
+	}
+}
+
+/* Wide enough for the longest header word, "Finished", once headers wrap;
+   the values are short and right-aligned, so the left padding can be small. */
+.editorialist-settings__inventory-table .editorialist-settings__inventory-col-number {
+	width: 5.8rem;
+	padding-inline-start: 0.4rem;
 	text-align: right;
 	font-variant-numeric: tabular-nums;
 }
@@ -8558,9 +8580,23 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	height: 15px;
 }
 
-.editorialist-project__next-meta.is-overdue,
 .editorialist-project__next-milestone.is-overdue {
 	color: var(--text-warning);
+}
+
+/* An overdue session: red, as Today and the work queue mark it. Milestones
+   stay amber. */
+.editorialist-project__next.is-overdue {
+	border-inline-start-color: var(--text-error);
+}
+
+.editorialist-project__next-overdue {
+	color: var(--text-error);
+}
+
+/* The word-limit bar sits under the session's title, past its status circle. */
+.editorialist-project__next > .editorialist-word-limit {
+	margin-inline-start: 34px;
 }
 
 /* Collapsible sections: one shape for milestones, tasks, and materials. */

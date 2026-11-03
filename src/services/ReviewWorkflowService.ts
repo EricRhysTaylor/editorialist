@@ -168,7 +168,7 @@ export class ReviewWorkflowService {
 		});
 		this.store.setGuidedSweep(null);
 		await this.host.enterCompletedSweepAudit();
-		this.host.notify("Guided sweep complete.");
+		this.host.notify("Pass complete.");
 	}
 
 	private checkTarget(paths: readonly string[]): boolean {

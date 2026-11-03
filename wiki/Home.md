@@ -2,7 +2,7 @@
 
 It is for writers who get notes from human editors, beta readers, or AI and want to work through those notes without losing control of the manuscript. The Ed side panel has six modes: Today, Line edits, Pending edits, Editorialisms, Editor engagement, and Author planner. Keep editorial commitments and personal goals visible, schedule the work, then resolve feedback in its source workflow.
 
-The plugin does not rewrite your prose on import. Line edits, memos, author questions, and pending-edit notes stay reviewable until you decide what to do with them. Any passage can be archived to a per-scene cut file — from the editor's right-click menu, the suggestion toolbar, or the command palette — and completed sweeps update revision history, contributor stats, and per-scene progress.
+The plugin does not rewrite your prose on import. Line edits, memos, author questions, and pending-edit notes stay reviewable until you decide what to do with them. Any passage can be archived to a per-scene cut file — from the editor's right-click menu, the suggestion toolbar, or the command palette — and finished passes update revision history, contributor stats, and per-scene progress.
 
 Watch the walkthrough: [Turn Your Editor's Notes Into a Revision Schedule](https://youtu.be/uoGUkF6RQ2E) (Volume 9 on the Radial Timeline YouTube channel).
 
@@ -35,7 +35,7 @@ Line edits supports a full set of scene-level editorial moves:
 | **Cut** | Remove a passage, with optional backup to the scene's cut file first. |
 | **Condense** | Tighten a passage between two anchors into a shorter version. |
 | **Expand** | Develop, slow down, or decompress a beat with finished prose or advisory guidance. |
-| **Memo** | Keep general thoughts, strengths, issues, or scene notes beside the sweep without changing prose. |
+| **Memo** | Keep general thoughts, strengths, issues, or scene notes beside the pass without changing prose. |
 
 ## Six panel modes
 
@@ -73,8 +73,8 @@ Alongside these, the **Contributor directory** (**Settings → Contributors**) s
 1. **Copy the instructions for AI** from the review launcher — they include the [format specification](Importing-Reviews) and your book's scene IDs, or its note names where notes have no IDs.
 2. **Get suggestions.** Paste the instructions into your AI conversation along with the prose. For human feedback, collect your reviewer's notes in any form — a photo of a marked-up page, a document, an email — and have an AI shape them into a batch using the same instructions. A Word file with tracked changes needs no AI: the launcher reads it directly.
 3. **Import the batch** through the launcher; Editorialist appends review blocks to the bottom of the targeted scene notes.
-4. **Walk the [guided review sweep](Line-Edits)** — accept, reject, rewrite, or defer each suggestion.
-5. **Finish.** Per-scene progress, contributor stats, and revision history update as each sweep completes.
+4. **Work through the [pass](Line-Edits)** — accept, reject, rewrite, or defer each suggestion.
+5. **Finish.** Per-scene progress, contributor stats, and revision history update as each pass completes.
 
 To schedule everything at once, open **Editor engagement → Schedule** (or the schedule shown before you create an engagement) and choose **Auto-plan**; it spreads every open batch, directive, and pending edit across your working days. For one editor's handoff, group its imported batches and Editorialisms into an **Editorial delivery**, then choose **Plan this delivery**. Review the draft before applying it; priorities and estimates are editable. See [Revision Plan](Revision-Plan).
 
@@ -82,7 +82,7 @@ To schedule everything at once, open **Editor engagement → Schedule** (or the 
 
 | Page | What's there |
 |---|---|
-| [Getting Started](Getting-Started) | Commands and your first review sweep |
+| [Getting Started](Getting-Started) | Commands and your first review pass |
 | [Editor Engagement](Editor-Engagement) | Agreed dates, editor return, milestones, references, and activity history |
 | [Author Planner](Author-Planner) | Personal goals, target dates, linked documents, and optional RT stage dates |
 | [Revision Scheduling](Revision-Plan) | Progress across the book, priorities, capacity, auto-planning, and delivery tracking |

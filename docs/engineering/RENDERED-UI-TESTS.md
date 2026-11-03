@@ -47,3 +47,5 @@ own.
 - `src/ui/modals/EditorResponseModal.test.ts`: the response window.
 - `src/ui/panels/EditorReplies.test.ts`: reply links and the kept-changes card.
 - `src/ui/panels/CompletedSweepCard.test.ts`: the completion card's steps.
+- `src/ui/EditorialProjectPanel.test.ts`: the engagement overview's Next up,
+  rendered through the public `renderOverview` with a stubbed host.

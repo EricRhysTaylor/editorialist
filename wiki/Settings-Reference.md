@@ -25,7 +25,7 @@ A table of tracked scenes or notes that have imported revision notes:
 | Completion | Per-scene polish state, from `Editorialist.revision` / `Editorialist.revision_updated` frontmatter |
 | Scene | Scene name; with Radial Timeline installed, Status glyphs (**T**odo / **W**orking / **C**omplete) and Stage glyphs (**Z**ero / **A**uthor / **H**ouse / **P**ress) render from shared frontmatter |
 | Imports | Review batches imported into the scene |
-| Sweeps | Completed guided review sweeps |
+| Passes finished | Review passes finished in this scene |
 | Open / Done | Suggestion counts |
 
 Scenes with pending edits show a badge. When an active book or manuscript folder is set, a filter button narrows the table to that scope.
@@ -36,7 +36,7 @@ When Radial Timeline is installed and has an active book, this section summarize
 
 ### Revision history
 
-Lifetime totals: total suggestions, accepted / rejected / rewritten actions, and completed sweeps.
+Lifetime totals: total suggestions, accepted / rejected / rewritten actions, and finished passes.
 
 ---
 
@@ -89,7 +89,7 @@ Cut archives are excluded from review targets. The selector previews the number 
 
 New installations ask you to choose a target. Existing installations retain their previous selection until you choose one; the unbounded mode is labeled **Entire vault**. Choosing a folder works even while Radial Timeline is enabled.
 
-Revision plans and deliveries still require a folder target (or an RT book with a folder). The active-book pending-edits sweep still requires Radial Timeline. Manuscripts remain associated by folder; saved target presets are separate work.
+Revision plans and deliveries still require a folder target (or an RT book with a folder). The active-book pending-edits review still requires Radial Timeline. Manuscripts remain associated by folder; saved target presets are separate work.
 
 ### You and your files
 
@@ -118,7 +118,7 @@ Three things, and only these keys:
 
 | Key | When |
 |---|---|
-| `Editorialist.revision`, `Editorialist.revision_updated` | A review sweep completes |
+| `Editorialist.revision`, `Editorialist.revision_updated` | A review pass completes |
 | `editorial_id` | You run **Add permanent IDs** |
 | The pending-edits field | You work an item in the [Pending Edits](Pending-Edits) queue |
 
@@ -172,7 +172,7 @@ Cleanup removes review blocks that carry a recognizable closing fence, and only 
 
 > 1 unfenced review block was left in place — it has no closing fence, so remove it by hand.
 
-That count reaches every cleanup route, including **Clean all scenes**, so a sweep never reports success over a note it has only partly cleared. Delete the block by hand and the note is clear.
+That count reaches every cleanup route, including **Clean all scenes**, so a cleanup never reports success over a note it has only partly cleared. Delete the block by hand and the note is clear.
 
 ---
 

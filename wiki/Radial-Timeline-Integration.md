@@ -10,7 +10,7 @@ The integration is optional. Editorialist works without Radial Timeline using it
 |---|---|---|
 | Book scope | Selected folder, pinned note, or explicitly selected whole vault | Optional active-book scope for panels, inventory, and stats |
 | Scene tracking | Editorialist stable note IDs, or path-based fallback | Radial Timeline scene IDs shared with manuscript exports |
-| Pending edits | Active-book pending-edits sweep is not available | Revision notes collected across the active book |
+| Pending edits | Active-book pending-edits review is not available | Revision notes collected across the active book |
 | Scene inventory | Plain scene list | Scene status and stage glyphs when matching frontmatter exists |
 | Author goals | Standalone vault-wide goals with their own dates | Optional shared publishing-stage target dates for any book; completion stays your decision |
 | Review templates | Scene IDs from scoped notes when available; note names for notes without IDs | The template includes the active book's scene IDs |

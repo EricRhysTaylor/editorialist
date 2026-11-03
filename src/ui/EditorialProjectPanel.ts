@@ -4,6 +4,7 @@ import { bindCompletionMenu } from "./primitives/CompletionMenu";
 import { Modal, Notice, TFile, normalizePath, setIcon, type App } from "obsidian";
 import { collaborationUrl, createEditorialProject, engagementReturned, engagementStartCountdown, isProjectEditorProfile, materialDue, projectEditor, recordProjectEvent, shiftDate, type EditorialProject, type EngagementRecord, type EngagementTask, type ProjectMaterial } from "../core/planning/EditorialProject";
 import { isDate, localDate, type RevisionPlan } from "../core/planning/RevisionPlan";
+import { planDayLabel } from "../core/planning/WorkPresentation";
 
 import type { EditorialDelivery } from "../core/EditorialDeliveries";
 import type { EditorialProjectService } from "../services/EditorialProjectService";
@@ -194,8 +195,17 @@ export class EditorialProjectPanel {
 			const task = head.taskId ? project.tasks.find((item) => item.id === head.taskId) : undefined;
 			if (task) this.finishToggle(row, task);
 			row.createSpan({ cls: "editorialist-project__next-title", text: head.title });
-			const meta = [task ? null : head.kindLabel, head.detail, head.day ? `Scheduled ${dayLabel(head.day)}` : null].filter(Boolean).join(" · ");
-			if (meta) card.createDiv({ cls: `editorialist-project__next-meta${task ? "" : " is-flush"}`, text: meta });
+			// A session whose day has passed reads as Today and the queue show it:
+			// the missed day in red, with a red edge on the card.
+			const overdue = head.day !== null && head.day < today;
+			if (overdue) card.addClass("is-overdue");
+			const parts = [task ? null : head.kindLabel, head.detail].filter(Boolean).join(" · ");
+			if (parts || head.day) {
+				const meta = card.createDiv({ cls: `editorialist-project__next-meta${task ? "" : " is-flush"}` });
+				if (parts) meta.createSpan({ text: parts });
+				if (parts && head.day) meta.createSpan({ text: " · " });
+				if (head.day) meta.createSpan({ cls: overdue ? "editorialist-project__next-overdue" : "", text: overdue ? `Overdue · ${planDayLabel(head.day)}` : `Scheduled ${dayLabel(head.day)}` });
+			}
 			const material = task?.materialId ? project.materials.find((item) => item.id === task.materialId) : undefined;
 			if (material) this.wordLimit(card, material);
 		} else {

@@ -243,3 +243,10 @@ and only rounded.
 
 Also checked, not published: Today, the copy-edit list and the response
 window in light theme and at a 300 CSS-pixel sidebar, with no overflow.
+
+Retaken the same day, after the release, from the same vaults and crops:
+
+- `panel-review.png` — the card now reads Next in this pass.
+- `panel-editor-engagement.png` — Next up now marks the Nov 2 session
+  Overdue in red, with a red edge, and the word-limit bar sits under the
+  meta line.

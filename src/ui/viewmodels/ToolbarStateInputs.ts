@@ -103,7 +103,7 @@ export interface ReviewBranchInputs {
 	suggestionsLength: number;
 	effectiveStatuses: ReviewStatus[]; // per-suggestion, in order
 	anchorDirection?: "above" | "below";
-	sweepComplete: boolean; // -> completionLabel "sweep complete" | undefined
+	sweepComplete: boolean; // -> completionLabel "pass complete" | undefined
 	sceneProgressLabel?: string;
 	canApply: boolean;
 	canDefer: boolean;

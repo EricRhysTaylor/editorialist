@@ -50,7 +50,7 @@ Editorialist handles four kinds of work, the same four the Line edits view's **H
 
 The [Revision Plan](Revision-Plan) schedules the first three together against your deadline and shows progress across the whole book.
 
-## Your first review sweep
+## Your first review pass
 
 A five-minute walkthrough of the core loop:
 
@@ -70,19 +70,19 @@ The formatting instructions are written for an AI — a human reviewer never wor
 
 **Word file with tracked changes:** if your copy editor or line editor returns a .docx with tracked changes, skip the AI entirely. The launcher's first card, **Your editor's Word file**, has a **Choose Word file…** button: pick the file and its changes come straight in. See [Word files with tracked changes](Importing-Reviews#word-files-with-tracked-changes).
 
-For a normal review sweep, you want a **review batch**. It contains scene-targeted suggestions. An **Editorialism** is different: it is a separate structural checklist for broad guidance that spans scenes or the whole manuscript.
+For a normal review pass, you want a **review batch**. It contains scene-targeted suggestions. An **Editorialism** is different: it is a separate structural checklist for broad guidance that spans scenes or the whole manuscript.
 
 ### 3. Import the batch
 
 Copy the reviewer's reply and run **Open review launcher** again. The launcher detects the review batch on your clipboard — the launcher imports directly when placement is clear, or opens a destination preview when entries need attention. Unplaced entries are flagged before you import the placed work. (If detection misses, choose **Paste AI reply**; validation runs as you paste.) Editorialist appends a review block to the bottom of each targeted scene note. **Nothing has been applied to your prose yet.**
 
-### 4. Walk the sweep
+### 4. Work through the pass
 
-[Line edits](Line-Edits) opens a guided sweep: each suggestion is highlighted in the editor with a toolbar — apply it, reject it, rewrite it yourself, defer it for later, or back the text up to a cut file first. The sweep advances scene by scene through the batch.
+[Line edits](Line-Edits) walks you through the pass: each suggestion is highlighted in the editor with a toolbar — apply it, reject it, rewrite it yourself, defer it for later, or back the text up to a cut file first. It advances scene by scene through the batch.
 
 ### 5. Finish
 
-When every suggestion is resolved, the sweep completes and the batch is recorded: per-scene polish state, contributor stats, and revision history all update. For a pass from a person, the completion card leads with **Write your response to** your editor: reply to their comments and say why you kept any change, then save it into a copy of their Word file (see [Responding to your editor](Importing-Reviews#responding-to-your-editor)). Write it before cleaning up, because the response is built from the review blocks. The review blocks stay in your scene notes until you clean them away with **Clean N resolved batches…** in the panel's **…** menu. The **Core** settings tab shows your progress across the whole book — see the [Settings Reference](Settings-Reference).
+When every suggestion is resolved, the pass completes and the batch is recorded: per-scene polish state, contributor stats, and revision history all update. For a pass from a person, the completion card leads with **Write your response to** your editor: reply to their comments and say why you kept any change, then save it into a copy of their Word file (see [Responding to your editor](Importing-Reviews#responding-to-your-editor)). Write it before cleaning up, because the response is built from the review blocks. The review blocks stay in your scene notes until you clean them away with **Clean N resolved batches…** in the panel's **…** menu. The **Core** settings tab shows your progress across the whole book — see the [Settings Reference](Settings-Reference).
 
 ## Plan your revision
 

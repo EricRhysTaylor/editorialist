@@ -79,7 +79,7 @@ export const en = {
 	"toolbar.shift": "Shift",
 	"toolbar.shiftCmd": "Shift + Cmd",
 	"toolbar.metaDescription": "{{text}}. {{title}}",
-	"toolbar.sweepComplete": "sweep complete",
+	"toolbar.sweepComplete": "pass complete",
 	"toolbar.entries.one": "{{count}} entry",
 	"toolbar.entries.other": "{{count}} entries",
 	"toolbar.entryIndex": "Entry {{index}}/{{total}}",

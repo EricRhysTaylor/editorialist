@@ -314,7 +314,7 @@ export function renderContinueReviewCard(
 	setIcon(eyebrowIcon, "pen-tool");
 	eyebrow.createSpan({
 		cls: "editorialist-panel__continue-eyebrow-text",
-		text: launchTarget.intent === "active" ? "Continue review" : "Next in sweep",
+		text: launchTarget.intent === "active" ? "Continue review" : "Next in this pass",
 	});
 
 	card.createDiv({
