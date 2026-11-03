@@ -62,6 +62,7 @@ interface FakeConfig {
 	bulkApplyConfirm?: BulkApplyConfirmState | null;
 	unapplicableIds?: string[];
 	undoSucceeds?: boolean;
+	batchScenes?: Array<{ notePath: string; suggestions: ReviewSuggestion[] }>;
 }
 
 function makeFakeHost(config: FakeConfig = {}) {
@@ -143,6 +144,7 @@ function makeFakeHost(config: FakeConfig = {}) {
 		hasActiveReviewSession: () => config.hasActive ?? Boolean(store.getSession()),
 		hasReviewSessionContext: () => config.hasContext ?? Boolean(store.getSession()),
 		getSuggestionById: (id) => store.getSession()?.suggestions.find((s) => s.id === id) ?? null,
+		getBatchSuggestionScenes: async () => config.batchScenes ?? [],
 		canApplyAndReviewSceneSuggestions: () => config.canApplyAndReviewScene ?? true,
 		canApplySuggestionInReviewAllMode: () => true,
 		isSweepComplete: () => false,
@@ -608,6 +610,38 @@ describe("ReviewActionsOrchestrator", () => {
 			await controller.acceptCopyEdits(["s1"], [{ batchId: "b", key: "grey → gray" }]);
 			await controller.undoCopyEdits();
 			expect(controller.getCopyEditHistory("b", "grey → gray", "b.md")).toBeNull();
+		});
+
+		it("reads where a fix was decided before from the saved decisions, once per import", async () => {
+			const fix = (id: string, status: ReviewSuggestion["status"]) => makeSuggestion(id, {
+				status,
+				source: { blockIndex: 0, entryIndex: 0, startOffset: 0, endOffset: 0, batchId: "b" },
+				payload: { original: "Her grey coat was wet.", revised: "Her gray coat was wet." },
+			} as Partial<ReviewSuggestion>);
+			const { host, calls } = makeFakeHost({
+				priorSession: makeSession("c.md"),
+				batchScenes: [
+					{ notePath: "a.md", suggestions: [fix("s1", "accepted")] },
+					{ notePath: "b.md", suggestions: [fix("s1", "rejected"), fix("s2", "pending")] },
+				],
+			});
+			const controller = new ReviewActionsOrchestrator(host);
+
+			expect(controller.getCopyEditHistory("b", "grey → gray", "c.md")).toBeNull();
+			await vi.waitFor(() => expect(calls).toContain("refreshReviewPanel"));
+			expect(controller.getCopyEditHistory("b", "grey → gray", "c.md")).toEqual({ accepted: 1, declined: 1 });
+
+			// What the author decides now is added to what was read.
+			await controller.rejectCopyEdits(["s9"], [{ batchId: "b", key: "grey → gray" }]);
+			expect(controller.getCopyEditHistory("b", "grey → gray", "z.md")).toEqual({ accepted: 1, declined: 2 });
+		});
+
+		it("keeps the list's ticks by scene and change", () => {
+			const { host } = makeFakeHost();
+			const controller = new ReviewActionsOrchestrator(host);
+			controller.setCopyEditTick("a.md::x", false);
+			expect(controller.getCopyEditTick("a.md::x")).toBe(false);
+			expect(controller.getCopyEditTick("b.md::x")).toBeUndefined();
 		});
 
 		it("forgets the undoable batch when the review closes", async () => {

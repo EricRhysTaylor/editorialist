@@ -159,10 +159,6 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	// null = follow the cold-start default; an explicit boolean once the user
 	// toggles the onboarding disclosure within this view session.
 	private onboardingExpanded: boolean | null = null;
-	// Copy edits the author ticked or unticked, by suggestion id. A row not in
-	// here follows copyEditTickedByDefault.
-	private readonly copyEditTicks = new Map<string, boolean>();
-
 	constructor(
 		leaf: WorkspaceLeaf,
 		private readonly plugin: EditorialistPlugin,
@@ -765,7 +761,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			box.checked = ticked;
 			setAccessibleLabel(box, "Accept this change");
 			box.addEventListener("change", () => {
-				this.copyEditTicks.set(suggestion.id, box.checked);
+				this.plugin.reviewActions.setCopyEditTick(copyEditTickKey(notePath, suggestion), box.checked);
 				this.requestRender();
 			});
 			const body = row.createDiv({ cls: "editorialist-copyedits__body" });
@@ -813,13 +809,13 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			text: allTicked ? "Untick all" : "Tick all",
 		});
 		this.bindImmediateAction(toggle, () => {
-			for (const suggestion of copyEdits) this.copyEditTicks.set(suggestion.id, !allTicked);
+			for (const suggestion of copyEdits) this.plugin.reviewActions.setCopyEditTick(copyEditTickKey(notePath, suggestion), !allTicked);
 			this.requestRender();
 		});
 	}
 
 	private isCopyEditTicked(suggestion: ReviewSuggestion, notePath: string): boolean {
-		return this.copyEditTicks.get(suggestion.id) ?? this.copyEditTickedByDefault(suggestion, notePath);
+		return this.plugin.reviewActions.getCopyEditTick(copyEditTickKey(notePath, suggestion)) ?? this.copyEditTickedByDefault(suggestion, notePath);
 	}
 
 	// Ticked, unless the same fix was rejected in more earlier scenes of this
@@ -2778,4 +2774,12 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	private getSourceLabel(suggestion: ReviewSuggestion): string {
 		return formatContributorIdentityLabel(suggestion.contributor);
 	}
+}
+
+// A tick belongs to one change in one scene. Suggestion ids count entries
+// within a scene's blocks, so the same id names other changes elsewhere.
+function copyEditTickKey(notePath: string, suggestion: ReviewSuggestion): string {
+	return suggestion.operation === "edit"
+		? `${notePath}::${suggestion.payload.original}::${suggestion.payload.revised}`
+		: `${notePath}::${suggestion.id}`;
 }

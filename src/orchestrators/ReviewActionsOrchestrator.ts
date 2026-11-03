@@ -17,6 +17,7 @@
 import { Notice } from "obsidian";
 import { getSuggestionAnchorTarget } from "../core/OperationSupport";
 import { getUnmatchedOpenSuggestionIds as getUnmatchedOpenSuggestionIdsShared } from "../core/review/SuggestionTraversal";
+import { copyEditKey } from "../core/review/CopyEdits";
 import type { AppliedSuggestionBatch } from "../core/review/ReviewStateMachine";
 import type {
 	ReviewSession,
@@ -74,6 +75,9 @@ export interface ReviewActionsOrchestratorHost {
 	hasActiveReviewSession(): boolean;
 	hasReviewSessionContext(): boolean;
 	getSuggestionById(id: string): ReviewSuggestion | null;
+	// Every scene of one import with its suggestions as decided so far, read
+	// from the scenes and the saved decisions.
+	getBatchSuggestionScenes(batchId: string): Promise<Array<{ notePath: string; suggestions: readonly ReviewSuggestion[] }>>;
 
 	// Predicates the action surface inspects.
 	canApplyAndReviewSceneSuggestions(): boolean;
@@ -121,8 +125,13 @@ export class ReviewActionsOrchestrator {
 	private copyEditBatchMemory: CopyEditMemory = [];
 	// The scenes where each fix (by copyEditKey) was accepted or rejected, per
 	// import, so the same fix in a later scene arrives ticked or unticked to
-	// match. Kept for this Obsidian session.
+	// match. Read from the saved decisions the first time an import is asked
+	// about, then kept up to date as the author decides.
 	private readonly copyEditChoices = new Map<string, Map<string, { accepted: Set<string>; declined: Set<string> }>>();
+	private readonly copyEditChoicesRead = new Set<string>();
+	// The author's ticks in the copy-edit list, by scene and change, so they
+	// survive closing the panel and moving between scenes.
+	private readonly copyEditTicks = new Map<string, boolean>();
 
 	constructor(private readonly host: ReviewActionsOrchestratorHost) {}
 
@@ -433,14 +442,50 @@ export class ReviewActionsOrchestrator {
 		this.host.refreshReviewPanel();
 	}
 
+	getCopyEditTick(key: string): boolean | undefined {
+		return this.copyEditTicks.get(key);
+	}
+
+	setCopyEditTick(key: string, ticked: boolean): void {
+		this.copyEditTicks.set(key, ticked);
+	}
+
 	// In how many other scenes of the same import a fix was accepted or
-	// rejected; null when it has not come up anywhere else yet.
+	// rejected; null when it has not come up anywhere else yet. The first ask
+	// for an import reads its saved decisions and refreshes the panel.
 	getCopyEditHistory(batchId: string, key: string, notePath: string): { accepted: number; declined: number } | null {
+		if (!this.copyEditChoicesRead.has(batchId)) {
+			this.copyEditChoicesRead.add(batchId);
+			void this.readCopyEditChoices(batchId);
+		}
 		const entry = this.copyEditChoices.get(batchId)?.get(key);
 		if (!entry) return null;
 		const elsewhere = (scenes: Set<string>): number => scenes.size - (scenes.has(notePath) ? 1 : 0);
 		const history = { accepted: elsewhere(entry.accepted), declined: elsewhere(entry.declined) };
 		return history.accepted + history.declined > 0 ? history : null;
+	}
+
+	// Decisions the author made before, in this Obsidian session or an earlier
+	// one. A scene already known here is left as it is: what was just decided
+	// is newer than what was read.
+	private async readCopyEditChoices(batchId: string): Promise<void> {
+		const scenes = await this.host.getBatchSuggestionScenes(batchId);
+		const choices = this.copyEditChoices.get(batchId) ?? new Map<string, { accepted: Set<string>; declined: Set<string> }>();
+		this.copyEditChoices.set(batchId, choices);
+		let changed = false;
+		for (const scene of scenes) {
+			for (const suggestion of scene.suggestions) {
+				if (suggestion.source.batchId !== batchId || (suggestion.status !== "accepted" && suggestion.status !== "rejected")) continue;
+				const key = copyEditKey(suggestion);
+				if (!key) continue;
+				const entry = choices.get(key) ?? { accepted: new Set<string>(), declined: new Set<string>() };
+				choices.set(key, entry);
+				if (entry.accepted.has(scene.notePath) || entry.declined.has(scene.notePath)) continue;
+				entry[suggestion.status === "accepted" ? "accepted" : "declined"].add(scene.notePath);
+				changed = true;
+			}
+		}
+		if (changed) this.host.refreshReviewPanel();
 	}
 
 	private rememberCopyEdits(memory: CopyEditMemory, field: "accepted" | "declined", notePath: string): void {

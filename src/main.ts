@@ -398,6 +398,7 @@ export default class EditorialistPlugin extends Plugin {
 		getReviewNoteContext: () => this.getReviewNoteContext(),
 		hasActiveReviewSession: () => this.hasActiveReviewSession(),
 		hasReviewSessionContext: () => this.hasReviewSessionContext(),
+		getBatchSuggestionScenes: async (batchId) => (await this.collectBatchScenes(batchId))?.scenes ?? [],
 		getSuggestionById: (id) => this.getSuggestionById(id),
 		canApplyAndReviewSceneSuggestions: () => this.canApplyAndReviewSceneSuggestions(),
 		canApplySuggestionInReviewAllMode: (s) => this.canApplySuggestionInReviewAllMode(s),
