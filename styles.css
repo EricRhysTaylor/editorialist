@@ -3953,6 +3953,11 @@
 	font-weight: 700;
 	letter-spacing: 0.04em;
 	text-transform: uppercase;
+
+	/* A two-word label such as "Passes finished" wraps inside its column
+	   rather than running into the next one; values stay on one line. */
+	white-space: normal;
+	vertical-align: bottom;
 }
 
 .editorialist-settings__inventory-table tbody tr:last-child td {

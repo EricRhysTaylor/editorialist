@@ -122,6 +122,7 @@ import { selectCompletedSweepDurationLabel } from "./core/review/CompletedSweepD
 import { collectSceneDirectives, type SceneDirective } from "./core/SceneDirectives";
 import { openAnchorTargetModal } from "./ui/modals/AnchorTargetModal";
 import { REVIEW_PANEL_VIEW_TYPE, ReviewPanel } from "./ui/ReviewPanel";
+import { compareSceneTitles } from "./ui/panels/ReviewPanelIdleSections";
 import { EDITORIALIST_ICON_ID, registerEditorialistIcon } from "./ui/EditorialistLogoIcon";
 import { registerRadialTimelineIcon } from "./ui/RadialTimelineLogoIcon";
 import { EditorialistSettingTab, type SettingsTabId } from "./ui/EditorialistSettingTab";
@@ -1619,6 +1620,10 @@ export default class EditorialistPlugin extends Plugin {
 			reviewer ??= [...session.suggestions, ...session.memos].find((item) => item.source.batchId === batchId)?.contributor ?? null;
 			scenes.push({ notePath: path, title: this.getNoteDisplayLabel(path), suggestions: session.suggestions, memos: session.memos });
 		}
+		// The pass records scenes in the order the import grouped them, which
+		// puts a scene holding only a comment after the rest. The response is
+		// read like the book, so it follows the story order the panel lists.
+		scenes.sort((left, right) => compareSceneTitles(left.title, right.title));
 		return { entry, scenes, reviewer };
 	}
 

@@ -65,7 +65,7 @@ describe("EditorResponseModal", () => {
 		const [reply] = [...modal.querySelectorAll("textarea")];
 		typeInto(reply as HTMLTextAreaElement, "Agreed, I'll add a line.");
 		expect(host.saveEditorReply).toHaveBeenCalledWith("comment-key", "Agreed, I'll add a line.");
-		expect(modal.querySelector(".editorialist-response__summary")?.textContent).toContain("Replied to 1 of your 1 comment.");
+		expect(modal.querySelector(".editorialist-response__summary")?.textContent).toContain("Replied to 1 of the 1 comment.");
 	});
 
 	it("focuses the item it was opened for", async () => {

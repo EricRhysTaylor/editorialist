@@ -139,8 +139,8 @@ describe("the response as a Word file", () => {
 	it("tallies a pass whose changes were all accepted, without explaining stet markup", () => {
 		const paragraphs = editorResponseParagraphs(compose(withStatuses(["accepted", "accepted", "accepted", "accepted"])));
 		const text = paragraphs.map((paragraph) => paragraph.runs.map((run) => run.text).join("")).join("\n");
-		expect(text).toContain("Accepted 4 of your 4 changes.");
-		expect(text).toContain("Replied to 0 of your 1 comment.");
+		expect(text).toContain("Accepted 4 of the 4 changes.");
+		expect(text).toContain("Replied to 0 of the 1 comment.");
 		expect(text).not.toContain("Struck-through");
 	});
 });

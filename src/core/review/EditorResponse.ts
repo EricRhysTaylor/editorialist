@@ -217,12 +217,12 @@ function changeKey(operation: string, original: string, revised: string): string
 export function summaryLines(counts: EditorResponseCounts): string[] {
 	const lines: string[] = [];
 	if (counts.changes > 0) {
-		lines.push(`Accepted ${counts.accepted} of your ${counts.changes} ${counts.changes === 1 ? "change" : "changes"}.`);
+		lines.push(`Accepted ${counts.accepted} of the ${counts.changes} ${counts.changes === 1 ? "change" : "changes"}.`);
 		if (counts.stet > 0) lines.push(`Kept as written (stet): ${counts.stet}.`);
 		if (counts.rewritten > 0) lines.push(`Rewritten another way: ${counts.rewritten}.`);
 		if (counts.undecided > 0) lines.push(`Not yet decided: ${counts.undecided}.`);
 	}
-	if (counts.comments > 0) lines.push(`Replied to ${counts.replied} of your ${counts.comments} ${counts.comments === 1 ? "comment" : "comments"}.`);
+	if (counts.comments > 0) lines.push(`Replied to ${counts.replied} of the ${counts.comments} ${counts.comments === 1 ? "comment" : "comments"}.`);
 	return lines;
 }
 
