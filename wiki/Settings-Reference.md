@@ -93,7 +93,7 @@ Revision plans and deliveries still require a folder target (or an RT book with 
 
 ### You and your files
 
-- **Your name on Word comments** — the name on the comments Editorialist writes into an editor's Word file when you reply (see [Responding to your editor](Importing-Reviews#responding-to-your-editor)). The response window asks for it the first time if it is empty.
+- **Name on your comments** — the name on the comments Editorialist writes into an editor's Word file when you reply (see [Responding to your editor](Importing-Reviews#responding-to-your-editor)). The response window asks for it the first time if it is empty.
 - The folders Editorialist saves into, all inside your vault and never inside your scenes:
   - **Editorialist** — Editorialisms, the structural notes from an editor's letter.
   - **Editorialist/Word files** — a copy of each Word file an editor sent you.

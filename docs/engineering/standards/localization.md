@@ -37,15 +37,14 @@ English number rendering remains ungrouped to preserve the current text.
 
 ## Compatibility and language activation
 
-Keep the current minimum Obsidian version, **1.7.2**. This English-only
+The minimum Obsidian version is **1.8.7** (raised from 1.7.2 on November 3,
+2026, for the app storage API the Today view uses). This English-only
 foundation does not import `getLanguage()` or read undocumented language state.
-The public `getLanguage()` API begins at 1.8.7.
+The public `getLanguage()` API begins at 1.8.7, so every supported host has it.
 
-Before activating a second language, decide the supported-host policy and
-implement actual runtime catalog selection. On hosts supporting 1.8.7+, use
-the public API and resolve supported base-language tags; any older-host English
-behavior must be explicit and tested. Do not silently raise the minimum app
-version during text extraction. Match dates, numbers and plural rules to the
+Before activating a second language, implement actual runtime catalog
+selection with the public API and resolve supported base-language tags. Do not
+silently raise the minimum app version during text extraction. Match dates, numbers and plural rules to the
 chosen locale only in a separately verified behavior change.
 
 Catalog validation alone does not activate a language. Do not advertise language

@@ -27,7 +27,7 @@ import { RADIAL_TIMELINE_ICON_ID } from "./RadialTimelineLogoIcon";
 // activity, contributor cards, maintenance) rather than a list of settings.
 // (2) getSettingDefinitions() is synchronous, but rendering here depends on
 // awaited metadata (syncOperationalMetadata / refreshPendingEditsSummary).
-// (3) manifest minAppVersion is 1.7.2; the API is 1.13.0+, and carrying both
+// (3) manifest minAppVersion is 1.8.7; the API is 1.13.0+, and carrying both
 // renderings would duplicate the whole tab and invite drift.
 // Cost accepted: these settings do not appear in Obsidian's settings search on
 // 1.13+. Revisit when minAppVersion moves to 1.13.0.
@@ -334,7 +334,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		body.parentElement?.addClass("editorialist-settings__section--utility");
 
 		const fieldRow = body.createDiv({ cls: "editorialist-settings__cut-row" });
-		fieldRow.createEl("label", { cls: "editorialist-settings__cut-label", text: "Your name on Word comments", attr: { for: "editorialist-author-name" } });
+		fieldRow.createEl("label", { cls: "editorialist-settings__cut-label", text: "Name on your comments", attr: { for: "editorialist-author-name" } });
 		const input = fieldRow.createEl("input", {
 			cls: "editorialist-settings__cut-input",
 			attr: { id: "editorialist-author-name", type: "text", placeholder: "Your name" },

@@ -39,8 +39,9 @@ export function escapeXml(text: string): string {
 		.replace(/</g, "&lt;")
 		.replace(/>/g, "&gt;")
 		.replace(/"/g, "&quot;")
-		// Characters XML 1.0 forbids outright.
-		.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "");
+		// XML 1.0 allows tab, line feed, carriage return and everything from the
+		// space up; the control characters below the space it forbids outright.
+		.replace(/[^\t\n\r -￿]/g, "");
 }
 
 function documentXml(paragraphs: readonly DocxParagraph[]): string {

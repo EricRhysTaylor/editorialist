@@ -296,7 +296,7 @@ export class TodayPanel extends ItemView {
 			return;
 		}
 		const candidate = this.candidate(item);
-		if (!candidate) { new Notice("This session's source has changed. Open Editor engagement to relink it."); return; }
+		if (!candidate) { new Notice("This session's source has changed. Open the editor engagement to relink it."); return; }
 		await this.plugin.openRevisionWork(candidate);
 	}
 

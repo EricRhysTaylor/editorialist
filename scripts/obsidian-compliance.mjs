@@ -42,6 +42,17 @@ function readJSON(relativePath) {
 	}
 }
 
+// Numeric x.y.z comparison: negative when a is older than b.
+function compareVersions(a, b) {
+	const left = String(a).split(".").map(Number);
+	const right = String(b).split(".").map(Number);
+	for (let i = 0; i < Math.max(left.length, right.length); i++) {
+		const difference = (left[i] ?? 0) - (right[i] ?? 0);
+		if (difference !== 0) return difference;
+	}
+	return 0;
+}
+
 // ---------- manifest.json ----------
 const manifestResult = readJSON("manifest.json");
 if (manifestResult) {
@@ -74,15 +85,21 @@ if (manifestResult) {
 		warn(manifestFile, `minAppVersion 0.15.0 is ancient — set to a version you actually test.`);
 	}
 
-	// Cross-check versions.json
+	// Cross-check versions.json. It records the minimum Obsidian of each
+	// released version; manifest.minAppVersion is what the next release will
+	// require, and the release script copies it into the new entry. Between
+	// releases the manifest may ask for more than the released version needs:
+	// Obsidian reads the manifest on main and, for an older app, falls back to
+	// versions.json for a release it can run. It must never ask for less, or
+	// Obsidian would offer the released version to apps it cannot run on.
 	const versionsResult = readJSON("versions.json");
 	if (versionsResult && manifest.version) {
 		const { data: versions, file: versionsFile } = versionsResult;
 		if (!versions[manifest.version]) {
 			fail(versionsFile, `versions.json must contain an entry for "${manifest.version}".`);
 		}
-		if (versions[manifest.version] && versions[manifest.version] !== manifest.minAppVersion) {
-			fail(versionsFile, `versions.json["${manifest.version}"] (${versions[manifest.version]}) must equal manifest.minAppVersion (${manifest.minAppVersion}).`);
+		if (versions[manifest.version] && compareVersions(manifest.minAppVersion, versions[manifest.version]) < 0) {
+			fail(versionsFile, `manifest.minAppVersion (${manifest.minAppVersion}) is lower than versions.json["${manifest.version}"] (${versions[manifest.version]}), the minimum the released ${manifest.version} needs.`);
 		}
 	}
 }

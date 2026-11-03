@@ -2,7 +2,7 @@
 	"id": "editorialist",
 	"name": "Editorialist",
 	"version": "3.0.6",
-	"minAppVersion": "1.7.2",
+	"minAppVersion": "1.8.7",
 	"description": "Plan editor engagements and writing goals, schedule revision work, and review AI-formatted editorial feedback scene by scene.",
 	"author": "Radial Timeline LLC",
 	"authorUrl": "https://github.com/EricRhysTaylor",

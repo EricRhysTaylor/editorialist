@@ -77,7 +77,7 @@ describe("EditorResponseModal", () => {
 	it("saves a letter when the pass did not come from a Word file", async () => {
 		const host = plugin();
 		const modal = open(host);
-		expect(findByText(modal, "Save in their Word file")).toBeNull();
+		expect(findByText(modal, "Save in their file")).toBeNull();
 		findByText(modal, "Save Word file")?.click();
 		await flush();
 		expect(host.saveEditorResponseFile).toHaveBeenCalledWith("batch-1");
@@ -88,14 +88,14 @@ describe("EditorResponseModal", () => {
 		const host = plugin({ wordSource: true });
 		const modal = open(host);
 		expect(findByText(modal, "Save as a letter")).not.toBeNull();
-		findByText(modal, "Save in their Word file")?.click();
+		findByText(modal, "Save in their file")?.click();
 		await flush();
 		expect(host.saveRepliesInWordFile).not.toHaveBeenCalled();
-		expect(notices).toContain("Add your name first. It goes on your comments in Word.");
+		expect(notices).toContain("Add your name first. Word shows it on each of your comments.");
 
 		typeInto(modal.querySelector("input[type=text]") as HTMLInputElement, "Eric Taylor");
 		expect(host.setAuthorName).toHaveBeenCalledWith("Eric Taylor");
-		findByText(modal, "Save in their Word file")?.click();
+		findByText(modal, "Save in their file")?.click();
 		await flush();
 		expect(host.saveRepliesInWordFile).toHaveBeenCalledWith("batch-1");
 		const saved = modal.querySelector(".editorialist-response__saved")?.textContent ?? "";
@@ -105,7 +105,7 @@ describe("EditorResponseModal", () => {
 
 	it("puts the saved file one click from opening or showing it", async () => {
 		const modal = open(plugin({ wordSource: true, authorName: "Eric Taylor" }));
-		findByText(modal, "Save in their Word file")?.click();
+		findByText(modal, "Save in their file")?.click();
 		await flush();
 		findByText(modal, "Open file")?.click();
 		findByText(modal, "Show in Finder")?.click();

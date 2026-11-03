@@ -12,8 +12,8 @@ type PluralKey = {
 		: never
 }[TranslationKey];
 
-// Phase one deliberately ships English only. No newer host API is needed,
-// so this extraction retains Obsidian 1.7.2 support and existing English copy.
+// Phase one deliberately ships English only and keeps the existing English
+// copy; it reads no host language API.
 const pluralRules = new Intl.PluralRules("en");
 
 export function t<Key extends TranslationKey>(key: Key, ...args: Arguments<Key>): string {

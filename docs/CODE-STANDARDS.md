@@ -108,7 +108,7 @@ accepted. Reasons:
    settings — only about five items are atomic knobs.
 2. `getSettingDefinitions()` is synchronous, but rendering depends on awaited
    metadata (`syncOperationalMetadata`, `refreshPendingEditsSummary`).
-3. `manifest.json` sets `minAppVersion: 1.7.2`; the API is 1.13.0+. Carrying
+3. `manifest.json` sets `minAppVersion: 1.8.7`; the API is 1.13.0+. Carrying
    both renderings would duplicate the whole tab and invite drift.
 
 Accepted cost: these settings do not appear in Obsidian's settings search on

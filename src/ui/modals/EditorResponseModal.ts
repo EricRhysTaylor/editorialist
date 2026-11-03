@@ -56,7 +56,7 @@ export class EditorResponseModal extends Modal {
 		const footer = contentEl.createDiv({ cls: "editorialist-response__footer" });
 		let nameInput: TextComponent | null = null;
 		if (wordSource) {
-			const field = footer.createEl("label", { cls: "editorialist-response__name", text: "Your name on your comments in Word" });
+			const field = footer.createEl("label", { cls: "editorialist-response__name", text: "Name on your comments" });
 			nameInput = new TextComponent(field)
 				.setPlaceholder("Your name")
 				.setValue(this.plugin.getAuthorName())
@@ -76,12 +76,12 @@ export class EditorResponseModal extends Modal {
 		if (!wordSource) saveLetter.setCta();
 		if (wordSource) {
 			new ButtonComponent(buttons)
-				.setButtonText("Save in their Word file")
+				.setButtonText("Save in their file")
 				.setCta()
 				.onClick(async () => {
 					if (!this.plugin.getAuthorName()) {
 						nameInput?.inputEl.focus();
-						new Notice("Add your name first. It goes on your comments in Word.");
+						new Notice("Add your name first. Word shows it on each of your comments.");
 						return;
 					}
 					const result = await this.plugin.saveRepliesInWordFile(this.batchId);

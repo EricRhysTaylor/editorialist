@@ -1755,7 +1755,7 @@ export default class EditorialistPlugin extends Plugin {
 			return null;
 		}
 		if (!authorName) {
-			new Notice("Add your name first. It goes on your comments in Word.");
+			new Notice("Add your name first. Word shows it on each of your comments.");
 			return null;
 		}
 		const answers = wordAnswers({ batchId, scenes: batch.scenes, replies: this.registry.getEditorReplies() });
