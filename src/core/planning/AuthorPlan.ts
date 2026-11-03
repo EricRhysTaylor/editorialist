@@ -63,7 +63,7 @@ export function normalizeAuthorTargets(raw: unknown): AuthorTarget[] {
 	});
 }
 export function authorWork(plan: RevisionPlan): WorkCandidate[] {
-	return (plan.targets ?? []).map((target) => ({ kind: "preparation", path: AUTHOR_PLAN_SCOPE, locator: target.id, title: target.title, detail: [target.bookLabel, target.description].filter(Boolean).join(" · ") || "Personal writing goal", due: target.hardDeadline ? target.due : null, targetDate: target.due, complete: target.done, deferred: false }));
+	return (plan.targets ?? []).map((target) => ({ kind: "preparation", path: AUTHOR_PLAN_SCOPE, locator: target.id, title: target.title, detail: [target.bookLabel, target.description].filter(Boolean).join(" · ") || "Personal writing goal", due: target.hardDeadline ? target.due : null, targetDate: target.due, ...(target.start ? { earliest: target.start } : {}), complete: target.done, deferred: false }));
 }
 
 // Where today falls between a goal's start and its deadline. It measures time,

@@ -121,13 +121,16 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 			const parentDone = parent ? isPlanEntryComplete(parent, candidates, doneKeys) : false;
 			const resolved = resolvePlanSource(entry.source, candidates);
 			const due = resolved.state === "ready" ? resolved.candidate.due : null;
+			// A goal's sessions wait for its start date.
+			const earliest = resolved.state === "ready" ? resolved.candidate.earliest ?? null : null;
 			const deadlines = [options.end, due, entryDeadline(plan, entry, candidates)].filter((day): day is string => Boolean(day));
 			const end = deadlines.sort()[0]!;
 			let reason = "";
 			if (entry.afterId && (!parent || (!parentDone && !parent.day))) reason = "Prerequisite is missing or unscheduled.";
 			else if (entry.highMinutes === null || entry.lowMinutes === null) reason = "Needs an effort range.";
+			else if (earliest && earliest > end) reason = "Its start date is after its deadline or the end of the planning window.";
 			else {
-				entry.day = days.find((day) => day <= end && (parentDone || !parent?.day || day >= parent.day) && remaining.get(day)! >= entry.highMinutes!) ?? null;
+				entry.day = days.find((day) => day <= end && (!earliest || day >= earliest) && (parentDone || !parent?.day || day >= parent.day) && remaining.get(day)! >= entry.highMinutes!) ?? null;
 				if (entry.day) remaining.set(entry.day, remaining.get(entry.day)! - entry.highMinutes);
 				else reason = "Does not fit before the deadline with the current capacity and reserve.";
 			}

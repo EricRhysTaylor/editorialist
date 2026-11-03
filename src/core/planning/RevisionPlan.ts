@@ -19,6 +19,8 @@ export interface WorkCandidate extends WorkSource {
 	due?: string | null;
 	/** Preferred author target date for ordering, without imposing a hard cutoff. */
 	targetDate?: string;
+	/** First day the work may be scheduled, such as a goal's start date. */
+	earliest?: string;
 	title: string;
 	detail: string;
 	complete: boolean;

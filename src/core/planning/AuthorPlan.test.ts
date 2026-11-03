@@ -46,6 +46,26 @@ describe("goal start dates", () => {
 		expect(raw("March")).toBeNull();
 		expect(raw(undefined)).toBeNull();
 	});
+
+	const schedule = (start: string | null, end: string) => {
+		const plan = { ...emptyRevisionPlan(), capacity: [120, 120, 120, 120, 120, 120, 120], reserveMinutes: 0, targets: [{ ...goal("letter", false), start, due: "2026-10-30" }] };
+		const candidates = authorWork(plan); let id = 0;
+		const choices = Object.fromEntries(candidates.map((c) => [sourceKey(c), { phase: "structure" as const, low: 90, high: 120 }]));
+		return draftSchedule(plan, candidates, { ...DEFAULT_SCHEDULE, sessionMinutes: 60, start: "2026-10-20", end, replan: false, deliveryId: null, choices }, () => String(++id));
+	};
+
+	it("schedules a goal's sessions no earlier than its start date", () => {
+		const days = schedule("2026-10-22", "2026-10-30").plan.entries.map((entry) => entry.day);
+		expect(days).toEqual(["2026-10-22", "2026-10-22"]);
+		// Without a start, the same goal begins on the first day of the window.
+		expect(schedule(null, "2026-10-30").plan.entries[0]?.day).toBe("2026-10-20");
+	});
+
+	it("leaves a goal unscheduled, and says why, when it starts after the window ends", () => {
+		const draft = schedule("2026-11-02", "2026-10-30");
+		expect(draft.plan.entries.every((entry) => entry.day === null)).toBe(true);
+		expect(draft.issues.map((issue) => issue.reason)).toContain("Its start date is after its deadline or the end of the planning window.");
+	});
 });
 
 describe("goalTimeline", () => {
