@@ -30,7 +30,8 @@ export interface WordAuthor {
 }
 
 export interface WordConversionSkips {
-	// Formatting-only changes such as italics, which carry no wording.
+	// Formatting changes other than italics and bold, such as a font or size,
+	// which markdown cannot carry.
 	formatting: number;
 	headings: number;
 	paragraphBreaks: number;
@@ -123,12 +124,26 @@ export function listWordAuthors(document: WordDocument): WordAuthor[] {
 
 type Kind = "same" | "ins" | "del";
 
+// Italics and bold, the formatting a markdown manuscript carries.
+interface Marks {
+	italic: boolean;
+	bold: boolean;
+}
+
+const PLAIN: Marks = { italic: false, bold: false };
+
 interface Segment {
 	kind: Kind;
 	text: string;
 	comments: string[];
 	// The tracked change the text came from.
 	change?: XmlElement;
+	// How the text was formatted before and after the edit; an insertion has
+	// no before, a deletion no after.
+	before: Marks;
+	after: Marks;
+	// The editor changed this text's italics or bold without changing it.
+	formatChanged: boolean;
 	// Where the segment sits in the text before the edit; an insertion has no
 	// length there.
 	start: number;
@@ -174,7 +189,7 @@ export function convertWordTrackedChanges(document: WordDocument, options: { aut
 	for (const [index, paragraph] of paragraphs.entries()) {
 		const original = joinText(paragraph.segments, "ins");
 		const revised = joinText(paragraph.segments, "del");
-		const changed = paragraph.segments.some((segment) => segment.kind !== "same");
+		const changed = paragraph.segments.some((segment) => segment.kind !== "same" || segment.formatChanged);
 		const sceneMatch = original.match(SCENE_ID);
 		if (HEADING_STYLE.test(paragraph.style) || (sceneMatch && original.length <= SCENE_MARKER_MAX_LENGTH)) {
 			if (sceneMatch) {
@@ -199,22 +214,23 @@ export function convertWordTrackedChanges(document: WordDocument, options: { aut
 
 		if (!original.trim()) {
 			if (!revised.trim()) continue;
+			const addedText = emphasisTouched(paragraph.segments) ? renderVersion(paragraph.segments, "after").trim() : revised.trim();
 			// A paragraph the editor added: it extends whatever ends the
 			// paragraph above, or anchors on that paragraph's last sentence.
 			const target: Entry | undefined = addedParagraphs ?? (previous?.sceneId === sceneId ? previous?.tail : undefined);
 			if (target) {
 				if (target.operation === "cut") {
 					target.operation = "edit";
-					target.revised = revised.trim();
+					target.revised = addedText;
 				} else {
-					target.revised += `\n\n${revised.trim()}`;
+					target.revised += `\n\n${addedText}`;
 				}
 				paragraphComments.forEach((id) => target.comments.add(id));
 				paragraphChanges.forEach((change) => target.changes.add(change));
 				addedParagraphs = target;
 			} else if (previous && previous.sceneId === sceneId) {
 				const anchor = lastSentences(previous.original);
-				const entry: Entry = { operation: "edit", sceneId, original: anchor, revised: `${anchor}\n\n${revised.trim()}`, comments: paragraphComments, changes: paragraphChanges };
+				const entry: Entry = { operation: "edit", sceneId, original: anchor, revised: `${anchor}\n\n${addedText}`, comments: paragraphComments, changes: paragraphChanges };
 				entries.push(entry);
 				addedParagraphs = entry;
 			} else {
@@ -327,16 +343,34 @@ function readParagraphs(body: XmlElement, author: string, skipped: WordConversio
 		const paragraph: Paragraph = { style, segments: [], markChanged };
 		let offset = 0;
 
-		const pushText = (text: string, kind: Kind, change: XmlElement | undefined): void => {
+		const pushText = (text: string, kind: Kind, change: XmlElement | undefined, before: Marks, after: Marks, formatChanged: boolean): void => {
 			if (!text) return;
 			const end = kind === "ins" ? offset : offset + text.length;
-			paragraph.segments.push({ kind, text, comments: [...active], start: offset, end, ...(kind !== "same" && change ? { change } : {}) });
+			paragraph.segments.push({
+				kind,
+				text,
+				comments: [...active],
+				start: offset,
+				end,
+				...(kind !== "same" && change ? { change } : {}),
+				before: kind === "ins" ? PLAIN : before,
+				after: kind === "del" ? PLAIN : after,
+				formatChanged: kind === "same" && formatChanged,
+			});
 			offset = end;
 		};
 
 		const readRun = (run: XmlElement, kind: Kind, change: XmlElement | undefined): void => {
-			const formatting = firstChild(firstChild(run, "rPr") ?? run, "rPrChange");
-			if (formatting && mine(formatting)) formattingChanges.add(attribute(formatting, "id") ?? `${formattingChanges.size}`);
+			const properties = firstChild(run, "rPr");
+			const after = marksOf(properties);
+			let before = after;
+			const formatting = properties && firstChild(properties, "rPrChange");
+			if (formatting && mine(formatting)) {
+				before = marksOf(firstChild(formatting, "rPr") ?? formatting);
+				// A change to italics or bold comes in; any other is counted as left out.
+				if (before.italic === after.italic && before.bold === after.bold) formattingChanges.add(attribute(formatting, "id") ?? `${formattingChanges.size}`);
+			}
+			const formatChanged = before.italic !== after.italic || before.bold !== after.bold;
 			let text = "";
 			for (const part of childElements(run)) {
 				const name = localName(part);
@@ -345,7 +379,7 @@ function readParagraphs(body: XmlElement, author: string, skipped: WordConversio
 				else if (name === "br" || name === "cr") text += attribute(part, "type") === "page" ? "" : " ";
 				else if (name === "noBreakHyphen") text += "-";
 			}
-			pushText(text, kind, change);
+			pushText(text, kind, change, before, after, formatChanged);
 		};
 
 		const walk = (container: XmlElement, kind: Kind, change?: XmlElement): void => {
@@ -404,24 +438,32 @@ function readParagraphs(body: XmlElement, author: string, skipped: WordConversio
 function changeWindows(segments: readonly Segment[]): Window[] {
 	let original = "";
 	let revised = "";
+	// The formatting of each character of either version.
+	const originalMarks: Marks[] = [];
+	const revisedMarks: Marks[] = [];
 	const unchanged: boolean[] = [];
 	// For each unchanged character, where it sits in the revised text.
 	const revisedAt: number[] = [];
 	const clusters: Array<{ start: number; end: number }> = [];
-	let previousKind: Kind = "same";
+	let previousChanged = false;
 	for (const segment of segments) {
-		if (segment.kind !== "same" && previousKind === "same") clusters.push({ start: segment.start, end: segment.end });
+		const changed = segment.kind !== "same" || segment.formatChanged;
+		if (changed && !previousChanged) clusters.push({ start: segment.start, end: segment.end });
 		const cluster = clusters[clusters.length - 1];
-		if (segment.kind !== "same" && cluster) cluster.end = segment.end;
+		if (changed && cluster) cluster.end = segment.end;
 		if (segment.kind !== "ins") {
 			for (let index = 0; index < segment.text.length; index++) {
 				unchanged.push(segment.kind === "same");
 				revisedAt.push(segment.kind === "same" ? revised.length + index : -1);
+				originalMarks.push(segment.before);
 			}
 			original += segment.text;
 		}
-		if (segment.kind !== "del") revised += segment.text;
-		previousKind = segment.kind;
+		if (segment.kind !== "del") {
+			for (let index = 0; index < segment.text.length; index++) revisedMarks.push(segment.after);
+			revised += segment.text;
+		}
+		previousChanged = changed;
 	}
 
 	const sentences = sentenceFinder(original, unchanged);
@@ -442,9 +484,18 @@ function changeWindows(segments: readonly Segment[]): Window[] {
 		return unchanged[at] ? (revisedAt[at] ?? 0) : (revisedAt[at - 1] ?? -1) + 1;
 	};
 
-	return ranges.map((range) => ({
-		original: original.slice(range.start, range.end).trim(),
-		revised: revised.slice(revisedStart(range.start), revisedEnd(range.end)).trim(),
+	return ranges.map((range) => {
+		const inRange = segments.filter((segment) => segment.kind === "ins"
+			? segment.start >= range.start && segment.start <= range.end
+			: segment.start < range.end && segment.end > range.start);
+		const from = revisedStart(range.start);
+		const to = revisedEnd(range.end);
+		// Markdown markers only where the editor's change involves italics or
+		// bold; elsewhere the author's own formatting is carried when applying.
+		const marked = emphasisTouched(inRange);
+		return {
+		original: marked ? withMarkers(original.slice(range.start, range.end), originalMarks.slice(range.start, range.end)) : original.slice(range.start, range.end).trim(),
+		revised: marked ? withMarkers(revised.slice(from, to), revisedMarks.slice(from, to)) : revised.slice(from, to).trim(),
 		comments: new Set(
 			segments
 				.filter((segment) => segment.kind === "ins"
@@ -460,7 +511,67 @@ function changeWindows(segments: readonly Segment[]): Window[] {
 				.flatMap((segment) => segment.change ? [segment.change] : []),
 		),
 		reachesEnd: original.slice(range.end).trim() === "",
-	}));
+		};
+	});
+}
+
+// Whether the editor's changes here touch italics or bold: formatting
+// changed on its own, or italic or bold words deleted or added.
+function emphasisTouched(segments: readonly Segment[]): boolean {
+	const emphasized = (marks: Marks): boolean => marks.italic || marks.bold;
+	return segments.some((segment) => segment.formatChanged
+		|| (segment.kind === "ins" && emphasized(segment.after))
+		|| (segment.kind === "del" && emphasized(segment.before)));
+}
+
+// One version of a paragraph's text with its italics and bold as markdown.
+function renderVersion(segments: readonly Segment[], version: "before" | "after"): string {
+	const kept = segments.filter((segment) => segment.kind !== (version === "before" ? "ins" : "del"));
+	return withMarkers(
+		kept.map((segment) => segment.text).join(""),
+		kept.flatMap((segment) => Array.from(segment.text, () => segment[version])),
+	);
+}
+
+// Text with its italic and bold stretches wrapped in markdown markers, trimmed.
+// Spaces at either end of a stretch stay outside its markers, which markdown
+// requires.
+export function withMarkers(text: string, marks: readonly Marks[]): string {
+	let out = "";
+	let index = 0;
+	while (index < text.length) {
+		const mark = marks[index] ?? PLAIN;
+		let end = index + 1;
+		while (end < text.length && sameMarks(marks[end] ?? PLAIN, mark)) end++;
+		const stretch = text.slice(index, end);
+		const marker = (mark.bold ? "**" : "") + (mark.italic ? "*" : "");
+		if (!marker || !stretch.trim()) {
+			out += stretch;
+		} else {
+			const lead = stretch.length - stretch.trimStart().length;
+			const trail = stretch.length - stretch.trimEnd().length;
+			out += `${stretch.slice(0, lead)}${marker}${stretch.trim()}${[...marker].reverse().join("")}${stretch.slice(stretch.length - trail)}`;
+		}
+		index = end;
+	}
+	return out.trim();
+}
+
+function sameMarks(a: Marks, b: Marks): boolean {
+	return a.italic === b.italic && a.bold === b.bold;
+}
+
+// A run's italics and bold, from its properties: set directly, or by a
+// character style named for them, as Word's Emphasis and Strong are.
+function marksOf(properties: XmlElement | undefined): Marks {
+	if (!properties) return PLAIN;
+	const on = (name: string): boolean => {
+		const element = firstChild(properties, name);
+		return Boolean(element) && !["0", "false", "off"].includes((element && attribute(element, "val")) ?? "");
+	};
+	const style = firstChild(properties, "rStyle");
+	const styleName = (style && attribute(style, "val")) ?? "";
+	return { italic: on("i") || /emphasis/i.test(styleName), bold: on("b") || /strong/i.test(styleName) };
 }
 
 // Sentence boundaries that sit in unchanged text, so both versions agree on

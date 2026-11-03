@@ -559,7 +559,7 @@ export class EditorialistModal extends Modal {
 		const { skipped } = conversion;
 		const notes = [
 			conversion.hasSceneIds ? "" : "This file has no scene IDs, so each change is placed by finding its sentence in your book. Export with Radial Timeline's Editor round to keep them.",
-			skipped.formatting ? `${countLabel(skipped.formatting, "formatting change")}, such as italics, not brought in. Make ${skipped.formatting === 1 ? "it" : "them"} by hand.` : "",
+			skipped.formatting ? `${countLabel(skipped.formatting, "formatting change")}, such as a font or size, not brought in. Italics and bold do come in.` : "",
 			skipped.headings ? `${countLabel(skipped.headings, "change")} to headings not brought in.` : "",
 			skipped.paragraphBreaks ? `${countLabel(skipped.paragraphBreaks, "paragraph")} split or joined: the wording comes in, the paragraph break does not.` : "",
 			skipped.unplacedComments ? `${countLabel(skipped.unplacedComments, "comment")} not tied to a scene, left out.` : "",

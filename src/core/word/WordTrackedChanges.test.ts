@@ -4,7 +4,7 @@ import { ContributorDirectory } from "../../state/ContributorDirectory";
 import { MatchEngine } from "../MatchEngine";
 import { createSuggestionApplyPlan } from "../OperationSupport";
 import { SuggestionParser } from "../SuggestionParser";
-import { convertWordTrackedChanges, listWordAuthors, readWordDocument, type WordDocument } from "./WordTrackedChanges";
+import { convertWordTrackedChanges, listWordAuthors, readWordDocument, withMarkers, type WordDocument } from "./WordTrackedChanges";
 import { parseXml } from "./Xml";
 
 const ED = "Morgan Lee";
@@ -170,12 +170,70 @@ describe("convertWordTrackedChanges", () => {
 	it("counts what it cannot bring in: formatting, headings and paragraph breaks", () => {
 		const document = documentOf(body(
 			`<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr>${run("Chapter ")}${del("One")}${ins("1")}</w:p>`,
-			para(`<w:r><w:rPr><w:i/><w:rPrChange w:id="9" w:author="${ED}"><w:rPr/></w:rPrChange></w:rPr><w:t>${LONG}</w:t></w:r>`),
+			para(`<w:r><w:rPr><w:sz w:val="28"/><w:rPrChange w:id="9" w:author="${ED}"><w:rPr/></w:rPrChange></w:rPr><w:t>${LONG}</w:t></w:r>`),
 			`<w:p><w:pPr><w:rPr><w:ins w:id="5" w:author="${ED}"/></w:rPr></w:pPr>${run("She pulled her ")}${del("grey")}${ins("gray")}${run(" coat tighter against the wind.")}</w:p>`,
 		));
 		const result = convert(document);
 		expect(result.skipped).toMatchObject({ formatting: 1, headings: 1, paragraphBreaks: 1 });
 		expect(result.edits).toBe(1);
+	});
+
+	it("brings in italics the editor added or took off, as markdown", () => {
+		const italic = (text: string, before = "<w:rPr/>") => `<w:r><w:rPr><w:i/><w:rPrChange w:id="9" w:author="${ED}">${before}</w:rPrChange></w:rPr><w:t xml:space="preserve">${text}</w:t></w:r>`;
+		const roman = (text: string) => `<w:r><w:rPr><w:rPrChange w:id="10" w:author="${ED}"><w:rPr><w:i/></w:rPr></w:rPrChange></w:rPr><w:t xml:space="preserve">${text}</w:t></w:r>`;
+		const result = convert(documentOf(body(
+			para(run("They drove at last to the door of "), italic("Pemberley"), run(", which stood well on rising ground.")),
+			para(run("Her answer was "), roman("very"), run(" plain, and she did not repeat it to anybody.")),
+		)));
+		expect(result.edits).toBe(2);
+		expect(result.skipped.formatting).toBe(0);
+		expect(result.text).toContain("Original: They drove at last to the door of Pemberley, which stood well on rising ground.");
+		expect(result.text).toContain("Revised: They drove at last to the door of *Pemberley*, which stood well on rising ground.");
+		expect(result.text).toContain("Original: Her answer was *very* plain, and she did not repeat it to anybody.");
+		expect(result.text).toContain("Revised: Her answer was very plain, and she did not repeat it to anybody.");
+	});
+
+	it("keeps the italics of words the editor typed, and the author's own beside them", () => {
+		const italicIns = `<w:ins w:id="3" w:author="${ED}"><w:r><w:rPr><w:i/></w:rPr><w:t xml:space="preserve">quite </w:t></w:r></w:ins>`;
+		const authorItalic = `<w:r><w:rPr><w:i/></w:rPr><w:t>Netherfield</w:t></w:r>`;
+		const result = convert(documentOf(body(
+			para(run("She thought "), authorItalic, run(" was "), italicIns, run("the finest house she had seen in all her life.")),
+		)));
+		expect(result.text).toContain("Original: She thought *Netherfield* was the finest house she had seen in all her life.");
+		expect(result.text).toContain("Revised: She thought *Netherfield* was *quite* the finest house she had seen in all her life.");
+	});
+
+	it("leaves an edit that does not touch italics without markers", () => {
+		const authorItalic = `<w:r><w:rPr><w:i/></w:rPr><w:t>Netherfield</w:t></w:r>`;
+		const result = convert(documentOf(body(para(run("She thought "), authorItalic, run(" the "), del("finest"), ins("grandest"), run(" house she had seen in all her life.")))));
+		expect(result.text).toContain("Original: She thought Netherfield the finest house she had seen in all her life.");
+	});
+
+	it("applies the editor's italics to the scene, keeping the author's own", () => {
+		const italicIns = `<w:ins w:id="3" w:author="${ED}"><w:r><w:rPr><w:i/></w:rPr><w:t xml:space="preserve">quite </w:t></w:r></w:ins>`;
+		const italicChange = `<w:r><w:rPr><w:i/><w:rPrChange w:id="9" w:author="${ED}"><w:rPr/></w:rPrChange></w:rPr><w:t>Pemberley</w:t></w:r>`;
+		const result = convert(documentOf(body(
+			para(run("They drove at last to the door of "), italicChange, run(", which stood well on rising ground.")),
+			para(run("She thought "), `<w:r><w:rPr><w:i/></w:rPr><w:t>Netherfield</w:t></w:r>`, run(" was "), italicIns, run("the finest house she had seen in all her life.")),
+		)));
+		const note = "They drove at last to the door of Pemberley, which stood well on rising ground.\n\nShe thought _Netherfield_ was the finest house she had seen in all her life.";
+		const engine = new MatchEngine();
+		let text = note;
+		for (const suggestion of parse(result.text).suggestions) {
+			const plan = createSuggestionApplyPlan(text, engine.matchSuggestion(text, suggestion));
+			expect(plan).not.toBeNull();
+			if (plan) text = text.slice(0, plan.from) + plan.text + text.slice(plan.to);
+		}
+		expect(text).toContain("the door of *Pemberley*, which");
+		expect(text).toMatch(/She thought [_*]Netherfield[_*] was \*quite\* the finest/);
+	});
+
+	it("writes bold and bold italics, with spaces outside the markers", () => {
+		expect(withMarkers("a bold word ", [
+			...Array.from("a ", () => ({ italic: false, bold: false })),
+			...Array.from("bold ", () => ({ italic: true, bold: true })),
+			...Array.from("word ", () => ({ italic: false, bold: true })),
+		])).toBe("a ***bold*** **word**");
 	});
 
 	it("does not count the break Word records before an added paragraph as a split", () => {

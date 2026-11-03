@@ -241,11 +241,13 @@ Each tracked change becomes a suggestion covering the sentence it sits in, as th
 
 When you apply a suggestion, only the words your editor changed are written. Your own quotation marks, dashes, italics and bold stay as they are in the rest of the sentence, even though Word shows them differently.
 
+Italics and bold your editor added or took off come in too. A word they put in italics arrives as `*word*` in the suggestion, and applying it writes the italics into your scene. So do italic or bold words they typed in a new passage.
+
 **Send a file that keeps scene IDs.** Export the manuscript with Radial Timeline's **Editor round** option, which puts each scene's ID in its heading. Editorialist then knows which scene every change belongs to. Without scene IDs, each change is placed by finding its sentence in your book, and a comment that is not on a changed sentence cannot be placed at all.
 
 The launcher lists anything it leaves out:
 
-- **Formatting changes**, such as a word put in italics. Make these by hand.
+- **Formatting changes other than italics and bold**, such as a font or size. Make these by hand.
 - **Changes to headings.**
 - **Paragraphs split or joined.** The wording comes in; the paragraph break does not.
 - **Comments** that cannot be tied to a scene.
