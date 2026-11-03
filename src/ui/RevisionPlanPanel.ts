@@ -49,8 +49,8 @@ export class RevisionPlanPanel extends ItemView {
 		return new AuthorTargetPanel({ app: this.app, plan: this.plan, busy: this.busy, rt: this.plugin.radialBookGoals, words: this.goalWords, countFolder: (folder) => this.plugin.folderWords.count(folder), save: async (expected, next, edit) => { await this.plugin.saveAuthorGoalPlan(expected, next, edit); }, openSource: async (path) => { await this.app.workspace.openLinkText(path, "", false); }, openSchedule: () => this.plugin.openAuthorScheduler() });
 	}
 	private projectService(): EditorialProjectService { return new EditorialProjectService(this.app); }
-	// What is next, by the same rule Today uses (see nextSession), so the
-	// overview and Today never name different sessions.
+	// The book's next session, by the same rule Today uses (see nextSession).
+	// Today also weighs writing goals, so it can name a goal session first.
 	private queueHead(): QueueHead | null {
 		const entry = nextSession([{ scope: this.book ?? "", plan: this.plan, candidates: this.candidates }], localDate(new Date()))?.entry;
 		if (!entry) return null;

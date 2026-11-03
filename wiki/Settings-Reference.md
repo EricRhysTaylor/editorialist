@@ -51,8 +51,8 @@ Lifetime totals: total suggestions, accepted / rejected / rewritten actions, and
 A card grid, one per contributor:
 
 - **Identity** — display name, avatar (or AI provider brand icon, derived from the `Provider:` / `Model:` batch metadata), role icon, and strength icons.
-- **Stats** — total suggestions, accepted, rewritten, and acceptance percentage.
-- **Trusted badge** — earned at ≥5 suggestions with ≥80% acceptance.
+- **Stats** — total suggestions, accepted, rewritten, and the share you accepted of those you have decided. Suggestions you have not decided yet do not count against a contributor.
+- **Trusted badge** — earned once you have decided at least 5 of a contributor's suggestions and accepted at least 80% of them.
 - **Aliases** — alternate names that have been merged into this contributor.
 - **Star** — mark a contributor to enable the starred-only filter in [Line edits](Line-Edits).
 - **Manage (…)** — opens contributor actions:

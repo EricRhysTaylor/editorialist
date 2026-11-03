@@ -17,6 +17,7 @@ import { FolderWordCounter } from "./services/FolderWordCounter";
 import { AUTHOR_PLAN_SCOPE, authorWork, recordWordDay } from "./core/planning/AuthorPlan";
 import { localDate, sourceKey, type RevisionPlan, type WorkCandidate } from "./core/planning/RevisionPlan";
 import { advancePlanProgress } from "./core/planning/PlanProgress";
+import { planDayLabel } from "./core/planning/WorkPresentation";
 import { batchWork, directiveWork, pendingWork } from "./core/planning/RevisionWork";
 import { preparationWork, type EditorialProject } from "./core/planning/EditorialProject";
 import { countProseWords } from "./core/WordCount";
@@ -1120,7 +1121,7 @@ export default class EditorialistPlugin extends Plugin {
 		const deliveries = this.getEditorialDeliveries();
 		for (const candidate of candidates) {
 			const delivery = deliveries.find((item) => candidate.kind === "directive" ? item.files.includes(candidate.path) : (candidate.kind === "batch" || candidate.kind === "response") && item.batchIds.includes(candidate.locator));
-			if (delivery) { candidate.deliveryId = delivery.id; candidate.due = delivery.due; candidate.detail += ` · ${deliveryCaption(delivery)}${delivery.due ? ` · Due ${delivery.due}` : ""}`; }
+			if (delivery) { candidate.deliveryId = delivery.id; candidate.due = delivery.due; candidate.detail += ` · ${deliveryCaption(delivery)}${delivery.due ? ` · Due ${planDayLabel(delivery.due)}` : ""}`; }
 		}
 		return { candidates, warnings, held };
 	}

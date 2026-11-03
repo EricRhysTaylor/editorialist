@@ -1687,9 +1687,10 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			return "No contribution history yet";
 		}
 
-		const acceptedRate = stats.totalSuggestions > 0
-			? Math.round((stats.accepted / stats.totalSuggestions) * 100)
-			: 0;
+		// The rate is of the changes the author has decided: one not yet looked
+		// at says nothing about the contributor.
+		const decided = stats.accepted + stats.rejected + stats.rewritten;
+		const acceptedRate = decided > 0 ? Math.round((stats.accepted / decided) * 100) : 0;
 		const parts = [
 			`${stats.totalSuggestions} contribution${stats.totalSuggestions === 1 ? "" : "s"}`,
 			`${stats.accepted} accepted`,
@@ -1697,10 +1698,10 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		if (stats.rewritten > 0) {
 			parts.push(`${stats.rewritten} rewritten`);
 		}
-		if (stats.totalSuggestions > 0) {
-			parts.push(`${acceptedRate}% acceptance`);
+		if (decided > 0) {
+			parts.push(`${acceptedRate}% accepted of those decided`);
 		}
-		if (stats.totalSuggestions >= 5 && acceptedRate >= 80) {
+		if (decided >= 5 && acceptedRate >= 80) {
 			parts.push("trusted");
 		}
 		return parts.join(" • ");
