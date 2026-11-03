@@ -19,7 +19,7 @@ import { localDate, sourceKey, type RevisionPlan, type WorkCandidate } from "./c
 import { advancePlanProgress } from "./core/planning/PlanProgress";
 import { planDayLabel } from "./core/planning/WorkPresentation";
 import { batchWork, directiveWork, pendingWork } from "./core/planning/RevisionWork";
-import { preparationWork, type EditorialProject } from "./core/planning/EditorialProject";
+import { isEngagementDelivery, preparationWork, recordProjectEvent, type EditorialProject } from "./core/planning/EditorialProject";
 import { countProseWords } from "./core/WordCount";
 import { collectPendingEdits, describeCollectFailure } from "./core/PendingEditsCollector";
 import { endReviewRound, getEndableRoundBatches } from "./orchestrators/EndReviewRound";
@@ -1023,12 +1023,12 @@ export default class EditorialistPlugin extends Plugin {
 			console.error("[Editorialist] Could not link the import to a delivery", error);
 			return;
 		}
-		const { delivery } = plan;
+		const delivery = await this.linkEngagementToDelivery(bookFolder, plan.delivery);
 		const fragment = createFragment();
 		fragment.createSpan({
 			text: plan.created
 				? `Started delivery “${delivery.title}” for ${delivery.reviewer}. Add its return deadline in `
-				: `Added to ${delivery.reviewer}'s delivery “${delivery.title}”${delivery.due ? `, due ${delivery.due}` : ""}. `,
+				: `Added to ${delivery.reviewer}'s delivery “${delivery.title}”${delivery.due ? `, due ${planDayLabel(delivery.due)}` : ""}. `,
 		});
 		const open = fragment.createEl("a", { text: plan.created ? "Editorial deliveries" : "Open deliveries", href: "#" });
 		if (plan.created) fragment.createSpan({ text: "." });
@@ -1047,6 +1047,27 @@ export default class EditorialistPlugin extends Plugin {
 		await this.saveRevisionPlan(book, next);
 		await this.refreshPlanViews();
 	}
+	// Feedback from the book's engagement editor links that engagement to its
+	// delivery, the one record of when feedback came back. A return date the
+	// author recorded on the engagement before then moves to the delivery.
+	// Returns the delivery as saved.
+	private async linkEngagementToDelivery(bookFolder: string, delivery: EditorialDelivery): Promise<EditorialDelivery> {
+		const book = JSON.stringify(["folder", bookFolder]);
+		const plan = this.getRevisionPlan(book);
+		const project = plan.project;
+		if (!project || project.deliveryId || !isEngagementDelivery(project, delivery, this.getReviewerProfiles())) return delivery;
+		let linked = delivery;
+		if (project.actualReturn && project.actualReturn !== delivery.received) {
+			linked = { ...delivery, received: project.actualReturn };
+			await this.registry.saveEditorialDelivery(linked);
+		}
+		project.deliveryId = linked.id;
+		project.actualReturn = null;
+		recordProjectEvent(project, `Feedback linked: ${linked.title}`);
+		await this.saveRevisionPlan(book, plan);
+		return linked;
+	}
+
 	async saveEditorialDelivery(delivery: EditorialDelivery): Promise<void> {
 		if (delivery.bookFolder !== this.getActiveBookScopeInfo().sourceFolder?.replace(/\/$/, "")) throw new Error("The active book changed. Reopen deliveries before saving.");
 		await this.registry.saveEditorialDelivery(delivery);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { collaborationUrl, createEditorialProject, engagementStartCountdown, entryDeadline, isProjectEditorProfile, normalizeEditorialProject, preparationWork, projectEditor, shiftDate, taskDocument, type MaterialCheck } from "./EditorialProject";
+import { collaborationUrl, createEditorialProject, engagementReturned, engagementStartCountdown, isEngagementDelivery, entryDeadline, isProjectEditorProfile, normalizeEditorialProject, preparationWork, projectEditor, shiftDate, taskDocument, type MaterialCheck } from "./EditorialProject";
 import type { ContributorProfile } from "../../models/ContributorProfile";
 import { emptyRevisionPlan, normalizeRevisionPlans } from "./RevisionPlan";
 import { draftSchedule } from "./AutoSchedule";
@@ -9,6 +9,20 @@ const check: MaterialCheck = { at: "2026-11-23T12:00:00Z", sourceDigest: hash, e
 describe("Editorial preparation project", () => {
 	const reviewer: ContributorProfile = { id: "human-editor", displayName: "Test Editor", kind: "human", reviewerType: "developmental-editor", aliases: [], createdAt: 1, updatedAt: 1 };
 	it("links to the existing human profile and follows its identity after a rename", () => { const p = project(); p.reviewerId = reviewer.id; const renamed = { ...reviewer, displayName: "Renamed Editor" }; expect(projectEditor(p, [renamed])).toMatchObject({ state: "linked", name: renamed.displayName, profile: renamed }); expect(normalizeEditorialProject(p)?.reviewerId).toBe(reviewer.id); expect(p.editor).toBe("Test Editor"); });
+	it("takes the actual return from linked feedback, and its own date only before any is linked", () => {
+		const delivery = { id: "d1", bookFolder: "Book", title: "Developmental review", reviewer: "Test Editor", role: "Developmental editor", received: "2026-12-04", due: null, source: "", files: [], batchIds: [] };
+		const p = project(); p.actualReturn = "2026-12-01";
+		expect(engagementReturned(p, [delivery])).toEqual({ date: "2026-12-01", delivery: null });
+		p.deliveryId = "d1";
+		expect(engagementReturned(p, [delivery])).toEqual({ date: "2026-12-04", delivery });
+	});
+	it("recognizes feedback from the engagement's editor by name or alias", () => {
+		const delivery = { id: "d1", bookFolder: "Book", title: "Copy edit", reviewer: "T. Editor", role: "", received: null, due: null, source: "", files: [], batchIds: [] };
+		const p = project(); p.reviewerId = reviewer.id;
+		expect(isEngagementDelivery(p, delivery, [reviewer])).toBe(false);
+		expect(isEngagementDelivery(p, delivery, [{ ...reviewer, aliases: ["T. Editor"] }])).toBe(true);
+		expect(isEngagementDelivery(p, { ...delivery, reviewer: " test editor " }, [reviewer])).toBe(true);
+	});
 	it("does not silently replace a deleted profile with somebody sharing its name", () => { const p = project(); p.reviewerId = "deleted"; expect(projectEditor(p, [reviewer])).toEqual({ state: "unavailable", name: "Test Editor" }); });
 	it("suggests only unique existing human identities for legacy projects", () => { const p = project(); expect(projectEditor(p, [reviewer]).state).toBe("matched"); expect(p.reviewerId).toBeUndefined(); expect(projectEditor(p, [reviewer, { ...reviewer, id: "another" }]).state).toBe("unlinked"); expect(projectEditor(p, [{ ...reviewer, kind: "ai" }]).state).toBe("unlinked"); });
 	it("preserves legacy aliases without guessing an AI or unavailable explicit identity", () => { const p = project(); const renamed = { ...reviewer, displayName: "Renamed Editor", aliases: ["Test Editor"] }; expect(projectEditor(p, [renamed]).profile?.id).toBe(reviewer.id); p.reviewerId = reviewer.id; expect(projectEditor(p, [{ ...reviewer, kind: "ai" }]).state).toBe("unavailable"); });

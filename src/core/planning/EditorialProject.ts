@@ -1,6 +1,7 @@
 import { isDate, localDate, resolvePlanSource, type PlanEntry, type RevisionPlan, type WorkCandidate, type WorkKind } from "./RevisionPlan";
 import { normalizeContributorValue } from "../ContributorIdentity";
 import type { ContributorProfile } from "../../models/ContributorProfile";
+import type { EditorialDelivery } from "../EditorialDeliveries";
 
 export interface ProjectMilestone { id: string; title: string; day: string; done: boolean }
 export interface EngagementTask { id: string; title: string; materialId: string | null; milestoneId: string | null; done: boolean }
@@ -83,6 +84,23 @@ export function projectEditor(project: EditorialProject, profiles: readonly Cont
 	if (!name) return { name: project.editor, state: "unlinked" };
 	const matches = profiles.filter((item) => isProjectEditorProfile(item) && [item.displayName, ...item.aliases].some((value) => normalizeContributorValue(value) === name));
 	return matches.length === 1 ? { name: matches[0]!.displayName, profile: matches[0], state: "matched" } : { name: project.editor, state: "unlinked" };
+}
+
+// When the editor's feedback actually came back. Once the engagement is
+// linked to a delivery, that is the delivery's received date: the delivery is
+// the one record of returned feedback, the date scheduling and Today use.
+// Before a delivery exists the engagement keeps its own.
+export function engagementReturned(project: EditorialProject, deliveries: readonly EditorialDelivery[]): { date: string | null; delivery: EditorialDelivery | null } {
+	const delivery = project.deliveryId ? deliveries.find((item) => item.id === project.deliveryId) ?? null : null;
+	return delivery ? { date: delivery.received, delivery } : { date: project.actualReturn, delivery: null };
+}
+
+// Whether a delivery is from this engagement's editor, so an import can link
+// itself to the engagement.
+export function isEngagementDelivery(project: EditorialProject, delivery: EditorialDelivery, profiles: readonly ContributorProfile[]): boolean {
+	const editor = projectEditor(project, profiles);
+	const names = [editor.name, project.editor, ...(editor.profile?.aliases ?? [])].map(normalizeContributorValue).filter(Boolean);
+	return names.includes(normalizeContributorValue(delivery.reviewer));
 }
 
 export function shiftDate(day: string, offset: number): string {

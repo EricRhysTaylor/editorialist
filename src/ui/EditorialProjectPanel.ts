@@ -2,7 +2,7 @@ import { renderWordLimit } from "./primitives/WordLimitBar";
 import { setAccessibleLabel } from "./primitives/AccessibleLabel";
 import { bindCompletionMenu } from "./primitives/CompletionMenu";
 import { Modal, Notice, TFile, normalizePath, setIcon, type App } from "obsidian";
-import { collaborationUrl, createEditorialProject, engagementStartCountdown, isProjectEditorProfile, materialDue, projectEditor, recordProjectEvent, shiftDate, type EditorialProject, type EngagementRecord, type EngagementTask, type ProjectMaterial } from "../core/planning/EditorialProject";
+import { collaborationUrl, createEditorialProject, engagementReturned, engagementStartCountdown, isProjectEditorProfile, materialDue, projectEditor, recordProjectEvent, shiftDate, type EditorialProject, type EngagementRecord, type EngagementTask, type ProjectMaterial } from "../core/planning/EditorialProject";
 import { isDate, localDate, type RevisionPlan } from "../core/planning/RevisionPlan";
 
 import type { EditorialDelivery } from "../core/EditorialDeliveries";
@@ -16,6 +16,7 @@ export interface ProjectPanelHost {
 	busy: boolean;
 	save(expected: RevisionPlan, next: RevisionPlan): Promise<void>;
 	deliveries: EditorialDelivery[];
+	saveDelivery(delivery: EditorialDelivery): Promise<void>;
 	getReviewers(): ContributorProfile[];
 	manageEditor(id: string): Promise<void>;
 	openSchedule(): void;
@@ -104,11 +105,11 @@ export class EditorialProjectPanel {
 			const start = field(form, "Agreed start date", project?.submissionDate ?? "", "date"); start.required = true;
 			const url = field(form, "Collaboration link", project?.collaborationUrl ?? "", "url");
 			const expectedReturn = field(form, "Expected editor return", project?.expectedReturn ?? "", "date");
-			const actual = field(form, "Actual editor return", project?.actualReturn ?? "", "date");
+			const actual = field(form, "Actual editor return", project ? engagementReturned(project, this.host.deliveries).date ?? "" : "", "date");
 			const questions = field(form, "Days for questions after return", String(project?.questionsDays ?? 10), "number"); questions.min = "0"; questions.max = "365"; questions.step = "1"; questions.required = true;
 			const delivery = select(form, "Returned feedback", [["", "No feedback linked"], ...this.host.deliveries.map((item): [string, string] => [item.id, `${item.title} · ${item.reviewer}`])], project?.deliveryId ?? "");
 			if (project?.deliveryId && !this.host.deliveries.some((item) => item.id === project.deliveryId)) { delivery.createEl("option", { value: project.deliveryId, text: "Linked feedback unavailable" }); delivery.value = project.deliveryId; }
-			form.createEl("p", { cls: "editorialist-project__hint", text: "Keep agreed dates and your own activity records here. Prepare and exchange files directly with your editor through your collaboration." });
+			form.createEl("p", { cls: "editorialist-project__hint", text: "Keep agreed dates and your own activity records here. Prepare and exchange files directly with your editor through your collaboration. Once feedback is linked, its actual return date is the date that feedback was received, and changing it here changes it there." });
 			return async () => {
 				if (!editor.value.trim() || !title.value.trim() || !isDate(start.value)) throw new Error("Enter the editor, engagement title and start date.");
 				const reviewer = this.host.getReviewers().find((item) => item.id === editor.value && isProjectEditorProfile(item));
@@ -120,9 +121,13 @@ export class EditorialProjectPanel {
 				const editorName = reviewer?.displayName ?? (editor.value === "__unlinked__" ? project?.editor ?? "" : editor.value);
 				const next = structuredClone(expected), draft = next.project ?? createEditorialProject(editorName, start.value, () => crypto.randomUUID());
 				draft.title = title.value.trim(); draft.editor = editorName.trim(); if (reviewer) draft.reviewerId = reviewer.id;
-				draft.submissionDate = start.value; draft.collaborationUrl = collaborationUrl(url.value); draft.expectedReturn = expectedReturn.value || null; draft.actualReturn = actual.value || null; draft.questionsDays = days; draft.deliveryId = delivery.value || null;
+				draft.submissionDate = start.value; draft.collaborationUrl = collaborationUrl(url.value); draft.expectedReturn = expectedReturn.value || null; draft.questionsDays = days; draft.deliveryId = delivery.value || null;
+				// Linked feedback keeps the actual return as its received date.
+				const linked = this.host.deliveries.find((item) => item.id === draft.deliveryId);
+				draft.actualReturn = linked ? null : actual.value || null;
 				recordProjectEvent(draft, project ? "Engagement details updated" : "Editor engagement created"); next.project = draft;
 				await this.host.save(expected, next);
+				if (linked && linked.received !== (actual.value || null)) await this.host.saveDelivery({ ...linked, received: actual.value || null });
 			};
 		}).open();
 	}
@@ -156,17 +161,18 @@ export class EditorialProjectPanel {
 		this.action(actions, "Open in workspace", () => this.host.openWorkspace());
 		if (project.collaborationUrl) button(actions, "Open collaboration", () => window.open(project.collaborationUrl, "_blank", "noopener,noreferrer"));
 		this.renderNextUp(root, project);
-		if (project.expectedReturn || project.actualReturn) {
+		const returned = engagementReturned(project, this.host.deliveries).date;
+		if (project.expectedReturn || returned) {
 			const returnInfo = root.createEl("details", { cls: "editorialist-project__return", attr: { open: "" } });
 			const summary = returnInfo.createEl("summary");
 			setIcon(summary.createSpan({ cls: "editorialist-panel__disclosure-icon", attr: { "aria-hidden": "true" } }), "calendar-clock");
 			const heading = summary.createSpan({ cls: "editorialist-project__return-heading" });
 			heading.createSpan({ cls: "editorialist-project__return-title", text: "Editor return & questions" });
-			const returnDate = project.actualReturn ?? project.expectedReturn!;
-			heading.createSpan({ cls: "editorialist-project__hint", text: `${project.actualReturn ? "Returned" : "Expected return"} · ${dayLabel(returnDate)}` });
+			const returnDate = returned ?? project.expectedReturn!;
+			heading.createSpan({ cls: "editorialist-project__hint", text: `${returned ? "Returned" : "Expected return"} · ${dayLabel(returnDate)}` });
 			setIcon(summary.createSpan({ cls: "editorialist-panel__disclosure-caret", attr: { "aria-hidden": "true" } }), "chevron-right");
 			const body = returnInfo.createDiv({ cls: "editorialist-project__return-body" });
-			body.createEl("p", { text: project.actualReturn ? `Questions due ${dayLabel(shiftDate(project.actualReturn, project.questionsDays))} · ${project.questionsDays} days after actual return.` : `${project.questionsDays} days for questions after actual return. Return not yet recorded.` });
+			body.createEl("p", { text: returned ? `Questions due ${dayLabel(shiftDate(returned, project.questionsDays))} · ${project.questionsDays} days after actual return.` : `${project.questionsDays} days for questions after actual return. Return not yet recorded.` });
 			if (project.deliveryId) body.createEl("p", { text: `Feedback: ${this.host.deliveries.find((item) => item.id === project.deliveryId)?.title ?? "Linked feedback unavailable"}` });
 			button(body, "Update return dates", () => this.setup());
 		}

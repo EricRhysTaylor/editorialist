@@ -78,7 +78,7 @@ export class RevisionPlanPanel extends ItemView {
 	}
 	private projectPanel(): EditorialProjectPanel {
 		const book = this.book;
-		return new EditorialProjectPanel({ app: this.app, plan: this.plan, busy: this.busy || this.stale, service: this.projectService(), deliveries: this.plugin.getEditorialDeliveries(), getReviewers: () => this.plugin.getReviewerProfiles(), manageEditor: async (id) => { await this.plugin.contributors.openContributorManagementFlow(id); },
+		return new EditorialProjectPanel({ app: this.app, plan: this.plan, busy: this.busy || this.stale, service: this.projectService(), deliveries: this.plugin.getEditorialDeliveries(), saveDelivery: async (delivery) => { await this.plugin.saveEditorialDelivery(delivery); }, getReviewers: () => this.plugin.getReviewerProfiles(), manageEditor: async (id) => { await this.plugin.contributors.openContributorManagementFlow(id); },
 			save: async (expected, next) => { if (!book || book !== this.scopeKey()) throw new Error("The active book changed. Reopen the project before saving."); await this.plugin.applyScheduledPlan(book, expected, next); },
 			openWorkspace: () => this.plugin.openEditorialProjectWorkspace(), openSchedule: () => { this.section = "schedule"; this.render(); }, openSource: async (path) => { const file = this.app.vault.getAbstractFileByPath(path); if (!(file instanceof TFile)) throw new Error("This file is unavailable. Check its path in material details."); await this.app.workspace.openLinkText(file.path, "", false); },
 			nextInQueue: () => this.queueHead(),

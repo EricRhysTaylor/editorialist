@@ -7,6 +7,8 @@ Keep an editor’s agreed dates, personal milestones, tasks, optional reference 
 1. Choose **Create engagement**. Select an existing human contributor, or enter an editor’s name when no human profiles exist.
 2. Enter the engagement title and **Agreed start date**. The collaboration link, expected and actual return dates, and returned-feedback delivery are optional.
 3. Set **Days for questions after return**. Once you record the actual return date, the overview shows the questions due date.
+
+When your editor's feedback arrives and you import it, Editorialist links it to the engagement for you, as its **Returned feedback**. From then on the actual return date is the date that feedback was received, kept in one place: change it here or in **Editorial deliveries** and both show the new date. A return date you entered before the feedback arrived moves to the feedback when it links.
 4. Save, then add your own milestones and tasks. New engagements start with empty lists.
 
 **Editor profile** opens that contributor’s existing profile controls. If the saved profile becomes unavailable, relink it in **Engagement details**. AI contributors are excluded from the editor selector.
