@@ -675,7 +675,10 @@ export function renderContributorsBlock(plugin: EditorialistPlugin, parent: HTML
 
 	const list = section.createDiv({ cls: "editorialist-panel__contributors-list" });
 	for (const profile of profiles) {
-		const row = list.createDiv({ cls: "editorialist-panel__contributors-row" });
+		// Each row opens the contributor's Edit dialog.
+		const row = list.createEl("button", { cls: "editorialist-panel__contributors-row", attr: { type: "button" } });
+		setAccessibleLabel(row, `Edit ${profile.displayName}`);
+		row.addEventListener("click", () => void plugin.contributors.editContributorStrengths(profile.id));
 
 		const avatarKind = resolveContributorAvatarKind(profile);
 		const brand = avatarKind === "person" || avatarKind === "generic-ai" ? null : avatarKind;
@@ -716,10 +719,21 @@ export function renderContributorsBlock(plugin: EditorialistPlugin, parent: HTML
 		if (stat > 0) {
 			row.createDiv({
 				cls: "editorialist-panel__contributors-stat",
-				text: `${stat} ${stat === 1 ? "edit" : "edits"}`,
+				text: `${stat} ${stat === 1 ? "suggestion" : "suggestions"}`,
 			});
 		}
 	}
+
+	// Merging, moving a pass and the full list live in the Contributors tab.
+	const all = section.createEl("a", {
+		cls: "editorialist-panel__contributors-all",
+		text: allProfiles.length > profiles.length ? `See all ${allProfiles.length} contributors` : "Manage contributors",
+		attr: { href: "#" },
+	});
+	all.addEventListener("click", (event) => {
+		event.preventDefault();
+		plugin.openSettings("reviewer");
+	});
 }
 
 // ── pure helpers ─────────────────────────────────────────────────────────

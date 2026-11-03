@@ -5861,6 +5861,38 @@
 	border-top: 0;
 }
 
+/* Rows are buttons that open the contributor's Edit dialog. */
+button.editorialist-panel__contributors-row {
+	width: 100%;
+	height: auto;
+	margin: 0;
+	border-right: 0;
+	border-bottom: 0;
+	border-left: 0;
+	border-radius: 0;
+	background: none;
+	box-shadow: none;
+	color: inherit;
+	font: inherit;
+	text-align: start;
+	cursor: pointer;
+}
+
+button.editorialist-panel__contributors-row:hover {
+	background: var(--background-modifier-hover);
+}
+
+button.editorialist-panel__contributors-row:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+}
+
+.editorialist-panel__contributors-all {
+	display: block;
+	padding: var(--editorialist-space-sm) var(--editorialist-space-md);
+	font-size: var(--font-ui-small);
+}
+
 .editorialist-panel__contributors-avatar {
 	display: inline-flex;
 	align-items: center;

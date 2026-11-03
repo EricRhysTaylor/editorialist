@@ -124,7 +124,7 @@ import { openAnchorTargetModal } from "./ui/modals/AnchorTargetModal";
 import { REVIEW_PANEL_VIEW_TYPE, ReviewPanel } from "./ui/ReviewPanel";
 import { EDITORIALIST_ICON_ID, registerEditorialistIcon } from "./ui/EditorialistLogoIcon";
 import { registerRadialTimelineIcon } from "./ui/RadialTimelineLogoIcon";
-import { EditorialistSettingTab } from "./ui/EditorialistSettingTab";
+import { EditorialistSettingTab, type SettingsTabId } from "./ui/EditorialistSettingTab";
 import { createReviewDecorationsExtension, syncReviewDecorations } from "./ui/Decorations";
 import { createReviewToolbarElement, type ToolbarState } from "./ui/Toolbar";
 import { ToolbarKeyTracker } from "./ui/toolbar/ToolbarKeyTracker";
@@ -471,6 +471,8 @@ export default class EditorialistPlugin extends Plugin {
 	// Contributor management — star, edit, reassign, merge, delete, and the
 	// suggestion-to-reviewer resolutions, with the session rewrites each
 	// implies. The settings tab and the review panel call it directly.
+	private settingTab: EditorialistSettingTab | null = null;
+
 	readonly contributors = new ContributorManagementOrchestrator({
 		store: this.store,
 		registry: this.registry,
@@ -512,7 +514,8 @@ export default class EditorialistPlugin extends Plugin {
 		this.registerView(REVIEW_PANEL_VIEW_TYPE, (leaf) => new ReviewPanel(leaf, this));
 		this.registerView(EDITORIALISM_PANEL_VIEW_TYPE, (leaf) => new EditorialismPanel(leaf, this));
 		this.registerView(PENDING_EDITS_PANEL_VIEW_TYPE, (leaf) => new PendingEditsPanel(leaf, this));
-		this.addSettingTab(new EditorialistSettingTab(this.app, this));
+		this.settingTab = new EditorialistSettingTab(this.app, this);
+		this.addSettingTab(this.settingTab);
 		// One ribbon for the single Ed panel. Editorialism mode is reached by the
 		// in-panel swatch toggle or the "Toggle editorialism mode" command — no
 		// second icon, no second tab.
@@ -1378,7 +1381,9 @@ export default class EditorialistPlugin extends Plugin {
 		}
 	}
 
-	openSettings(): void {
+	// Opens Editorialist's settings, on the given tab when one is named.
+	openSettings(tab?: SettingsTabId): void {
+		if (tab) this.settingTab?.selectTab(tab);
 		const appWithSettings = this.app as App & {
 			setting?: {
 				open: () => void;

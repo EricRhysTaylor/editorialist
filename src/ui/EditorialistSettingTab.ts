@@ -32,13 +32,20 @@ import { RADIAL_TIMELINE_ICON_ID } from "./RadialTimelineLogoIcon";
 // Cost accepted: these settings do not appear in Obsidian's settings search on
 // 1.13+. Revisit when minAppVersion moves to 1.13.0.
 // See docs/CODE-STANDARDS.md § "Settings tab rendering".
+export type SettingsTabId = "core" | "reviewer" | "configuration";
+
 export class EditorialistSettingTab extends PluginSettingTab {
 	private static readonly SETTINGS_DOCS_URL = "https://github.com/EricRhysTaylor/Editorialist#readme";
 	private static readonly RADIAL_TIMELINE_INSTALL_URL = "obsidian://show-plugin?id=radial-timeline";
 	private static readonly RADIAL_TIMELINE_REPOSITORY_URL = "https://github.com/EricRhysTaylor/Obsidian-Manuscript-Timeline";
 	private static readonly RADIAL_TIMELINE_WIKI_URL = "https://github.com/EricRhysTaylor/Obsidian-Manuscript-Timeline/wiki";
 	private activeBookOnly = true;
-	private activeTab: "core" | "reviewer" | "configuration" = "core";
+	private activeTab: SettingsTabId = "core";
+
+	// The tab to show the next time the settings open.
+	selectTab(tab: SettingsTabId): void {
+		this.activeTab = tab;
+	}
 	private displayRunId = 0;
 	private contributorEvents = new Component();
 	private contributorMergePending = false;
