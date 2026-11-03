@@ -360,7 +360,7 @@ export class RevisionPlanPanel extends ItemView {
 			item.createSpan({ text: ` ${text}` });
 		}
 		const kinds = card.createDiv({ cls: "editorialist-plan__momentum-kinds" });
-		for (const [kind, text] of [["batch", "Batches"], ["directive", "Editorialisms"], ["pending", "Notes"], ["preparation", this.author ? "Goals" : "Engagement tasks"]] as const) {
+		for (const [kind, text] of [["batch", "Line edits"], ["directive", "Editorialisms"], ["pending", "Notes"], ["preparation", this.author ? "Goals" : "Engagement tasks"], ["response", "Responses"]] as const) {
 			const counts = summary.byKind[kind];
 			if (!counts.done && !counts.remaining) continue;
 			kinds.createSpan({ text: `${text} ${counts.done}/${counts.done + counts.remaining}` });
@@ -643,7 +643,7 @@ export class RevisionPlanPanel extends ItemView {
 			}
 			if (!shown.length) list.createEl("p", { cls: "editorialist-plan__empty-copy", text: "No available work matches this filter." });
 		};
-		for (const [value, label] of Object.entries({ all: "All", pending: "Notes", batch: "Batches", directive: "Editorialisms", preparation: this.author ? "Goals" : "Engagement tasks" })) {
+		for (const [value, label] of Object.entries({ all: "All", pending: "Notes", batch: "Line edits", directive: "Editorialisms", preparation: this.author ? "Goals" : "Engagement tasks", response: "Responses" })) {
 			const button = this.button(filters, label, () => { this.sourceFilter = value; this.backlogLimit = 12; for (const item of Array.from(filters.querySelectorAll("button"))) item.setAttribute("aria-pressed", String(item === button)); render(); });
 			button.setAttribute("aria-pressed", String(this.sourceFilter === value));
 		}

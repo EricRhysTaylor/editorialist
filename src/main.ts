@@ -1086,21 +1086,40 @@ export default class EditorialistPlugin extends Plugin {
 		const activeBatches = this.getSweepRegistryEntries().filter((batch) => batch.status !== "cleaned" && batch.status !== "ended_early");
 		const eligible = new Set(this.getManuscriptFiles().map((file) => file.path));
 		const paths = new Set(activeBatches.flatMap((batch) => batch.importedNotePaths).filter((path) => eligible.has(path)));
+		// Who sent each batch, to give a person's pass a response task.
+		const senders = new Map<string, ReviewContributor>();
 		for (const path of paths) {
 			try {
 				const file = this.app.vault.getAbstractFileByPath(path);
 				if (!(file instanceof TFile)) continue;
 				const text = this.resolveOpenNoteText(path) ?? await this.app.vault.cachedRead(file);
 				const session = this.registry.applyPersistedReviewState(this.reviewEngine.buildSession(path, text, null));
+				for (const item of [...session.suggestions, ...session.memos]) {
+					if (item.source.batchId && !senders.has(item.source.batchId)) senders.set(item.source.batchId, item.contributor);
+				}
 				candidates.push(...batchWork(session).filter((item) => activeBatches.some((batch) => batch.batchId === item.locator)).map((item) => {
 					const importedAt = activeBatches.find((batch) => batch.batchId === item.locator)?.importedAt;
 					return { ...item, detail: `${item.detail}${importedAt ? ` · ${new Date(importedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : ""}` };
 				}));
 			} catch { warnings.push(`Could not load review work in ${path}.`); held.push({ kind: "batch", path }); }
 		}
+		for (const batch of activeBatches) {
+			const sender = senders.get(batch.batchId);
+			if (sender?.kind !== "human") continue;
+			candidates.push({
+				kind: "response",
+				path: RESPONSES_FOLDER,
+				locator: batch.batchId,
+				title: `Write your response to ${sender.displayName}`,
+				detail: `Replies to their comments and reasons for changes you kept · ${new Date(batch.importedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })} pass`,
+				complete: Boolean(batch.responseSavedAt),
+				deferred: false,
+				suggestedMinutes: 30,
+			});
+		}
 		const deliveries = this.getEditorialDeliveries();
 		for (const candidate of candidates) {
-			const delivery = deliveries.find((item) => candidate.kind === "directive" ? item.files.includes(candidate.path) : candidate.kind === "batch" && item.batchIds.includes(candidate.locator));
+			const delivery = deliveries.find((item) => candidate.kind === "directive" ? item.files.includes(candidate.path) : (candidate.kind === "batch" || candidate.kind === "response") && item.batchIds.includes(candidate.locator));
 			if (delivery) { candidate.deliveryId = delivery.id; candidate.due = delivery.due; candidate.detail += ` · ${deliveryCaption(delivery)}${delivery.due ? ` · Due ${delivery.due}` : ""}`; }
 		}
 		return { candidates, warnings, held };
@@ -1141,6 +1160,10 @@ export default class EditorialistPlugin extends Plugin {
 	}
 
 	async openRevisionWork(candidate: WorkCandidate): Promise<void> {
+		if (candidate.kind === "response") {
+			await this.openEditorResponse(candidate.locator);
+			return;
+		}
 		if (candidate.kind === "batch") {
 			await this.startOrResumeReviewForNote(candidate.path);
 			const suggestion = this.store.getSession()?.suggestions.find((item) => item.source.batchId === candidate.locator && !["accepted", "rejected", "rewritten"].includes(item.status));
@@ -1659,6 +1682,13 @@ export default class EditorialistPlugin extends Plugin {
 		return path;
 	}
 
+	// A saved response finishes the pass's response task in planning; Today and
+	// the planner follow.
+	private async recordResponseSaved(batchId: string): Promise<void> {
+		await this.registry.updateSweepRegistry(batchId, { responseSavedAt: Date.now() });
+		await this.refreshPlanViews();
+	}
+
 	// Writes the response as a Word file in Editorialist/Responses and returns
 	// its path.
 	async saveEditorResponseFile(batchId: string): Promise<string | null> {
@@ -1668,7 +1698,9 @@ export default class EditorialistPlugin extends Plugin {
 			return null;
 		}
 		if (!(await this.ensureVaultFolder(RESPONSES_FOLDER))) return null;
-		return this.writeNewVaultBinary(RESPONSES_FOLDER, `Response to ${response.reviewer} ${localDate(new Date())}`, writeDocx(editorResponseParagraphs(response)));
+		const path = await this.writeNewVaultBinary(RESPONSES_FOLDER, `Response to ${response.reviewer} ${localDate(new Date())}`, writeDocx(editorResponseParagraphs(response)));
+		await this.recordResponseSaved(batchId);
+		return path;
 	}
 
 	// Writes the author's replies into a copy of the editor's own Word file, in
@@ -1714,6 +1746,7 @@ export default class EditorialistPlugin extends Plugin {
 		}
 		if (!(await this.ensureVaultFolder(RESPONSES_FOLDER))) return null;
 		const path = await this.writeNewVaultBinary(RESPONSES_FOLDER, `${file.basename} with replies ${localDate(new Date())}`, result.bytes);
+		await this.recordResponseSaved(batchId);
 		return { path, placed: result.placed, expected: answers.expected };
 	}
 

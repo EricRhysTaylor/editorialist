@@ -3,7 +3,9 @@ import { DEFAULT_SCHEDULE, type ScheduleDefaults, type WorkPhase } from "./Sched
 import { normalizePlanProgress, type PlanProgress } from "./PlanProgress";
 import { entryDeadline, normalizeEditorialProject, type EditorialProject } from "./EditorialProject";
 /** Planning identity is independent of line numbers and pending-edit indexes. */
-export type WorkKind = "pending" | "batch" | "directive" | "preparation";
+// "response" is the author's answer to an editor's pass: its path is the
+// Responses folder and its locator the batch id.
+export type WorkKind = "pending" | "batch" | "directive" | "preparation" | "response";
 export interface WorkSource {
 	kind: WorkKind;
 	path: string;
@@ -111,7 +113,7 @@ export function normalizeRevisionPlans(raw: unknown): RevisionPlanStore {
 			const entry = object(value);
 			const source = object(entry?.source);
 			if (!entry || typeof entry.id !== "string" || !entry.id || ids.has(entry.id) || !source ||
-				!['pending', 'batch', 'directive', 'preparation'].includes(String(source.kind)) || typeof source.path !== "string" || typeof source.locator !== "string") continue;
+				!['pending', 'batch', 'directive', 'preparation', 'response'].includes(String(source.kind)) || typeof source.path !== "string" || typeof source.locator !== "string") continue;
 			ids.add(entry.id);
 			const low = minutes(entry.lowMinutes);
 			const high = minutes(entry.highMinutes);

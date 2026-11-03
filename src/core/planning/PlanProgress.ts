@@ -41,7 +41,7 @@ export interface ProgressInput extends TrackedWork {
 	state: "open" | "complete" | "inactive";
 }
 
-const KINDS: WorkKind[] = ["batch", "directive", "pending", "preparation"];
+const KINDS: WorkKind[] = ["batch", "directive", "pending", "preparation", "response"];
 
 // `held` names work whose source could not be read this time, such as pending
 // edits that failed to load or an editorialism with no book: its absence says

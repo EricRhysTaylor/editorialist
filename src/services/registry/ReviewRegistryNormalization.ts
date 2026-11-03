@@ -198,6 +198,7 @@ export function normalizeSweepRegistry(
 					...(typeof entry?.wordSource?.path === "string" && typeof entry.wordSource.editor === "string"
 						? { wordSource: { path: entry.wordSource.path, editor: entry.wordSource.editor } }
 						: {}),
+					...(typeof entry?.responseSavedAt === "number" ? { responseSavedAt: entry.responseSavedAt } : {}),
 				},
 			];
 		}),

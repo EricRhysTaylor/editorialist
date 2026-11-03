@@ -79,7 +79,7 @@ export class EditorialDeliveriesModal extends Modal {
 		form.createEl("h3", { text: "Editorialism files" });
 		for (const file of files) link(form, `${file.title} · ${file.reviewer || "Unattributed"} · ${file.totalItems} ${file.totalItems === 1 ? "item" : "items"}`, file.filePath, "files");
 		for (const path of draft.files.filter((path) => !files.some((file) => file.filePath === path))) link(form, `${path} · Unavailable`, path, "files");
-		form.createEl("h3", { text: "Batches" });
+		form.createEl("h3", { text: "Line edits" });
 		form.createEl("p", { cls: "editorialist-deliveries__intro", text: "Batch progress counts suggestion decisions. Memos do not have completion decisions." });
 		for (const batch of batches) link(form, `${new Date(batch.importedAt).toLocaleString()} · ${batch.totalSuggestions} ${batch.totalSuggestions === 1 ? "suggestion" : "suggestions"} · ${batch.importedNotePaths.map((path) => path.split("/").pop()?.replace(/\.md$/i, "")).slice(0, 2).join(", ")}${batch.importedNotePaths.length > 2 ? "…" : ""}`, batch.batchId, "batchIds");
 		for (const id of draft.batchIds.filter((id) => !batches.some((batch) => batch.batchId === id))) link(form, `${id} · Unavailable`, id, "batchIds");

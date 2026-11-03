@@ -12,6 +12,15 @@ describe("Automatic delivery scheduling", () => {
 		expect(result.generated.map((item) => item.source.locator).sort()).toEqual(["one", "two"]);
 		expect(result.generated.every((item) => item.autoDeliveryId === undefined)).toBe(true);
 	});
+	it("schedules the response to an editor after their changes, and keeps it through plan loading", () => {
+		const batch = candidate("batch-1", { kind: "batch", path: "Scene.md", title: "Line edits", sceneOrder: "9" });
+		const response = candidate("batch-1", { kind: "response", path: "Editorialist/Responses", title: "Write your response to Morgan Lee", sceneOrder: "1", suggestedMinutes: 30 });
+		const result = run(undefined, [response, batch]);
+		expect(result.issues).toEqual([]);
+		expect(result.generated.map((item) => item.source.kind)).toEqual(["batch", "response"]);
+		const stored = normalizeRevisionPlans({ version: 1, books: { book: result.plan } });
+		expect(stored.books.book?.entries.map((item) => item.source.kind)).toEqual(["batch", "response"]);
+	});
 	it("splits long work into bounded sessions without changing the source", () => {
 		const work = candidate("one", { suggestedMinutes: 288 });
 		const result = run(undefined, [work]);

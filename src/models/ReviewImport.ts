@@ -170,4 +170,6 @@ export interface ReviewSweepRegistryEntry {
 	// the author's replies can be written into a copy of it. `editor` is the
 	// name Word gives their changes.
 	wordSource?: { path: string; editor: string };
+	// When the author last saved a response to this pass, letter or Word file.
+	responseSavedAt?: number;
 }

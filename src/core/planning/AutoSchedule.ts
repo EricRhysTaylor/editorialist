@@ -18,6 +18,7 @@ export function addDays(day: string, count: number): string {
 /** Suggestions only: explicit scope/word cues outrank the source format. */
 export function suggestPhase(candidate: WorkCandidate, preset: SchedulePreset): WorkPhase | null {
 	if (candidate.kind === "preparation") return "structure";
+	if (candidate.kind === "response") return "polish";
 	if (/\b(structur\w*|arc|subplot|act|chapter order|reorder|cut scene|remove scene)\b/i.test(candidate.title)) return "structure";
 	if (/\b(rewrit\w*|expand|rework|rebuild|new scene|motivation|character|pacing|stakes|emotional|consequence|payoff|reunion)\b/i.test(candidate.title)) return "rewrite";
 	if (/\b(copy.?edit|typo|grammar|punctuation|spelling|wording|line.?edit|prose|trim|sentence|repetition|dialogue|gesture|gestures|word choice|voice|description|syntax|clarify|tighten|concision|tone)\b/i.test(candidate.title)) return "polish";
@@ -67,8 +68,10 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 		const targetOrder = plan.targets || plan.project ? (a.targetDate ?? workDeadline(plan, a.kind, a.due) ?? options.end).localeCompare(b.targetDate ?? workDeadline(plan, b.kind, b.due) ?? options.end) || Number(a.kind === "preparation") - Number(b.kind === "preparation") : 0;
 		const scenes = scene(a).localeCompare(scene(b)) || (a.sceneOrder ?? "").localeCompare(b.sceneOrder ?? "", undefined, { numeric: true });
 		const phases = rank(phase(a)) - rank(phase(b));
+		// A response answers the editor's changes, so it follows them.
+		const response = Number(a.kind === "response") - Number(b.kind === "response");
 		const structure = Number(phase(a) !== "structure") - Number(phase(b) !== "structure");
-		return targetOrder || (options.preset === "copy" ? scenes : options.preset === "mixed" ? structure || scenes || phases : phases || scenes) || a.title.localeCompare(b.title);
+		return targetOrder || response || (options.preset === "copy" ? scenes : options.preset === "mixed" ? structure || scenes || phases : phases || scenes) || a.title.localeCompare(b.title);
 	});
 	let estimated = 0;
 	let previousNewId: string | null = null;

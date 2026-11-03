@@ -1,4 +1,4 @@
-The **Schedule** section of [Editor Engagement](Editor-Engagement) brings personal engagement tasks, pending edits, scene batches, and Editorialism checklist items into one ordered work queue. Run **Open editor engagement**, then choose **Schedule** when an engagement exists. Without an engagement, the revision schedule remains directly available.
+The **Schedule** section of [Editor Engagement](Editor-Engagement) brings personal engagement tasks, pending edits, scene batches, Editorialism checklist items, and your responses to editors into one ordered work queue. Run **Open editor engagement**, then choose **Schedule** when an engagement exists. Without an engagement, the revision schedule remains directly available.
 
 This page retains the scheduling reference and its original URL for existing links. For vault-wide personal writing goals, use [Author Planner](Author-Planner).
 
@@ -6,7 +6,7 @@ This page retains the scheduling reference and its original URL for existing lin
 
 ## Progress across the book
 
-The **Progress across the book** card leads the plan. It shows how much work is done and how much is still to go, with a bar, and how many items you finished today and in the last 7 days. Below that are separate totals for **Batches**, **Editorialisms**, and **Notes** (pending edits). When your Editorialisms contain directives that ask you to choose something, **Decisions** shows how many you have made out of those needed. A recorded decision counts there rather than as done: the directive stays open until its passages are carried through.
+The **Progress across the book** card leads the plan. It shows how much work is done and how much is still to go, with a bar, and how many items you finished today and in the last 7 days. Below that are separate totals for **Line edits**, **Editorialisms**, **Notes** (pending edits), and **Responses**. When your Editorialisms contain directives that ask you to choose something, **Decisions** shows how many you have made out of those needed. A recorded decision counts there rather than as done: the directive stays open until its passages are carried through.
 
 Progress covers the whole book, not only the work in your plan. Finishing work anywhere counts as done on the day it happens: a batch whose suggestions are all decided or whose review blocks are cleaned away, a line removed from a scene's Pending Edits property, a directive marked done. Totals run from the day tracking began, shown beside the card's title, and work already finished before then is never claimed. An Editorialism you switch to inactive is set aside rather than counted as done, and work you reopen goes back to the to-go count. If a source fails to load, or an Editorialism has no book assigned, its work stays in the to-go count instead of being read as finished, and the rest of the book keeps moving. Progress updates whenever this planner or **Today** refreshes, so a batch you clean leaves Today without opening the planner.
 
@@ -17,7 +17,7 @@ The plan refreshes itself a few seconds after your sources change, waits while y
 ## Build a plan
 
 1. Set your schedule deadline, working minutes for each weekday, and reserve time in **Deadline & capacity**. Zero minutes means a day off.
-2. Bring in work. To take in every open item at once, use [Auto-plan](#auto-plan-the-whole-book). To choose by hand, find work in **Available work**: search by scene or instruction, and filter by Notes, Batches, Editorialisms, or delivery. Add items one at a time with **+**, or choose **Add all N to the plan** to add everything the current filter shows, with suggested estimates.
+2. Bring in work. To take in every open item at once, use [Auto-plan](#auto-plan-the-whole-book). To choose by hand, find work in **Available work**: search by scene or instruction, and filter by Notes, Line edits, Editorialisms, Responses, or delivery. Add items one at a time with **+**, or choose **Add all N to the plan** to add everything the current filter shows, with suggested estimates.
 3. Drag to prioritize, or use **Move up** and **Move down** in **Schedule & options**.
 4. Set a day and a low/high effort range. Switch between **Queue** and **Days** to review the order or daily workload; tasks can also be dragged onto a day.
 
@@ -59,7 +59,9 @@ Suggested effort is a starting assumption: existing Editorialism heuristics, or 
 
 ## Group an editor's delivery
 
-Imports group themselves: each batch and Editorialism file joins its reviewer's open delivery, or starts one received that day (see [Importing Reviews](Importing-Reviews#after-import-deliveries-and-planning)). Open **Editorial deliveries** from the panel's **…** menu to add the return deadline and optional existing source note, rename the handoff, or change which batches and Editorialism files belong to it. This does not import a document or duplicate feedback.
+Each pass from a person adds a **Write your response to** *(editor)* task. It shares the pass's delivery and return date, Auto-plan places it after that pass's changes, **Start** opens the response window, and it is done once you save a response, as a letter or in their Word file. Passes from an AI have none.
+
+Imports group themselves: each batch and Editorialism file joins its reviewer's open delivery for that role, or starts one received that day (see [Importing Reviews](Importing-Reviews#after-import-deliveries-and-planning)). Open **Editorial deliveries** from the panel's **…** menu to add the return deadline and optional existing source note, rename the handoff, or change which batches and Editorialism files belong to it. This does not import a document or duplicate feedback.
 
 Receipt, file creation, and scheduled work dates are separate facts. Leave an unknown received date unknown. A source belongs to one delivery at a time; unlink it before moving it to another. See [Editorialisms: delivery tracking](Editorialisms-Panel#editorial-deliveries-dates-and-deadlines).
 
