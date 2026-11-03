@@ -43,15 +43,21 @@ export interface ProgressInput extends TrackedWork {
 
 const KINDS: WorkKind[] = ["batch", "directive", "pending", "preparation"];
 
+// `held` names work whose source could not be read this time, such as pending
+// edits that failed to load or an editorialism with no book: its absence says
+// nothing, so it stays open rather than being counted as done.
 export function advancePlanProgress(
 	previous: PlanProgress | undefined,
 	work: readonly ProgressInput[],
 	today: string,
+	held: (item: TrackedWork) => boolean = () => false,
 ): PlanProgress {
 	const openNow = uniqueByKey(work.filter((item) => item.state === "open").map(({ key, kind }) => ({ key, kind })));
 	if (!previous) {
 		return { since: today, open: openNow, done: [] };
 	}
+	const presentKeys = new Set(work.map((item) => item.key));
+	openNow.push(...previous.open.filter((item) => !presentKeys.has(item.key) && held(item)));
 
 	const openKeys = new Set(openNow.map((item) => item.key));
 	const inactiveKeys = new Set(work.filter((item) => item.state === "inactive").map((item) => item.key));

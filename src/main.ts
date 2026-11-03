@@ -15,7 +15,8 @@ import { TodayPanel, TODAY_SHOWN_KEY, TODAY_VIEW_TYPE } from "./ui/TodayPanel";
 import { RadialBookGoals, type RTDateEdit } from "./services/RadialBookGoals";
 import { FolderWordCounter } from "./services/FolderWordCounter";
 import { AUTHOR_PLAN_SCOPE, authorWork, recordWordDay } from "./core/planning/AuthorPlan";
-import { localDate, type RevisionPlan, type WorkCandidate } from "./core/planning/RevisionPlan";
+import { localDate, sourceKey, type RevisionPlan, type WorkCandidate } from "./core/planning/RevisionPlan";
+import { advancePlanProgress } from "./core/planning/PlanProgress";
 import { batchWork, directiveWork, pendingWork } from "./core/planning/RevisionWork";
 import { preparationWork, type EditorialProject } from "./core/planning/EditorialProject";
 import { countProseWords } from "./core/WordCount";
@@ -1051,13 +1052,17 @@ export default class EditorialistPlugin extends Plugin {
 		}
 	}
 
-	async collectRevisionWork(): Promise<{ candidates: WorkCandidate[]; warnings: string[] }> {
+	// The active book's revision work, with a warning for each source that could
+	// not be read and `held` naming that work, so progress does not count its
+	// absence as finished.
+	async collectRevisionWork(): Promise<RevisionWorkRead> {
 		await this.refreshActiveBookScope();
 		const scope = this.getActiveBookScopeInfo();
 		const candidates: WorkCandidate[] = [];
 		const warnings: string[] = [];
+		const held: HeldSource[] = [];
 		const folder = scope.sourceFolder?.replace(/\/$/, "");
-		if (!folder) return { candidates, warnings: ["Select an active book with a source folder to plan revisions."] };
+		if (!folder) return { candidates, warnings: ["Select an active book with a source folder to plan revisions."], held: [{ kind: "all" }] };
 		const project = this.getRevisionPlan(JSON.stringify(["folder", folder])).project;
 		if (project) candidates.push(...preparationWork(project));
 		try {
@@ -1066,18 +1071,18 @@ export default class EditorialistPlugin extends Plugin {
 				const eligible = new Set(this.getManuscriptFiles().map((file) => file.path));
 				candidates.push(...pendingWork(pending.session).filter((item) => eligible.has(item.path)));
 			}
-			else if (pending.ok) warnings.push("Pending edits belong to a different active book. Refresh after selecting the intended book.");
-			else if (pending.reason !== "no_scenes_with_pending_edits" && !(project && pending.reason === "radial_timeline_missing")) warnings.push(describeCollectFailure(pending.reason));
-		} catch { warnings.push("Pending edits could not be loaded. Their absence is not a completed backlog."); }
+			else if (pending.ok) { warnings.push("Pending edits belong to a different active book. Refresh after selecting the intended book."); held.push({ kind: "pending" }); }
+			else if (pending.reason !== "no_scenes_with_pending_edits" && !(project && pending.reason === "radial_timeline_missing")) { warnings.push(describeCollectFailure(pending.reason)); held.push({ kind: "pending" }); }
+		} catch { warnings.push("Pending edits could not be loaded. Their absence is not a completed backlog."); held.push({ kind: "pending" }); }
 		try {
 			for (const summary of await this.listEditorialismsForActiveBook(scope.label)) {
 				const document = await this.loadEditorialism(summary.filePath);
 				if (document) {
-					if (!document.book) { warnings.push(`“${document.title}” has no book attribution. Assign its book before adding it to a plan.`); continue; }
+					if (!document.book) { warnings.push(`“${document.title}” has no book attribution. Assign its book before adding it to a plan.`); held.push({ kind: "directive", path: summary.filePath }); continue; }
 					candidates.push(...directiveWork(document, effortParamsFromSettings(this.getEffortSettings())));
 				}
 			}
-		} catch { warnings.push("Some editorial agendas could not be loaded. Refresh before relying on the backlog."); }
+		} catch { warnings.push("Some editorial agendas could not be loaded. Refresh before relying on the backlog."); held.push({ kind: "directive" }); }
 		const activeBatches = this.getSweepRegistryEntries().filter((batch) => batch.status !== "cleaned" && batch.status !== "ended_early");
 		const eligible = new Set(this.getManuscriptFiles().map((file) => file.path));
 		const paths = new Set(activeBatches.flatMap((batch) => batch.importedNotePaths).filter((path) => eligible.has(path)));
@@ -1091,14 +1096,36 @@ export default class EditorialistPlugin extends Plugin {
 					const importedAt = activeBatches.find((batch) => batch.batchId === item.locator)?.importedAt;
 					return { ...item, detail: `${item.detail}${importedAt ? ` · ${new Date(importedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : ""}` };
 				}));
-			} catch { warnings.push(`Could not load review work in ${path}.`); }
+			} catch { warnings.push(`Could not load review work in ${path}.`); held.push({ kind: "batch", path }); }
 		}
 		const deliveries = this.getEditorialDeliveries();
 		for (const candidate of candidates) {
 			const delivery = deliveries.find((item) => candidate.kind === "directive" ? item.files.includes(candidate.path) : candidate.kind === "batch" && item.batchIds.includes(candidate.locator));
 			if (delivery) { candidate.deliveryId = delivery.id; candidate.due = delivery.due; candidate.detail += ` · ${deliveryCaption(delivery)}${delivery.due ? ` · Due ${delivery.due}` : ""}`; }
 		}
-		return { candidates, warnings };
+		return { candidates, warnings, held };
+	}
+
+	// Records the book's progress from a fresh read of its work: whatever was
+	// open last time and is now finished or gone is done today. Work whose
+	// source could not be read is held open. Both the planner and Today call
+	// this, so progress moves whichever one the author opens.
+	async recordRevisionProgress(book: string, work: RevisionWorkRead): Promise<void> {
+		if (work.held.some((source) => source.kind === "all")) return;
+		const plan = this.getRevisionPlan(book);
+		const progress = advancePlanProgress(plan.progress, work.candidates.map((candidate) => ({
+			key: sourceKey(candidate),
+			kind: candidate.kind,
+			state: candidate.inactive ? "inactive" as const : candidate.complete ? "complete" as const : "open" as const,
+		})), localDate(new Date()), (item) => work.held.some((source) => {
+			if (source.kind !== item.kind) return false;
+			if (!("path" in source) || source.path === undefined) return true;
+			const [, path] = JSON.parse(item.key) as [string, string];
+			return path === source.path;
+		}));
+		if (JSON.stringify(progress) === JSON.stringify(plan.progress)) return;
+		plan.progress = progress;
+		await this.saveRevisionPlan(book, plan);
 	}
 
 	/** Current prose words of each engagement document that has a word limit. */
@@ -3773,4 +3800,14 @@ export default class EditorialistPlugin extends Plugin {
 
 function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
 	return a.length === b.length && a.every((byte, index) => byte === b[index]);
+}
+
+// A source whose work could not be read: every source ("all"), every source of
+// one kind, or one note or editorialism.
+type HeldSource = { kind: "all" } | { kind: WorkCandidate["kind"]; path?: string };
+
+export interface RevisionWorkRead {
+	candidates: WorkCandidate[];
+	warnings: string[];
+	held: HeldSource[];
 }

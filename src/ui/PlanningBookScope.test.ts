@@ -29,7 +29,8 @@ function planningHost() {
 		getActiveBookScopeInfo: () => ({ sourceFolder: cachedFolder, label: cachedFolder, structured: true }),
 		getRevisionPlan: (book: string) => structuredClone(plans[book]!),
 		getAuthorPlanningPlan: () => structuredClone(plans[JSON.stringify(["author", "vault"])]!),
-		collectRevisionWork: async () => ({ candidates: [], warnings: [] }),
+		collectRevisionWork: async () => ({ candidates: [], warnings: [], held: [] }),
+		recordRevisionProgress: vi.fn(async () => {}),
 		saveRevisionPlan: vi.fn(async (book: string, next: RevisionPlan) => { plans[book] = structuredClone(next); }),
 		refreshPlanViews: vi.fn(async () => {}),
 		app: { workspace: { getLeavesOfType: () => [] } },
@@ -42,7 +43,7 @@ describe("planning after a Radial Timeline book switch", () => {
 		const { host, plans } = planningHost();
 		const oldPlan = structuredClone(plans[key("Book A")]);
 		const panel = Object.assign(Object.create(RevisionPlanPanel.prototype) as object, {
-			plugin: host, sourceRevision: 0, contentEl: { setAttribute: vi.fn() }, render: vi.fn(), recordProgress: vi.fn(),
+			plugin: host, sourceRevision: 0, contentEl: { setAttribute: vi.fn() }, render: vi.fn(),
 		}) as unknown as RevisionPlanPanel;
 		await panel.refresh();
 		expect(Reflect.get(panel, "book")).toBe(key("Book B"));
@@ -133,7 +134,7 @@ describe("engagement source refreshes", () => {
 	it("keeps loaded content in place while source reads are pending", async () => {
 		const { host } = planningHost();
 		let release!: () => void;
-		host.collectRevisionWork = () => new Promise((resolve) => { release = () => resolve({ candidates: [], warnings: [] }); });
+		host.collectRevisionWork = () => new Promise((resolve) => { release = () => resolve({ candidates: [], warnings: [], held: [] }); });
 		const render = vi.fn();
 		const panel = Object.assign(Object.create(RevisionPlanPanel.prototype) as object, {
 			plugin: host, loaded: true, sourceRevision: 0, contentEl: { setAttribute: vi.fn() }, render, recordProgress: vi.fn(),
@@ -158,11 +159,11 @@ it("clears the previous engagement if the manuscript switches during a read", as
 	const { host } = planningHost();
 	let folder = "Book B";
 	host.getActiveBookScopeInfo = () => ({ sourceFolder: folder, label: folder, structured: true });
-	host.collectRevisionWork = async () => { folder = "Book C"; return { candidates: [], warnings: [] }; };
+	host.collectRevisionWork = async () => { folder = "Book C"; return { candidates: [], warnings: [], held: [] }; };
 	const scheduleRefresh = vi.fn();
 	const panel = Object.assign(Object.create(RevisionPlanPanel.prototype) as object, {
 		plugin: host, plan: { ...emptyRevisionPlan(), deadline: "2026-11-30" }, book: key("Book B"), loaded: true,
-		sourceRevision: 0, contentEl: { setAttribute: vi.fn() }, render: vi.fn(), recordProgress: vi.fn(), scheduleRefresh,
+		sourceRevision: 0, contentEl: { setAttribute: vi.fn() }, render: vi.fn(), scheduleRefresh,
 	}) as unknown as RevisionPlanPanel;
 	await panel.refresh();
 	expect(Reflect.get(panel, "plan")).toEqual(emptyRevisionPlan());

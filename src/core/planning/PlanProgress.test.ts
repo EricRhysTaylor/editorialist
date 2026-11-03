@@ -21,6 +21,17 @@ describe("plan progress", () => {
 		expect(next.since).toBe("2026-09-20");
 	});
 
+	it("keeps held work open while the rest of the book moves on", () => {
+		const start = advancePlanProgress(undefined, [open("a"), open("p", "pending")], "2026-09-20");
+		// Pending edits failed to load: they are missing, not finished.
+		const next = advancePlanProgress(start, [{ key: "a", kind: "batch", state: "complete" }], "2026-09-21", (item) => item.kind === "pending");
+		expect(next.done).toEqual([{ key: "a", kind: "batch", day: "2026-09-21" }]);
+		expect(next.open).toEqual([{ key: "p", kind: "pending" }]);
+		// Once they load again and the line is gone, it is done.
+		const after = advancePlanProgress(next, [], "2026-09-22");
+		expect(after.done.map((item) => item.key)).toEqual(["a", "p"]);
+	});
+
 	it("does not count work set aside as inactive, and un-does reopened work", () => {
 		const start = advancePlanProgress(undefined, [open("a", "directive"), open("b", "directive")], "2026-09-20");
 		const later = advancePlanProgress(start, [{ key: "a", kind: "directive", state: "inactive" }], "2026-09-21");

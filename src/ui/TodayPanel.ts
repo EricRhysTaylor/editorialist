@@ -68,6 +68,9 @@ export class TodayPanel extends ItemView {
 			if (folder) {
 				const book = JSON.stringify(["folder", folder]);
 				const work = await this.plugin.collectRevisionWork();
+				// Today keeps book progress current too, so a pass cleaned without
+				// opening the planner no longer shows here as overdue.
+				await this.plugin.recordRevisionProgress(book, work);
 				plans.push({ scope: book, plan: this.plugin.getRevisionPlan(book), candidates: work.candidates, warnings: work.warnings });
 			}
 			const goals = this.plugin.collectAuthorWork();

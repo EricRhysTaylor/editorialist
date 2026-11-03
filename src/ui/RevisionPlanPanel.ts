@@ -9,7 +9,7 @@ import { ItemView, Notice, TFile, TFolder, setIcon, type TAbstractFile, type Wor
 import type EditorialistPlugin from "../main";
 import { renderPanelHeader } from "./primitives/PanelHeader";
 import { emptyRevisionPlan, forecastPlan, isDate, isPlanEntryComplete, localDate, movePlanEntry, progressDoneKeys, resolvePlanSource, sourceKey, type PlanEntry, type RevisionPlan, type WorkCandidate } from "../core/planning/RevisionPlan";
-import { advancePlanProgress, summarizePlanProgress, type ProgressInput } from "../core/planning/PlanProgress";
+import { summarizePlanProgress } from "../core/planning/PlanProgress";
 import { estimateRange } from "../core/planning/AutoSchedule";
 import { type QueueHead, EditorialProjectPanel } from "./EditorialProjectPanel";
 import { EditorialProjectService } from "../services/EditorialProjectService";
@@ -177,16 +177,17 @@ export class RevisionPlanPanel extends ItemView {
 			else await this.plugin.refreshActiveBookScope();
 			const book = this.scopeKey();
 			const revision = this.sourceRevision;
-			const work = this.author ? this.plugin.collectAuthorWork() : await this.plugin.collectRevisionWork();
+			const revisionWork = this.author ? null : await this.plugin.collectRevisionWork();
+			const work = revisionWork ?? this.plugin.collectAuthorWork();
 			if (book !== this.scopeKey()) { this.stale = true; return; }
 			this.book = book;
 			this.candidates = work.candidates;
 			this.warnings = work.warnings;
 			this.loaded = true;
 			this.stale = revision !== this.sourceRevision;
-			// Only a complete, current read may advance progress: a source that
-			// failed to load would otherwise look like finished work.
-			if (!this.author && book && !this.stale && !work.warnings.length) await this.recordProgress(book, work.candidates);
+			// Only a current read may advance progress; work whose source failed
+			// to load is held open rather than counted as finished.
+			if (revisionWork && book && !this.stale) await this.plugin.recordRevisionProgress(book, revisionWork);
 			const plan = this.author ? this.plugin.getAuthorPlanningPlan() : book ? this.plugin.getRevisionPlan(book) : emptyRevisionPlan();
 			if (book !== this.scopeKey()) { this.stale = true; return; }
 			this.plan = plan;
@@ -204,17 +205,6 @@ export class RevisionPlanPanel extends ItemView {
 			this.contentEl.setAttribute("aria-busy", "false");
 			this.render();
 		}
-	}
-	private async recordProgress(book: string, candidates: readonly WorkCandidate[]): Promise<void> {
-		const plan = this.plugin.getRevisionPlan(book);
-		const work: ProgressInput[] = candidates.map((candidate) => ({
-			key: sourceKey(candidate), kind: candidate.kind,
-			state: candidate.inactive ? "inactive" : candidate.complete ? "complete" : "open",
-		}));
-		const progress = advancePlanProgress(plan.progress, work, localDate(new Date()));
-		if (JSON.stringify(progress) === JSON.stringify(plan.progress)) return;
-		plan.progress = progress;
-		await this.plugin.saveRevisionPlan(book, plan);
 	}
 	private async change(update: (plan: RevisionPlan) => void): Promise<void> {
 		if (this.busy || !this.book || this.book !== this.scopeKey()) {
