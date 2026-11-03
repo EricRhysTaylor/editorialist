@@ -33,6 +33,18 @@ describe("todayAgenda", () => {
 		expect(agenda.items).toEqual([]);
 	});
 
+	it("warns when the book and goal sessions together need more than the day's time", () => {
+		// 2026-10-27 is a Tuesday: 120 minutes in the default capacity.
+		const book = { scope: "book", plan: plan([entry("b1", TODAY), entry("b2", TODAY)]), candidates: [] };
+		const goals = { scope: "author", plan: plan([entry("g1", TODAY), entry("g2", TODAY)]), candidates: [] };
+		expect(todayAgenda([book], TODAY)).toMatchObject({ lowMinutes: 60, capacityMinutes: 120, overbooked: false });
+		expect(todayAgenda([book, goals], TODAY)).toMatchObject({ lowMinutes: 120, overbooked: false });
+		const late = { scope: "author", plan: plan([entry("g1", TODAY), entry("g2", TODAY), entry("g3", "2026-10-26")]), candidates: [] };
+		expect(todayAgenda([book, late], TODAY)).toMatchObject({ lowMinutes: 150, overbooked: true });
+		const dayOff = { ...book, plan: { ...plan([entry("b1", TODAY)]), capacity: [0, 0, 0, 0, 0, 0, 0] } };
+		expect(todayAgenda([dayOff], TODAY).overbooked).toBe(false);
+	});
+
 	it("totals estimates and counts sessions without one", () => {
 		const agenda = todayAgenda([{ scope: "book", plan: plan([entry("a", TODAY), entry("b", TODAY, { lowMinutes: 15, highMinutes: 20 }), entry("c", TODAY, { lowMinutes: null, highMinutes: null })]), candidates: [] }], TODAY);
 		expect([agenda.lowMinutes, agenda.highMinutes, agenda.unestimated]).toEqual([45, 80, 1]);

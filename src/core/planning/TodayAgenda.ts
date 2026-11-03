@@ -26,6 +26,14 @@ export interface TodayAgenda {
 	highMinutes: number;
 	/** Items without an estimate, left out of the minutes. */
 	unestimated: number;
+	/**
+	 * The working minutes set aside for today: the larger of the plans' own
+	 * capacities, since each plan schedules against its own and both describe
+	 * the same day. Zero when no plan sets aside time today.
+	 */
+	capacityMinutes: number;
+	/** Even the low estimates of today's sessions need more than that time. */
+	overbooked: boolean;
 	/** Open sessions scheduled after today, soonest first, queue order within a day. */
 	upcoming: AgendaItem[];
 }
@@ -49,11 +57,16 @@ export function todayAgenda(plans: readonly AgendaPlan[], today: string): TodayA
 	const due = open.filter((item) => item.entry.day! <= today);
 	const items = due.map(({ scope, entry }) => ({ scope, entry, overdue: entry.day! < today }));
 	const estimated = items.filter((item) => item.entry.lowMinutes !== null && item.entry.highMinutes !== null);
+	const lowMinutes = estimated.reduce((sum, item) => sum + item.entry.lowMinutes!, 0);
+	const weekday = new Date(`${today}T12:00:00`).getDay();
+	const capacityMinutes = Math.max(0, ...plans.map(({ plan }) => plan.capacity[weekday] ?? 0));
 	return {
 		items,
-		lowMinutes: estimated.reduce((sum, item) => sum + item.entry.lowMinutes!, 0),
+		lowMinutes,
 		highMinutes: estimated.reduce((sum, item) => sum + item.entry.highMinutes!, 0),
 		unestimated: items.length - estimated.length,
+		capacityMinutes,
+		overbooked: capacityMinutes > 0 && lowMinutes > capacityMinutes,
 		upcoming: open.filter((item) => item.entry.day! > today).map(({ scope, entry }) => ({ scope, entry, overdue: false })),
 	};
 }

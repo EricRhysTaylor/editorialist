@@ -113,6 +113,14 @@ export class TodayPanel extends ItemView {
 				overdue ? `${overdue} left from earlier ${overdue === 1 ? "day" : "days"}` : "",
 			].filter(Boolean);
 			if (parts.length) hero.createEl("p", { text: parts.join(" · ") });
+			// The book and goal planners each fill their own time, so together
+			// they can ask for more than the day has.
+			if (agenda.overbooked) {
+				hero.createEl("p", {
+					cls: "editorialist-plan__warning",
+					text: `Today's sessions need at least ${agenda.lowMinutes} min, more than the ${agenda.capacityMinutes} min you set aside. Move some to another day in the planner.`,
+				});
+			}
 		} else if (this.goals.length) {
 			hero.createEl("p", { text: `No sessions scheduled. ${this.goals.length === 1 ? "Your goal is" : "Your goals are"} below.` });
 		} else {
