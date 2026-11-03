@@ -181,3 +181,65 @@ Author-vault content was used.
   the same vault, theme and method. The modal's
   corners are 22 CSS pixels round, so it was rounded with `--radius 44`: the
   default 24 left the page behind showing through the corners.
+
+## 3.1.0 refresh — November 3, 2026
+
+Captured from origin/main at `e286a3d`, then from the working tree with the
+fixes found during capture (the Today hero's "an earlier day", the response
+tally and scene order, the Core overview's Backups line and the inventory
+header). Desktop Obsidian 1.15.0, dark theme, 2x device scale, 460 CSS-pixel
+right sidebar and 780 CSS-pixel settings content area, pointer off the
+captured area, in isolated Obsidian profiles. No Author-vault content was used.
+
+Every image the wiki shows now has rounded corners. Images that did not change
+were rounded in place: panel and settings crops at the default 24 image pixels,
+and `manuscript-target.png`, a modal cropped on its own border, at 44 to match
+the modal's 22 CSS-pixel corners. Checked enlarged on light and dark pages.
+
+**Synthetic planning vault** (`Editorialist Release Demo`, rebuilt): six scenes
+in `Book/`, Workshop documents with word limits (series overview 1,500,
+synopsis 2,500), and six chapters in `Drafts/Book 2/`. Morgan Lee's
+developmental edit, with sessions on Nov 2 (overdue), Nov 3, Nov 5 and Nov 6.
+Goals: "Draft Book 2", 50,000 words across November counting `Drafts/Book 2`,
+and "Polish the query letter", starting Nov 4 with a hard deadline of Dec 4.
+Today's words are real: the plugin recorded the folder's opening total, then a
+new chapter was added through the vault (+509).
+
+- `panel-today.png` (new) — through Your goal (706 CSS px); Coming up is below.
+- `panel-author-planner.png` — the word-count goal above a goal that starts
+  tomorrow. 845 CSS px, past the usual limit for the reason the 3.0.6 image
+  gave: one card cannot show both kinds of goal.
+- `panel-editor-engagement.png` — through Next up, which now shows the
+  document's word limit and an Open button.
+- `plan-queue-cards.png` — the overdue card's red edge and Overdue chip, and
+  Open document on engagement tasks.
+
+`panel-revision-plan.png`, `engagement-history.png` and both schedule previews
+were compared and are unchanged apart from rounding.
+
+**Pride & Prejudice capture vault** (a throwaway copy of the `Editorialist
+Capture Vault`): author name Alex Rivera; the leftover placeholder pending edit
+and an empty test contributor were tidied in the copy only. The fictional
+Morgan Lee markup file from `Editorialist Capture Vault 3`, with four tracked
+spelling changes added in scene 35 so one scene shows the copy-edit list, was
+imported through Your editor's Word file as a copy editor: 8 edits and 3
+comments across 4 scenes, all matched.
+
+- `panel-review.png`, `panel-review-active.png` — same crops as 3.0.4, now
+  headed Line edits.
+- `line-edits-copy-edits.png` (new) — scene 35's four small changes, one
+  unticked, with Accept 3 ticked and Reject 1 unticked.
+- `response-window.png` (new) — the whole Response to Morgan Lee window (680
+  CSS px wide, shown at 560 and 460), with a reply and a stet reason typed,
+  rounded at 48 to match the window's own 24 CSS-pixel corners.
+- `settings-core.png` — through Current revision. The Scene inventory now
+  lists ten scenes, which would make the image 1,419 CSS px tall.
+- `settings-contributors.png` — the directory and the new Backup section.
+- `settings-configuration.png` — through You and your files.
+
+`panel-pending-edits.png`, `panel-editorialisms.png` and
+`panel-editorialism-detail.png` were pixel-identical to the current captures
+and only rounded.
+
+Also checked, not published: Today, the copy-edit list and the response
+window in light theme and at a 300 CSS-pixel sidebar, with no overflow.

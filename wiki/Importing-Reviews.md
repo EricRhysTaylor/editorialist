@@ -256,7 +256,7 @@ The launcher lists anything it leaves out:
 
 At the end of a copy edit, your editor expects an answer: a reply to their comments and queries, and a note on any change you kept as written (a *stet*). Editorialist writes that response for you as a Word file.
 
-- **Reply to a comment.** Under each comment from your editor in the review panel, choose **Reply**.
+- **Reply to a comment.** Under each comment from your editor in [Line edits](Line-Edits), choose **Reply**.
 - **Say why you kept a change.** When you reject one of your editor's changes, or mark it as rewritten, choose **Say why you kept it** on its card. A reason is optional.
 - **Save the file.** When a person's pass is finished, the completion card leads with **Write your response to** *(your editor)*. You can also run **Write your response to the editor** from the command palette at any point.
 
@@ -269,6 +269,8 @@ When your editor's changes came in from their Word file, Editorialist keeps a co
 - Your reply to a comment appears under that comment, as a reply in the same thread.
 - A change you kept as written gets a comment saying **Stet**, with your reason. One you rewrote says **Rewritten another way**. If your editor had explained the change in a comment, this appears as your reply to it.
 - Your editor's tracked changes are left exactly as they were. Most publishers ask authors not to accept or reject a copy editor's changes themselves; a comment saying *stet* is how you mark one you don't want.
+
+<p align="center"><img src="images/response-window.png" alt="Response to Morgan Lee window with a reply to a comment, a reason for a change kept as written, the author's name, and Save in their file" width="560"></p>
 
 The first time, add your name under **Name on your comments**, above the buttons. Word shows it on each of your comments. **Save as a letter** still makes the separate response described above, if your editor prefers that.
 

@@ -1,6 +1,6 @@
 Keep an editor’s agreed dates, personal milestones, tasks, optional reference documents, and activity history together for the active book. Run **Open editor engagement**, or choose **Editor engagement** from the panel’s mode selector. **Open editorial project in workspace** opens the same plan in a full workspace tab.
 
-<p align="center"><img src="images/panel-editor-engagement.png" alt="Editor engagement overview with the editor, a countdown to the agreed start date, and Next up showing the first queued task and the next milestone" width="460"></p>
+<p align="center"><img src="images/panel-editor-engagement.png" alt="Editor engagement overview with the editor, a countdown to the agreed start date, and Next up showing the first session, its document's word limit and the next milestone" width="460"></p>
 
 ## Create an engagement
 

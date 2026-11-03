@@ -35,6 +35,7 @@ Editorialist registers these commands in the command palette:
 | **Rescan review blocks for cleanup** | Re-scans scene notes for review blocks that are ready to be cleaned up |
 | **Backup selection to cut file** | Copies selected text to the scene's cut file without changing the manuscript |
 | **Insert author query** | Inserts a `%%query: …%%` marker at the cursor so your next review answers it |
+| **Write your response to the editor** | Opens the response window for a pass from a person: reply to their comments and say why you kept changes, then save it into a copy of their Word file or as a letter |
 
 Editorialist ships **no default hotkeys** — assign your own under **Settings → Hotkeys** if you want them.
 
@@ -81,7 +82,7 @@ Copy the reviewer's reply and run **Open review launcher** again. The launcher d
 
 ### 5. Finish
 
-When every suggestion is resolved, the sweep completes and the batch is recorded: per-scene polish state, contributor stats, and revision history all update. The review blocks stay in your scene notes until you clean them away with **Clean N resolved batches…** in the panel's **…** menu. The **Core** settings tab shows your progress across the whole book — see the [Settings Reference](Settings-Reference).
+When every suggestion is resolved, the sweep completes and the batch is recorded: per-scene polish state, contributor stats, and revision history all update. For a pass from a person, the completion card leads with **Write your response to** your editor: reply to their comments and say why you kept any change, then save it into a copy of their Word file (see [Responding to your editor](Importing-Reviews#responding-to-your-editor)). Write it before cleaning up, because the response is built from the review blocks. The review blocks stay in your scene notes until you clean them away with **Clean N resolved batches…** in the panel's **…** menu. The **Core** settings tab shows your progress across the whole book — see the [Settings Reference](Settings-Reference).
 
 ## Plan your revision
 
@@ -91,7 +92,7 @@ For one editor's larger handoff, import line-level work as batches and structura
 
 ## Plan your own goals
 
-Run **Open author planner**, choose **Add goal**, and give your goal a target date and a completion description. Optionally link a document or a Radial Timeline book-stage target. Choose **Schedule work** to preview sessions against your availability. See [Author Planner](Author-Planner).
+Run **Open author planner**, choose **Add goal**, and give your goal a target date and a completion description. Optionally give it a number of words to write in a folder, link a document, or follow a Radial Timeline book-stage target. Choose **Schedule work** to preview sessions against your availability. See [Author Planner](Author-Planner).
 
 To track an editor’s agreed dates before feedback arrives, choose **Create engagement** in [Editor Engagement](Editor-Engagement). Add milestones, tasks, and reference items, then record activity as the collaboration progresses.
 
@@ -103,6 +104,9 @@ To track an editor’s agreed dates before feedback arrives, choose **Create eng
 | Each scene's **Pending Edits** property | [Pending edits](Pending-Edits), shared with Radial Timeline |
 | `Editorialist/Engagement history/` | Optional archived copies of explicitly selected reference files |
 | `Editorialist/<Book>/` | [Editorialism](Editorialisms-Panel) structural guidance documents, kept permanently |
+| `Editorialist/Word files/` | A copy of each Word file you import, so your replies can go back into it |
+| `Editorialist/Responses/` | Your responses to editors, as Word files |
+| `Editorialist/Backups/` | Backups saved from **Settings → Contributors** |
 | `<book-source-folder>/Cut/` | Per-scene cut files (default location; [configurable](Settings-Reference#configuration-tab)) |
 
 Engagement records, author goals, delivery records, revision plans, and plan progress live in Editorialist’s plugin data; they reference these source files without replacing them.

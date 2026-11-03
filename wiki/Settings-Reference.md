@@ -6,7 +6,7 @@ Editorialist's settings are organized into three tabs: **Core**, **Contributors*
 
 **Core · Editorial review** — the dashboard for the active book's revision state.
 
-<p align="center"><img src="images/settings-core.png" alt="Core settings tab: structured editorial review hero, current revision progress, and scene inventory" width="620"></p>
+<p align="center"><img src="images/settings-core.png" alt="Core settings tab: the overview and the progress of the current revision pass" width="620"></p>
 
 ### Radial Timeline card
 
@@ -44,7 +44,7 @@ Lifetime totals: total suggestions, accepted / rejected / rewritten actions, and
 
 **Contributors · Directory** — every reviewer who has ever contributed a batch, human or AI.
 
-<p align="center"><img src="images/settings-contributors.png" alt="Contributors settings tab: contributor directory with per-contributor cards and stats, backup section" width="620"></p>
+<p align="center"><img src="images/settings-contributors.png" alt="Contributors settings tab: the contributor directory with each contributor's acceptance rate, and the Backup section with Save a backup and Restore a backup" width="620"></p>
 
 ### Contributor directory
 
@@ -72,7 +72,7 @@ A card grid, one per contributor:
 
 **Configuration · Scope & data** — where review scope, tracking identity, cut-file location, and maintenance actions live.
 
-<p align="center"><img src="images/settings-configuration.png" alt="Configuration settings tab with the manuscript target, scene tracking, and the cut location override" width="620"></p>
+<p align="center"><img src="images/settings-configuration.png" alt="Configuration settings tab with the manuscript target, scene tracking, and You and your files: the author's name on Word comments and the folders Editorialist saves into" width="620"></p>
 
 ### Manuscript target
 

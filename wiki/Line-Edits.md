@@ -1,10 +1,10 @@
 The Line edits mode is traditional Editorialist: scene-level review batches with line edits, cut / move / condense / expand suggestions, `%%query: question%%` responses, and memos for a scene. Open it with the **Open line edits** command or choose **Line edits** from the mode menu.
 
-<p align="center"><img src="images/panel-review-active.png" alt="Active review comparing the original passage with a proposed revision and reviewer attribution" width="460"></p>
+<p align="center"><img src="images/panel-review-active.png" alt="Line edits showing one pending change in scene 1, with the original and revised sentence, the editor's reason, and Morgan Lee as its source" width="460"></p>
 
 ## Idle state
 
-<p align="center"><img src="images/panel-review.png" alt="Line edits view with the manuscript target, the scene to continue, the other scenes waiting for review, and the reviewed scenes" width="460"></p>
+<p align="center"><img src="images/panel-review.png" alt="Line edits view with the manuscript target, the next scene in the pass, the other scenes with pending changes, and the reviewed scene ready to clean" width="460"></p>
 
 Between sessions the panel shows:
 
@@ -51,11 +51,13 @@ Starting a workflow card (or importing a review batch) begins a **guided review 
 
 A copy edit is many small changes: a comma, a hyphen, a spelling. When a scene has two or more of them, they appear together in one list at the top of the panel instead of as a card each. Each row shows the change inside its sentence, the old words struck through and the new ones highlighted. Select a row to see that change in the scene.
 
-Every change starts ticked. Untick any you don't want, then choose **Accept ticked** (or **Accept all**). **Reject unticked** turns down the rest in one step; leave them unticked to think about later instead. A change counts as small when it alters a few words in one or two places; larger rewrites, moves, and suggestions that only give direction keep their full cards below.
+<p align="center"><img src="images/line-edits-copy-edits.png" alt="Line edits showing four small copy edits in one scene as a ticked list, one unticked, with Accept 3 ticked and Reject 1 unticked" width="460"></p>
+
+Every change starts ticked. Untick any you don't want, then choose **Accept** for the ticked ones (the button counts them: **Accept 3 ticked**, or **Accept all 4** when every change is ticked). **Reject** turns down the unticked ones in one step (**Reject 1 unticked**); leave them unticked to think about later instead. **Tick all** (or **Untick all**) changes every row at once. A change counts as small when it alters a few words in one or two places; larger rewrites, moves, and suggestions that only give direction keep their full cards below.
 
 **Undo all** takes back everything you just accepted in that scene, even after the scene is complete. It works as long as you haven't changed the scene in any other way since; after that, use Obsidian's own undo.
 
-When the same fix appears in a later scene of the same import, such as *grey → gray*, its row says where you accepted or rejected it before, and a fix you rejected more often than you accepted arrives unticked. This is remembered until you close Obsidian.
+When the same fix appears in a later scene of the same import, such as *grey → gray*, its row says where you accepted or rejected it before, and a fix you rejected more often than you accepted arrives unticked. Your ticks, and where you accepted or rejected each fix, are kept when you close the panel or restart Obsidian.
 
 ### Advisory suggestions
 
