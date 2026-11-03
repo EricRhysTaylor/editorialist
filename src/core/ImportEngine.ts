@@ -1,3 +1,4 @@
+import { passReviewerType } from "./ContributorIdentity";
 import { ReviewMutationScope } from "./review/ReviewMutationScope";
 import { manuscriptScopeKey, resolveManuscriptTarget } from "./ManuscriptTarget";
 import { saveOpenEditors } from "../services/SaveOpenEditors";
@@ -1175,7 +1176,8 @@ export class ImportEngine {
 
 		return {
 			reviewer: contributor?.displayName || raw?.rawName?.trim() || "Unknown contributor",
-			reviewerType: contributor?.reviewerType ?? "author",
+			// The pass's own role: the profile keeps the role they first came in with.
+			reviewerType: contributor ? passReviewerType(contributor) : "author",
 			provider: contributor?.provider ?? raw?.rawProvider?.trim(),
 			model: contributor?.model ?? raw?.rawModel?.trim(),
 		};

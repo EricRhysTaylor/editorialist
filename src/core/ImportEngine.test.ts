@@ -607,3 +607,34 @@ describe("ImportEngine — Context references survive the written block", () => 
 		]);
 	});
 });
+
+describe("ImportEngine — a pass keeps the role it was sent in", () => {
+	// The contributor's profile holds the role they first came in with. A later
+	// pass in another role has to reach the note as sent, or it reads back under
+	// the old role on every card.
+	it("writes the pass's role, not the role on the contributor's profile", async () => {
+		const path = "Book/Scenes/Terminus.md";
+		const app = createMockApp([
+			{ path, body: "They meet at the Terminus.", frontmatter: { Class: "Scene" } },
+		]);
+		const directory = new ContributorDirectory();
+		directory.resolveContributor({ rawName: "Marla", rawType: "developmental-editor" });
+		const parser = new SuggestionParser(directory);
+		const engine = new ImportEngine(app as unknown as App, parser, new MatchEngine());
+		const paste = [
+			"Reviewer: Marla",
+			"ReviewerType: copy-editor",
+			"",
+			"=== EDIT ===",
+			"Original: They meet at the Terminus.",
+			"Revised: They met at the Terminus.",
+			"",
+		].join("\n");
+
+		const batch = await engine.inspectBatch(paste, { activeNotePath: path });
+		await engine.importBatch(batch);
+
+		expect(app.peek(path)).toContain("ReviewerType: copy-editor");
+		expect(parser.parse(app.peek(path)).suggestions[0]?.contributor.reviewerType).toBe("developmental-editor");
+	});
+});
