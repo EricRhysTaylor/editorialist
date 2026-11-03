@@ -1,6 +1,6 @@
 {
 	"name": "editorialist",
-	"version": "3.0.6",
+	"version": "3.1.0",
 	"description": "Bring in an editor's Word file or a review an AI has formatted, decide every change scene by scene, then send your replies back.",
 	"main": "main.js",
 	"type": "module",
