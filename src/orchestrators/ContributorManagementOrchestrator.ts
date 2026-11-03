@@ -106,7 +106,7 @@ export class ContributorManagementOrchestrator {
 
 		const confirm = await this.host.openChoiceModal<"delete" | "cancel">({
 			title: "Delete contributor",
-			description: `Delete ${profile.displayName} and remove their saved contributor stats? Revision decisions stay in place, but this contributor will be removed from the directory.`,
+			description: `Delete ${profile.displayName} and their saved stats? Your decisions on their notes stay. If their revision notes are still in your scenes, they come back, without their old stats, the next time those scenes are opened; clean those notes out first to remove them for good.`,
 			choices: [
 				{ label: "Delete contributor", value: "delete" },
 				{ label: "Cancel", value: "cancel" },
@@ -142,7 +142,7 @@ export class ContributorManagementOrchestrator {
 
 		const confirm = await this.host.openChoiceModal<"delete" | "cancel">({
 			title: "Delete all contributors",
-			description: "Delete all contributor profiles and saved contributor stats? Revision decisions stay in place, but the contributor directory will be cleared.",
+			description: "Delete every contributor and their saved stats? Your decisions stay. Anyone whose revision notes are still in your scenes comes back, without their old stats, the next time those scenes are opened.",
 			choices: [
 				{ label: "Delete all contributors", value: "delete" },
 				{ label: "Cancel", value: "cancel" },
