@@ -57,7 +57,7 @@ Editorialist does not write feedback and never calls an AI itself. Feedback reac
 2. Give them to the AI you choose, along with the scenes to review, or along with a human editor's or beta reader's notes for the AI to convert.
 3. Paste the AI's formatted reply back into Editorialist's import.
 
-It's a format, and any AI you choose can follow it. Editorialist makes no network calls and holds no API keys.
+It's a format, and a suitably capable AI can follow it; smaller local models may not. Editorialist makes no network calls and holds no API keys.
 
 From there, Editorialist runs the workflow: it matches each suggestion to its passage, walks you through accepting, rejecting, or rewriting them scene by scene, tracks editorialism directives and your decisions, and schedules the work against your deadline.
 
