@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ContributorDirectory } from "./ContributorDirectory";
-import { buildUnresolvedContributor } from "../core/ContributorIdentity";
+import { buildUnresolvedContributor, formatContributorIdentityLabel, passReviewerType } from "../core/ContributorIdentity";
 
 describe("ContributorDirectory.resolveContributor", () => {
 	it("creates a profile for a new human reviewer and resolves the same name to it afterwards", () => {
@@ -14,6 +14,20 @@ describe("ContributorDirectory.resolveContributor", () => {
 		expect(second.resolutionStatus).toBe("exact");
 		expect(second.reviewerId).toBe(first.reviewerId);
 		expect(directory.getProfiles()).toHaveLength(1);
+	});
+
+	it("keeps the most specific role an editor has been given, and shows each pass in its own", () => {
+		const directory = new ContributorDirectory();
+		directory.resolveContributor({ rawName: "Morgan Lee" });
+		expect(directory.getProfiles()[0]?.reviewerType).toBe("author");
+		directory.resolveContributor({ rawName: "Morgan Lee", rawType: "editor" });
+		expect(directory.getProfiles()[0]?.reviewerType).toBe("editor");
+		directory.resolveContributor({ rawName: "Morgan Lee", rawType: "developmental-editor" });
+		const copyEdit = directory.resolveContributor({ rawName: "Morgan Lee", rawType: "copy-editor" });
+		directory.resolveContributor({ rawName: "Morgan Lee" });
+		expect(directory.getProfiles()[0]?.reviewerType).toBe("developmental-editor");
+		expect(passReviewerType(copyEdit)).toBe("copy-editor");
+		expect(formatContributorIdentityLabel(copyEdit)).toBe("Morgan Lee · Copy editor");
 	});
 
 	it("matches a profile by alias and reports it as such", () => {

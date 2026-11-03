@@ -36,6 +36,12 @@ describe("Linking an import to a delivery", () => {
 		expect(planDeliveryLink(store(open), request())).toEqual({ delivery: { ...open, batchIds: ["batch-9"] }, created: false });
 		expect(planDeliveryLink(store(open), request({ source: { kind: "file", path: "Editorialist/Book/Agenda.md" } }))?.delivery.files).toEqual(["Editorialist/Book/Agenda.md"]);
 	});
+	it("starts a separate delivery for a pass in another role, and joins any role when one is missing", () => {
+		const copyEdit = planDeliveryLink(store(open), request({ role: "Copy editor" }));
+		expect(copyEdit).toMatchObject({ created: true, delivery: { title: "Copy edit", role: "Copy editor" } });
+		expect(planDeliveryLink(store(open), request({ role: "" }))?.created).toBe(false);
+		expect(planDeliveryLink(store({ ...open, role: "" }), request({ role: "Copy editor" }))?.created).toBe(false);
+	});
 	it("matches the reviewer by name, ignoring case and spacing", () => {
 		expect(planDeliveryLink(store(open), request({ reviewer: " morgan lee " }))?.created).toBe(false);
 	});

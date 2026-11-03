@@ -282,10 +282,21 @@ export function formatReviewerTypeLabel(reviewerType: ReviewerType): string {
 	}
 }
 
+// The role a pass was sent in, as its notes name it, so a developmental
+// editor's later copy edit reads as a copy edit. The contributor's profile
+// keeps one role for the person; a pass that names none, or one Editorialist
+// does not know, takes that.
+export function passReviewerType(contributor: Pick<ReviewContributor, "reviewerType" | "raw">): ReviewerType {
+	const named = contributor.raw.rawType ? REVIEWER_TYPE_ALIASES[normalizeContributorValue(contributor.raw.rawType)] : undefined;
+	return named ?? contributor.reviewerType;
+}
+
+// "Morgan Lee · Copy editor". For a contributor on a pass, the pass's role.
 export function formatContributorIdentityLabel(
-	contributor: Pick<ContributorProfile, "displayName" | "reviewerType"> | Pick<ReviewContributor, "displayName" | "reviewerType">,
+	contributor: Pick<ContributorProfile, "displayName" | "reviewerType"> | Pick<ReviewContributor, "displayName" | "reviewerType" | "raw">,
 ): string {
-	return `${contributor.displayName} · ${formatReviewerTypeLabel(contributor.reviewerType)}`;
+	const role = "raw" in contributor ? passReviewerType(contributor) : contributor.reviewerType;
+	return `${contributor.displayName} · ${formatReviewerTypeLabel(role)}`;
 }
 
 export function getLegacyContributorSignatureKind(

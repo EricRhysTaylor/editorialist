@@ -531,20 +531,12 @@ export class ContributorDirectory {
 		return normalized;
 	}
 
+	// A profile keeps the most specific role it has been given: a named role
+	// over the generic "editor", and either over "author", which is what notes
+	// without a role default to. A less specific role never replaces one.
 	private chooseReviewerType(current: ReviewerType, incoming: ReviewerType): ReviewerType {
-		if (current === incoming) {
-			return current;
-		}
-
-		if (current === "editor" && incoming !== "editor") {
-			return incoming;
-		}
-
-		if (current === "ai-editor" && incoming !== "ai-editor") {
-			return incoming;
-		}
-
-		return current;
+		const specificity = (type: ReviewerType): number => type === "author" ? 0 : type === "editor" || type === "ai-editor" ? 1 : 2;
+		return specificity(incoming) > specificity(current) ? incoming : current;
 	}
 
 	private mergeStats(source?: ReviewerStats, target?: ReviewerStats): ReviewerStats {

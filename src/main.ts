@@ -9,7 +9,7 @@ import { saveOpenEditors } from "./services/SaveOpenEditors";
 import { AutoScheduleModal } from "./ui/AutoScheduleModal";
 import { EditorialDeliveriesModal } from "./ui/EditorialDeliveriesModal";
 import { deliveryCaption, planDeliveryLink, type DeliverySource, type EditorialDelivery } from "./core/EditorialDeliveries";
-import { formatReviewerTypeLabel, normalizeReviewerType } from "./core/ContributorIdentity";
+import { formatReviewerTypeLabel, normalizeReviewerType, passReviewerType } from "./core/ContributorIdentity";
 import { RevisionPlanPanel, REVISION_PLAN_VIEW_TYPE, AUTHOR_PLAN_VIEW_TYPE } from "./ui/RevisionPlanPanel";
 import { TodayPanel, TODAY_SHOWN_KEY, TODAY_VIEW_TYPE } from "./ui/TodayPanel";
 import { RadialBookGoals, type RTDateEdit } from "./services/RadialBookGoals";
@@ -340,7 +340,7 @@ export default class EditorialistPlugin extends Plugin {
 		recordImportedBatch: async (batch, groups, status, currentNotePath) => {
 			await this.registry.recordImportedBatch(batch, groups, status, currentNotePath);
 			const contributor = firstNamedContributor(groups);
-			await this.linkImportToDelivery({ kind: "batch", id: batch.batchId }, contributor?.displayName, contributor ? formatReviewerTypeLabel(contributor.reviewerType) : "", contributor?.kind === "ai");
+			await this.linkImportToDelivery({ kind: "batch", id: batch.batchId }, contributor?.displayName, contributor ? formatReviewerTypeLabel(passReviewerType(contributor)) : "", contributor?.kind === "ai");
 		},
 		getSweepRegistryEntry: (batchId) => this.getSweepRegistryEntry(batchId),
 		updateSweepRegistry: (batchId, updates, options) =>

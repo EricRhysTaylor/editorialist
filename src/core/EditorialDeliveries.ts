@@ -99,8 +99,11 @@ export function planDeliveryLink(store: EditorialDeliveryStore, request: Deliver
 	const add = (delivery: EditorialDelivery): EditorialDelivery => source.kind === "batch"
 		? { ...delivery, batchIds: [...delivery.batchIds, source.id] }
 		: { ...delivery, files: [...delivery.files, source.path] };
+	// A copy edit from the editor who sent a developmental review is a delivery
+	// of its own; a delivery or import with no role joins either.
+	const sameRole = (delivery: EditorialDelivery): boolean => !delivery.role.trim() || !request.role.trim() || sameName(delivery.role, request.role);
 	const open = store.deliveries
-		.filter((delivery) => delivery.bookFolder === bookFolder && sameName(delivery.reviewer, reviewer) && isDeliveryOpen(delivery, request.today))
+		.filter((delivery) => delivery.bookFolder === bookFolder && sameName(delivery.reviewer, reviewer) && sameRole(delivery) && isDeliveryOpen(delivery, request.today))
 		.sort((a, b) => (b.received ?? "").localeCompare(a.received ?? ""));
 	if (open[0]) return { delivery: add(open[0]), created: false };
 	const role = request.role.trim();
