@@ -110,7 +110,7 @@ export class TodayPanel extends ItemView {
 			const parts = [
 				agenda.highMinutes ? `${agenda.lowMinutes}–${agenda.highMinutes} min planned` : "",
 				agenda.unestimated ? `${agenda.unestimated} without an estimate` : "",
-				overdue ? `${overdue} left from earlier ${overdue === 1 ? "day" : "days"}` : "",
+				overdue ? `${overdue} left from ${overdue === 1 ? "an earlier day" : "earlier days"}` : "",
 			].filter(Boolean);
 			if (parts.length) hero.createEl("p", { text: parts.join(" · ") });
 			// The book and goal planners each fill their own time, so together
