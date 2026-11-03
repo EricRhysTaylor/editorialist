@@ -1,4 +1,4 @@
-import { ButtonComponent, Modal, Notice, Platform, TextAreaComponent, type App } from "obsidian";
+import { ButtonComponent, Modal, Notice, Platform, TextAreaComponent, TextComponent, type App } from "obsidian";
 import { summaryLines, type EditorResponse, type EditorResponseItem } from "../../core/review/EditorResponse";
 import type EditorialistPlugin from "../../main";
 
@@ -24,9 +24,12 @@ export class EditorResponseModal extends Modal {
 		const { contentEl } = this;
 		contentEl.empty();
 
+		const wordSource = this.plugin.getBatchWordSource(this.batchId);
 		contentEl.createEl("p", {
 			cls: "editorialist-response__intro",
-			text: "Reply to the editor's comments and say why you kept any change as written. Your replies are saved as you type. When you're done, save a Word file to send back.",
+			text: wordSource
+				? `Reply to the editor's comments and say why you kept any change as written. Your replies are saved as you type. When you're done, save them into a copy of ${this.response.reviewer}'s Word file to send back.`
+				: "Reply to the editor's comments and say why you kept any change as written. Your replies are saved as you type. When you're done, save a Word file to send back.",
 		});
 		this.summaryEl = contentEl.createDiv({ cls: "editorialist-response__summary" });
 		this.renderSummary();
@@ -51,18 +54,42 @@ export class EditorResponseModal extends Modal {
 		}
 
 		const footer = contentEl.createDiv({ cls: "editorialist-response__footer" });
+		let nameInput: TextComponent | null = null;
+		if (wordSource) {
+			const field = footer.createEl("label", { cls: "editorialist-response__name", text: "Your name on your comments in Word" });
+			nameInput = new TextComponent(field)
+				.setPlaceholder("Your name")
+				.setValue(this.plugin.getAuthorName())
+				.onChange((value) => void this.plugin.setAuthorName(value));
+		}
 		const saved = footer.createDiv({ cls: "editorialist-response__saved" });
 		const buttons = footer.createDiv({ cls: "editorialist-response__buttons" });
 		new ButtonComponent(buttons).setButtonText("Done").onClick(() => this.close());
-		new ButtonComponent(buttons)
-			.setButtonText("Save Word file")
-			.setCta()
+		const saveLetter = new ButtonComponent(buttons)
+			.setButtonText(wordSource ? "Save as a letter" : "Save Word file")
 			.onClick(async () => {
 				const path = await this.plugin.saveEditorResponseFile(this.batchId);
 				if (!path) return;
-				this.renderSaved(saved, path);
+				this.renderSaved(saved, path, null);
 				new Notice(`Saved your response to ${this.response.reviewer}.`);
 			});
+		if (!wordSource) saveLetter.setCta();
+		if (wordSource) {
+			new ButtonComponent(buttons)
+				.setButtonText("Save in their Word file")
+				.setCta()
+				.onClick(async () => {
+					if (!this.plugin.getAuthorName()) {
+						nameInput?.inputEl.focus();
+						new Notice("Add your name first. It goes on your comments in Word.");
+						return;
+					}
+					const result = await this.plugin.saveRepliesInWordFile(this.batchId);
+					if (!result) return;
+					this.renderSaved(saved, result.path, result);
+					new Notice(`Saved your replies in ${this.response.reviewer}'s Word file.`);
+				});
+		}
 
 		if (focusTarget) {
 			const target = focusTarget;
@@ -120,8 +147,15 @@ export class EditorResponseModal extends Modal {
 	// Once saved, the file is one click from the author's email: open it to read
 	// it over, or show it in the file manager to attach it. On a phone or tablet
 	// Obsidian can do neither, so the author is told where the file is.
-	private renderSaved(saved: HTMLElement, path: string): void {
+	private renderSaved(saved: HTMLElement, path: string, placement: { placed: number; expected: number } | null): void {
 		saved.empty();
+		const missing = placement ? placement.expected - placement.placed : 0;
+		if (placement) {
+			saved.createDiv({
+				text: `${placement.placed} ${placement.placed === 1 ? "reply is" : "replies are"} in the file as comments, next to the editor's notes and changes.`
+					+ (missing > 0 ? ` ${missing} could not be placed; save as a letter to send ${missing === 1 ? "it" : "them"} too.` : ""),
+			});
+		}
 		const files = desktopFileActions(this.app);
 		if (!files) {
 			saved.createDiv({ text: `Saved to ${path}. Send it to ${this.response.reviewer} from your computer, or from your device's Files app if your vault is stored there.` });
@@ -143,7 +177,9 @@ export class EditorResponseModal extends Modal {
 		if (this.response.counts.undecided > 0) {
 			summary.createDiv({
 				cls: "editorialist-response__warning",
-				text: "Changes you haven't decided yet are listed as not decided in the file.",
+				text: this.plugin.getBatchWordSource(this.batchId)
+					? "Changes you haven't decided yet get no comment in their Word file, and are listed as not decided in a letter."
+					: "Changes you haven't decided yet are listed as not decided in the file.",
 			});
 		}
 	}

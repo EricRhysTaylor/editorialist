@@ -195,6 +195,9 @@ export function normalizeSweepRegistry(
 					rejectedCount: entry?.rejectedCount,
 					rewrittenCount: entry?.rewrittenCount,
 					deferredCount: entry?.deferredCount,
+					...(typeof entry?.wordSource?.path === "string" && typeof entry.wordSource.editor === "string"
+						? { wordSource: { path: entry.wordSource.path, editor: entry.wordSource.editor } }
+						: {}),
 				},
 			];
 		}),

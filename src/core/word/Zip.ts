@@ -9,10 +9,11 @@ const LOCAL_FILE_HEADER = 0x04034b50;
 
 export class NotAZipError extends Error {}
 
-export async function readZipEntries(bytes: Uint8Array, names: readonly string[]): Promise<Map<string, Uint8Array>> {
+// The named files, or every file in archive order when no names are given.
+export async function readZipEntries(bytes: Uint8Array, names?: readonly string[]): Promise<Map<string, Uint8Array>> {
 	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 	const directory = findCentralDirectory(view);
-	const wanted = new Set(names);
+	const wanted = names ? new Set(names) : null;
 	const found = new Map<string, Uint8Array>();
 	const decoder = new TextDecoder();
 
@@ -29,7 +30,7 @@ export async function readZipEntries(bytes: Uint8Array, names: readonly string[]
 		const localOffset = view.getUint32(offset + 42, true);
 		const name = decoder.decode(bytes.subarray(offset + 46, offset + 46 + nameLength));
 		offset += 46 + nameLength + extraLength + commentLength;
-		if (!wanted.has(name)) continue;
+		if (wanted && !wanted.has(name)) continue;
 
 		if (view.getUint32(localOffset, true) !== LOCAL_FILE_HEADER) throw new NotAZipError("Damaged ZIP entry.");
 		const dataStart = localOffset + 30 + view.getUint16(localOffset + 26, true) + view.getUint16(localOffset + 28, true);

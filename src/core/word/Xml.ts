@@ -101,3 +101,23 @@ export function firstChild(element: XmlElement, name: string): XmlElement | unde
 export function textContent(node: XmlNode): string {
 	return typeof node === "string" ? node : node.children.map(textContent).join("");
 }
+
+// A parsed part written back out, with the standard declaration Word writes.
+// Text and attribute values are escaped again; nothing else is touched, so a
+// part that is parsed and serialized unchanged reads the same to Word.
+export function serializeXml(root: XmlElement): string {
+	return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\r\n${root.children.map(serializeNode).join("")}`;
+}
+
+function serializeNode(node: XmlNode): string {
+	if (typeof node === "string") return node.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+	const attrs = Object.entries(node.attrs)
+		.map(([key, value]) => ` ${key}="${value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;")}"`)
+		.join("");
+	if (node.children.length === 0) return `<${node.name}${attrs}/>`;
+	return `<${node.name}${attrs}>${node.children.map(serializeNode).join("")}</${node.name}>`;
+}
+
+export function xmlElement(name: string, attrs: Record<string, string> = {}, children: XmlNode[] = []): XmlElement {
+	return { name, attrs, children };
+}

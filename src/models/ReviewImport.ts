@@ -202,4 +202,8 @@ export interface ReviewSweepRegistryEntry {
 	rejectedCount?: number;
 	rewrittenCount?: number;
 	deferredCount?: number;
+	// The editor's Word file this pass was imported from, kept in the vault so
+	// the author's replies can be written into a copy of it. `editor` is the
+	// name Word gives their changes.
+	wordSource?: { path: string; editor: string };
 }

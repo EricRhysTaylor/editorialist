@@ -153,6 +153,9 @@ export interface EditorialistSettings {
 	detectFileWrittenReviewBlocks: boolean;
 	// Inputs to the editorialism revision-effort estimate.
 	effort: EditorialistEffortSettings;
+	// The author's name on the comments Editorialist writes into an editor's
+	// Word file. Absent until the author first gives it.
+	authorName?: string;
 }
 
 // A resolved/dismissed decision on a query memo (kind:"query"). Keyed by

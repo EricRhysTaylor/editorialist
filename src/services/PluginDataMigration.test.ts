@@ -3,6 +3,7 @@ import {
 	EDITORIALIST_PLUGIN_DATA_VERSION,
 	emptyPluginData,
 	migratePluginData,
+	normalizeEditorialistSettings,
 	type MigrationLogger,
 } from "./PluginDataMigration";
 
@@ -303,5 +304,13 @@ describe("emptyPluginData", () => {
 
 	it("is stamped with the current version", () => {
 		expect(emptyPluginData().version).toBe(EDITORIALIST_PLUGIN_DATA_VERSION);
+	});
+});
+
+describe("normalizeEditorialistSettings authorName", () => {
+	it("keeps a given name, trimmed, and leaves a blank one out", () => {
+		expect(normalizeEditorialistSettings({ authorName: "  Eric Taylor " }).authorName).toBe("Eric Taylor");
+		expect("authorName" in normalizeEditorialistSettings({ authorName: "  " })).toBe(false);
+		expect("authorName" in normalizeEditorialistSettings({ authorName: 4 })).toBe(false);
 	});
 });

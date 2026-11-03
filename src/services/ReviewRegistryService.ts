@@ -313,6 +313,13 @@ export class ReviewRegistryService {
 		};
 	}
 
+	// The author's name on comments written into an editor's Word file; an
+	// empty name clears it. Caller persists via savePluginData().
+	setAuthorName(value: string): void {
+		const { authorName: _previous, ...rest } = this.settings;
+		this.settings = value.trim() ? { ...rest, authorName: value.trim() } : rest;
+	}
+
 	getDetectFileWrittenReviewBlocks(): boolean {
 		return this.settings.detectFileWrittenReviewBlocks;
 	}

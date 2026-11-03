@@ -5,7 +5,7 @@ import { readZipEntries } from "../word/Zip";
 import { readWordDocument } from "../word/WordTrackedChanges";
 import { writeDocx } from "../word/DocxWriter";
 import type { ReviewStatus, ReviewSuggestion, SceneMemo } from "../../models/ReviewSuggestion";
-import { composeEditorResponse, editorReplyKey, editorResponseParagraphs } from "./EditorResponse";
+import { composeEditorResponse, editorReplyKey, editorResponseParagraphs, wordAnswers } from "./EditorResponse";
 
 const BATCH = "batch-1";
 
@@ -142,5 +142,40 @@ describe("the response as a Word file", () => {
 		expect(text).toContain("Accepted 4 of your 4 changes.");
 		expect(text).toContain("Replied to 0 of your 1 comment.");
 		expect(text).not.toContain("Struck-through");
+	});
+});
+
+describe("wordAnswers", () => {
+	const scene = "Book/3 First Ball.md";
+	const placement = (operation: "edit" | "cut" | "memo", original: string, revised = "") => ({ operation, original, revised, commentIds: [], changes: [] });
+
+	it("answers kept changes and replied comments, matching however the text was wrapped", () => {
+		const suggestions = withStatuses(["accepted", "rejected", "rewritten", "rejected"]);
+		const humour = suggestions[1];
+		const memo = memos[0];
+		if (!humour || !memo) throw new Error("fixture");
+		const answers = wordAnswers({
+			batchId: BATCH,
+			scenes: [{ notePath: scene, title: "3 First Ball", suggestions, memos }],
+			replies: {
+				[editorReplyKey(scene, BATCH, humour)]: "Mrs Bennet would say humour.",
+				[editorReplyKey(scene, BATCH, memo)]: "Yes, it is.",
+			},
+		});
+		expect(answers.expected).toBe(4);
+		expect(answers.answerFor(placement("edit", "It kept him in good  humour\nall evening.", "It kept him in good humor all evening."))).toBe("Stet. Mrs Bennet would say humour.");
+		expect(answers.answerFor(placement("edit", "Darcy did not answer at once.", "Darcy did not answer."))).toBe("Stet.");
+		expect(answers.answerFor(placement("cut", "The rain had stopped by then."))).toBe("Rewritten another way.");
+		expect(answers.answerFor(placement("memo", "On “unaffected manners”: AU: Is unaffected the word you want here?"))).toBe("Yes, it is.");
+		expect(answers.answerFor(placement("edit", "She pulled her grey coat tighter.", "She pulled her gray coat tighter."))).toBeNull();
+	});
+
+	it("ignores other batches and comments with no reply", () => {
+		const answers = wordAnswers({
+			batchId: "another",
+			scenes: [{ notePath: scene, title: "3 First Ball", suggestions: withStatuses(["rejected"]), memos }],
+			replies: {},
+		});
+		expect(answers.expected).toBe(0);
 	});
 });

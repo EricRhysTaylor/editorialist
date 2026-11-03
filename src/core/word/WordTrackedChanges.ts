@@ -45,6 +45,20 @@ export interface WordConversion {
 	memos: number;
 	hasSceneIds: boolean;
 	skipped: WordConversionSkips;
+	// Where each imported entry sits in the document, for writing the
+	// author's replies back into the editor's file.
+	placements: WordPlacement[];
+}
+
+// One imported entry and the parts of the document it came from: an edit or
+// cut with its tracked changes and the editor's comments on them, or a
+// comment imported as a memo, whose original is the memo's text.
+export interface WordPlacement {
+	operation: "edit" | "cut" | "memo";
+	original: string;
+	revised: string;
+	commentIds: string[];
+	changes: XmlElement[];
 }
 
 const DOCUMENT_PART = "word/document.xml";
@@ -73,18 +87,19 @@ export async function readWordDocument(bytes: Uint8Array): Promise<WordDocument>
 	if (!documentXml) throw new Error("This isn't a Word document. Choose a .docx file.");
 	const body = findDescendant(parseXml(decoder.decode(documentXml)), "body");
 	if (!body) throw new Error("This Word document has no body text.");
-
-	const comments = new Map<string, WordComment>();
 	const commentsXml = parts.get(COMMENTS_PART);
-	if (commentsXml) {
-		for (const comment of descendants(parseXml(decoder.decode(commentsXml)), "comment")) {
-			const id = attribute(comment, "id");
-			if (id === undefined) continue;
-			const text = descendants(comment, "p").map((paragraph) => runText(paragraph).trim()).filter(Boolean).join(" ");
-			comments.set(id, { author: attribute(comment, "author") ?? "", text });
-		}
+	return { body, comments: commentsXml ? readWordComments(parseXml(decoder.decode(commentsXml))) : new Map() };
+}
+
+export function readWordComments(root: XmlElement): Map<string, WordComment> {
+	const comments = new Map<string, WordComment>();
+	for (const comment of descendants(root, "comment")) {
+		const id = attribute(comment, "id");
+		if (id === undefined) continue;
+		const text = descendants(comment, "p").map((paragraph) => runText(paragraph).trim()).filter(Boolean).join(" ");
+		comments.set(id, { author: attribute(comment, "author") ?? "", text });
 	}
-	return { body, comments };
+	return comments;
 }
 
 // Everyone who tracked a change or left a comment, most changes first.
@@ -112,6 +127,8 @@ interface Segment {
 	kind: Kind;
 	text: string;
 	comments: string[];
+	// The tracked change the text came from.
+	change?: XmlElement;
 	// Where the segment sits in the text before the edit; an insertion has no
 	// length there.
 	start: number;
@@ -130,12 +147,14 @@ interface Entry {
 	original: string;
 	revised: string;
 	comments: Set<string>;
+	changes: Set<XmlElement>;
 }
 
 interface Window {
 	original: string;
 	revised: string;
 	comments: Set<string>;
+	changes: Set<XmlElement>;
 	reachesEnd: boolean;
 }
 
@@ -176,6 +195,7 @@ export function convertWordTrackedChanges(document: WordDocument, options: { aut
 			}
 		}
 		const paragraphComments = new Set(paragraph.segments.flatMap((segment) => segment.comments));
+		const paragraphChanges = new Set(paragraph.segments.flatMap((segment) => segment.change ? [segment.change] : []));
 
 		if (!original.trim()) {
 			if (!revised.trim()) continue;
@@ -190,10 +210,11 @@ export function convertWordTrackedChanges(document: WordDocument, options: { aut
 					target.revised += `\n\n${revised.trim()}`;
 				}
 				paragraphComments.forEach((id) => target.comments.add(id));
+				paragraphChanges.forEach((change) => target.changes.add(change));
 				addedParagraphs = target;
 			} else if (previous && previous.sceneId === sceneId) {
 				const anchor = lastSentences(previous.original);
-				const entry: Entry = { operation: "edit", sceneId, original: anchor, revised: `${anchor}\n\n${revised.trim()}`, comments: paragraphComments };
+				const entry: Entry = { operation: "edit", sceneId, original: anchor, revised: `${anchor}\n\n${revised.trim()}`, comments: paragraphComments, changes: paragraphChanges };
 				entries.push(entry);
 				addedParagraphs = entry;
 			} else {
@@ -204,7 +225,7 @@ export function convertWordTrackedChanges(document: WordDocument, options: { aut
 		addedParagraphs = null;
 
 		if (!revised.trim()) {
-			const entry: Entry = { operation: "cut", sceneId, original: original.trim(), revised: "", comments: paragraphComments };
+			const entry: Entry = { operation: "cut", sceneId, original: original.trim(), revised: "", comments: paragraphComments, changes: paragraphChanges };
 			entries.push(entry);
 			previous = { original, sceneId, tail: entry };
 			continue;
@@ -220,8 +241,8 @@ export function convertWordTrackedChanges(document: WordDocument, options: { aut
 			for (const window of changeWindows(paragraph.segments)) {
 				if (window.original === window.revised) continue;
 				const entry: Entry = window.revised
-					? { operation: "edit", sceneId, original: window.original, revised: window.revised, comments: window.comments }
-					: { operation: "cut", sceneId, original: window.original, revised: "", comments: window.comments };
+					? { operation: "edit", sceneId, original: window.original, revised: window.revised, comments: window.comments, changes: window.changes }
+					: { operation: "cut", sceneId, original: window.original, revised: "", comments: window.comments, changes: window.changes };
 				entries.push(entry);
 				tail = window.reachesEnd ? entry : undefined;
 			}
@@ -232,6 +253,7 @@ export function convertWordTrackedChanges(document: WordDocument, options: { aut
 	const authored = (id: string): boolean => document.comments.get(id)?.author === options.author;
 	const usedComments = new Set<string>();
 	const blocks: string[] = [];
+	const placements: WordPlacement[] = [];
 	let edits = 0;
 	let cuts = 0;
 	for (const entry of entries) {
@@ -248,6 +270,7 @@ export function convertWordTrackedChanges(document: WordDocument, options: { aut
 		}
 		ids.forEach((id) => usedComments.add(id));
 		blocks.push(lines.join("\n"));
+		placements.push({ operation: entry.operation, original: entry.original, revised: entry.revised, commentIds: ids, changes: [...entry.changes] });
 		if (entry.operation === "edit") edits++;
 		else cuts++;
 	}
@@ -264,6 +287,7 @@ export function convertWordTrackedChanges(document: WordDocument, options: { aut
 		const quote = (commentQuote.get(id) ?? "").replace(/\s+/g, " ").trim();
 		const body = quote ? `On “${truncate(quote, QUOTE_LENGTH)}”: ${comment.text}` : comment.text;
 		blocks.push(["=== MEMO ===", `SceneId: ${scene}`, `Body: ${body}`].join("\n"));
+		placements.push({ operation: "memo", original: body, revised: "", commentIds: [id], changes: [] });
 		memos++;
 	}
 
@@ -276,6 +300,7 @@ export function convertWordTrackedChanges(document: WordDocument, options: { aut
 		memos,
 		hasSceneIds,
 		skipped,
+		placements,
 	};
 }
 
@@ -302,16 +327,16 @@ function readParagraphs(body: XmlElement, author: string, skipped: WordConversio
 		const paragraph: Paragraph = { style, segments: [], markChanged };
 		let offset = 0;
 
-		const pushText = (text: string, kind: Kind): void => {
+		const pushText = (text: string, kind: Kind, change: XmlElement | undefined): void => {
 			if (!text) return;
 			const end = kind === "ins" ? offset : offset + text.length;
-			paragraph.segments.push({ kind, text, comments: [...active], start: offset, end });
+			paragraph.segments.push({ kind, text, comments: [...active], start: offset, end, ...(kind !== "same" && change ? { change } : {}) });
 			offset = end;
 		};
 
-		const readRun = (run: XmlElement, kind: Kind): void => {
-			const change = firstChild(firstChild(run, "rPr") ?? run, "rPrChange");
-			if (change && mine(change)) formattingChanges.add(attribute(change, "id") ?? `${formattingChanges.size}`);
+		const readRun = (run: XmlElement, kind: Kind, change: XmlElement | undefined): void => {
+			const formatting = firstChild(firstChild(run, "rPr") ?? run, "rPrChange");
+			if (formatting && mine(formatting)) formattingChanges.add(attribute(formatting, "id") ?? `${formattingChanges.size}`);
 			let text = "";
 			for (const part of childElements(run)) {
 				const name = localName(part);
@@ -320,27 +345,29 @@ function readParagraphs(body: XmlElement, author: string, skipped: WordConversio
 				else if (name === "br" || name === "cr") text += attribute(part, "type") === "page" ? "" : " ";
 				else if (name === "noBreakHyphen") text += "-";
 			}
-			pushText(text, kind);
+			pushText(text, kind, change);
 		};
 
-		const walk = (container: XmlElement, kind: Kind): void => {
+		const walk = (container: XmlElement, kind: Kind, change?: XmlElement): void => {
 			for (const child of childElements(container)) {
 				switch (localName(child)) {
 					case "r":
-						readRun(child, kind);
+						readRun(child, kind, change);
 						break;
 					case "ins":
 					case "moveTo":
-						if (kind !== "same") walk(child, kind);
-						else if (mine(child)) walk(child, "ins");
+						if (kind !== "same") walk(child, kind, change);
+						else if (mine(child)) walk(child, "ins", child);
 						break;
 					case "del":
 					case "moveFrom":
 						// Text this author inserted and then deleted never existed.
 						if (kind === "ins") {
-							if (!mine(child)) walk(child, kind);
+							if (!mine(child)) walk(child, kind, change);
+						} else if (kind === "same" && mine(child)) {
+							walk(child, "del", child);
 						} else {
-							walk(child, mine(child) ? "del" : kind);
+							walk(child, mine(child) ? "del" : kind, change);
 						}
 						break;
 					case "commentRangeStart":
@@ -357,7 +384,7 @@ function readParagraphs(body: XmlElement, author: string, skipped: WordConversio
 					case "customXml":
 					case "bdo":
 					case "dir":
-						walk(child, kind);
+						walk(child, kind, change);
 						break;
 				}
 			}
@@ -424,6 +451,13 @@ function changeWindows(segments: readonly Segment[]): Window[] {
 					? segment.start >= range.start && segment.start <= range.end
 					: segment.start < range.end && segment.end > range.start)
 				.flatMap((segment) => segment.comments),
+		),
+		changes: new Set(
+			segments
+				.filter((segment) => segment.kind !== "same" && (segment.kind === "ins"
+					? segment.start >= range.start && segment.start <= range.end
+					: segment.start < range.end && segment.end > range.start))
+				.flatMap((segment) => segment.change ? [segment.change] : []),
 		),
 		reachesEnd: original.slice(range.end).trim() === "",
 	}));

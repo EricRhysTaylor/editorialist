@@ -113,3 +113,12 @@ it("preserves ended rounds and their partial counts across reload", () => {
 	const out = normalizeSweepRegistry(saved);
 	expect(out.b1).toMatchObject({ status: "ended_early", endedAt: 123, acceptedCount: 4, rejectedCount: 1, rewrittenCount: 1, deferredCount: 2 });
 });
+
+it("keeps the editor's Word file a pass came from, and drops a damaged record", () => {
+	const out = normalizeSweepRegistry({
+		b1: { wordSource: { path: "Editorialist/Word files/Markup.docx", editor: "Morgan Lee" } },
+		b2: { wordSource: { path: 3 } } as never,
+	});
+	expect(out.b1?.wordSource).toEqual({ path: "Editorialist/Word files/Markup.docx", editor: "Morgan Lee" });
+	expect(out.b2?.wordSource).toBeUndefined();
+});

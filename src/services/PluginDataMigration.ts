@@ -112,6 +112,7 @@ export function normalizeEditorialistSettings(raw: unknown): EditorialistSetting
 		...(candidate.manuscriptTarget !== undefined ? { manuscriptTarget: normalizeManuscriptTarget(candidate.manuscriptTarget) } : {}),
 		detectFileWrittenReviewBlocks,
 		effort,
+		...(typeof candidate.authorName === "string" && candidate.authorName.trim() ? { authorName: candidate.authorName.trim() } : {}),
 	};
 }
 

@@ -260,6 +260,16 @@ At the end of a copy edit, your editor expects an answer: a reply to their comme
 
 The response window lists every comment and every change you kept or rewrote, scene by scene, each with a box for your reply. A comment that came in on several scenes is listed once, under **General comments**. Replies are saved as you type, so you can close the window and come back. **Save Word file** writes the response to the **Editorialist/Responses** folder in your vault. Then **Open file** opens it in Word so you can read it over, and **Show in Finder** (**Show in File Explorer** on Windows) opens the folder with the file selected, ready to attach to an email. On a phone or tablet those two buttons aren't there; send the file from your computer instead. The response opens with a tally: how many changes you accepted, kept, rewrote or haven't decided yet, and how many comments you replied to. Each kept change shows your editor's wording with their deleted words struck through and added words underlined, then your reason.
 
+### Replying inside your editor's Word file
+
+When your editor's changes came in from their Word file, Editorialist keeps a copy of that file in the **Editorialist/Word files** folder, and the response window offers **Save in their Word file**. That writes your answers into a copy of your editor's own document, in **Editorialist/Responses**, the way you would answer them in Word:
+
+- Your reply to a comment appears under that comment, as a reply in the same thread.
+- A change you kept as written gets a comment saying **Stet**, with your reason. One you rewrote says **Rewritten another way**. If your editor had explained the change in a comment, this appears as your reply to it.
+- Your editor's tracked changes are left exactly as they were. Most publishers ask authors not to accept or reject a copy editor's changes themselves; a comment saying *stet* is how you mark one you don't want.
+
+The first time, add your name in the box above the buttons. It is the name shown on your comments in Word. **Save as a letter** still makes the separate response described above, if your editor prefers that.
+
 Write the response before you clean the review blocks out of your scenes. It is built from those blocks, so once they are cleaned it can no longer be made. Passes from an AI get no response.
 
 ## After import: deliveries and planning

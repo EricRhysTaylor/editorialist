@@ -8,6 +8,7 @@
 import { getSuggestionSignatureParts } from "../OperationSupport";
 import type { ReviewSuggestion, SceneMemo } from "../../models/ReviewSuggestion";
 import type { DocxParagraph, DocxRun } from "../word/DocxWriter";
+import type { WordPlacement } from "../word/WordTrackedChanges";
 import { wordDiff, type DiffPart } from "./CopyEdits";
 
 export type EditorResponseItemKind = "comment" | "stet" | "rewritten";
@@ -173,6 +174,44 @@ export function editorResponseParagraphs(response: EditorResponse): DocxParagrap
 		}
 	}
 	return paragraphs;
+}
+
+// The author's answers as they go into the editor's own Word file, looked up
+// by the entry the import made from it: a reply under each answered comment,
+// and "Stet" or "Rewritten another way" on each change kept, with the reason.
+// `expected` counts the answers, so a caller can tell when some found no place.
+export function wordAnswers(input: {
+	batchId: string;
+	scenes: readonly EditorResponseSceneInput[];
+	replies: Readonly<Record<string, string>>;
+}): { expected: number; answerFor: (placement: WordPlacement) => string | null } {
+	const answers = new Map<string, string>();
+	for (const scene of input.scenes) {
+		for (const suggestion of scene.suggestions) {
+			if (suggestion.source.batchId !== input.batchId) continue;
+			if (suggestion.status !== "rejected" && suggestion.status !== "rewritten") continue;
+			const reason = input.replies[editorReplyKey(scene.notePath, input.batchId, suggestion)]?.trim();
+			const lead = suggestion.status === "rejected" ? "Stet." : "Rewritten another way.";
+			const change = suggestion.operation === "edit"
+				? changeKey("edit", suggestion.payload.original, suggestion.payload.revised)
+				: suggestion.operation === "cut" ? changeKey("cut", suggestion.payload.target, "") : null;
+			if (change) answers.set(change, reason ? `${lead} ${reason}` : lead);
+		}
+		for (const memo of scene.memos) {
+			if (memo.kind !== "memo" || memo.source.batchId !== input.batchId) continue;
+			const reply = input.replies[editorReplyKey(scene.notePath, input.batchId, memo)]?.trim();
+			if (reply) answers.set(changeKey("memo", memoText(memo), ""), reply);
+		}
+	}
+	return {
+		expected: answers.size,
+		answerFor: (placement) => answers.get(changeKey(placement.operation, placement.original, placement.revised)) ?? null,
+	};
+}
+
+function changeKey(operation: string, original: string, revised: string): string {
+	const flat = (text: string): string => text.replace(/\s+/g, " ").trim();
+	return `${operation}\u0000${flat(original)}\u0000${flat(revised)}`;
 }
 
 export function summaryLines(counts: EditorResponseCounts): string[] {

@@ -97,8 +97,9 @@ import { EDITORIALISM_PANEL_VIEW_TYPE, EditorialismPanel } from "./ui/Editoriali
 import { PENDING_EDITS_PANEL_VIEW_TYPE, PendingEditsPanel } from "./ui/PendingEditsPanel";
 import { AuthorQueryModal } from "./ui/modals/AuthorQueryModal";
 import { EditorResponseModal } from "./ui/modals/EditorResponseModal";
-import { composeEditorResponse, editorResponseParagraphs, type EditorResponse } from "./core/review/EditorResponse";
+import { composeEditorResponse, editorResponseParagraphs, wordAnswers, type EditorResponse, type EditorResponseSceneInput } from "./core/review/EditorResponse";
 import { writeDocx } from "./core/word/DocxWriter";
+import { initialsOf, writeWordReplies } from "./core/word/WordReplies";
 import {
 	formatAuthorQueryMarker,
 	stripAuthorQueryMarkerFromText,
@@ -725,6 +726,7 @@ export default class EditorialistPlugin extends Plugin {
 			onImportBatch: async (batch, startReview) => {
 				await this.batchProcessor.importReviewBatch(batch, startReview);
 			},
+			onKeepWordFile: (batchId, fileName, editor, bytes) => this.keepWordFile(batchId, fileName, editor, bytes),
 			onImportRawToActiveNote: async (rawText, startReview) => {
 				await this.batchProcessor.importReviewBatchToActiveNote(rawText, startReview);
 			},
@@ -1514,14 +1516,13 @@ export default class EditorialistPlugin extends Plugin {
 		return item?.contributor ?? null;
 	}
 
-	// The response to one batch, read from its scenes as they are now and the
-	// replies saved so far. Null when the batch is gone from the scenes or was
-	// made by an AI.
-	async collectEditorResponse(batchId: string): Promise<EditorResponse | null> {
+	// One batch's scenes as they are now, with who made the batch. Null when
+	// the batch is gone from the scenes.
+	private async collectBatchScenes(batchId: string): Promise<{ entry: ReviewSweepRegistryEntry; scenes: EditorResponseSceneInput[]; reviewer: ReviewContributor | null } | null> {
 		const entry = this.getSweepRegistryEntry(batchId);
 		if (!entry || entry.status === "cleaned") return null;
 		const paths = [...entry.sceneOrder.filter((path) => entry.importedNotePaths.includes(path)), ...entry.importedNotePaths.filter((path) => !entry.sceneOrder.includes(path))];
-		const scenes: Parameters<typeof composeEditorResponse>[0]["scenes"][number][] = [];
+		const scenes: EditorResponseSceneInput[] = [];
 		let reviewer: ReviewContributor | null = null;
 		for (const path of paths) {
 			const file = this.app.vault.getAbstractFileByPath(path);
@@ -1531,13 +1532,21 @@ export default class EditorialistPlugin extends Plugin {
 			reviewer ??= [...session.suggestions, ...session.memos].find((item) => item.source.batchId === batchId)?.contributor ?? null;
 			scenes.push({ notePath: path, title: this.getNoteDisplayLabel(path), suggestions: session.suggestions, memos: session.memos });
 		}
-		if (!reviewer || reviewer.kind !== "human") return null;
+		return { entry, scenes, reviewer };
+	}
+
+	// The response to one batch, read from its scenes as they are now and the
+	// replies saved so far. Null when the batch is gone from the scenes or was
+	// made by an AI.
+	async collectEditorResponse(batchId: string): Promise<EditorResponse | null> {
+		const batch = await this.collectBatchScenes(batchId);
+		if (!batch?.reviewer || batch.reviewer.kind !== "human") return null;
 		return composeEditorResponse({
 			batchId,
-			reviewer: reviewer.displayName,
-			bookLabel: entry.activeBookLabel,
+			reviewer: batch.reviewer.displayName,
+			bookLabel: batch.entry.activeBookLabel,
 			date: new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }),
-			scenes,
+			scenes: batch.scenes,
 			replies: this.registry.getEditorReplies(),
 		});
 	}
@@ -1561,6 +1570,62 @@ export default class EditorialistPlugin extends Plugin {
 		return this.registry.getEditorReplies()[key] ?? "";
 	}
 
+	getAuthorName(): string {
+		return this.registry.getSettings().authorName ?? "";
+	}
+
+	async setAuthorName(name: string): Promise<void> {
+		this.registry.setAuthorName(name);
+		await this.savePluginData();
+	}
+
+	// The editor's Word file a batch came from, when it was kept at import.
+	getBatchWordSource(batchId: string): { path: string; editor: string } | null {
+		return this.getSweepRegistryEntry(batchId)?.wordSource ?? null;
+	}
+
+	// Keeps a copy of the editor's Word file in Editorialist/Word files and
+	// records it on the batch. A different file of the same name gets a number.
+	async keepWordFile(batchId: string, fileName: string, editor: string, bytes: Uint8Array): Promise<void> {
+		const folder = "Editorialist/Word files";
+		if (!(await this.ensureVaultFolder(folder))) return;
+		const dot = fileName.toLowerCase().endsWith(".docx") ? fileName.length - 5 : fileName.length;
+		const stem = fileName.slice(0, dot).replace(/[\\/:*?"<>|#^[\]]/g, "-").trim() || "Editor's file";
+		let path = normalizePath(`${folder}/${stem}.docx`);
+		for (let copy = 2; ; copy++) {
+			const existing = this.app.vault.getAbstractFileByPath(path);
+			if (!existing) {
+				await this.app.vault.createBinary(path, new Uint8Array(bytes).buffer);
+				break;
+			}
+			if (existing instanceof TFile && sameBytes(new Uint8Array(await this.app.vault.readBinary(existing)), bytes)) break;
+			path = normalizePath(`${folder}/${stem} ${copy}.docx`);
+		}
+		await this.registry.updateSweepRegistry(batchId, { wordSource: { path, editor } });
+	}
+
+	private async ensureVaultFolder(folder: string): Promise<boolean> {
+		const parts = folder.split("/");
+		for (let index = 1; index <= parts.length; index++) {
+			const part = parts.slice(0, index).join("/");
+			const existing = this.app.vault.getAbstractFileByPath(part);
+			if (!existing) await this.app.vault.createFolder(part);
+			else if (!(existing instanceof TFolder)) {
+				new Notice(`A file named “${part}” is in the way of the ${folder} folder.`);
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private async writeVaultBinary(path: string, bytes: Uint8Array): Promise<void> {
+		// A copy, so the vault gets a plain ArrayBuffer of exactly these bytes.
+		const data = new Uint8Array(bytes).buffer;
+		const existing = this.app.vault.getAbstractFileByPath(path);
+		if (existing instanceof TFile) await this.app.vault.modifyBinary(existing, data);
+		else await this.app.vault.createBinary(path, data);
+	}
+
 	// Writes the response as a Word file in Editorialist/Responses and returns
 	// its path. A second save on the same day replaces that day's file.
 	async saveEditorResponseFile(batchId: string): Promise<string | null> {
@@ -1570,26 +1635,60 @@ export default class EditorialistPlugin extends Plugin {
 			return null;
 		}
 		const folder = "Editorialist/Responses";
-		const parts = folder.split("/");
-		for (let index = 1; index <= parts.length; index++) {
-			const part = parts.slice(0, index).join("/");
-			const existing = this.app.vault.getAbstractFileByPath(part);
-			if (!existing) await this.app.vault.createFolder(part);
-			else if (!(existing instanceof TFolder)) {
-				new Notice(`A file named “${part}” is in the way of the Responses folder.`);
-				return null;
-			}
-		}
-		const day = localDate(new Date());
-		const name = `Response to ${response.reviewer} ${day}`.replace(/[\\/:*?"<>|#^[\]]/g, "-");
+		if (!(await this.ensureVaultFolder(folder))) return null;
+		const name = `Response to ${response.reviewer} ${localDate(new Date())}`.replace(/[\\/:*?"<>|#^[\]]/g, "-");
 		const path = normalizePath(`${folder}/${name}.docx`);
-		const bytes = writeDocx(editorResponseParagraphs(response));
-		// A copy, so the vault gets a plain ArrayBuffer of exactly these bytes.
-		const data = new Uint8Array(bytes).buffer;
-		const existing = this.app.vault.getAbstractFileByPath(path);
-		if (existing instanceof TFile) await this.app.vault.modifyBinary(existing, data);
-		else await this.app.vault.createBinary(path, data);
+		await this.writeVaultBinary(path, writeDocx(editorResponseParagraphs(response)));
 		return path;
+	}
+
+	// Writes the author's replies into a copy of the editor's own Word file, in
+	// Editorialist/Responses. Returns the copy's path and how many answers
+	// found their place in it, or null with a notice when it cannot be made.
+	async saveRepliesInWordFile(batchId: string): Promise<{ path: string; placed: number; expected: number } | null> {
+		const source = this.getBatchWordSource(batchId);
+		const batch = await this.collectBatchScenes(batchId);
+		const authorName = this.getAuthorName();
+		if (!source || !batch) {
+			new Notice("This editor's changes are no longer in your scenes, so the reply cannot be made.");
+			return null;
+		}
+		const file = this.app.vault.getAbstractFileByPath(source.path);
+		if (!(file instanceof TFile)) {
+			new Notice(`The editor's Word file is no longer at ${source.path}, so the reply cannot be written into it.`);
+			return null;
+		}
+		if (!authorName) {
+			new Notice("Add your name first. It goes on your comments in Word.");
+			return null;
+		}
+		const answers = wordAnswers({ batchId, scenes: batch.scenes, replies: this.registry.getEditorReplies() });
+		if (answers.expected === 0) {
+			new Notice("Nothing to write yet. Reply to a comment, or reject a change, first.");
+			return null;
+		}
+		let result: Awaited<ReturnType<typeof writeWordReplies>>;
+		try {
+			result = await writeWordReplies(new Uint8Array(await this.app.vault.readBinary(file)), {
+				editor: source.editor,
+				author: { name: authorName, initials: initialsOf(authorName) },
+				date: new Date(),
+				replyFor: answers.answerFor,
+			});
+		} catch (error) {
+			new Notice(error instanceof Error ? error.message : "Could not write into the editor's Word file.");
+			return null;
+		}
+		if (result.placed === 0) {
+			new Notice(`None of your replies found their place in ${file.name}. Save them as a letter instead.`);
+			return null;
+		}
+		const folder = "Editorialist/Responses";
+		if (!(await this.ensureVaultFolder(folder))) return null;
+		const name = `${file.basename} with replies ${localDate(new Date())}`.replace(/[\\/:*?"<>|#^[\]]/g, "-");
+		const path = normalizePath(`${folder}/${name}.docx`);
+		await this.writeVaultBinary(path, result.bytes);
+		return { path, placed: result.placed, expected: answers.expected };
 	}
 
 	// Dismiss a query: persist the decision but leave the note untouched — the
@@ -3644,4 +3743,8 @@ export default class EditorialistPlugin extends Plugin {
 	async removeImportedReviewBlocksInCurrentNote(): Promise<void> {
 		await this.batchProcessor.removeImportedReviewBlocksInCurrentNote();
 	}
+}
+
+function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
+	return a.length === b.length && a.every((byte, index) => byte === b[index]);
 }

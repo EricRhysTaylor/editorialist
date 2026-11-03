@@ -68,6 +68,8 @@ export interface EditorialistModalOptions {
 	// not a review batch, so onLoadClipboardBatch does not return it.
 	onReadClipboardText: () => Promise<string | null>;
 	onImportBatch: (batch: ReviewImportBatch, startReview: boolean) => Promise<void>;
+	// Keep the editor's Word file a batch was imported from, for the reply.
+	onKeepWordFile: (batchId: string, fileName: string, editor: string, bytes: Uint8Array) => Promise<void>;
 	onImportRawToActiveNote: (rawText: string, startReview: boolean) => Promise<void>;
 	// Formalize the raw review block already present in the active note (stamp +
 	// register + start review), without a clipboard round-trip.
@@ -93,6 +95,7 @@ type ClipboardState = "checking" | "ready" | "empty";
 // A Word file read for its tracked changes, converted for one author at a time.
 interface WordImport {
 	fileName: string;
+	bytes: Uint8Array;
 	document: WordDocument;
 	authors: WordAuthor[];
 	author: string;
@@ -211,6 +214,14 @@ export class EditorialistModal extends Modal {
 
 	// After a review-batch import: close, unless the paste still holds an
 	// editorialism that is not in the library yet. Then stay open on it.
+	// A batch converted from a Word file keeps that file, so the author's
+	// replies can later be written into a copy of it.
+	private async importManualBatch(batch: ReviewImportBatch): Promise<void> {
+		const word = this.wordImport && this.manualText === this.wordImport.conversion.text ? this.wordImport : null;
+		await this.options.onImportBatch(batch, true);
+		if (word) await this.options.onKeepWordFile(batch.batchId, word.fileName, word.author, word.bytes);
+	}
+
 	private async finishBatchImport(): Promise<void> {
 		this.showAssignments = false;
 		const manualEditorialism = this.showManualPaste ? extractEditorialismFileFromText(this.manualText) : null;
@@ -468,7 +479,8 @@ export class EditorialistModal extends Modal {
 
 	private async loadWordFile(file: File): Promise<void> {
 		try {
-			const document = await readWordDocument(new Uint8Array(await file.arrayBuffer()));
+			const bytes = new Uint8Array(await file.arrayBuffer());
+			const document = await readWordDocument(bytes);
 			const authors = listWordAuthors(document);
 			const first = authors[0];
 			if (!first) {
@@ -478,6 +490,7 @@ export class EditorialistModal extends Modal {
 			const reviewerType = "copy-editor";
 			this.wordImport = {
 				fileName: file.name,
+				bytes,
 				document,
 				authors,
 				author: first.name,
@@ -657,7 +670,7 @@ export class EditorialistModal extends Modal {
 						return;
 					}
 
-					await this.options.onImportBatch(batch, true);
+					await this.importManualBatch(batch);
 					await this.finishBatchImport();
 				},
 			}),
@@ -834,7 +847,7 @@ export class EditorialistModal extends Modal {
 							this.setManualImportError(diagnostic);
 							return;
 						}
-						await this.options.onImportBatch(corrected, true);
+						await this.importManualBatch(corrected);
 						await this.finishBatchImport();
 					},
 				}),
