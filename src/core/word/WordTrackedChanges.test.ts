@@ -161,6 +161,20 @@ describe("convertWordTrackedChanges", () => {
 		expect(result.memos).toBe(1);
 	});
 
+	it("brings in a note above the first scene as a note on the whole pass", () => {
+		const document = documentOf(body(
+			para(`<w:commentRangeStart w:id="c1"/>`, run("Pride and Prejudice"), `<w:commentRangeEnd w:id="c1"/>`),
+			heading("1 The Letter scn_ab12cd34"),
+			para(run("She pulled her "), del("grey"), ins("gray"), run(" coat tighter against the wind off the water.")),
+		), [{ id: "c1", author: ED, text: "Overall: the middle third drags. Notes below." }]);
+		const result = convert(document);
+		expect(result).toMatchObject({ memos: 1, skipped: { unplacedComments: 0 } });
+		const memo = parse(result.text).memos[0];
+		expect(memo?.body).toBe("Overall: the middle third drags. Notes below.");
+		expect(memo?.routing?.sceneId).toBeUndefined();
+		expect(result.placements.find((placement) => placement.operation === "memo")?.commentIds).toEqual(["c1"]);
+	});
+
 	it("leaves out a comment it cannot place in a scene", () => {
 		const document = documentOf(body(para(`<w:commentRangeStart w:id="c1"/>`, run(LONG), `<w:commentRangeEnd w:id="c1"/>`)), [{ id: "c1", author: ED, text: "Lovely." }]);
 		const result = convert(document);

@@ -295,14 +295,17 @@ export function convertWordTrackedChanges(document: WordDocument, options: { aut
 	for (const [id, comment] of document.comments) {
 		if (comment.author !== options.author || usedComments.has(id) || !comment.text) continue;
 		const scene = commentScene.get(id);
-		// A memo without a scene would be copied to every scene in the batch.
-		if (!scene) {
+		// A memo without a scene is copied to every scene in the batch. That is
+		// right for a note above the first scene heading, which is on the whole
+		// pass; without scene headings it would be a passage note sent everywhere.
+		const general = !scene && hasSceneIds && commentScene.has(id);
+		if (!scene && !general) {
 			skipped.unplacedComments++;
 			continue;
 		}
-		const quote = (commentQuote.get(id) ?? "").replace(/\s+/g, " ").trim();
+		const quote = general ? "" : (commentQuote.get(id) ?? "").replace(/\s+/g, " ").trim();
 		const body = quote ? `On “${truncate(quote, QUOTE_LENGTH)}”: ${comment.text}` : comment.text;
-		blocks.push(["=== MEMO ===", `SceneId: ${scene}`, `Body: ${body}`].join("\n"));
+		blocks.push(["=== MEMO ===", ...(scene ? [`SceneId: ${scene}`] : []), `Body: ${body}`].join("\n"));
 		placements.push({ operation: "memo", original: body, revised: "", commentIds: [id], changes: [] });
 		memos++;
 	}
