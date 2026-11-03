@@ -114,7 +114,7 @@ class ContributorReassignmentModal extends PromiseModal<ContributorReassignmentR
 		const scopeRow = this.contentEl.createDiv({ cls: "editorialist-contributor-modal__scope" });
 		scopeRow.createDiv({
 			cls: "editorialist-contributor-modal__label",
-			text: "Scope",
+			text: this.options.mode === "move" ? "Pass" : "Scope",
 		});
 		scopeRow.createDiv({
 			cls: "editorialist-contributor-modal__value",

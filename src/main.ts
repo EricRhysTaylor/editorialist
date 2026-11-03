@@ -1147,7 +1147,13 @@ export default class EditorialistPlugin extends Plugin {
 		const deliveries = this.getEditorialDeliveries();
 		for (const candidate of candidates) {
 			const delivery = deliveries.find((item) => candidate.kind === "directive" ? item.files.includes(candidate.path) : (candidate.kind === "batch" || candidate.kind === "response") && item.batchIds.includes(candidate.locator));
-			if (delivery) { candidate.deliveryId = delivery.id; candidate.due = delivery.due; candidate.detail += ` · ${deliveryCaption(delivery)}${delivery.due ? ` · Due ${planDayLabel(delivery.due)}` : ""}`; }
+			if (!delivery) continue;
+			candidate.deliveryId = delivery.id;
+			candidate.due = delivery.due;
+			// An Editorialism's detail already names its reviewer; show each part once.
+			const parts = candidate.detail.split(" · ");
+			const added = [...deliveryCaption(delivery).split(" · "), delivery.due ? `Due ${planDayLabel(delivery.due)}` : ""].filter((part) => part && !parts.includes(part));
+			candidate.detail = [...parts, ...added].join(" · ");
 		}
 		return { candidates, warnings, held };
 	}

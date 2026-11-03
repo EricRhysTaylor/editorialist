@@ -4683,6 +4683,10 @@
 	margin-bottom: 0.9rem;
 }
 
+.editorialist-contributor-modal__description {
+	margin-bottom: 1rem;
+}
+
 .editorialist-contributor-modal__label {
 	margin-bottom: 0.45rem;
 	font-size: var(--font-ui-smaller);
