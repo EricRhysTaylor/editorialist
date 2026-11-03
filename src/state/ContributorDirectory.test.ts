@@ -30,6 +30,20 @@ describe("ContributorDirectory.resolveContributor", () => {
 		expect(formatContributorIdentityLabel(copyEdit)).toBe("Morgan Lee · Copy editor");
 	});
 
+	it("reads a moved pass as the contributor it was moved to, keeping its notes' own reference", () => {
+		const directory = new ContributorDirectory();
+		directory.resolveContributor({ rawName: "Morgan Lee", rawType: "developmental-editor" });
+		const jo = directory.resolveContributor({ rawName: "Jo Copy", rawType: "copy-editor" });
+		directory.setPassAssignments({ "batch-2": jo.reviewerId ?? "" });
+		const moved = directory.resolveContributor({ rawName: "Morgan Lee", rawType: "copy-editor" }, "batch-2");
+		expect(moved.reviewerId).toBe(jo.reviewerId);
+		expect(moved.raw.rawName).toBe("Morgan Lee");
+		expect(directory.resolveContributor({ rawName: "Morgan Lee" }, "batch-1").displayName).toBe("Morgan Lee");
+		// A pass moved to a contributor since deleted reads as its notes say.
+		directory.setPassAssignments({ "batch-2": "gone" });
+		expect(directory.resolveContributor({ rawName: "Morgan Lee" }, "batch-2").displayName).toBe("Morgan Lee");
+	});
+
 	it("matches a profile by alias and reports it as such", () => {
 		const directory = new ContributorDirectory();
 		const created = directory.resolveContributor({ rawName: "Dr. Smith", rawType: "editor" });

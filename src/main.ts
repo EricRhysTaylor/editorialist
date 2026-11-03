@@ -468,11 +468,11 @@ export default class EditorialistPlugin extends Plugin {
 		getReviewPanelLeaf: () => this.app.workspace.getLeavesOfType(REVIEW_PANEL_VIEW_TYPE)[0],
 		refreshReviewPanel: () => this.refreshReviewPanel(),
 	});
-	// Contributor management — star, edit, reassign, merge, delete, and the
-	// suggestion-to-reviewer resolutions, with the session rewrites each
-	// implies. The settings tab and the review panel call it directly.
 	private settingTab: EditorialistSettingTab | null = null;
 
+	// Contributor management — star, edit, move a pass, merge, delete, and the
+	// suggestion-to-reviewer resolutions, with the session rewrites each
+	// implies. The settings tab and the review panel call it directly.
 	readonly contributors = new ContributorManagementOrchestrator({
 		store: this.store,
 		registry: this.registry,
@@ -488,6 +488,8 @@ export default class EditorialistPlugin extends Plugin {
 		openChoiceModal: (options) => openEditorialistChoiceModal(this.app, options),
 		openStrengthsModal: (profile) => openContributorStrengthsModal(this.app, { profile }),
 		openReassignmentModal: (options) => openContributorReassignmentModal(this.app, options),
+		listContributorPasses: (reviewerId) => this.listContributorPasses(reviewerId),
+		movePassToContributor: (batchId, reviewerId) => this.movePassToContributor(batchId, reviewerId),
 	});
 
 	async onload(): Promise<void> {
@@ -3452,6 +3454,7 @@ export default class EditorialistPlugin extends Plugin {
 		const savedData = migratePluginData(rawSavedData);
 		this.registry.load(savedData);
 		this.reviewerDirectory.setProfiles(savedData.reviewerProfiles);
+		this.reviewerDirectory.setPassAssignments(this.registry.getPassAssignments());
 		this.registry.rebuildReviewerStatsFromSignals();
 	}
 
@@ -3662,6 +3665,33 @@ export default class EditorialistPlugin extends Plugin {
 		return path;
 	}
 
+	// A contributor's imported passes, newest first, labelled for choosing one.
+	listContributorPasses(reviewerId: string): Array<{ batchId: string; label: string }> {
+		const batchIds = new Set(this.registry.getReviewerBatchIds(reviewerId));
+		return this.getSweepRegistryEntries()
+			.filter((entry) => batchIds.has(entry.batchId))
+			.sort((a, b) => b.importedAt - a.importedAt)
+			.map((entry) => {
+				const scenes = entry.sceneOrder.length;
+				const date = new Date(entry.importedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+				return { batchId: entry.batchId, label: `Imported ${date} · ${scenes} ${scenes === 1 ? "scene" : "scenes"}${entry.activeBookLabel ? ` · ${entry.activeBookLabel}` : ""}` };
+			});
+	}
+
+	// Credits one imported pass to another contributor. The review blocks in
+	// the scenes are left as they are, so every decision saved on them stays;
+	// the pass's entry records who it is from, the notes read that way from
+	// now on, and the pass's stats move with it.
+	async movePassToContributor(batchId: string, reviewerId: string): Promise<void> {
+		await this.registry.updateSweepRegistry(batchId, { contributorId: reviewerId }, { persist: false });
+		this.reviewerDirectory.setPassAssignments(this.registry.getPassAssignments());
+		this.registry.reassignReviewerSignalsForPass(batchId, reviewerId);
+		this.registry.rebuildReviewerStatsFromSignals();
+		await this.savePluginData();
+		this.resyncSessionForActiveNote();
+		await this.refreshPlanViews();
+	}
+
 	// The backups in Editorialist/Backups, newest first.
 	listEditorialistBackups(): TFile[] {
 		const folder = this.app.vault.getAbstractFileByPath(BACKUPS_FOLDER);
@@ -3683,6 +3713,7 @@ export default class EditorialistPlugin extends Plugin {
 		}
 		this.registry.load(data);
 		this.reviewerDirectory.setProfiles(data.reviewerProfiles);
+		this.reviewerDirectory.setPassAssignments(this.registry.getPassAssignments());
 		this.registry.rebuildReviewerStatsFromSignals();
 		await this.savePluginData();
 		await this.registry.syncSceneInventory();

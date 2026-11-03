@@ -172,4 +172,7 @@ export interface ReviewSweepRegistryEntry {
 	wordSource?: { path: string; editor: string };
 	// When the author last saved a response to this pass, letter or Word file.
 	responseSavedAt?: number;
+	// The contributor the author moved this pass to, when its notes name
+	// someone else. Applied whenever the pass's notes are read.
+	contributorId?: string;
 }

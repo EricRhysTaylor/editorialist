@@ -63,7 +63,20 @@ export class ContributorDirectory {
 		});
 	}
 
-	resolveContributor(raw: ParsedContributorReference): ReviewContributor {
+	// Passes the author moved to another contributor, by batch id.
+	private passAssignments: Readonly<Record<string, string>> = {};
+
+	setPassAssignments(assignments: Readonly<Record<string, string>>): void {
+		this.passAssignments = { ...assignments };
+	}
+
+	// The contributor behind notes from one pass. A pass the author moved to
+	// someone else resolves to them, keeping the notes' own raw reference.
+	resolveContributor(raw: ParsedContributorReference, batchId?: string): ReviewContributor {
+		const assigned = batchId ? this.getProfileById(this.passAssignments[batchId] ?? "") : null;
+		if (assigned) {
+			return this.toContributor(assigned, raw, "exact");
+		}
 		const seed = deriveContributorIdentitySeed(raw);
 		const rawName = raw.rawName?.trim();
 		const exactIdMatch = rawName

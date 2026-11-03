@@ -192,7 +192,9 @@ export function deriveContributorIdentitySeed(raw: ParsedContributorReference): 
 // raw reviewer reference into a contributor. Typed here, in core, so the
 // parser depends on the capability and not on the directory class in state.
 export interface ContributorResolver {
-	resolveContributor(raw: ParsedContributorReference): ReviewContributor;
+	// `batchId` names the pass the notes came from, for passes the author
+	// moved to another contributor.
+	resolveContributor(raw: ParsedContributorReference, batchId?: string): ReviewContributor;
 }
 
 // The one slug rule for contributor ids. Both the directory's profile ids

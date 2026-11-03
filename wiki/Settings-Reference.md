@@ -57,8 +57,8 @@ A card grid, one per contributor:
 - **Star** — mark a contributor to enable the starred-only filter in [Line edits](Line-Edits).
 - **Manage (…)** — opens contributor actions:
   - *Edit* — display label, how you use the contributor (Developmental editor, Line editor, Copy editor, Beta reader, Generalist, AI assistant), and optional strengths (Clarity, Tone, Pacing, Dialogue, Structure, Character, Worldbuilding, Tightening).
-  - *Reassign* — move all revision notes from this contributor into another contributor or a new contributor.
-  - *Merge* — move all revision notes from this contributor into another existing contributor.
+  - *Move a pass to someone else* — choose one of this contributor's imported passes and say who it really came from: another contributor, or a new one. Use it when a pass was filed under the wrong person, such as a copy edit credited to the developmental editor. The notes in your scenes and your decisions on them stay exactly as they are; the pass's stats move to the contributor you chose.
+  - *Merge with another contributor* — for two names that are the same person: everything from this contributor moves into the other, and this name becomes one of their alternate names.
 
 ### Backup
 

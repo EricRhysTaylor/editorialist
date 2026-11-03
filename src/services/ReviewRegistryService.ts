@@ -792,6 +792,30 @@ export class ReviewRegistryService {
 		return { migrated: true, repairedNotes };
 	}
 
+	// Passes moved to another contributor, by batch id.
+	getPassAssignments(): Record<string, string> {
+		return Object.fromEntries(Object.values(this.sweepRegistry).flatMap((entry) => entry.contributorId ? [[entry.batchId, entry.contributorId]] : []));
+	}
+
+	// The passes a contributor's recorded signals come from.
+	getReviewerBatchIds(reviewerId: string): string[] {
+		const batchIds = new Set<string>();
+		for (const record of Object.values(this.reviewerSignalIndex)) {
+			if (record.reviewerId !== reviewerId) continue;
+			const batchId = record.key.match(/::batch:([^:]+)::/)?.[1];
+			if (batchId) batchIds.add(batchId);
+		}
+		return [...batchIds];
+	}
+
+	// Moves one pass's signals to another contributor. The caller rebuilds
+	// stats and persists.
+	reassignReviewerSignalsForPass(batchId: string, targetReviewerId: string): void {
+		for (const record of Object.values(this.reviewerSignalIndex)) {
+			if (record.key.includes(`::batch:${batchId}::`)) record.reviewerId = targetReviewerId;
+		}
+	}
+
 	async reassignReviewerSignals(
 		sourceReviewerId: string,
 		targetReviewerId: string,

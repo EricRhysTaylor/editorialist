@@ -4,7 +4,9 @@ import type { ContributorProfile } from "../models/ContributorProfile";
 import { PromiseModal } from "./modals/PromiseModal";
 import { buildModalFooter, type ModalFooter } from "./primitives/ModalFooter";
 
-export type ContributorReassignmentMode = "merge" | "reassign";
+// "merge" combines two contributors who are the same person; "move" credits
+// one imported pass to someone else.
+export type ContributorReassignmentMode = "merge" | "move";
 
 export interface ContributorReassignmentResult {
 	createName?: string;
@@ -16,6 +18,8 @@ interface ContributorReassignmentModalOptions {
 	sourceProfile: ContributorProfile;
 	targetProfiles: ContributorProfile[];
 	initialTargetReviewerId?: string;
+	// The pass being moved, in "move" mode.
+	passLabel?: string;
 }
 
 class ContributorReassignmentModal extends PromiseModal<ContributorReassignmentResult> {
@@ -37,14 +41,14 @@ class ContributorReassignmentModal extends PromiseModal<ContributorReassignmentR
 	protected renderContent(): void {
 		this.contentEl.addClass("editorialist-contributor-modal");
 
-		const title = this.options.mode === "merge" ? "Merge contributor" : "Reassign contributor";
+		const title = this.options.mode === "merge" ? "Merge contributor" : "Move a pass";
 		this.contentEl.createEl("h3", { text: title });
 		this.contentEl.createDiv({
 			cls: "editorialist-contributor-modal__description",
 			text:
 				this.options.mode === "merge"
 					? "Combine both contributors under the target name. The current name and its aliases become alternate names of the target, and their revision history and stats are combined."
-					: "Move all revision notes from this contributor into another contributor or a new contributor.",
+					: "Credit one imported pass to the contributor it really came from, or a new one. The notes in your scenes and your decisions on them stay as they are; the pass's stats move with it.",
 		});
 
 		const currentRow = this.contentEl.createDiv({ cls: "editorialist-contributor-modal__row" });
@@ -60,7 +64,7 @@ class ContributorReassignmentModal extends PromiseModal<ContributorReassignmentR
 		const targetRow = this.contentEl.createDiv({ cls: "editorialist-contributor-modal__row" });
 		targetRow.createDiv({
 			cls: "editorialist-contributor-modal__label",
-			text: this.options.mode === "merge" ? "Name to keep" : "Target contributor",
+			text: this.options.mode === "merge" ? "Name to keep" : "Came from",
 		});
 		const targetControl = targetRow.createDiv({ cls: "editorialist-contributor-modal__control" });
 		targetControl.addClass("editorialist-contributor-modal__control--fit");
@@ -71,7 +75,7 @@ class ContributorReassignmentModal extends PromiseModal<ContributorReassignmentR
 		for (const profile of this.options.targetProfiles) {
 			dropdown.addOption(profile.id, formatContributorIdentityLabel(profile));
 		}
-		if (this.options.mode === "reassign") {
+		if (this.options.mode === "move") {
 			dropdown.addOption("__create__", "Create new contributor");
 		}
 		dropdown.setValue(this.targetValue);
@@ -83,7 +87,7 @@ class ContributorReassignmentModal extends PromiseModal<ContributorReassignmentR
 		});
 		this.syncDropdownWidth();
 
-		if (this.options.mode === "reassign") {
+		if (this.options.mode === "move") {
 			const createRow = this.contentEl.createDiv({ cls: "editorialist-contributor-modal__create" });
 			createRow.createDiv({
 				cls: "editorialist-contributor-modal__label",
@@ -114,14 +118,14 @@ class ContributorReassignmentModal extends PromiseModal<ContributorReassignmentR
 		});
 		scopeRow.createDiv({
 			cls: "editorialist-contributor-modal__value",
-			text: "All revision notes",
+			text: this.options.mode === "move" ? this.options.passLabel ?? "One pass" : "All revision notes",
 		});
 
 		this.footer = buildModalFooter(this.contentEl, {
 			className: "editorialist-contributor-modal__actions",
 			buttons: [
 				{
-					text: this.options.mode === "merge" ? "Merge contributor" : "Reassign contributor",
+					text: this.options.mode === "merge" ? "Merge contributor" : "Move pass",
 					cta: true,
 					enableWhen: () =>
 						this.targetValue === "__create__"

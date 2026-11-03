@@ -199,6 +199,7 @@ export function normalizeSweepRegistry(
 						? { wordSource: { path: entry.wordSource.path, editor: entry.wordSource.editor } }
 						: {}),
 					...(typeof entry?.responseSavedAt === "number" ? { responseSavedAt: entry.responseSavedAt } : {}),
+					...(typeof entry?.contributorId === "string" && entry.contributorId ? { contributorId: entry.contributorId } : {}),
 				},
 			];
 		}),

@@ -32,7 +32,7 @@ function suggestion(id: string, contributor: ReviewSuggestion["contributor"]): R
 const samRaw: ParsedContributorReference = { rawName: "Sam", rawType: "editor" };
 const leeRaw: ParsedContributorReference = { rawName: "Lee", rawType: "beta-reader" };
 
-function setup(answers: { choice?: string; reassign?: { targetReviewerId?: string; createName?: string } } = {}) {
+function setup(answers: { choice?: string; reassign?: { targetReviewerId?: string; createName?: string }; passes?: Array<{ batchId: string; label: string }> } = {}) {
 	const store = new ReviewStore();
 	const directory = new ContributorDirectory();
 	const registry = {
@@ -61,6 +61,10 @@ function setup(answers: { choice?: string; reassign?: { targetReviewerId?: strin
 		openChoiceModal: async <T extends string>() => (answers.choice ?? null) as T | null,
 		openStrengthsModal: async () => null,
 		openReassignmentModal: async () => answers.reassign ?? null,
+		listContributorPasses: () => answers.passes ?? [],
+		movePassToContributor: vi.fn(async (batchId: string, reviewerId: string) => {
+			calls.push(`move:${batchId}:${reviewerId}`);
+		}),
 	};
 	return { host, store, directory, registry, calls, orchestrator: new ContributorManagementOrchestrator(host) };
 }
@@ -72,6 +76,19 @@ function seedSession(store: ReviewStore, suggestions: ReviewSuggestion[]): void 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("ContributorManagementOrchestrator", () => {
+	it("moves one chosen pass to another contributor, or to a new one", async () => {
+		const passes = [{ batchId: "batch-a", label: "Imported Oct 8" }, { batchId: "batch-b", label: "Imported Nov 1" }];
+		const moving = setup({ choice: "batch-b", reassign: { createName: "Jo Copy" }, passes });
+		const sam = moving.directory.resolveContributor(samRaw);
+		await expect(moving.orchestrator.movePass(sam.reviewerId ?? "")).resolves.toBe(true);
+		const jo = moving.directory.getProfiles().find((profile) => profile.displayName === "Jo Copy");
+		expect(moving.calls).toContain(`move:batch-b:${jo?.id}`);
+
+		const none = setup({ passes: [] });
+		const lee = none.directory.resolveContributor(leeRaw);
+		await expect(none.orchestrator.movePass(lee.reviewerId ?? "")).resolves.toBe(false);
+	});
+
 	it("leaves every suggestion from the same raw reviewer unresolved, and only those", async () => {
 		const { store, registry, orchestrator } = setup();
 		seedSession(store, [

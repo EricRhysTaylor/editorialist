@@ -24,7 +24,7 @@ import type { ContributorReassignmentMode, ContributorReassignmentResult } from 
 import type { ContributorStrengthsModalResult } from "../ui/ContributorStrengthsModal";
 import type { EditorialistChoiceModalOptions } from "../ui/EditorialistChoiceModal";
 
-export type ContributorManagementAction = "strengths" | "reassign" | "merge" | "delete";
+export type ContributorManagementAction = "strengths" | "move" | "merge" | "delete";
 
 export interface ContributorManagementOrchestratorHost {
 	readonly store: Pick<ReviewStore, "getSession" | "replaceSuggestions">;
@@ -49,7 +49,12 @@ export interface ContributorManagementOrchestratorHost {
 		sourceProfile: ContributorProfile;
 		targetProfiles: ContributorProfile[];
 		initialTargetReviewerId?: string;
+		passLabel?: string;
 	}): Promise<ContributorReassignmentResult | null>;
+	// One contributor's imported passes, newest first.
+	listContributorPasses(reviewerId: string): Array<{ batchId: string; label: string }>;
+	// Credits a pass to another contributor, leaving its notes and decisions.
+	movePassToContributor(batchId: string, reviewerId: string): Promise<void>;
 }
 
 export class ContributorManagementOrchestrator {
@@ -77,8 +82,8 @@ export class ContributorManagementOrchestrator {
 			description: `Choose how to update ${profile.displayName}.`,
 			choices: [
 				{ label: "Edit", value: "strengths" },
-				{ label: "Reassign", value: "reassign" },
-				{ label: "Merge", value: "merge" },
+				{ label: "Move a pass to someone else", value: "move" },
+				{ label: "Merge with another contributor", value: "merge" },
 				{ label: "Delete", value: "delete" },
 			],
 		});
@@ -94,7 +99,58 @@ export class ContributorManagementOrchestrator {
 			return this.deleteContributorById(reviewerId);
 		}
 
+		if (action === "move") {
+			return this.movePass(reviewerId);
+		}
+
 		return this.reassignContributorById(reviewerId, action);
+	}
+
+	// Moves one of a contributor's passes, such as a copy edit filed under the
+	// wrong editor, to the contributor it really came from, or a new one. Merge
+	// is for two names that are the same person; this is for one pass.
+	async movePass(sourceReviewerId: string): Promise<boolean> {
+		const sourceProfile = this.host.reviewerDirectory.getProfileById(sourceReviewerId);
+		if (!sourceProfile) {
+			new Notice("Contributor not found.");
+			return false;
+		}
+		const passes = this.host.listContributorPasses(sourceReviewerId);
+		if (passes.length === 0) {
+			new Notice(`${sourceProfile.displayName} has no imported passes to move.`);
+			return false;
+		}
+		const batchId = passes.length === 1 ? passes[0]!.batchId : await this.host.openChoiceModal({
+			title: "Move a pass",
+			description: `Which of ${sourceProfile.displayName}'s passes came from someone else?`,
+			choices: passes.map((pass) => ({ label: pass.label, value: pass.batchId })),
+		});
+		const pass = passes.find((item) => item.batchId === batchId);
+		if (!pass) {
+			return false;
+		}
+		const result = await this.host.openReassignmentModal({
+			mode: "move",
+			sourceProfile,
+			targetProfiles: this.host.reviewerDirectory.getSortedProfiles().filter((profile) => profile.id !== sourceReviewerId),
+			passLabel: pass.label,
+		});
+		if (!result) {
+			return false;
+		}
+		const targetProfile = result.targetReviewerId
+			? this.host.reviewerDirectory.getProfileById(result.targetReviewerId)
+			: result.createName
+				? this.host.reviewerDirectory.ensureProfileFromReassignment(result.createName, sourceProfile)
+				: null;
+		if (!targetProfile || targetProfile.id === sourceReviewerId) {
+			new Notice("Choose who the pass came from.");
+			return false;
+		}
+		await this.host.movePassToContributor(pass.batchId, targetProfile.id);
+		this.host.refreshReviewPanel();
+		new Notice(`Moved the pass to ${targetProfile.displayName}. Your decisions on its notes are unchanged.`);
+		return true;
 	}
 
 	async deleteContributorById(reviewerId: string): Promise<boolean> {
@@ -192,7 +248,7 @@ export class ContributorManagementOrchestrator {
 
 	async reassignContributorById(
 		sourceReviewerId: string,
-		mode: ContributorReassignmentMode,
+		mode: Extract<ContributorReassignmentMode, "merge">,
 		initialTargetReviewerId?: string,
 	): Promise<boolean> {
 		const sourceProfile = this.host.reviewerDirectory.getProfileById(sourceReviewerId);
@@ -252,11 +308,7 @@ export class ContributorManagementOrchestrator {
 		});
 		await this.host.savePluginData();
 		this.host.refreshReviewPanel();
-		new Notice(
-			mode === "merge"
-				? `Merged ${sourceProfile.displayName} into ${mergedProfile.displayName}.`
-				: `Reassigned ${sourceProfile.displayName} to ${mergedProfile.displayName}.`,
-		);
+		new Notice(`Merged ${sourceProfile.displayName} into ${mergedProfile.displayName}.`);
 		return true;
 	}
 
