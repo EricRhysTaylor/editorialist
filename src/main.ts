@@ -69,7 +69,6 @@ import { buildSceneTokens, sceneNumberFromName, type SceneRelevanceContext } fro
 import { SuggestionParser } from "./core/SuggestionParser";
 import type {
 	CompletedSweepState,
-	EditorialistMetadataExport,
 	ReviewImportNoteGroup,
 	ReviewSweepRegistryEntry,
 } from "./models/ReviewImport";
@@ -77,13 +76,15 @@ import type { ReviewContributor, ReviewSession, ReviewSuggestion, ReviewTargetRe
 import type {
 	ContributorProfile,
 	EditorialistEffortSettings,
+	EditorialistPluginData,
 	SceneReviewRecord,
 } from "./models/ContributorProfile";
 import { ReviewStore, type GuidedSweepState } from "./state/ReviewStore";
 import { DebouncedSaver } from "./state/DebouncedSaver";
 import { TrailingDebouncer } from "./state/TrailingDebouncer";
 import { ContributorDirectory } from "./state/ContributorDirectory";
-import { EditorialismService } from "./services/EditorialismService";
+import { BACKUPS_FOLDER, EditorialismService, RESPONSES_FOLDER, WORD_FILES_FOLDER } from "./services/EditorialismService";
+import { parseBackup, serializeBackup } from "./services/EditorialistBackup";
 import { extractEditorialismFileFromText } from "./core/EditorialismImport";
 import { migratePluginData } from "./services/PluginDataMigration";
 import { ReviewRegistryService } from "./services/ReviewRegistryService";
@@ -1588,7 +1589,7 @@ export default class EditorialistPlugin extends Plugin {
 	// Keeps a copy of the editor's Word file in Editorialist/Word files and
 	// records it on the batch. A different file of the same name gets a number.
 	async keepWordFile(batchId: string, fileName: string, editor: string, bytes: Uint8Array): Promise<void> {
-		const folder = "Editorialist/Word files";
+		const folder = WORD_FILES_FOLDER;
 		if (!(await this.ensureVaultFolder(folder))) return;
 		const dot = fileName.toLowerCase().endsWith(".docx") ? fileName.length - 5 : fileName.length;
 		const stem = fileName.slice(0, dot).replace(/[\\/:*?"<>|#^[\]]/g, "-").trim() || "Editor's file";
@@ -1619,28 +1620,28 @@ export default class EditorialistPlugin extends Plugin {
 		return true;
 	}
 
-	private async writeVaultBinary(path: string, bytes: Uint8Array): Promise<void> {
+	// Writes a new file and returns its path. A file already of that name, which
+	// the author may have edited since, is never replaced: the new one is
+	// numbered instead ("… 2.docx").
+	private async writeNewVaultBinary(folder: string, name: string, bytes: Uint8Array): Promise<string> {
+		const stem = name.replace(/[\\/:*?"<>|#^[\]]/g, "-");
+		let path = normalizePath(`${folder}/${stem}.docx`);
+		for (let copy = 2; this.app.vault.getAbstractFileByPath(path); copy++) path = normalizePath(`${folder}/${stem} ${copy}.docx`);
 		// A copy, so the vault gets a plain ArrayBuffer of exactly these bytes.
-		const data = new Uint8Array(bytes).buffer;
-		const existing = this.app.vault.getAbstractFileByPath(path);
-		if (existing instanceof TFile) await this.app.vault.modifyBinary(existing, data);
-		else await this.app.vault.createBinary(path, data);
+		await this.app.vault.createBinary(path, new Uint8Array(bytes).buffer);
+		return path;
 	}
 
 	// Writes the response as a Word file in Editorialist/Responses and returns
-	// its path. A second save on the same day replaces that day's file.
+	// its path.
 	async saveEditorResponseFile(batchId: string): Promise<string | null> {
 		const response = await this.collectEditorResponse(batchId);
 		if (!response) {
 			new Notice("This editor's changes are no longer in your scenes, so the response cannot be made.");
 			return null;
 		}
-		const folder = "Editorialist/Responses";
-		if (!(await this.ensureVaultFolder(folder))) return null;
-		const name = `Response to ${response.reviewer} ${localDate(new Date())}`.replace(/[\\/:*?"<>|#^[\]]/g, "-");
-		const path = normalizePath(`${folder}/${name}.docx`);
-		await this.writeVaultBinary(path, writeDocx(editorResponseParagraphs(response)));
-		return path;
+		if (!(await this.ensureVaultFolder(RESPONSES_FOLDER))) return null;
+		return this.writeNewVaultBinary(RESPONSES_FOLDER, `Response to ${response.reviewer} ${localDate(new Date())}`, writeDocx(editorResponseParagraphs(response)));
 	}
 
 	// Writes the author's replies into a copy of the editor's own Word file, in
@@ -1684,11 +1685,8 @@ export default class EditorialistPlugin extends Plugin {
 			new Notice(`None of your replies found their place in ${file.name}. Save them as a letter instead.`);
 			return null;
 		}
-		const folder = "Editorialist/Responses";
-		if (!(await this.ensureVaultFolder(folder))) return null;
-		const name = `${file.basename} with replies ${localDate(new Date())}`.replace(/[\\/:*?"<>|#^[\]]/g, "-");
-		const path = normalizePath(`${folder}/${name}.docx`);
-		await this.writeVaultBinary(path, result.bytes);
+		if (!(await this.ensureVaultFolder(RESPONSES_FOLDER))) return null;
+		const path = await this.writeNewVaultBinary(RESPONSES_FOLDER, `${file.basename} with replies ${localDate(new Date())}`, result.bytes);
 		return { path, placed: result.placed, expected: answers.expected };
 	}
 
@@ -3564,19 +3562,46 @@ export default class EditorialistPlugin extends Plugin {
 		return this.cleanupSceneReviewNotes(notePaths);
 	}
 
-	async exportEditorialistMetadata(): Promise<string> {
+	// Saves everything in data.json as a backup file in Editorialist/Backups
+	// and returns its path. Notes are not in it; they are in the vault.
+	async saveEditorialistBackup(): Promise<string | null> {
 		await this.syncOperationalMetadata();
-		const payload: EditorialistMetadataExport = this.registry.buildMetadataExport(this.getSortedReviewerProfiles());
-		const date = new Date();
-		const dateLabel = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-		let targetPath = normalizePath(`editorialist-data-export-${dateLabel}.json`);
-		if (this.app.vault.getAbstractFileByPath(targetPath) instanceof TFile) {
-			const timeLabel = `${String(date.getHours()).padStart(2, "0")}${String(date.getMinutes()).padStart(2, "0")}${String(date.getSeconds()).padStart(2, "0")}`;
-			targetPath = normalizePath(`editorialist-data-export-${dateLabel}-${timeLabel}.json`);
-		}
+		if (!(await this.ensureVaultFolder(BACKUPS_FOLDER))) return null;
+		const now = new Date();
+		const stem = `Editorialist backup ${localDate(now)}`;
+		let path = normalizePath(`${BACKUPS_FOLDER}/${stem}.json`);
+		for (let copy = 2; this.app.vault.getAbstractFileByPath(path); copy++) path = normalizePath(`${BACKUPS_FOLDER}/${stem} ${copy}.json`);
+		await this.app.vault.create(path, serializeBackup(this.registry.buildPluginData(this.reviewerDirectory.getProfiles()), now));
+		return path;
+	}
 
-		await this.app.vault.create(targetPath, JSON.stringify(payload, null, 2));
-		return targetPath;
+	// The backups in Editorialist/Backups, newest first.
+	listEditorialistBackups(): TFile[] {
+		const folder = this.app.vault.getAbstractFileByPath(BACKUPS_FOLDER);
+		if (!(folder instanceof TFolder)) return [];
+		return folder.children
+			.filter((child): child is TFile => child instanceof TFile && child.extension === "json")
+			.sort((a, b) => b.stat.mtime - a.stat.mtime);
+	}
+
+	// Replaces Editorialist's saved data with a backup's. Notes are untouched;
+	// the scene inventory is then rebuilt from them, as on startup.
+	async restoreEditorialistBackup(file: TFile): Promise<boolean> {
+		let data: EditorialistPluginData;
+		try {
+			data = parseBackup(await this.app.vault.read(file));
+		} catch (error) {
+			new Notice(error instanceof Error ? error.message : "That backup could not be read.");
+			return false;
+		}
+		this.registry.load(data);
+		this.reviewerDirectory.setProfiles(data.reviewerProfiles);
+		this.registry.rebuildReviewerStatsFromSignals();
+		await this.savePluginData();
+		await this.registry.syncSceneInventory();
+		this.refreshReviewPanel();
+		new Notice(`Restored Editorialist from ${file.name}.`);
+		return true;
 	}
 
 	// Copies a prompt asking an AI to turn directives into a review batch of

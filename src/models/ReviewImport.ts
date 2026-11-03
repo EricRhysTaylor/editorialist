@@ -52,42 +52,6 @@ export interface CompletedSweepState {
 	totalSuggestions: number;
 }
 
-export interface EditorialistMetadataExport {
-	schemaVersion: string;
-	exportedAt: number;
-	contributors: {
-		createdAt: number;
-		displayName: string;
-		id: string;
-		kind: string;
-		reviewerType: string;
-		aliases: string[];
-		isStarred?: boolean;
-		model?: string;
-		provider?: string;
-		stats?: Record<string, number | undefined>;
-		updatedAt: number;
-	}[];
-	scenes: {
-		batchCount: number;
-		batchIds: string[];
-		bookLabel?: string;
-		cleanedAt?: number;
-		deferredCount: number;
-		lastUpdated: number;
-		notePath: string;
-		noteTitle: string;
-		pendingCount: number;
-		unresolvedCount: number;
-		rejectedCount: number;
-		acceptedCount: number;
-		rewrittenCount: number;
-		sceneId?: string;
-		status: "completed" | "cleaned" | "in_progress";
-	}[];
-	sweeps: ReviewSweepRegistryEntry[];
-}
-
 export interface ReviewImportSuggestionResult {
 	suggestion: ReviewSuggestion;
 	resolvedPath?: string;

@@ -62,7 +62,8 @@ A card grid, one per contributor:
 
 ### Backup
 
-- **Export backup** — writes a JSON file containing reviewer profiles, alternate names, starred reviewers, revision history, and scene progress.
+- **Save a backup** — saves everything Editorialist remembers to a file in **Editorialist/Backups**: your contributors, your accept and reject decisions, your replies to editors, your plans and goals, and your settings. Your notes are not in it; they are already in your vault.
+- **Restore a backup** — choose one of the backups in **Editorialist/Backups** to go back to. Everything Editorialist remembers returns to how it was then, and anything since is replaced. Your notes do not change. If you may want the current state back, save a backup first.
 - **Delete all contributors** — clears the contributor directory and saved contributor stats. Revision decisions and scene history stay in place.
 
 ---

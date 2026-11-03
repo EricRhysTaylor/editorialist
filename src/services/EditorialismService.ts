@@ -18,6 +18,11 @@ import {
 } from "../models/Editorialism";
 
 export const EDITORIALISM_FOLDER_NAME = "Editorialist";
+// Where Editorialist keeps an editor's Word files, the author's responses,
+// and backups of its saved data.
+export const WORD_FILES_FOLDER = `${EDITORIALISM_FOLDER_NAME}/Word files`;
+export const RESPONSES_FOLDER = `${EDITORIALISM_FOLDER_NAME}/Responses`;
+export const BACKUPS_FOLDER = `${EDITORIALISM_FOLDER_NAME}/Backups`;
 
 export interface SaveEditorialismResult {
 	filePath: string;

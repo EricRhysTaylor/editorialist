@@ -15,7 +15,6 @@ import {
 	getFrontmatterStringValues,
 } from "../core/VaultScope";
 import type {
-	EditorialistMetadataExport,
 	ReviewImportBatch,
 	ReviewImportNoteGroup,
 	ReviewSweepRegistryEntry,
@@ -1173,36 +1172,6 @@ export class ReviewRegistryService {
 		}
 
 		return removedCount;
-	}
-
-	buildMetadataExport(reviewerProfiles: ContributorProfile[]): EditorialistMetadataExport {
-		return {
-			schemaVersion: "2.0.0",
-			exportedAt: Date.now(),
-			contributors: reviewerProfiles.map((profile) => ({
-				createdAt: profile.createdAt,
-				displayName: profile.displayName,
-				id: profile.id,
-				kind: profile.kind,
-				reviewerType: profile.reviewerType,
-				aliases: [...profile.aliases],
-				strengths: profile.strengths ? [...profile.strengths] : undefined,
-				isStarred: profile.isStarred,
-				model: profile.model,
-				provider: profile.provider,
-				stats: profile.stats ? { ...profile.stats } : undefined,
-				updatedAt: profile.updatedAt,
-			})),
-			scenes: this.getSceneReviewRecords().map((record) => ({
-				...record,
-				batchIds: [...record.batchIds],
-			})),
-			sweeps: this.getSweepRegistryEntries().map((entry) => ({
-				...entry,
-				importedNotePaths: [...entry.importedNotePaths],
-				sceneOrder: [...entry.sceneOrder],
-			})),
-		};
 	}
 
 	resolveCurrentBatchId(guidedSweepBatchId: string | null, noteText: string): string | null {

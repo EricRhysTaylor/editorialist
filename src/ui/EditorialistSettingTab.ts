@@ -15,6 +15,7 @@ import type { ReviewSweepRegistryEntry } from "../models/ReviewImport";
 import type { EditorialistEffortSettings, SceneReviewRecord } from "../models/ContributorProfile";
 import type EditorialistPlugin from "../main";
 import { openEditorialistChoiceModal } from "./EditorialistChoiceModal";
+import { BACKUPS_FOLDER } from "../services/EditorialismService";
 import { describeUnremovedBlocksSuffix } from "../orchestrators/ReviewBatchProcessor";
 import { RADIAL_TIMELINE_ICON_ID } from "./RadialTimelineLogoIcon";
 
@@ -1257,7 +1258,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		const body = this.createSection(
 			parent,
 			"Backup",
-			"Save your reviewer history, revision activity, and scene progress without exporting manuscript text.",
+			"Save everything Editorialist remembers, and bring it back later. Your notes are never in a backup and never change.",
 			"database-backup",
 		);
 		body.parentElement?.addClass("editorialist-settings__section--utility");
@@ -1270,16 +1271,36 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		});
 		backupCard.createDiv({
 			cls: "editorialist-settings__maintenance-description",
-			text: "Create a backup file with reviewer profiles, alternate names, starred reviewers, revision history, and scene progress.",
+			text: "A backup holds your contributors, your accept and reject decisions, your replies to editors, your plans and goals, and these settings.",
 		});
 		const backupActions = backupCard.createDiv({ cls: "editorialist-settings__maintenance-actions" });
-		this.createActionButton(backupActions, "download", "Export backup", async () => {
-			const path = await this.plugin.exportEditorialistMetadata();
-			new Notice(`Exported Editorialist metadata to ${path}.`);
+		this.createActionButton(backupActions, "download", "Save a backup", async () => {
+			const path = await this.plugin.saveEditorialistBackup();
+			if (path) new Notice(`Saved a backup to ${path}.`);
+		});
+		this.createActionButton(backupActions, "history", "Restore a backup", async () => {
+			const backups = this.plugin.listEditorialistBackups();
+			if (backups.length === 0) {
+				new Notice(`There are no backups in ${BACKUPS_FOLDER} yet.`);
+				return;
+			}
+			const chosen = await openEditorialistChoiceModal(this.app, {
+				title: "Restore a backup",
+				description: "Choose the backup to go back to.",
+				choices: backups.map((file) => ({ label: file.basename, value: file.path })),
+			});
+			const file = backups.find((backup) => backup.path === chosen);
+			if (!file) return;
+			if (!(await this.confirmDestructiveAction({
+				title: `Restore ${file.basename}?`,
+				description: "Everything Editorialist remembers goes back to how it was in this backup. Anything since, such as decisions, replies and plan changes, is replaced. Your notes do not change. Save a backup first if you may want today's state back.",
+				confirmLabel: "Restore",
+			}))) return;
+			if (await this.plugin.restoreEditorialistBackup(file)) void this.displayAsync(false);
 		});
 		backupCard.createDiv({
 			cls: "editorialist-settings__maintenance-note",
-			text: "You can keep this backup file and restore the data later if needed.",
+			text: `Backups are saved in ${BACKUPS_FOLDER}. Keep a copy somewhere else too if the vault itself is not backed up.`,
 		});
 
 		const resetCard = grid.createDiv({ cls: "editorialist-settings__maintenance-card" });

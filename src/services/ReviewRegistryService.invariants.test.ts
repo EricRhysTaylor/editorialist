@@ -525,8 +525,8 @@ describe("invariant: scene-inventory rebuild is deterministic and idempotent", (
 		const b = makeService({ app: makeApp(files), engine: makeEngine(engineSessions) });
 		await a.service.syncSceneInventory({ persist: false });
 		await b.service.syncSceneInventory({ persist: false });
-		expect(JSON.stringify(a.service.buildMetadataExport([]).scenes)).toBe(
-			JSON.stringify(b.service.buildMetadataExport([]).scenes),
+		expect(JSON.stringify(a.service.getSceneReviewRecords())).toBe(
+			JSON.stringify(b.service.getSceneReviewRecords()),
 		);
 	});
 
@@ -537,13 +537,13 @@ describe("invariant: scene-inventory rebuild is deterministic and idempotent", (
 		});
 		await service.syncSceneInventory();
 		const callsAfterFirst = persistCalls();
-		const snapshot = JSON.stringify(service.buildMetadataExport([]).scenes);
+		const snapshot = JSON.stringify(service.getSceneReviewRecords());
 
 		await service.syncSceneInventory();
 		await service.syncSceneInventory();
 
 		expect(persistCalls()).toBe(callsAfterFirst);
-		expect(JSON.stringify(service.buildMetadataExport([]).scenes)).toBe(snapshot);
+		expect(JSON.stringify(service.getSceneReviewRecords())).toBe(snapshot);
 	});
 
 	it("idempotent even when a sweep registry entry exists and the clock advances", async () => {
@@ -570,12 +570,12 @@ describe("invariant: scene-inventory rebuild is deterministic and idempotent", (
 			"in_progress",
 		);
 		const baseline = persistCalls();
-		const snapshot = JSON.stringify(service.buildMetadataExport([]).sweeps);
+		const snapshot = JSON.stringify(service.getSweepRegistryEntries());
 
 		vi.setSystemTime(FIXED_NOW + 60_000);
 		await service.syncSceneInventory();
 
-		expect(JSON.stringify(service.buildMetadataExport([]).sweeps)).toBe(snapshot);
+		expect(JSON.stringify(service.getSweepRegistryEntries())).toBe(snapshot);
 		expect(persistCalls()).toBe(baseline);
 	});
 });
