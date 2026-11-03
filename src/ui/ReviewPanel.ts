@@ -269,6 +269,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 				throw new Error("ReviewPanel: completed_sweep branch selected without a completed sweep state.");
 			}
 			renderCompletedSweepCard(this, this.plugin, this.contentEl, completedSweep);
+			this.renderKeptChanges(this.contentEl);
 			// Accepting the last copy edits is what completes a scene, so their
 			// Undo has to survive into the completion view.
 			if (session) {
@@ -406,6 +407,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 				throw new Error("ReviewPanel: session:handoff branch selected without a handoff state.");
 			}
 			this.renderSweepHandoffCard(handoff);
+			this.renderKeptChanges(this.contentEl);
 			return;
 		}
 
@@ -1624,8 +1626,6 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			text: handoff.summary,
 		});
 
-		this.renderKeptChanges(card);
-
 		if (handoff.nextLabel && !handoff.isFinal) {
 			const next = card.createDiv({ cls: "editorialist-panel__handoff-next" });
 			next.createSpan({
@@ -1656,29 +1656,30 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	}
 
 	// The editor's changes the author kept in this scene, each with its reason
-	// or the link to give one. The scene-complete card replaces the change
-	// cards that carry that link, and finishing a scene is when the author
-	// remembers why.
+	// or the link to give one. The scene-complete and handoff cards replace the
+	// change cards that carry that link, and finishing a scene is when the
+	// author remembers why.
 	private renderKeptChanges(parent: HTMLElement): void {
 		const kept = (this.plugin.getCurrentReviewSession()?.suggestions ?? []).filter((suggestion) =>
 			suggestion.contributor.kind === "human"
 			&& Boolean(suggestion.source.batchId)
 			&& (suggestion.status === "rejected" || suggestion.status === "rewritten"));
 		if (kept.length === 0) return;
-		const section = parent.createDiv({ cls: "editorialist-panel__handoff-kept" });
+		const section = parent.createDiv({ cls: "editorialist-panel__kept" });
 		section.createDiv({
-			cls: "editorialist-panel__handoff-kept-title",
-			text: kept.length === 1 ? "1 change you kept as written" : `${kept.length} changes you kept as written`,
+			cls: "editorialist-panel__kept-title",
+			text: `${kept.length === 1 ? "1 change" : `${kept.length} changes`} you ${kept.some((suggestion) => suggestion.status === "rewritten") ? "kept or rewrote" : "kept as written"}`,
 		});
 		for (const suggestion of kept) {
-			const row = section.createDiv({ cls: "editorialist-panel__handoff-kept-row" });
-			const text = row.createDiv({ cls: "editorialist-panel__handoff-kept-text" });
+			const row = section.createDiv({ cls: "editorialist-panel__kept-row" });
+			const text = row.createDiv({ cls: "editorialist-panel__kept-text" });
 			if (suggestion.operation === "edit") {
 				for (const part of diffExcerpt(wordDiff(suggestion.payload.original, suggestion.payload.revised))) {
 					text.createSpan({ cls: `editorialist-copyedits__part editorialist-copyedits__part--${part.kind}`, text: part.text });
 				}
 			} else {
-				text.setText(suggestion.payload.target);
+				text.createSpan({ cls: "editorialist-panel__kept-operation", text: KEPT_OPERATION_LABELS[suggestion.operation] });
+				text.createSpan({ text: suggestion.payload.target });
 			}
 			this.renderEditorReply(row, suggestion, "Say why you kept it", "Your reason for the editor", true);
 		}
@@ -2814,3 +2815,10 @@ function copyEditTickKey(notePath: string, suggestion: ReviewSuggestion): string
 		? `${notePath}::${suggestion.payload.original}::${suggestion.payload.revised}`
 		: `${notePath}::${suggestion.id}`;
 }
+
+const KEPT_OPERATION_LABELS: Record<Exclude<ReviewSuggestion["operation"], "edit">, string> = {
+	cut: "Cut: ",
+	move: "Move: ",
+	condense: "Condense: ",
+	expand: "Expand: ",
+};
