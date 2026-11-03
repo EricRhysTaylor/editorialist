@@ -15,7 +15,7 @@ import type { ReviewSweepRegistryEntry } from "../models/ReviewImport";
 import type { EditorialistEffortSettings, SceneReviewRecord } from "../models/ContributorProfile";
 import type EditorialistPlugin from "../main";
 import { openEditorialistChoiceModal } from "./EditorialistChoiceModal";
-import { BACKUPS_FOLDER } from "../services/EditorialismService";
+import { BACKUPS_FOLDER, EDITORIALISM_FOLDER_NAME, RESPONSES_FOLDER, WORD_FILES_FOLDER } from "../services/EditorialismService";
 import { describeUnremovedBlocksSuffix } from "../orchestrators/ReviewBatchProcessor";
 import { RADIAL_TIMELINE_ICON_ID } from "./RadialTimelineLogoIcon";
 
@@ -133,6 +133,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		this.renderConfigurationHero(configurationContent);
 		this.renderBookFolderSection(configurationContent, activeBook);
 		this.renderTrackingSection(configurationContent, activeBook);
+		this.renderAuthorSection(configurationContent);
 		this.renderCutLocationSection(configurationContent, activeBook);
 		this.renderFileWriteDetectionSection(configurationContent);
 		this.renderEffortSection(configurationContent);
@@ -310,8 +311,45 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		const body = this.createSection(parent, "Manuscript target", "Choose a folder, one note, the entire vault, or follow the active Radial Timeline book. Folder targets can exclude supporting material and include or skip subfolders.", "folder");
 		body.parentElement?.addClass("editorialist-settings__section--utility");
 		const count = this.plugin.getManuscriptFiles().length;
-		body.createDiv({ cls: "editorialist-settings__maintenance-note", text: activeBook.unavailableReason ?? `${activeBook.label ?? "Entire vault (legacy)"} · ${count} eligible note${count === 1 ? "" : "s"}` });
+		body.createDiv({ cls: "editorialist-settings__maintenance-note", text: activeBook.unavailableReason ?? `${activeBook.label ?? "Entire vault"} · ${count} eligible note${count === 1 ? "" : "s"}` });
 		this.createActionButton(body, "folder", "Change target…", async () => { this.plugin.openManuscriptTargetSelector(() => { void this.displayAsync(false); }); });
+	}
+
+	// The author's name on comments written into an editor's Word file, and
+	// the folders Editorialist saves into, so neither is a surprise.
+	private renderAuthorSection(parent: HTMLElement): void {
+		const body = this.createSection(
+			parent,
+			"You and your files",
+			"Your name goes on the comments Editorialist writes into an editor's Word file when you reply. Editorialist saves its own files in your vault, never inside your scenes.",
+			"user",
+		);
+		body.parentElement?.addClass("editorialist-settings__section--utility");
+
+		const fieldRow = body.createDiv({ cls: "editorialist-settings__cut-row" });
+		fieldRow.createEl("label", { cls: "editorialist-settings__cut-label", text: "Your name on Word comments", attr: { for: "editorialist-author-name" } });
+		const input = fieldRow.createEl("input", {
+			cls: "editorialist-settings__cut-input",
+			attr: { id: "editorialist-author-name", type: "text", placeholder: "Your name" },
+		});
+		input.value = this.plugin.getAuthorName();
+		input.addEventListener("change", () => {
+			void this.plugin.setAuthorName(input.value).then(() => {
+				new Notice(input.value.trim() ? `Your comments in Word will be signed ${input.value.trim()}.` : "Your name was cleared. You will be asked for it when you reply in Word.");
+			});
+		});
+
+		const list = body.createEl("ul", { cls: "editorialist-settings__folders" });
+		for (const [folder, purpose] of [
+			[EDITORIALISM_FOLDER_NAME, "Editorialisms: the structural notes from an editor's letter"],
+			[WORD_FILES_FOLDER, "A copy of each Word file an editor sent you"],
+			[RESPONSES_FOLDER, "Your responses to editors, as letters or in their Word file"],
+			[BACKUPS_FOLDER, "Backups you save from the Contributors tab"],
+		]) {
+			const item = list.createEl("li");
+			item.createEl("code", { text: folder });
+			item.createSpan({ text: ` · ${purpose}` });
+		}
 	}
 
 	private renderCutLocationSection(
@@ -321,7 +359,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		const body = this.createSection(
 			parent,
 			"Cut location",
-			"Choose where “Backup to cut file” writes. Cut files accumulate one per scene and carry their own Class: Cut frontmatter, separate from your scenes.",
+			"Choose where “Backup to cut file” saves the passages you cut. Editorialist keeps one cut file per scene, in a folder of its own, so your scenes stay clean.",
 			"scissors",
 		);
 		body.parentElement?.addClass("editorialist-settings__section--utility");
@@ -329,10 +367,10 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		const fieldRow = body.createDiv({ cls: "editorialist-settings__cut-row" });
 		fieldRow.createDiv({
 			cls: "editorialist-settings__cut-label",
-			text: "Cut folder override",
+			text: "Cut folder",
 		});
 
-		const defaultFolder = activeBook.sourceFolder ? `${activeBook.sourceFolder}/Cut` : "<scene folder>/Cut";
+		const defaultFolder = activeBook.sourceFolder ? `${activeBook.sourceFolder}/Cut` : "Cut, beside each scene";
 		const input = fieldRow.createEl("input", {
 			cls: "editorialist-settings__cut-input",
 			attr: {
@@ -349,13 +387,13 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			new Notice(
 				input.value.trim()
 					? `Cut folder set to ${input.value.trim()}.`
-					: "Cut folder override cleared — using the default location.",
+					: "Cut files go back to the default folder.",
 			);
 			void this.displayAsync(false);
 		});
 		this.createActionButton(actions, "rotate-ccw", "Use default", async () => {
 			await this.plugin.setCutFolderOverride("");
-			new Notice("Cut folder override cleared — using the default location.");
+			new Notice("Cut files go back to the default folder.");
 			void this.displayAsync(false);
 		});
 
@@ -363,16 +401,18 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		note.createDiv({
 			cls: "editorialist-settings__maintenance-note",
 			text: this.plugin.getCutFolderOverride()
-				? `Override active: cut files write under ${this.plugin.getCutFolderOverride()}/.`
-				: `No override set. Cut files default to ${defaultFolder}/ — falling back to the scene’s own folder when it sits outside the active book.`,
+				? `Cut files are saved in ${this.plugin.getCutFolderOverride()}.`
+				: activeBook.sourceFolder
+					? `Cut files are saved in ${defaultFolder}, or beside the scene when it is outside the book.`
+					: "Cut files are saved in a Cut folder beside each scene.",
 		});
 	}
 
 	private renderFileWriteDetectionSection(parent: HTMLElement): void {
 		const body = this.createSection(
 			parent,
-			"AI-directed file writes",
-			"When an AI has direct access to your vault, it can write a review block straight into a scene note instead of routing it through the clipboard. Turn this on to let the launcher detect such a block and import it in place — the same review workflow, no paste step. Supplements the default clipboard import; it never edits scene prose on its own.",
+			"Notes an AI writes into a scene",
+			"If an AI can edit your vault, it may write its revision notes straight into a scene instead of giving you text to paste. Turn this on and the launcher offers to bring those notes in for review. It never changes your writing on its own. Most writers leave this off.",
 			"file-input",
 		);
 		body.parentElement?.addClass("editorialist-settings__section--utility");
@@ -380,7 +420,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		const fieldRow = body.createDiv({ cls: "editorialist-settings__cut-row" });
 		fieldRow.createDiv({
 			cls: "editorialist-settings__cut-label",
-			text: "Detect file-written review blocks",
+			text: "Look for notes an AI wrote into a scene",
 		});
 
 		const control = fieldRow.createDiv({ cls: "editorialist-settings__cut-actions" });
@@ -390,8 +430,8 @@ export class EditorialistSettingTab extends PluginSettingTab {
 				await this.plugin.setDetectFileWrittenReviewBlocks(value);
 				new Notice(
 					value
-						? "On — the launcher will offer to import review blocks written directly into notes."
-						: "Off — review blocks written into notes are ignored; clipboard import only.",
+						? "On: the launcher offers to bring in notes an AI wrote into a scene."
+						: "Off: revision notes come in only through the launcher.",
 				);
 				void this.displayAsync(false);
 			});
@@ -400,8 +440,8 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		note.createDiv({
 			cls: "editorialist-settings__maintenance-note",
 			text: this.plugin.getDetectFileWrittenReviewBlocks()
-				? "On: opening the launcher on a note that holds an unimported review block offers to formalize it in place — stamp, register, and review."
-				: "Off (default): the clipboard is the only way to import a review batch.",
+				? "On: when a scene holds notes an AI wrote there, opening the launcher offers to bring them in for review."
+				: "Off (default): revision notes come in only through the launcher, from a Word file or a pasted reply.",
 		});
 	}
 
@@ -409,7 +449,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		const body = this.createSection(
 			parent,
 			"Revision effort estimate",
-			"Tune how editorialism mode estimates revision time. Drafting rate is words per hour of original drafting — composing new prose, which runs slower than editing or revising existing content.",
+			"How Editorialist estimates the time an Editorialism's work will take, for planning. Drafting rate is how many words of new prose you write in an hour, which is slower than revising.",
 			"clock",
 		);
 
@@ -417,7 +457,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		const fields: Array<{ key: keyof EditorialistEffortSettings; label: string }> = [
 			{ key: "wordsPerNewScene", label: "Words per new scene" },
 			{ key: "draftRateWordsPerHour", label: "Drafting rate (words / hour)" },
-			{ key: "minutesPerDirective", label: "Minutes per directive" },
+			{ key: "minutesPerDirective", label: "Minutes per Editorialism item" },
 			{ key: "dailyWritingHours", label: "Daily writing hours" },
 		];
 
@@ -602,18 +642,18 @@ export class EditorialistSettingTab extends PluginSettingTab {
 
 		info.createDiv({
 			cls: "editorialist-settings__maintenance-title",
-			text: "Path-based tracking fallback",
+			text: "Keep tracking through renames",
 		});
 		info.createDiv({
 			cls: "editorialist-settings__maintenance-description",
-			text: "This vault is currently falling back to note paths. For accurate rename-safe tracking outside Radial Timeline, inject stable note IDs into tracked notes.",
+			text: "Editorialist knows these notes by their file names, so renaming one can lose its review history. Give each a permanent ID to keep its history through renames.",
 		});
 		const actions = row.createDiv({ cls: "editorialist-settings__maintenance-actions" });
-		this.createActionButton(actions, "fingerprint", "Inject stable note IDs", async () => {
+		this.createActionButton(actions, "fingerprint", "Add permanent IDs", async () => {
 			if (!(await this.confirmDestructiveAction({
-				title: "Inject stable note IDs",
-				description: `This adds an \`editorial_id\` frontmatter field to tracked ${vocabulary.pluralLabelLower} that do not already have a stable ID.`,
-				confirmLabel: "Inject IDs",
+				title: "Add permanent IDs",
+				description: `This adds a short “editorial_id” line to the properties of each tracked ${vocabulary.singularLabelLower} that does not have one yet. Your writing is not changed.`,
+				confirmLabel: "Add IDs",
 			}))) {
 				return;
 			}
@@ -622,8 +662,8 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			void this.displayAsync(false);
 			new Notice(
 				injectedCount > 0
-					? `Injected stable note IDs into ${injectedCount} tracked ${injectedCount === 1 ? vocabulary.singularLabelLower : vocabulary.pluralLabelLower}.`
-					: "All tracked notes already had stable IDs.",
+					? `Added permanent IDs to ${injectedCount} tracked ${injectedCount === 1 ? vocabulary.singularLabelLower : vocabulary.pluralLabelLower}.`
+					: "Every tracked note already has a permanent ID.",
 			);
 		});
 		card.createDiv({
@@ -631,7 +671,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			text:
 				summary.trackedCount > 0
 					? `${trackedLabel} · ${summary.missingCount} still depend on note paths.`
-					: `When you start tracking ${vocabulary.pluralLabelLower}, Editorialist can inject stable note IDs here.`,
+					: `When you start tracking ${vocabulary.pluralLabelLower}, you can give them permanent IDs here.`,
 		});
 	}
 
@@ -647,7 +687,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		titleRow.addClass("editorialist-settings__section-title-row--hero");
 		hero.createDiv({
 			cls: "editorialist-settings__hero-subtitle",
-			text: "See what remains in the current revision pass and whether there is an active sweep in progress.",
+			text: "See what is left in the pass you are reviewing now.",
 		});
 
 		const trackedScenes = inventory.filter((record) => record.batchCount > 0);
@@ -734,7 +774,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 				? `${currentSummary.pending} pending · ${currentSummary.unresolved} unresolved · ${currentSummary.deferred} deferred`
 				: "All revision notes in this pass are resolved",
 		);
-		this.createHeroMetric(summaryGrid, "Current sweep", ...this.getCurrentRevisionStatus(currentRevisionStatus, remainingCount));
+		this.createHeroMetric(summaryGrid, "Current pass", ...this.getCurrentRevisionStatus(currentRevisionStatus, remainingCount));
 	}
 
 	private renderPendingEditsSection(parent: HTMLElement): void {
@@ -748,7 +788,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		const body = this.createSection(
 			parent,
 			"Pending edits",
-			"Free-form revision notes from your active book's scene frontmatter. Reviewed separately from imported revision passes. Edit each line item (human note plus one or more Inquiry View items) in order as they appear.",
+			"Your own revision notes from each scene's Pending Edits property, reviewed separately from notes you import. Work through each line in order.",
 			"clipboard-list",
 		);
 
@@ -801,7 +841,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		const body = this.createSection(
 			parent,
 			"Revision history",
-			"See how many revision notes have been reviewed over time and how many sweeps have been completed.",
+			"See how many revision notes you have reviewed over time, and how many passes you have finished.",
 			"activity",
 		);
 		const cards = body.createDiv({ cls: "editorialist-settings__stats" });
@@ -818,7 +858,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			`${summary.accepted} / ${summary.rejected} / ${summary.rewritten}`,
 			"Accepted · Rejected · Rewritten",
 		);
-		this.createStatCard(cards, "Completed sweeps", `${summary.completedSweeps}`, `${summary.totalSweeps} total imported`);
+		this.createStatCard(cards, "Finished passes", `${summary.completedSweeps}`, `${summary.totalSweeps} total imported`);
 	}
 
 	private renderInventorySection(
@@ -847,7 +887,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			});
 			helper.createDiv({
 				cls: "editorialist-settings__inventory-context-body",
-				text: "No active Radial Timeline book context is available right now, so Editorialist is tracking review activity by note. If RT book metadata becomes available later, this inventory will tighten back to scene-aware language automatically.",
+				text: "Radial Timeline has no active book right now, so Editorialist counts review activity by note. With an active book it counts by scene.",
 			});
 		}
 
@@ -886,7 +926,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			"",
 			vocabulary.singularLabel,
 			"Imports",
-			"Sweeps",
+			"Passes finished",
 			"Open",
 			"Done",
 		].forEach((label, index) => {
@@ -972,7 +1012,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 				text: `${polish.revision}`,
 			});
 			if (polish.lastUpdatedLabel) {
-				sweepsCell.setAttribute("aria-label", `Last sweep close: ${polish.lastUpdatedLabel}`);
+				sweepsCell.setAttribute("aria-label", `Last pass finished: ${polish.lastUpdatedLabel}`);
 			}
 			row.createEl("td", {
 				cls: "editorialist-settings__inventory-col-number",
@@ -1310,7 +1350,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		});
 		resetCard.createDiv({
 			cls: "editorialist-settings__maintenance-description",
-			text: "Delete contributor profiles and clear saved contributor stats when you need to unwind duplicate or throwaway contributor data.",
+			text: "Delete every contributor and their saved stats, to start the directory again. Notes in your scenes are not changed.",
 		});
 		const resetActions = resetCard.createDiv({ cls: "editorialist-settings__maintenance-actions" });
 		this.createActionButton(resetActions, "users", "Delete all contributors", async () => {
@@ -1399,7 +1439,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		});
 		historyInfo.createDiv({
 			cls: "editorialist-settings__maintenance-description",
-			text: "Use this if a pass was imported twice or you need to unwind saved stats. Imported review blocks still inside notes will be discovered again on the next sync.",
+			text: "Use this if a pass was imported twice or its saved history is wrong. Revision notes still in your scenes are found again the next time Editorialist looks.",
 		});
 		const historyFooter = historyCard.createDiv({
 			cls: "editorialist-settings__maintenance-row editorialist-settings__maintenance-row--footer",
@@ -1429,7 +1469,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		const batchId = await openEditorialistChoiceModal(this.app, {
 			title: "Reset one batch",
 			description: "Choose which imported revision pass to remove from saved Editorialist history.",
-			choices: entries.slice(0, 12).map((entry) => ({
+			choices: entries.map((entry) => ({
 				label: this.formatSweepChoiceLabel(entry),
 				value: entry.batchId,
 			})),
@@ -1630,7 +1670,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		if (summary.inProgressSweeps > 0) {
 			return [
 				"In progress",
-				`${summary.inProgressSweeps} active sweep${summary.inProgressSweeps === 1 ? "" : "s"}`,
+				`${summary.inProgressSweeps} pass${summary.inProgressSweeps === 1 ? "" : "es"} under way`,
 			];
 		}
 
@@ -1638,7 +1678,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			return ["Ready", "Revision notes remain to review"];
 		}
 
-		return ["Idle", "No active sweep right now"];
+		return ["Idle", "No pass under way"];
 	}
 
 	private formatContributorStats(profile: ReturnType<EditorialistPlugin["getSortedReviewerProfiles"]>[number]): string {

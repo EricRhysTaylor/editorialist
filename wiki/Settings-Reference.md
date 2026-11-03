@@ -1,4 +1,4 @@
-Editorialist's settings are organized into three tabs: **Core**, **Contributors**, and **Configuration**. Core is the dashboard; Configuration holds scope, tracking, cut-file, and maintenance controls.
+Editorialist's settings are organized into three tabs: **Core**, **Contributors**, and **Configuration**. Core is the dashboard; Configuration holds your manuscript, your name and Editorialist's folders, tracking, cut files, notes an AI writes into scenes, effort estimates, and maintenance.
 
 ---
 
@@ -14,7 +14,7 @@ If the [Radial Timeline](Radial-Timeline-Integration) plugin is not installed, a
 
 ### Revision progress
 
-A pie chart of the current revision's completion, with metrics: tracked scenes, and remaining / accepted / rejected / rewritten counts.
+A ring showing how much of the pass you are reviewing now is done, with **Remaining** and **Current pass**.
 
 ### Scene inventory
 
@@ -87,9 +87,18 @@ Use **Change target…** here, or click the manuscript line beneath a panel head
 
 Cut archives are excluded from review targets. The selector previews the number of eligible notes. Import previews name the target and list destinations; a change to the target or eligible note set requires a new preview before importing.
 
-New installations ask you to choose a target. Existing installations retain their previous selection until you choose one; the unbounded legacy mode is labeled **Entire vault (legacy)**. Choosing a folder works even while Radial Timeline is enabled.
+New installations ask you to choose a target. Existing installations retain their previous selection until you choose one; the unbounded mode is labeled **Entire vault**. Choosing a folder works even while Radial Timeline is enabled.
 
 Revision plans and deliveries still require a folder target (or an RT book with a folder). The active-book pending-edits sweep still requires Radial Timeline. Manuscripts remain associated by folder; saved target presets are separate work.
+
+### You and your files
+
+- **Your name on Word comments** — the name on the comments Editorialist writes into an editor's Word file when you reply (see [Responding to your editor](Importing-Reviews#responding-to-your-editor)). The response window asks for it the first time if it is empty.
+- The folders Editorialist saves into, all inside your vault and never inside your scenes:
+  - **Editorialist** — Editorialisms, the structural notes from an editor's letter.
+  - **Editorialist/Word files** — a copy of each Word file an editor sent you.
+  - **Editorialist/Responses** — your responses to editors, as letters or in their Word file.
+  - **Editorialist/Backups** — backups you save from the Contributors tab.
 
 ### Tracking
 
@@ -99,9 +108,9 @@ Shows which tracking mode is active and why:
 |---|---|
 | Radial Timeline based tracking | Radial Timeline is installed and an active book is set — scenes are tracked by Radial Timeline scene IDs |
 | Using stable note IDs | Editorialist is using injected or existing frontmatter IDs for rename-safe tracking |
-| Path-based tracking fallback | No stable IDs are available — notes are tracked by path |
+| Keep tracking through renames | No permanent IDs are available — notes are tracked by file name, so a rename can lose their history |
 
-When path-based tracking is active, **Inject stable note IDs** adds an `editorial_id` frontmatter field to tracked notes that do not already have one.
+When notes are tracked by file name, **Add permanent IDs** adds an `editorial_id` property to tracked notes that do not already have one.
 
 #### What Editorialist writes to frontmatter
 
@@ -110,7 +119,7 @@ Three things, and only these keys:
 | Key | When |
 |---|---|
 | `Editorialist.revision`, `Editorialist.revision_updated` | A review sweep completes |
-| `editorial_id` | You run **Inject stable note IDs** |
+| `editorial_id` | You run **Add permanent IDs** |
 | The pending-edits field | You work an item in the [Pending Edits](Pending-Edits) queue |
 
 Frontmatter is written through Obsidian's own properties API, which rewrites the
@@ -138,9 +147,17 @@ The archive is a per-scene cut file — one per scene, named after the scene and
 
 <p align="center"><img src="images/panel-side-cut-closeup-rounded.png" alt="Closeup of a scene cut file with Class: Cut frontmatter and Editorialist backup metadata" width="520"></p>
 
-- **Cut folder override** — a path field. Leave empty to use the default: `<book-source-folder>/Cut` when a book context exists, otherwise `<scene-folder>/Cut`.
-- **Save** / **Use default** buttons apply or clear the override.
+- **Cut folder** — a path field. Leave empty to use the default: a **Cut** folder inside the book's folder when there is an active book, otherwise a **Cut** folder beside each scene.
+- **Save** / **Use default** buttons apply your folder or go back to the default.
 - If a scene sits outside the active book folder, cut files fall back to that scene's own folder.
+
+### Notes an AI writes into a scene
+
+Off by default. If an AI can edit your vault, it may write its revision notes straight into a scene instead of giving you text to paste. With **Look for notes an AI wrote into a scene** on, opening the launcher on such a scene offers to bring those notes in for review. It never changes your writing on its own.
+
+### Revision effort estimate
+
+How Editorialist estimates the time an Editorialism's work will take, for planning: **Words per new scene**, **Drafting rate (words / hour)** for new prose, **Minutes per Editorialism item**, and **Daily writing hours**. Each must be a positive number; anything else is put back to its previous value.
 
 ### Maintenance
 
@@ -148,7 +165,7 @@ Bulk operations. Cleanup actions ask for confirmation before removing review blo
 
 - **Clean all scenes/notes** — remove imported review blocks from tracked scenes or notes. Accepted manuscript edits and saved history stay in place.
 - **Clean completed scenes/notes** — remove imported review blocks only from completed scenes or notes.
-- **Reset one batch** — remove saved decisions and stats for one batch. Only that batch's decisions go: when a note holds review blocks from several imports, the other batches keep theirs. Review blocks still present in notes are discovered again.
+- **Reset one batch** — choose any imported pass, most recently active first, and remove its saved decisions and stats. Only that batch's decisions go: when a note holds review blocks from several imports, the other batches keep theirs. Review blocks still present in notes are discovered again.
 - **Reset all history** — clear saved batch history and decision stats. Review blocks still present in notes are discovered again.
 
 Cleanup removes review blocks that carry a recognizable closing fence, and only those. A block whose fence has gone missing — edited away by hand, mangled by a sync conflict, or indented into a list — has no knowable end, so Editorialist leaves it where it is rather than guessing how far it runs. It is counted and named in the notice instead:

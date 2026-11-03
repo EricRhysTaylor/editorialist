@@ -9926,3 +9926,16 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	color: var(--text-muted);
 	font-weight: var(--font-semibold);
 }
+
+/* Where Editorialist saves its files, on the Configuration tab. */
+.editorialist-settings__folders {
+	margin: var(--size-4-2) 0 0;
+	padding-inline-start: var(--size-4-5);
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	line-height: var(--line-height-normal);
+}
+
+.editorialist-settings__folders code {
+	color: var(--text-normal);
+}
