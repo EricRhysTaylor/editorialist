@@ -1580,7 +1580,7 @@ export default class EditorialistPlugin extends Plugin {
 				return null;
 			}
 		}
-		const day = new Date().toISOString().slice(0, 10);
+		const day = localDate(new Date());
 		const name = `Response to ${response.reviewer} ${day}`.replace(/[\\/:*?"<>|#^[\]]/g, "-");
 		const path = normalizePath(`${folder}/${name}.docx`);
 		const bytes = writeDocx(editorResponseParagraphs(response));

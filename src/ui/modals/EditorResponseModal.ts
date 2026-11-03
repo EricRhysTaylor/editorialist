@@ -1,4 +1,4 @@
-import { ButtonComponent, Modal, Notice, TextAreaComponent, type App } from "obsidian";
+import { ButtonComponent, Modal, Notice, Platform, TextAreaComponent, type App } from "obsidian";
 import { summaryLines, type EditorResponse, type EditorResponseItem } from "../../core/review/EditorResponse";
 import type EditorialistPlugin from "../../main";
 
@@ -60,7 +60,7 @@ export class EditorResponseModal extends Modal {
 			.onClick(async () => {
 				const path = await this.plugin.saveEditorResponseFile(this.batchId);
 				if (!path) return;
-				saved.setText(`Saved to ${path}. Right-click it in the file list to reveal it in your file manager, then send it to ${this.response.reviewer}.`);
+				this.renderSaved(saved, path);
 				new Notice(`Saved your response to ${this.response.reviewer}.`);
 			});
 
@@ -117,6 +117,22 @@ export class EditorResponseModal extends Modal {
 		return textArea.inputEl;
 	}
 
+	// Once saved, the file is one click from the author's email: open it to read
+	// it over, or show it in the file manager to attach it. On a phone or tablet
+	// Obsidian can do neither, so the author is told where the file is.
+	private renderSaved(saved: HTMLElement, path: string): void {
+		saved.empty();
+		const files = desktopFileActions(this.app);
+		if (!files) {
+			saved.createDiv({ text: `Saved to ${path}. Send it to ${this.response.reviewer} from your computer, or from your device's Files app if your vault is stored there.` });
+			return;
+		}
+		saved.createDiv({ text: `Saved to ${path}. Attach it to an email to ${this.response.reviewer}.` });
+		const actions = saved.createDiv({ cls: "editorialist-response__file-actions" });
+		new ButtonComponent(actions).setButtonText("Open file").onClick(() => files.openWithDefaultApp(path));
+		new ButtonComponent(actions).setButtonText(revealLabel()).onClick(() => files.showInFolder(path));
+	}
+
 	private renderSummary(): void {
 		const summary = this.summaryEl;
 		if (!summary) return;
@@ -131,4 +147,28 @@ export class EditorResponseModal extends Modal {
 			});
 		}
 	}
+}
+
+interface DesktopFileActions {
+	openWithDefaultApp(path: string): void;
+	showInFolder(path: string): void;
+}
+
+// The two file actions behind Obsidian's own "Open in default app" and
+// "Reveal in Finder" menu items, present only in the desktop app.
+function desktopFileActions(app: App): DesktopFileActions | null {
+	if (!Platform.isDesktopApp) return null;
+	// SAFE: both methods exist on the desktop App but are not in the public typings.
+	const files = app as App & Partial<DesktopFileActions>;
+	if (typeof files.openWithDefaultApp !== "function" || typeof files.showInFolder !== "function") return null;
+	return {
+		openWithDefaultApp: (path) => files.openWithDefaultApp?.(path),
+		showInFolder: (path) => files.showInFolder?.(path),
+	};
+}
+
+function revealLabel(): string {
+	if (Platform.isMacOS) return "Show in Finder";
+	if (Platform.isWin) return "Show in File Explorer";
+	return "Show in folder";
 }

@@ -9863,6 +9863,13 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	display: none;
 }
 
+.editorialist-response__file-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-4-2);
+	margin-top: var(--size-4-2);
+}
+
 .editorialist-response__buttons {
 	display: flex;
 	justify-content: flex-end;
