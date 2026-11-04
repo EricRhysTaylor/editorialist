@@ -104,7 +104,7 @@ export class TodayPanel extends ItemView {
 		hero.createDiv({ cls: "editorialist-project__eyebrow", text: new Date(`${this.day}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }) });
 		if (!agenda) { hero.createEl("p", { text: "Loading today's plan…" }); return; }
 		const [now, ...rest] = agenda.items;
-		hero.createEl("h2", { text: now ? `${agenda.items.length} ${agenda.items.length === 1 ? "session" : "sessions"} today` : "Nothing scheduled today" });
+		hero.createEl("h2", { text: now ? `${agenda.items.length} ${agenda.items.length === 1 ? "session" : "sessions"} today` : this.goals.length ? `Work on your ${this.goals.length === 1 ? "goal" : "goals"} today` : "Nothing scheduled today" });
 		if (now) {
 			const overdue = agenda.items.filter((item) => item.overdue).length;
 			const parts = [
@@ -122,7 +122,7 @@ export class TodayPanel extends ItemView {
 				});
 			}
 		} else if (this.goals.length) {
-			hero.createEl("p", { text: `No sessions scheduled. ${this.goals.length === 1 ? "Your goal is" : "Your goals are"} below.` });
+			hero.createEl("p", { text: `Keep going on ${this.goals.length === 1 ? this.goals[0]?.title : "the goals below"}. No other sessions are scheduled.` });
 		} else {
 			hero.createEl("p", { text: "Sessions you schedule in the planners appear here on their day, with the next one ready to start." });
 			const actions = hero.createDiv({ cls: "editorialist-project__actions" });
