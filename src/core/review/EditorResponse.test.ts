@@ -170,6 +170,56 @@ describe("wordAnswers", () => {
 		expect(answers.answerFor(placement("edit", "She pulled her grey coat tighter.", "She pulled her gray coat tighter."))).toBeNull();
 	});
 
+	describe("the same fix made twice", () => {
+		const twice = new SuggestionParser(new ContributorDirectory()).parse([
+			"Reviewer: Morgan Lee",
+			"ReviewerType: copy-editor",
+			"",
+			"=== EDIT ===",
+			"Original: OK, he said.",
+			"Revised: Okay, he said.",
+			"",
+			"=== EDIT ===",
+			"Original: OK, he said.",
+			"Revised: Okay, he said.",
+		].join("\n"));
+		const fix = { ...placement("edit", "OK, he said.", "Okay, he said.") };
+		const decided = (first: ReviewStatus, second: ReviewStatus): ReviewSuggestion[] => twice.suggestions.map((suggestion, index) => ({ ...inBatch(suggestion), status: index === 0 ? first : second }) as ReviewSuggestion);
+
+		it("answers only the one the author kept, in either order", () => {
+			const secondKept = wordAnswers({ batchId: BATCH, scenes: [{ notePath: scene, title: "3", suggestions: decided("accepted", "rejected"), memos: [] }], replies: {} });
+			expect(secondKept.expected).toBe(1);
+			expect(secondKept.answerFor(fix)).toBeNull();
+			expect(secondKept.answerFor(fix)).toBe("Stet.");
+			const firstKept = wordAnswers({ batchId: BATCH, scenes: [{ notePath: scene, title: "3", suggestions: decided("rejected", "pending"), memos: [] }], replies: {} });
+			expect(firstKept.answerFor(fix)).toBe("Stet.");
+			expect(firstKept.answerFor(fix)).toBeNull();
+		});
+
+		it("counts each kept change and never uses an answer twice", () => {
+			const answers = wordAnswers({ batchId: BATCH, scenes: [{ notePath: scene, title: "3", suggestions: decided("rejected", "rewritten"), memos: [] }], replies: {} });
+			expect(answers.expected).toBe(2);
+			expect(answers.answerFor(fix)).toBe("Stet.");
+			expect(answers.answerFor(fix)).toBe("Rewritten another way.");
+			expect(answers.answerFor(fix)).toBeNull();
+		});
+
+		it("keeps each scene's answers to that scene, wherever the document puts it", () => {
+			const one = twice.suggestions.slice(0, 1);
+			const inScene = (status: ReviewStatus): ReviewSuggestion[] => one.map((suggestion) => ({ ...inBatch(suggestion), status }) as ReviewSuggestion);
+			const answers = wordAnswers({
+				batchId: BATCH,
+				scenes: [
+					{ notePath: "Book/1.md", sceneId: "scn_one", title: "1", suggestions: inScene("rejected"), memos: [] },
+					{ notePath: "Book/2.md", sceneId: "scn_two", title: "2", suggestions: inScene("accepted"), memos: [] },
+				],
+				replies: {},
+			});
+			expect(answers.answerFor({ ...fix, sceneId: "scn_two" })).toBeNull();
+			expect(answers.answerFor({ ...fix, sceneId: "scn_one" })).toBe("Stet.");
+		});
+	});
+
 	it("ignores other batches and comments with no reply", () => {
 		const answers = wordAnswers({
 			batchId: "another",

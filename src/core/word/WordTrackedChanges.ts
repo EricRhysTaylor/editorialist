@@ -56,6 +56,8 @@ export interface WordConversion {
 // comment imported as a memo, whose original is the memo's text.
 export interface WordPlacement {
 	operation: "edit" | "cut" | "memo";
+	// The scene heading it sits under, when the document has them.
+	sceneId?: string;
 	original: string;
 	revised: string;
 	commentIds: string[];
@@ -286,7 +288,7 @@ export function convertWordTrackedChanges(document: WordDocument, options: { aut
 		}
 		ids.forEach((id) => usedComments.add(id));
 		blocks.push(lines.join("\n"));
-		placements.push({ operation: entry.operation, original: entry.original, revised: entry.revised, commentIds: ids, changes: [...entry.changes] });
+		placements.push({ operation: entry.operation, sceneId: entry.sceneId, original: entry.original, revised: entry.revised, commentIds: ids, changes: [...entry.changes] });
 		if (entry.operation === "edit") edits++;
 		else cuts++;
 	}
@@ -306,7 +308,7 @@ export function convertWordTrackedChanges(document: WordDocument, options: { aut
 		const quote = general ? "" : (commentQuote.get(id) ?? "").replace(/\s+/g, " ").trim();
 		const body = quote ? `On “${truncate(quote, QUOTE_LENGTH)}”: ${comment.text}` : comment.text;
 		blocks.push(["=== MEMO ===", ...(scene ? [`SceneId: ${scene}`] : []), `Body: ${body}`].join("\n"));
-		placements.push({ operation: "memo", original: body, revised: "", commentIds: [id], changes: [] });
+		placements.push({ operation: "memo", sceneId: scene, original: body, revised: "", commentIds: [id], changes: [] });
 		memos++;
 	}
 

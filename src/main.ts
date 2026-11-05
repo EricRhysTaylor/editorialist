@@ -1618,7 +1618,7 @@ export default class EditorialistPlugin extends Plugin {
 			const text = this.resolveOpenNoteText(path) ?? await this.app.vault.cachedRead(file);
 			const session = this.registry.applyPersistedReviewState(this.reviewEngine.buildSession(path, text, null));
 			reviewer ??= [...session.suggestions, ...session.memos].find((item) => item.source.batchId === batchId)?.contributor ?? null;
-			scenes.push({ notePath: path, title: this.getNoteDisplayLabel(path), suggestions: session.suggestions, memos: session.memos });
+			scenes.push({ notePath: path, sceneId: this.registry.getSceneIdForNotePath(path) ?? undefined, title: this.getNoteDisplayLabel(path), suggestions: session.suggestions, memos: session.memos });
 		}
 		// The pass records scenes in the order the import grouped them, which
 		// puts a scene holding only a comment after the rest. The response is

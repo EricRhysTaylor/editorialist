@@ -51,6 +51,7 @@ export interface EditorResponse {
 
 export interface EditorResponseSceneInput {
 	notePath: string;
+	sceneId?: string;
 	title: string;
 	suggestions: readonly ReviewSuggestion[];
 	memos: readonly SceneMemo[];
@@ -180,32 +181,58 @@ export function editorResponseParagraphs(response: EditorResponse): DocxParagrap
 // by the entry the import made from it: a reply under each answered comment,
 // and "Stet" or "Rewritten another way" on each change kept, with the reason.
 // `expected` counts the answers, so a caller can tell when some found no place.
+//
+// The same fix can appear twice with different decisions, so each change in a
+// scene holds its own place, accepted and undecided ones included, in the order
+// of the review block. Call answerFor once per placement, in document order:
+// each call takes the next place for that change, in the placement's scene when
+// the document names one, and no answer lands twice.
 export function wordAnswers(input: {
 	batchId: string;
 	scenes: readonly EditorResponseSceneInput[];
 	replies: Readonly<Record<string, string>>;
 }): { expected: number; answerFor: (placement: WordPlacement) => string | null } {
-	const answers = new Map<string, string>();
+	type Place = { answer: string | null; used: boolean };
+	const places = new Map<string, Place[]>();
+	const comments = new Map<string, string>();
+	const knownScenes = new Set(input.scenes.flatMap((scene) => scene.sceneId ? [scene.sceneId] : []));
+	const placeKey = (sceneId: string | undefined, change: string): string => `${sceneId ?? ""}\u0000${change}`;
+	const add = (key: string, place: Place): void => { places.set(key, [...(places.get(key) ?? []), place]); };
+	let expected = 0;
 	for (const scene of input.scenes) {
-		for (const suggestion of scene.suggestions) {
-			if (suggestion.source.batchId !== input.batchId) continue;
-			if (suggestion.status !== "rejected" && suggestion.status !== "rewritten") continue;
-			const reason = input.replies[editorReplyKey(scene.notePath, input.batchId, suggestion)]?.trim();
-			const lead = suggestion.status === "rejected" ? "Stet." : "Rewritten another way.";
+		const suggestions = scene.suggestions
+			.filter((suggestion) => suggestion.source.batchId === input.batchId)
+			.sort((left, right) => left.source.blockIndex - right.source.blockIndex || left.source.entryIndex - right.source.entryIndex);
+		for (const suggestion of suggestions) {
 			const change = suggestion.operation === "edit"
 				? changeKey("edit", suggestion.payload.original, suggestion.payload.revised)
 				: suggestion.operation === "cut" ? changeKey("cut", suggestion.payload.target, "") : null;
-			if (change) answers.set(change, reason ? `${lead} ${reason}` : lead);
+			if (!change) continue;
+			const kept = suggestion.status === "rejected" || suggestion.status === "rewritten";
+			const reason = kept ? input.replies[editorReplyKey(scene.notePath, input.batchId, suggestion)]?.trim() : undefined;
+			const lead = suggestion.status === "rejected" ? "Stet." : "Rewritten another way.";
+			const place: Place = { answer: kept ? (reason ? `${lead} ${reason}` : lead) : null, used: false };
+			if (kept) expected++;
+			add(placeKey(undefined, change), place);
+			if (scene.sceneId) add(placeKey(scene.sceneId, change), place);
 		}
 		for (const memo of scene.memos) {
 			if (memo.kind !== "memo" || memo.source.batchId !== input.batchId) continue;
 			const reply = input.replies[editorReplyKey(scene.notePath, input.batchId, memo)]?.trim();
-			if (reply) answers.set(changeKey("memo", memoText(memo), ""), reply);
+			if (reply) comments.set(changeKey("memo", memoText(memo), ""), reply);
 		}
 	}
 	return {
-		expected: answers.size,
-		answerFor: (placement) => answers.get(changeKey(placement.operation, placement.original, placement.revised)) ?? null,
+		expected: expected + comments.size,
+		answerFor: (placement) => {
+			const change = changeKey(placement.operation, placement.original, placement.revised);
+			if (placement.operation === "memo") return comments.get(change) ?? null;
+			const scene = placement.sceneId && knownScenes.has(placement.sceneId) ? placement.sceneId : undefined;
+			const place = places.get(placeKey(scene, change))?.find((candidate) => !candidate.used);
+			if (!place) return null;
+			place.used = true;
+			return place.answer;
+		},
 	};
 }
 
