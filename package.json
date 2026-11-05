@@ -62,7 +62,7 @@
 		"esbuild": "0.25.5",
 		"eslint": "^9.39.4",
 		"eslint-plugin-obsidianmd": "0.4.2",
-		"happy-dom": "^20.14.6",
+		"happy-dom": "^21.0.4",
 		"obsidian": "1.14.4",
 		"stylelint": "^16.26.1",
 		"stylelint-config-standard": "^36.0.1",
@@ -71,6 +71,7 @@
 		"vitest": "^4.1.12"
 	},
 	"overrides": {
+		"minimatch@>=7.0.0 <11.0.1": "^11.0.4",
 		"moment": "^2.31.0"
 	}
 }
