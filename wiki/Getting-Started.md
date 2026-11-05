@@ -29,6 +29,7 @@ Editorialist registers these commands in the command palette:
 | **Open pending edits panel** | Opens the [Pending Edits](Pending-Edits) panel in the sidebar |
 | **Review pending edits in active book** | Starts the pending-edits review flow across the active Radial Timeline book |
 | **End current round** | Removes remaining feedback from selected batches while preserving manuscript changes and recorded decisions |
+| **Write your response to the editor** | Opens the response window for a person's pass: replies to comments and reasons for kept changes, saved as a Word letter or into the editor's own Word file |
 | **Anchor selection to editorialism directive** | Links selected prose to a checklist item |
 | **Go to next unprocessed anchor** | Opens the next unfinished passage anchor |
 | **Mark anchor processed and go to next** | Records the current anchor and advances |

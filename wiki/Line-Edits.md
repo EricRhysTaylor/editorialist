@@ -199,7 +199,7 @@ pending ──→ accepted
 
 ### Undo
 
-Only the single most-recently applied change can be undone, and only for as long as you stay on that note — navigate away and it's final. Rejecting, deferring, and rewriting have no undo. Suggestions whose target text can't be found in the note (paraphrased targets, already-applied edits) are flagged by match type — exact, multiple matches, not found, or already applied — so nothing is ever applied against the wrong text. A suggestion that would break the italics or bold in its passage is shown but left for you to make by hand; see [Matching against the manuscript](Importing-Reviews#matching-against-the-manuscript).
+On a suggestion card, **Undo** takes back the most recently applied change while you stay on that note. For copy edits, **Undo all** takes back everything accepted from the scene's list. Rejecting, deferring, and rewriting have no undo. Suggestions whose target text can't be found in the note (paraphrased targets, already-applied edits) are flagged by match type — exact, multiple matches, not found, or already applied — so nothing is ever applied against the wrong text. A suggestion that would break the italics or bold in its passage is shown but left for you to make by hand; see [Matching against the manuscript](Importing-Reviews#matching-against-the-manuscript).
 
 ### Pass completion
 
@@ -212,6 +212,8 @@ The completion card depends on whether the whole import batch is decided, not ju
 | **Scene complete** (or **Note complete**) | You finished this scene, but other scenes in the same batch still have suggestions to review | A quiet checkpoint that says how many scenes in the batch remain, with **Review changes** and **Close review** |
 | **Batch complete** | Every scene in the batch is decided, and other scenes in the book still have pending batches | **Clean review blocks**, **Review changes**, **Import new revision notes**, **Close review** |
 | **All revisions complete** | Every scene in the batch is decided and nothing else is pending | The same actions as Batch complete |
+
+Under **Scene complete** and **Batch complete**, a card lists the changes you kept as written or rewrote, each with its reason, so you can add one with **Say why you kept it**.
 
 The checkpoint never offers Clean. Cleaning removes review blocks from every scene in a batch, so cleaning early would strip them from scenes you haven't reviewed yet. Editorialist won't clean a batch until all its scenes are decided. Once a batch has been cleaned, its card offers only **Import new revision notes** and **Close review**.
 
