@@ -34,6 +34,8 @@ export interface ContributorManagementOrchestratorHost {
 		| "clearAllReviewerSignals"
 		| "reassignReviewerSignals"
 		| "syncReviewerSignalsForSession"
+		| "getPassAssignments"
+		| "getMovedPassCount"
 	>;
 	readonly reviewerDirectory: ContributorDirectory;
 	getSuggestionById(id: string): ReviewSuggestion | null;
@@ -160,9 +162,13 @@ export class ContributorManagementOrchestrator {
 			return false;
 		}
 
+		const movedPasses = this.host.registry.getMovedPassCount(reviewerId);
+		const movedPassNote = movedPasses === 0 ? ""
+			: movedPasses === 1 ? " The pass you moved to them goes back to the name in its notes."
+			: ` The ${movedPasses} passes you moved to them go back to the names in their notes.`;
 		const confirm = await this.host.openChoiceModal<"delete" | "cancel">({
 			title: "Delete contributor",
-			description: `Delete ${profile.displayName} and their saved stats? Your decisions on their notes stay. If their revision notes are still in your scenes, they come back, without their old stats, the next time those scenes are opened; clean those notes out first to remove them for good.`,
+			description: `Delete ${profile.displayName} and their saved stats? Your decisions on their notes stay. If their revision notes are still in your scenes, they come back, without their old stats, the next time those scenes are opened; clean those notes out first to remove them for good.${movedPassNote}`,
 			choices: [
 				{ label: "Delete contributor", value: "delete" },
 				{ label: "Cancel", value: "cancel" },
@@ -173,6 +179,7 @@ export class ContributorManagementOrchestrator {
 		}
 
 		await this.host.registry.removeReviewerSignalsByReviewerId(reviewerId, { persist: false });
+		this.host.reviewerDirectory.setPassAssignments(this.host.registry.getPassAssignments());
 		const deletedProfile = this.host.reviewerDirectory.deleteProfile(reviewerId);
 		if (!deletedProfile) {
 			new Notice("Contributor not found.");
@@ -209,6 +216,7 @@ export class ContributorManagementOrchestrator {
 		}
 
 		await this.host.registry.clearAllReviewerSignals({ persist: false });
+		this.host.reviewerDirectory.setPassAssignments(this.host.registry.getPassAssignments());
 		const removedCount = this.host.reviewerDirectory.clearProfiles();
 		this.removeAllContributorsFromActiveSession();
 		await this.host.registry.syncReviewerSignalsForSession(this.host.store.getSession(), {
@@ -295,6 +303,7 @@ export class ContributorManagementOrchestrator {
 		}
 
 		await this.host.registry.reassignReviewerSignals(sourceReviewerId, targetProfile.id, { persist: false });
+		this.host.reviewerDirectory.setPassAssignments(this.host.registry.getPassAssignments());
 		const mergedProfile = this.host.reviewerDirectory.mergeProfiles(sourceReviewerId, targetProfile.id);
 		if (!mergedProfile) {
 			new Notice("Could not update contributor records.");

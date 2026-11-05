@@ -797,6 +797,24 @@ export class ReviewRegistryService {
 		return Object.fromEntries(Object.values(this.sweepRegistry).flatMap((entry) => entry.contributorId ? [[entry.batchId, entry.contributorId]] : []));
 	}
 
+	// How many passes were moved to this contributor.
+	getMovedPassCount(reviewerId: string): number {
+		return Object.values(this.getPassAssignments()).filter((id) => id === reviewerId).length;
+	}
+
+	// Rewrites the contributor a moved pass points at; null clears the move.
+	// The caller persists.
+	private repointMovedPasses(reviewerId: string | null, targetReviewerId: string | null): boolean {
+		let didChange = false;
+		for (const entry of Object.values(this.sweepRegistry)) {
+			if (!entry.contributorId || (reviewerId !== null && entry.contributorId !== reviewerId)) continue;
+			if (targetReviewerId) entry.contributorId = targetReviewerId;
+			else delete entry.contributorId;
+			didChange = true;
+		}
+		return didChange;
+	}
+
 	// The passes a contributor's recorded signals come from.
 	getReviewerBatchIds(reviewerId: string): string[] {
 		const batchIds = new Set<string>();
@@ -825,7 +843,7 @@ export class ReviewRegistryService {
 			return;
 		}
 
-		let didChange = false;
+		let didChange = this.repointMovedPasses(sourceReviewerId, targetReviewerId);
 		for (const record of Object.values(this.reviewerSignalIndex)) {
 			if (record.reviewerId !== sourceReviewerId) {
 				continue;
@@ -1163,6 +1181,7 @@ export class ReviewRegistryService {
 	}
 
 	async removeReviewerSignalsByReviewerId(reviewerId: string, options?: { persist?: boolean }): Promise<number> {
+		const clearedPasses = this.repointMovedPasses(reviewerId, null);
 		let removedCount = 0;
 		for (const [key, record] of Object.entries(this.reviewerSignalIndex)) {
 			if (record.reviewerId !== reviewerId) {
@@ -1175,17 +1194,18 @@ export class ReviewRegistryService {
 
 		if (removedCount > 0) {
 			this.rebuildReviewerStatsFromSignals();
-			if (options?.persist !== false) {
-				await this.persistData();
-			}
+		}
+		if ((removedCount > 0 || clearedPasses) && options?.persist !== false) {
+			await this.persistData();
 		}
 
 		return removedCount;
 	}
 
 	async clearAllReviewerSignals(options?: { persist?: boolean }): Promise<number> {
+		const clearedPasses = this.repointMovedPasses(null, null);
 		const removedCount = Object.keys(this.reviewerSignalIndex).length;
-		if (removedCount === 0) {
+		if (removedCount === 0 && !clearedPasses) {
 			return 0;
 		}
 
@@ -1283,7 +1303,7 @@ export class ReviewRegistryService {
 			.map((record) => record.status);
 	}
 
-	private getSceneIdForNotePath(notePath: string): string | undefined {
+	getSceneIdForNotePath(notePath: string): string | undefined {
 		const file = this.app.vault.getAbstractFileByPath(notePath);
 		if (!(file instanceof TFile)) {
 			return undefined;

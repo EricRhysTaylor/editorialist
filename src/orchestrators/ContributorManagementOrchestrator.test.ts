@@ -40,6 +40,8 @@ function setup(answers: { choice?: string; reassign?: { targetReviewerId?: strin
 		clearAllReviewerSignals: vi.fn(async () => 0),
 		reassignReviewerSignals: vi.fn(async () => 0),
 		syncReviewerSignalsForSession: vi.fn(async () => undefined),
+		getPassAssignments: vi.fn((): Record<string, string> => ({})),
+		getMovedPassCount: vi.fn(() => 0),
 	};
 	const calls: string[] = [];
 	const host: ContributorManagementOrchestratorHost = {
@@ -87,6 +89,31 @@ describe("ContributorManagementOrchestrator", () => {
 		const none = setup({ passes: [] });
 		const lee = none.directory.resolveContributor(leeRaw);
 		await expect(none.orchestrator.movePass(lee.reviewerId ?? "")).resolves.toBe(false);
+	});
+
+	it("a pass moved to someone stays with them through a merge", async () => {
+		const { directory, registry, orchestrator } = setup({ reassign: { createName: "Yan" } });
+		const original = directory.resolveContributor(samRaw);
+		const moved = directory.resolveContributor(leeRaw);
+		directory.setPassAssignments({ "batch-2": moved.reviewerId ?? "" });
+		registry.reassignReviewerSignals.mockImplementation(async () => {
+			const yan = directory.getProfiles().find((profile) => profile.displayName === "Yan");
+			registry.getPassAssignments.mockReturnValue({ "batch-2": yan?.id ?? "" });
+			return 0;
+		});
+		await expect(orchestrator.reassignContributorById(moved.reviewerId ?? "", "merge", original.reviewerId)).resolves.toBe(true);
+		expect(directory.resolveContributor(samRaw, "batch-2").displayName).toBe("Yan");
+	});
+
+	it("deleting a contributor says when moved passes go back, and drops their moves", async () => {
+		const { host, directory, registry, orchestrator } = setup({ choice: "delete" });
+		const moved = directory.resolveContributor(leeRaw);
+		directory.setPassAssignments({ "batch-2": moved.reviewerId ?? "" });
+		registry.getMovedPassCount.mockReturnValue(1);
+		const ask = vi.spyOn(host, "openChoiceModal");
+		await expect(orchestrator.deleteContributorById(moved.reviewerId ?? "")).resolves.toBe(true);
+		expect(ask.mock.calls[0]?.[0].description).toContain("The pass you moved to them goes back to the name in its notes.");
+		expect(directory.resolveContributor(samRaw, "batch-2").displayName).toBe("Sam");
 	});
 
 	it("leaves every suggestion from the same raw reviewer unresolved, and only those", async () => {

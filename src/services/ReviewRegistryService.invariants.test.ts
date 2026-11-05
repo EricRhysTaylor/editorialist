@@ -1177,3 +1177,39 @@ it("retains both histories and the previous target when note rename keys collide
 	await expect(service.renameNotePath("Old.md", "New.md")).rejects.toThrow("Both sets were retained");
 	expect(service.buildPluginData([])).toEqual(before);
 });
+
+describe("invariant: a moved pass follows its contributor", () => {
+	function withMovedPasses() {
+		const made = makeService();
+		made.service.load({
+			sweepRegistry: {
+				b1: { status: "in_progress", batchId: "b1", contributorId: "r1" } as never,
+				b2: { status: "in_progress", batchId: "b2", contributorId: "r1" } as never,
+				b3: { status: "in_progress", batchId: "b3", contributorId: "r2" } as never,
+				b4: { status: "in_progress", batchId: "b4" } as never,
+			},
+		} as Partial<EditorialistPluginData>);
+		return made;
+	}
+
+	it("a merge repoints every pass, even with no signals to move", async () => {
+		const { service, persistCalls } = withMovedPasses();
+		await service.reassignReviewerSignals("r1", "r9");
+		expect(service.getPassAssignments()).toEqual({ b1: "r9", b2: "r9", b3: "r2" });
+		expect(persistCalls()).toBe(1);
+	});
+
+	it("a delete clears only that contributor's moves and saves them", async () => {
+		const { service, persistCalls } = withMovedPasses();
+		expect(service.getMovedPassCount("r1")).toBe(2);
+		await service.removeReviewerSignalsByReviewerId("r1");
+		expect(service.getPassAssignments()).toEqual({ b3: "r2" });
+		expect(persistCalls()).toBe(1);
+	});
+
+	it("deleting everyone clears every move", async () => {
+		const { service } = withMovedPasses();
+		await service.clearAllReviewerSignals();
+		expect(service.getPassAssignments()).toEqual({});
+	});
+});
