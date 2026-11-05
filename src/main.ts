@@ -14,7 +14,7 @@ import { RevisionPlanPanel, REVISION_PLAN_VIEW_TYPE, AUTHOR_PLAN_VIEW_TYPE } fro
 import { TodayPanel, TODAY_SHOWN_KEY, TODAY_VIEW_TYPE } from "./ui/TodayPanel";
 import { RadialBookGoals, type RTDateEdit } from "./services/RadialBookGoals";
 import { FolderWordCounter } from "./services/FolderWordCounter";
-import { AUTHOR_PLAN_SCOPE, authorWork, recordWordDay } from "./core/planning/AuthorPlan";
+import { AUTHOR_PLAN_SCOPE, authorWork, carryRecordedWords, recordWordDay, withoutRecordedWords } from "./core/planning/AuthorPlan";
 import { localDate, sourceKey, type RevisionPlan, type WorkCandidate } from "./core/planning/RevisionPlan";
 import { advancePlanProgress } from "./core/planning/PlanProgress";
 import { planDayLabel } from "./core/planning/WorkPresentation";
@@ -979,12 +979,13 @@ export default class EditorialistPlugin extends Plugin {
 		if (this.authorGoalSaving) throw new Error("A goal save is already in progress. Try again after it finishes.");
 		this.authorGoalSaving = true;
 		try {
-			const raw = this.getRevisionPlan(AUTHOR_PLAN_SCOPE);
-			if (JSON.stringify(this.radialBookGoals.resolve(raw).plan) !== JSON.stringify(expected)) throw new Error("The goal or RT target changed. Reopen goal details before saving.");
+			const raw = this.getRevisionPlan(AUTHOR_PLAN_SCOPE), current = this.radialBookGoals.resolve(raw).plan;
+			// The daily word count may have run since the dialog opened; that is no conflict.
+			if (JSON.stringify(withoutRecordedWords(current)) !== JSON.stringify(withoutRecordedWords(expected))) throw new Error("The goal or RT target changed. Reopen goal details before saving.");
 			const receipt = edit ? await this.radialBookGoals.update(edit) : null;
 			try {
 				if (JSON.stringify(this.getRevisionPlan(AUTHOR_PLAN_SCOPE)) !== JSON.stringify(raw)) throw new Error("The author plan changed during the save. Reopen goal details.");
-				await this.saveRevisionPlan(AUTHOR_PLAN_SCOPE, this.radialBookGoals.resolve(next).plan);
+				await this.saveRevisionPlan(AUTHOR_PLAN_SCOPE, this.radialBookGoals.resolve(carryRecordedWords(next, expected, current)).plan);
 			} catch (error) {
 				if (receipt) { try { await this.radialBookGoals.rollback(receipt); } catch (rollbackError) { throw new Error(`Goal save failed; ${rollbackError instanceof Error ? rollbackError.message : "check the RT target before retrying"}`); } }
 				throw error;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AUTHOR_PLAN_SCOPE, authorWork, goalTimeline, normalizeAuthorTargets, recordWordDay, wordProgress, type AuthorTarget, type WordGoal } from "./AuthorPlan";
+import { AUTHOR_PLAN_SCOPE, authorWork, carryRecordedWords, goalTimeline, normalizeAuthorTargets, recordWordDay, withoutRecordedWords, wordProgress, type AuthorTarget, type WordGoal } from "./AuthorPlan";
 import { emptyRevisionPlan, normalizeRevisionPlans, sourceKey } from "./RevisionPlan";
 import { draftSchedule } from "./AutoSchedule";
 import { DEFAULT_SCHEDULE } from "./ScheduleDefaults";
@@ -132,5 +132,28 @@ describe("word goals", () => {
 	it("stops asking for a pace once reached or past due", () => {
 		expect(wordProgress(words(0), null, "2026-11-30", 50000, "2026-11-20")).toMatchObject({ reached: true, perDay: null });
 		expect(wordProgress(words(0), null, "2026-11-30", 100, "2026-12-02").perDay).toBeNull();
+	});
+});
+
+describe("a goal dialog open across the daily word count", () => {
+	const goal = (over: Partial<WordGoal>): AuthorTarget => ({ id: "g", title: "Draft", description: "", due: "2026-11-30", hardDeadline: false, bookLabel: "", start: null, file: "", done: false, lowMinutes: 30, highMinutes: 60, words: { target: 5000, folder: "Book", startCount: null, days: {}, ...over } });
+	const opened = { targets: [goal({})] };
+	const counted = { targets: [goal({ startCount: 900, days: { "2026-11-05": 900 } })] };
+
+	it("is no conflict, but a real edit still is", () => {
+		expect(JSON.stringify(withoutRecordedWords(counted))).toBe(JSON.stringify(withoutRecordedWords(opened)));
+		expect(JSON.stringify(withoutRecordedWords({ targets: [goal({ target: 6000 })] }))).not.toBe(JSON.stringify(withoutRecordedWords(opened)));
+	});
+
+	it("keeps the recorded count and the author's edit together", () => {
+		const edited = { targets: [{ ...goal({ target: 6000 }), title: "New title" }] };
+		const saved = carryRecordedWords(edited, opened, counted).targets?.[0];
+		expect(saved?.title).toBe("New title");
+		expect(saved?.words).toEqual({ target: 6000, folder: "Book", startCount: 900, days: { "2026-11-05": 900 } });
+	});
+
+	it("lets a typed starting count and a new folder stand", () => {
+		expect(carryRecordedWords({ targets: [goal({ startCount: 100 })] }, opened, counted).targets?.[0]?.words?.startCount).toBe(100);
+		expect(carryRecordedWords({ targets: [goal({ folder: "Other" })] }, opened, counted).targets?.[0]?.words).toEqual({ target: 5000, folder: "Other", startCount: null, days: {} });
 	});
 });

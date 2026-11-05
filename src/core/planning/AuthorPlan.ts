@@ -113,6 +113,36 @@ export function recordWordDay(goal: WordGoal, start: string | null, due: string,
 	return { ...goal, startCount, days: { ...goal.days, [today]: goal.days[today] ?? current } };
 }
 
+/** A plan as the goal dialogs see it: without what the word count records on its own. */
+export function withoutRecordedWords<T extends { targets?: AuthorTarget[] }>(plan: T): T {
+	return { ...plan, targets: plan.targets?.map((target) => target.words ? { ...target, words: { ...target.words, startCount: null, days: {} } } : target) };
+}
+
+/**
+ * Keeps what the word count recorded while a dialog was open. `next` is the
+ * dialog's edit of `expected`, and `current` is the saved plan: a value the
+ * dialog left alone follows `current`. A new folder restarts its days and a
+ * typed starting count stands, as the dialog set them.
+ */
+export function carryRecordedWords<T extends { targets?: AuthorTarget[] }>(next: T, expected: T, current: T): T {
+	const find = (plan: T, id: string): WordGoal | undefined => plan.targets?.find((target) => target.id === id)?.words;
+	return {
+		...next,
+		targets: next.targets?.map((target) => {
+			const opened = find(expected, target.id), saved = find(current, target.id);
+			if (!target.words || !opened || !saved || target.words.folder !== opened.folder) return target;
+			return {
+				...target,
+				words: {
+					...target.words,
+					startCount: target.words.startCount === opened.startCount ? saved.startCount : target.words.startCount,
+					days: JSON.stringify(target.words.days) === JSON.stringify(opened.days) ? saved.days : target.words.days,
+				},
+			};
+		}),
+	};
+}
+
 export interface WordProgress {
 	/** Words written since counting began; null before it begins. Never below zero. */
 	written: number | null;
