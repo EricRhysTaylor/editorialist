@@ -108,6 +108,20 @@ describe("writeWordReplies", () => {
 		const comments = all(await part(result.bytes, "word/comments.xml"), "t").map((element) => element.children.join(""));
 		expect(comments).toContain("Me & <you>, \"both\".");
 	});
+
+	it("drops control characters XML forbids, so Word can still open the file", async () => {
+		const result = await writeWordReplies(SOURCE, {
+			editor: ED,
+			author: { name: "Eric\u0001 Taylor", initials: "ET" },
+			date: new Date("2026-11-02T18:00:00Z"),
+			replyFor: (placement) => placement.operation === "memo" ? "Pasted from Word\u000Bwith a line break." : null,
+		});
+		const data = (await readZipEntries(result.bytes, ["word/comments.xml"])).get("word/comments.xml");
+		const xml = new TextDecoder().decode(data);
+		expect(xml).not.toMatch(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/);
+		const comments = all(parseXml(xml), "t").map((element) => element.children.join(""));
+		expect(comments).toContain("Pasted from Wordwith a line break.");
+	});
 });
 
 describe("initialsOf", () => {
