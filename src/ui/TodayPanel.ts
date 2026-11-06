@@ -1,5 +1,6 @@
 import { ItemView, Notice, TFile, debounce, setIcon, type Debouncer, type WorkspaceLeaf } from "obsidian";
 import type EditorialistPlugin from "../main";
+import { folderPlanKey } from "../core/ManuscriptReassociation";
 import { AUTHOR_PLAN_SCOPE, goalTimeline, wordProgress, type AuthorTarget } from "../core/planning/AuthorPlan";
 import { localDate, resolvePlanSource, type PlanEntry, type RevisionPlan, type WorkCandidate } from "../core/planning/RevisionPlan";
 import { activeGoals, todayAgenda, type AgendaItem, type AgendaPlan, type TodayAgenda } from "../core/planning/TodayAgenda";
@@ -14,14 +15,17 @@ export const TODAY_VIEW_TYPE = "editorialist-today";
 export const TODAY_SHOWN_KEY = "editorialist-today-shown";
 const UPCOMING_SHOWN = 3;
 
-interface LoadedPlan extends AgendaPlan { warnings: string[] }
+/** `folder` and `label` name the book; both are null for the author's goals. */
+interface LoadedPlan extends AgendaPlan { warnings: string[]; folder: string | null; label: string | null }
 
 // The daily view: the scheduled session to do now, the rest of today, the
-// goals under way, and what comes next. It reads the active book's plan and
-// the author's goals. Beyond a session's done mark or day, it only records a
+// goals under way, and what comes next. It reads every book with a session on
+// the calendar and the author's goals, so no book drops out of mind because
+// another is active. Beyond a session's done mark or day, it only records a
 // word goal's opening total for the day, as the author planner does.
 export class TodayPanel extends ItemView {
 	private plans: LoadedPlan[] = [];
+	private notices: string[] = [];
 	private agenda: TodayAgenda | null = null;
 	private bookLabel: string | null = null;
 	private wordCounts: Record<string, number> = {};
@@ -62,22 +66,24 @@ export class TodayPanel extends ItemView {
 		if (!this.agenda) this.render();
 		try {
 			await this.plugin.synchronizeAuthorTargets();
-			const scope = this.plugin.getActiveBookScopeInfo();
-			const folder = scope.sourceFolder?.replace(/\/$/, "");
-			const plans: LoadedPlan[] = [];
-			if (folder) {
-				const book = JSON.stringify(["folder", folder]);
-				const work = await this.plugin.collectRevisionWork();
+			const books = await this.plugin.collectBooksWork();
+			const plans: LoadedPlan[] = [], notices: string[] = [], wordCounts: Record<string, number> = {};
+			for (const { folder, label, work } of books) {
+				if (work.held.some((source) => source.kind === "all")) { notices.push(...work.warnings); continue; }
+				const book = folderPlanKey(folder);
 				// Today keeps book progress current too, so a pass cleaned without
 				// opening the planner no longer shows here as overdue.
 				await this.plugin.recordRevisionProgress(book, work);
-				plans.push({ scope: book, plan: this.plugin.getRevisionPlan(book), candidates: work.candidates, warnings: work.warnings });
+				const plan = this.plugin.getRevisionPlan(book);
+				plans.push({ scope: book, plan, candidates: work.candidates, warnings: work.warnings, folder, label });
+				Object.assign(wordCounts, await this.plugin.materialWordCounts(plan.project));
 			}
 			const goals = this.plugin.collectAuthorWork();
-			plans.push({ scope: AUTHOR_PLAN_SCOPE, plan: this.plugin.getAuthorPlanningPlan(), candidates: goals.candidates, warnings: goals.warnings });
+			plans.push({ scope: AUTHOR_PLAN_SCOPE, plan: this.plugin.getAuthorPlanningPlan(), candidates: goals.candidates, warnings: goals.warnings, folder: null, label: null });
 			this.plans = plans;
-			this.wordCounts = folder ? await this.plugin.materialWordCounts(plans[0]?.plan.project) : {};
-			this.bookLabel = folder ? scope.label : null;
+			this.notices = notices;
+			this.wordCounts = wordCounts;
+			this.bookLabel = books.find((book) => book.active)?.label ?? null;
 			this.goalWords = (await this.plugin.recordAuthorWordGoals()).counts;
 			this.day = localDate(new Date());
 			this.goals = activeGoals(this.plugin.getAuthorPlanningPlan().targets ?? [], this.day);
@@ -97,7 +103,7 @@ export class TodayPanel extends ItemView {
 		const container = this.contentEl;
 		const scrollTop = container.scrollTop;
 		container.empty();
-		renderPanelHeader(container, this.plugin, TODAY_VIEW_TYPE, "Today", this.bookLabel ? `${this.bookLabel} and your goals` : "Your goals");
+		renderPanelHeader(container, this.plugin, TODAY_VIEW_TYPE, "Today", "Your Books. Your Goals");
 		const root = container.createDiv({ cls: "editorialist-plan__body" });
 		const agenda = this.agenda;
 		const hero = root.createDiv({ cls: "editorialist-project__hero editorialist-today__hero" });
@@ -113,7 +119,7 @@ export class TodayPanel extends ItemView {
 				overdue ? `${overdue} left from ${overdue === 1 ? "an earlier day" : "earlier days"}` : "",
 			].filter(Boolean);
 			if (parts.length) hero.createEl("p", { text: parts.join(" · ") });
-			// The book and goal planners each fill their own time, so together
+			// Each book and the goal planner fill their own time, so together
 			// they can ask for more than the day has.
 			if (agenda.overbooked) {
 				hero.createEl("p", {
@@ -129,7 +135,8 @@ export class TodayPanel extends ItemView {
 			if (this.bookLabel) this.button(actions, "Plan the book", () => { void this.plugin.openRevisionPlanPanel(); });
 			this.button(actions, "Plan your goals", () => { void this.plugin.openAuthorPlanner(); });
 		}
-		for (const warning of this.plans.flatMap((plan) => plan.warnings)) root.createEl("p", { cls: "editorialist-plan__warning", text: warning });
+		// One unreadable source can warn for several books; say it once.
+		for (const warning of new Set([...this.notices, ...this.plans.flatMap((plan) => plan.warnings)])) root.createEl("p", { cls: "editorialist-plan__warning", text: warning });
 		if (now) this.renderNow(root, now);
 		if (rest.length) {
 			root.createEl("h3", { cls: "editorialist-today__heading", text: "Up next" });
@@ -253,6 +260,7 @@ export class TodayPanel extends ItemView {
 	private metaParts(item: AgendaItem): string[] {
 		const { entry } = item;
 		return [
+			this.plan(item)?.label ?? "",
 			entry.sessionCount ? `Session ${entry.sessionIndex}/${entry.sessionCount}` : "",
 			entry.lowMinutes !== null && entry.highMinutes !== null ? `${entry.lowMinutes}–${entry.highMinutes} min` : "",
 		].filter(Boolean);
@@ -279,7 +287,8 @@ export class TodayPanel extends ItemView {
 
 	// Start opens the work itself: a goal's linked document (or its planner),
 	// an engagement task's document (or its planner), or the batch, agenda
-	// line, or pending note.
+	// line, or pending note. Another book's session moves to that book first,
+	// since its review, planner and panels all work on the active book.
 	private async start(item: AgendaItem): Promise<void> {
 		const { source } = item.entry;
 		if (item.scope === AUTHOR_PLAN_SCOPE) {
@@ -288,6 +297,11 @@ export class TodayPanel extends ItemView {
 			if (file instanceof TFile) await this.app.workspace.openLinkText(file.path, "", false);
 			else await this.plugin.openAuthorPlanner();
 			return;
+		}
+		const folder = this.plan(item)?.folder;
+		if (folder && folder !== this.plugin.getActiveBookScopeInfo().sourceFolder?.replace(/\/$/, "")) {
+			try { await this.plugin.openBook(folder); }
+			catch (error) { new Notice(error instanceof Error ? error.message : "Could not switch to that book."); return; }
 		}
 		if (source.kind === "preparation") {
 			const document = this.material(item)?.source;

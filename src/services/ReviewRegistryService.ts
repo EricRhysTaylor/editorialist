@@ -287,6 +287,8 @@ export class ReviewRegistryService {
 		return structuredClone(this.revisionPlans.books[book] ?? emptyRevisionPlan());
 	}
 
+	getRevisionPlanKeys(): string[] { return Object.keys(this.revisionPlans.books); }
+
 	async setRevisionPlan(book: string, plan: RevisionPlan): Promise<void> {
 		const previous = this.revisionPlans;
 		const next = normalizeRevisionPlans({ version: 1, books: { ...previous.books, [book]: plan } });

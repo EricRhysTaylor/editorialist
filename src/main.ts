@@ -22,7 +22,8 @@ import { planDayLabel } from "./core/planning/WorkPresentation";
 import { batchWork, directiveWork, pendingWork } from "./core/planning/RevisionWork";
 import { isEngagementDelivery, preparationWork, projectEditor, recordProjectEvent, type EditorialProject } from "./core/planning/EditorialProject";
 import { countProseWords } from "./core/WordCount";
-import { collectPendingEdits, describeCollectFailure } from "./core/PendingEditsCollector";
+import { collectPendingEdits, describeCollectFailure, type RadialTimelineBookLike } from "./core/PendingEditsCollector";
+import { scheduledBookFolders } from "./core/planning/TodayAgenda";
 import { endReviewRound, getEndableRoundBatches } from "./orchestrators/EndReviewRound";
 import type { EditorView } from "@codemirror/view";
 import { MarkdownView, Menu, normalizePath, Notice, Plugin, TFile, TFolder, type App, type WorkspaceLeaf } from "obsidian";
@@ -1005,8 +1006,7 @@ export default class EditorialistPlugin extends Plugin {
 		for (const leaf of this.app.workspace.getLeavesOfType(TODAY_VIEW_TYPE)) if (leaf.view instanceof TodayPanel) leaf.view.scheduleRefresh();
 	}
 
-	getEditorialDeliveries(): EditorialDelivery[] {
-		const folder = this.getActiveBookScopeInfo().sourceFolder?.replace(/\/$/, "");
+	getEditorialDeliveries(folder = this.getActiveBookScopeInfo().sourceFolder?.replace(/\/$/, "")): EditorialDelivery[] {
 		return this.registry.getEditorialDeliveries().filter((delivery) => delivery.bookFolder === folder);
 	}
 	openEditorialDeliveries(): void { new EditorialDeliveriesModal(this).open(); }
@@ -1082,12 +1082,51 @@ export default class EditorialistPlugin extends Plugin {
 		}
 	}
 
-	// The active book's revision work, with a warning for each source that could
-	// not be read and `held` naming that work, so progress does not count its
-	// absence as finished.
 	async collectRevisionWork(): Promise<RevisionWorkRead> {
 		await this.refreshActiveBookScope();
-		const scope = this.getActiveBookScopeInfo();
+		return this.collectBookWork(this.getActiveBookScopeInfo());
+	}
+
+	/**
+	 * The revision work of the active book and of every other book with a session
+	 * on the calendar, active book first. A book whose folder is gone cannot be
+	 * read, so its sessions stay out rather than showing as work to do.
+	 */
+	async collectBooksWork(): Promise<BookWorkRead[]> {
+		await this.refreshActiveBookScope();
+		const active = this.getActiveBookScopeInfo();
+		const activeFolder = active.sourceFolder?.replace(/\/$/, "");
+		const books: BookWorkRead[] = activeFolder ? [{ folder: activeFolder, label: active.label ?? activeFolder, active: true, work: await this.collectBookWork(active) }] : [];
+		// A radial target's exclusions apply to every book it can follow.
+		const target = active.target?.kind === "radial" ? active.target : undefined;
+		const radial = this.radialBookGoals.books(), saved = this.getManuscriptAssociations();
+		for (const folder of scheduledBookFolders(this.registry.getRevisionPlanKeys(), (key) => this.getRevisionPlan(key))) {
+			if (folder === activeFolder) continue;
+			const book = radial.find((item) => item.folder === folder);
+			const label = book?.title ?? saved.find((item) => item.path === folder)?.name ?? folder;
+			const work: RevisionWorkRead = this.app.vault.getAbstractFileByPath(folder) instanceof TFolder
+				? await this.collectBookWork({ label, sourceFolder: folder, structured: Boolean(book), target }, book ? { id: book.id, title: book.title, sourceFolder: folder } : null)
+				: { candidates: [], warnings: [`${label}: its folder is missing, so its sessions are hidden here. Reconnect it from the manuscript target.`], held: [{ kind: "all" }] };
+			books.push({ folder, label, active: false, work });
+		}
+		return books;
+	}
+
+	/** Moves the manuscript target to a book, through Radial Timeline when it tracks that book. */
+	async openBook(folder: string): Promise<void> {
+		const target = this.getManuscriptTarget();
+		const book = this.radialBookGoals.books().find((item) => item.folder === folder);
+		if (target?.kind === "folder" || !book) { await this.setManuscriptTarget(createManuscriptTarget("folder", folder)); return; }
+		await this.radialBookGoals.select(book.id);
+		await this.setManuscriptTarget(target?.kind === "radial" ? target : createManuscriptTarget("radial"));
+	}
+
+	// One book's revision work, with a warning for each source that could not be
+	// read and `held` naming that work, so progress does not count its absence as
+	// finished. `radialBook` names the book's Radial Timeline profile: left out,
+	// it is RT's active book; null, RT does not track the book, so its pending
+	// edits cannot be read and are held.
+	private async collectBookWork(scope: ActiveBookScopeInfo, radialBook?: RadialTimelineBookLike | null): Promise<RevisionWorkRead> {
 		const candidates: WorkCandidate[] = [];
 		const warnings: string[] = [];
 		const held: HeldSource[] = [];
@@ -1095,10 +1134,11 @@ export default class EditorialistPlugin extends Plugin {
 		if (!folder) return { candidates, warnings: ["Select an active book with a source folder to plan revisions."], held: [{ kind: "all" }] };
 		const project = this.getRevisionPlan(JSON.stringify(["folder", folder])).project;
 		if (project) candidates.push(...preparationWork(project));
+		const eligible = new Set(this.getManuscriptFiles(scope).map((file) => file.path));
 		try {
-			const pending = await collectPendingEdits(this.app);
-			if (pending.ok && pending.session.sourceFolder.replace(/\/$/, "") === folder) {
-				const eligible = new Set(this.getManuscriptFiles().map((file) => file.path));
+			const pending = radialBook === null ? null : await collectPendingEdits(this.app, radialBook);
+			if (!pending) held.push({ kind: "pending" });
+			else if (pending.ok && pending.session.sourceFolder.replace(/\/$/, "") === folder) {
 				candidates.push(...pendingWork(pending.session).filter((item) => eligible.has(item.path)));
 			}
 			else if (pending.ok) { warnings.push("Pending edits belong to a different active book. Refresh after selecting the intended book."); held.push({ kind: "pending" }); }
@@ -1114,7 +1154,6 @@ export default class EditorialistPlugin extends Plugin {
 			}
 		} catch { warnings.push("Some editorial agendas could not be loaded. Refresh before relying on the backlog."); held.push({ kind: "directive" }); }
 		const activeBatches = this.getSweepRegistryEntries().filter((batch) => batch.status !== "cleaned" && batch.status !== "ended_early");
-		const eligible = new Set(this.getManuscriptFiles().map((file) => file.path));
 		const paths = new Set(activeBatches.flatMap((batch) => batch.importedNotePaths).filter((path) => eligible.has(path)));
 		// Who sent each batch, to give a person's pass a response task.
 		const senders = new Map<string, ReviewContributor>();
@@ -1147,7 +1186,7 @@ export default class EditorialistPlugin extends Plugin {
 				suggestedMinutes: 30,
 			});
 		}
-		const deliveries = this.getEditorialDeliveries();
+		const deliveries = this.getEditorialDeliveries(folder);
 		for (const candidate of candidates) {
 			const delivery = deliveries.find((item) => candidate.kind === "directive" ? item.files.includes(candidate.path) : (candidate.kind === "batch" || candidate.kind === "response") && item.batchIds.includes(candidate.locator));
 			if (!delivery) continue;
@@ -1471,8 +1510,7 @@ export default class EditorialistPlugin extends Plugin {
 		await this.savePluginData();
 	}
 
-	getManuscriptFiles(): TFile[] {
-		const scope = this.getActiveBookScopeInfo();
+	getManuscriptFiles(scope = this.getActiveBookScopeInfo()): TFile[] {
 		const cutFolder = this.getCutFolderOverride();
 		return this.app.vault.getMarkdownFiles().filter((file) => isSceneNoteForScope(this.app, file, scope, cutFolder));
 	}
@@ -3921,4 +3959,11 @@ export interface RevisionWorkRead {
 	candidates: WorkCandidate[];
 	warnings: string[];
 	held: HeldSource[];
+}
+
+export interface BookWorkRead {
+	folder: string;
+	label: string;
+	active: boolean;
+	work: RevisionWorkRead;
 }

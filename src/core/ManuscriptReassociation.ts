@@ -13,6 +13,12 @@ export function moveFolderPath(path: string, oldFolder: string, newFolder: strin
 
 export function folderPlanKey(folder: string): string { return JSON.stringify(["folder", folder]); }
 
+/** The book folder a plan key names; null for the author's plan and legacy keys. */
+export function planKeyFolder(key: string): string | null {
+	try { const value: unknown = JSON.parse(key); return Array.isArray(value) && value[0] === "folder" && typeof value[1] === "string" ? value[1] : null; }
+	catch { return null; }
+}
+
 export function knownManuscriptFolders(data: EditorialistPluginData): string[] {
 	const folders = new Set(Object.keys(data.settings.manuscriptNames?.folders ?? {}));
 	const target = data.settings.manuscriptTarget;
@@ -21,7 +27,8 @@ export function knownManuscriptFolders(data: EditorialistPluginData): string[] {
 	for (const delivery of data.editorialDeliveries?.deliveries ?? []) folders.add(delivery.bookFolder);
 	for (const entry of Object.values(data.sweepRegistry)) if (entry.activeBookSourceFolder) folders.add(entry.activeBookSourceFolder);
 	for (const key of Object.keys(data.revisionPlans?.books ?? {})) {
-		try { const value: unknown = JSON.parse(key); if (Array.isArray(value) && value[0] === "folder" && typeof value[1] === "string") folders.add(value[1]); } catch { /* Author-wide and legacy plan keys are not folder associations. */ }
+		const folder = planKeyFolder(key);
+		if (folder) folders.add(folder);
 	}
 	return [...folders].filter(Boolean).sort();
 }

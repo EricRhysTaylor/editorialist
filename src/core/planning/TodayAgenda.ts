@@ -1,8 +1,9 @@
+import { planKeyFolder } from "../ManuscriptReassociation";
 import { goalTimeline, type AuthorTarget } from "./AuthorPlan";
 import { isPlanEntryComplete, progressDoneKeys, type PlanEntry, type RevisionPlan, type WorkCandidate } from "./RevisionPlan";
 
-// What to work on today, across the active book's plan and the author's
-// goals. Only scheduled sessions count: the queue's order is the author's
+// What to work on today, across every book's plan and the author's goals.
+// Only scheduled sessions count: the queue's order is the author's
 // order, and the day is when they meant to do it. Sessions left open on an
 // earlier day come first, oldest first, so nothing slips by unseen. A session
 // whose source is already finished — a cleaned batch, a checked-off
@@ -49,6 +50,17 @@ function openEntries(plans: readonly AgendaPlan[]): OpenEntry[] {
 		});
 	});
 	return open;
+}
+
+/**
+ * The book folders with an unfinished session on the calendar. Today reads only
+ * these: a book with nothing scheduled adds nothing to the day.
+ */
+export function scheduledBookFolders(keys: readonly string[], planFor: (key: string) => RevisionPlan): string[] {
+	return keys.flatMap((key) => {
+		const folder = planKeyFolder(key);
+		return folder && planFor(key).entries.some((entry) => entry.day !== null && !entry.done) ? [folder] : [];
+	});
 }
 
 export function todayAgenda(plans: readonly AgendaPlan[], today: string): TodayAgenda {

@@ -39,13 +39,13 @@ Line edits supports a full set of scene-level editorial moves:
 
 ## Six panel modes
 
-Use the view name beside the Ed logo to switch modes. Book-scoped modes use the active-book header and **Import**. Author planner shows **Across your vault** and **Add goal**. Today covers the active book and your writing goals together.
+Use the view name beside the Ed logo to switch modes. Book-scoped modes use the active-book header and **Import**. Author planner shows **Across your vault** and **Add goal**. Today covers all your books and your writing goals together.
 
 <p align="center"><img src="images/panel-today.png" alt="Today view with the session to do now marked overdue in red, its document's word limit, the next session today, and a word-count goal showing words written today and the daily pace to finish on time" width="460"></p>
 
 | Mode | Use it for |
 |---|---|
-| **Today** | The session to do now, with **Start** and **Done**, then the rest of today and the next few sessions coming up, across the active book and your writing goals. Sessions left from an earlier day come first, marked in red, and an upcoming session can be moved to today. **Your goals** lists the goals under way, with the words written today for a word-count goal, and Today warns when the day’s sessions need more time than you have. The ribbon icon opens Today, and the Ed panel shows it the first time Obsidian starts each day. |
+| **Today** | The session to do now, with **Start** and **Done**, then the rest of today and the next few sessions coming up, across all your books and your writing goals. Each session names its book, and **Start** on another book's session switches to that book. Sessions left from an earlier day come first, marked in red, and an upcoming session can be moved to today. **Your goals** lists the goals under way, with the words written today for a word-count goal, and Today warns when the day’s sessions need more time than you have. The ribbon icon opens Today, and the Ed panel shows it the first time Obsidian starts each day. |
 | **Line edits** | Imported review batches: scene-level edits such as expand, condense, cut, move, and line edits, plus `%%query: question%%` responses and scene memos. Each batch is a review block appended to the scene, worked through, then cleaned away. Each scene can carry multiple batches from different manuscript shares or review passes. |
 | **Pending edits** | The notes in each scene’s **Pending Edits** property (the revision notes you keep with Radial Timeline, including Inquiry follow-ups), walked scene by scene across the active book. |
 | **Editorialisms** | A long-form checklist of directives pinned to the passages they concern, kept permanently as its own document: structural guidance, theme/subplot notes, and general feedback with no line edits. Record decisions or questions on directives and hand them to AI. |

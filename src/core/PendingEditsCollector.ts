@@ -15,7 +15,7 @@ interface RadialTimelineSceneLike {
 	itemType?: string;
 }
 
-interface RadialTimelineBookLike {
+export interface RadialTimelineBookLike {
 	id: string;
 	title: string;
 	sourceFolder: string;
@@ -72,7 +72,8 @@ function resolveRadialTimelinePlugin(app: App): RadialTimelinePluginSurface | nu
 	return candidate;
 }
 
-export async function collectPendingEdits(app: App): Promise<CollectPendingEditsResult> {
+/** Reads Radial Timeline's active book unless `book` names another. */
+export async function collectPendingEdits(app: App, book?: RadialTimelineBookLike): Promise<CollectPendingEditsResult> {
 	const plugin = resolveRadialTimelinePlugin(app);
 	if (!plugin) {
 		return { ok: false, reason: "radial_timeline_missing" };
@@ -82,7 +83,7 @@ export async function collectPendingEdits(app: App): Promise<CollectPendingEdits
 		return { ok: false, reason: "radial_timeline_api_unavailable" };
 	}
 
-	const activeBook = plugin.getActiveBook();
+	const activeBook = book ?? plugin.getActiveBook();
 	if (!activeBook) {
 		return { ok: false, reason: "no_active_book" };
 	}

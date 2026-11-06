@@ -1,5 +1,27 @@
-import { describe, expect, it } from "vitest";
-import { resolveSceneOrder } from "./PendingEditsCollector";
+import type { App } from "obsidian";
+import { describe, expect, it, vi } from "vitest";
+import { collectPendingEdits, resolveSceneOrder } from "./PendingEditsCollector";
+
+describe("collectPendingEdits", () => {
+	const book = { id: "other", title: "Other book", sourceFolder: "Other" };
+	function app(getActiveBook: () => unknown) {
+		const getSceneData = vi.fn(async () => [{ path: "Other/1 Opening.md", title: "1 Opening", pendingEdits: "Fix the ending" }]);
+		return { getSceneData, app: { plugins: { getPlugin: () => ({ getActiveBook, getSceneData }) } } as unknown as App };
+	}
+
+	it("reads a named book instead of Radial Timeline's active one", async () => {
+		const { app: host, getSceneData } = app(() => ({ id: "active", title: "Active", sourceFolder: "Active" }));
+		const result = await collectPendingEdits(host, book);
+		expect(getSceneData).toHaveBeenCalledWith({ sourcePath: "Other" });
+		expect(result).toMatchObject({ ok: true, session: { bookId: "other", sourceFolder: "Other" } });
+	});
+
+	it("reads the active book when none is named", async () => {
+		const { app: host, getSceneData } = app(() => book);
+		await collectPendingEdits(host);
+		expect(getSceneData).toHaveBeenCalledWith({ sourcePath: "Other" });
+	});
+});
 
 describe("resolveSceneOrder", () => {
 	it("parses the leading manuscript number from the scene title", () => {
