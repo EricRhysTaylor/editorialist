@@ -6,9 +6,10 @@ export interface RTBookTarget { id: string; title: string; folder: string; dates
 export interface RTDateEdit { link: RTGoalLink; expectedDate: string | null; date: string }
 interface LiveBook { id: string; title: string; sourceFolder?: unknown; stageTargetDates?: Partial<Record<RTStage, string>> }
 interface LiveRT {
-	settings: { books: LiveBook[] };
+	settings: { books: LiveBook[]; activeBookId?: unknown };
 	saveSettings(): Promise<void>;
 	isSettingsPersistenceBlocked(): boolean;
+	setActiveBookId?: unknown;
 }
 export interface RTDateReceipt { link: RTGoalLink; previousDate: string | null; date: string }
 function record(value: unknown): value is Record<string, unknown> { return value !== null && typeof value === "object" && !Array.isArray(value); }
@@ -25,6 +26,16 @@ export class RadialBookGoals {
 		return (this.live()?.settings.books ?? []).map((book) => ({ id: book.id, title: book.title, folder: typeof book.sourceFolder === "string" ? book.sourceFolder.trim().replace(/^\/+|\/+$/g, "") : "", dates: Object.fromEntries(Object.keys(RT_STAGES).flatMap((stage) => { const date = book.stageTargetDates?.[stage as RTStage]; return isDate(date) ? [[stage, date]] : []; })) }));
 	}
 	status(): { available: boolean; books: RTBookTarget[] } { return { available: this.live() !== null, books: this.books() }; }
+	activeBookId(): string | null { const id = this.live()?.settings.activeBookId; return typeof id === "string" ? id : null; }
+	/** Switches RT through its own setter, so its timeline and views follow. */
+	async select(bookId: string): Promise<void> {
+		const plugin = this.live(); if (!plugin) throw new Error("Enable Radial Timeline to switch books.");
+		if (plugin.settings.activeBookId === bookId) return;
+		if (!plugin.settings.books.some((book) => book.id === bookId)) throw new Error("That book is no longer in Radial Timeline. Reopen the manuscript target.");
+		if (plugin.isSettingsPersistenceBlocked()) throw new Error("Radial Timeline settings cannot be saved this session. Repair them before switching books.");
+		if (typeof plugin.setActiveBookId !== "function") throw new Error("Update Radial Timeline to switch books from here.");
+		await (plugin.setActiveBookId as (id: string) => Promise<void>).call(plugin, bookId);
+	}
 	resolve(plan: RevisionPlan): { plan: RevisionPlan; warnings: string[]; unavailable: Set<string> } {
 		const next = structuredClone(plan), books = this.books(), warnings: string[] = [], unavailable = new Set<string>();
 		for (const target of next.targets ?? []) {

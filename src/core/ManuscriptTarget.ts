@@ -31,7 +31,8 @@ export function normalizeManuscriptTarget(raw: unknown): ManuscriptTarget {
 	return target;
 }
 
-export async function resolveManuscriptTarget(app: App, target: ManuscriptTarget | undefined, legacyFolder = ""): Promise<ActiveBookScopeInfo> {
+/** `chosenBook` previews an RT book before it becomes the active one. */
+export async function resolveManuscriptTarget(app: App, target: ManuscriptTarget | undefined, legacyFolder = "", chosenBook?: { title: string; folder: string }): Promise<ActiveBookScopeInfo> {
 	// Keep existing installations' selection until they explicitly choose a
 	// target. New installations start with `none` (see emptyPluginData).
 	if (!target) {
@@ -42,7 +43,7 @@ export async function resolveManuscriptTarget(app: App, target: ManuscriptTarget
 	if (target.kind === "none") return blocked("Choose a manuscript target.");
 	if (target.kind === "vault") return { label: "Entire vault", sourceFolder: null, structured: false, target };
 	if (target.kind === "radial") {
-		const radial = await readRadialTimelineActiveBookScope(app);
+		const radial = chosenBook ? { label: chosenBook.title, sourceFolder: normalizePath(chosenBook.folder), structured: true } : await readRadialTimelineActiveBookScope(app);
 		if (!radial.sourceFolder) return blocked("Enable Radial Timeline and select a book with a source folder, or choose another target.");
 		if (!(app.vault.getAbstractFileByPath(radial.sourceFolder) instanceof TFolder)) return blocked(`Book folder unavailable: ${radial.sourceFolder}`);
 		return { ...radial, target };

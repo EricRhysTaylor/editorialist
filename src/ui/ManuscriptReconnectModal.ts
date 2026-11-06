@@ -3,6 +3,7 @@ import type EditorialistPlugin from "../main";
 import { buildManuscriptModalShell } from "./primitives/ManuscriptModalShell";
 import { FolderPicker } from "./ManuscriptTargetModal";
 import type { ManuscriptReassociation } from "../core/ManuscriptReassociation";
+import { matchingBookFolder } from "../core/RadialBookChoices";
 import type { ReassociationPreview } from "../services/ManuscriptReassociationService";
 
 export class ManuscriptReconnectModal extends Modal {
@@ -15,8 +16,12 @@ export class ManuscriptReconnectModal extends Modal {
 		super(plugin.app);
 		const folders = plugin.getManuscriptAssociations();
 		const target = plugin.getManuscriptTarget();
-		const current = folders.find((folder) => folder.path === (target?.kind === "folder" ? target.path : plugin.getActiveBookScopeInfo().sourceFolder)) ?? folders.find((folder) => folder.missing) ?? folders[0];
-		this.change = { oldFolder: current?.path ?? "", newFolder: current && !current.missing ? current.path : "", oldName: current?.name ?? "", newName: current?.name ?? "" };
+		const current = folders.find((folder) => target?.kind === "folder" && folder.path === target.path) ?? folders.find((folder) => folder.missing) ?? folders.find((folder) => folder.path === plugin.getActiveBookScopeInfo().sourceFolder) ?? folders[0];
+		this.change = { oldFolder: current?.path ?? "", newFolder: current ? this.startingFolder(current) : "", oldName: current?.name ?? "", newName: current?.name ?? "" };
+	}
+	/** A missing folder starts on the Radial Timeline book it most likely became. */
+	private startingFolder(folder: { path: string; name: string; missing: boolean }): string {
+		return folder.missing ? matchingBookFolder(folder, this.plugin.radialBookGoals.books()) : folder.path;
 	}
 	onOpen(): void { this.render(); }
 	onClose(): void { this.contentEl.empty(); }
@@ -43,7 +48,7 @@ export class ManuscriptReconnectModal extends Modal {
 				for (const folder of folders) dropdown.addOption(folder.path, `${folder.name === folder.path ? folder.path : `${folder.name} · ${folder.path}`}${folder.missing ? " · Unavailable" : ""}`);
 				dropdown.setValue(this.change.oldFolder).onChange((path) => {
 					const folder = folders.find((item) => item.path === path)!;
-					this.change = { oldFolder: path, newFolder: folder.missing ? "" : path, oldName: folder.name, newName: folder.name };
+					this.change = { oldFolder: path, newFolder: this.startingFolder(folder), oldName: folder.name, newName: folder.name };
 					this.error = ""; this.render();
 				});
 			});

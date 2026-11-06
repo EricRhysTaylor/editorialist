@@ -9286,6 +9286,10 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	max-width: 100%;
 }
 
+.editorialist-manuscript-modal .editorialist-reconnect__input {
+	flex: 1 1 100%;
+}
+
 .editorialist-target__exclusions {
 	flex-direction: column;
 	align-items: stretch;

@@ -31,6 +31,13 @@ function eligible(app: App, scope: ActiveBookScopeInfo): string[] {
 }
 
 describe("explicit manuscript targets", () => {
+	it("previews a chosen Radial Timeline book before it becomes active", async () => {
+		const app = targetApp();
+		const target = createManuscriptTarget("radial");
+		expect(await resolveManuscriptTarget(app, target, "", { title: "The Book", folder: "Book" })).toMatchObject({ label: "The Book", sourceFolder: "Book", structured: true });
+		expect((await resolveManuscriptTarget(app, target, "", { title: "Gone", folder: "Gone" })).unavailableReason).toBe("Book folder unavailable: Gone");
+	});
+
 	it("supports plain Markdown, exclusions and optional subfolders with one membership rule", async () => {
 		const app = targetApp();
 		const target = createManuscriptTarget("folder", "Book");

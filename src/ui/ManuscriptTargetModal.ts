@@ -1,5 +1,6 @@
 import { FuzzySuggestModal, Modal, Notice, Setting, TFolder, type App } from "obsidian";
 import { createManuscriptTarget, normalizeManuscriptTarget, resolveManuscriptTarget, type ManuscriptTarget } from "../core/ManuscriptTarget";
+import { bookChoiceLabel, bookChoiceNote, type RadialBookChoice } from "../core/RadialBookChoices";
 import { isSceneNoteForScope } from "../core/VaultScope";
 import { buildManuscriptModalShell } from "./primitives/ManuscriptModalShell";
 import type EditorialistPlugin from "../main";
@@ -18,6 +19,8 @@ export class ManuscriptTargetModal extends Modal {
 	private target: ManuscriptTarget;
 	private readonly notePath: string;
 	private folderPath: string;
+	private readonly books: RadialBookChoice[];
+	private bookId: string;
 	private previewRun = 0;
 	private saving = false;
 	private panel!: HTMLElement;
@@ -28,6 +31,12 @@ export class ManuscriptTargetModal extends Modal {
 		this.target = plugin.getManuscriptTarget() ?? createManuscriptTarget(current.structured ? "radial" : current.sourceFolder ? "folder" : "vault", current.sourceFolder ?? "");
 		this.notePath = plugin.app.workspace.getActiveFile()?.path ?? "";
 		this.folderPath = this.target.kind === "folder" ? this.target.path : plugin.getBookFolderOverride();
+		this.books = plugin.getRadialBookChoices();
+		this.bookId = this.books.find((book) => book.active)?.id ?? "";
+	}
+
+	private chosenBook(): RadialBookChoice | undefined {
+		return this.target.kind === "radial" ? this.books.find((book) => book.id === this.bookId) : undefined;
 	}
 
 	onOpen(): void { this.render(); }
@@ -44,8 +53,12 @@ export class ManuscriptTargetModal extends Modal {
 		const { contentEl } = this;
 		contentEl.addClass("editorialist-target");
 		this.panel = buildManuscriptModalShell(this, "Manuscript target", "Choose the writing to review. This selection stays in place when you open other notes.");
-		if (this.plugin.getManuscriptAssociations().length) {
-			this.setting().setName(this.plugin.getActiveBookScopeInfo().unavailableReason ? "Manuscript folder unavailable" : "Moved or renamed manuscript").setDesc("Reconnect saved work to its folder, or update the manuscript name.").addButton((button) => button.setButtonText("Reconnect…").onClick(() => { this.close(); this.plugin.openManuscriptReconnection(this.onSaved); }));
+		// Only for a folder that is gone, or a folder target's own name: a book
+		// Radial Timeline tracks keeps its folder and title there.
+		const associations = this.plugin.getManuscriptAssociations();
+		const missing = associations.some((folder) => folder.missing);
+		if (missing || (associations.length && this.target.kind === "folder")) {
+			this.setting().setName(missing ? "Manuscript folder unavailable" : "Moved or renamed manuscript").setDesc("Reconnect saved work to its folder, or update the manuscript name.").addButton((button) => button.setButtonText("Reconnect…").onClick(() => { this.close(); this.plugin.openManuscriptReconnection(this.onSaved); }));
 		}
 		this.setting().setName("Review").addDropdown((dropdown) => {
 			dropdown.addOptions({ none: "Choose a target…", radial: "Follow Radial Timeline", folder: "A folder", note: "Current note", vault: "Entire vault" }).setValue(this.target.kind).onChange((kind) => {
@@ -55,6 +68,17 @@ export class ManuscriptTargetModal extends Modal {
 				this.render();
 			});
 		});
+		if (this.target.kind === "radial" && this.books.length) {
+			const chosen = this.chosenBook();
+			const book = this.setting().setName("Book").setDesc(chosen ? bookChoiceNote(chosen, this.books) : "Choose a book from Radial Timeline.");
+			book.settingEl.addClass("editorialist-reconnect__field");
+			book.addDropdown((dropdown) => {
+				dropdown.selectEl.addClass("editorialist-reconnect__input");
+				if (!chosen) dropdown.addOption("", "Choose a book…");
+				for (const choice of this.books) dropdown.addOption(choice.id, bookChoiceLabel(choice));
+				dropdown.setValue(this.bookId).onChange((id) => { this.bookId = id; this.render(); });
+			});
+		}
 		if (this.target.kind === "folder") {
 			this.setting().setName("Folder").setDesc(this.target.path || "Choose the folder containing your manuscript.").addButton((button) => button.setButtonText("Choose folder…").onClick(() => {
 				new FolderPicker(this.app, (folder) => { this.target.path = folder.path; this.render(); }).open();
@@ -85,7 +109,7 @@ export class ManuscriptTargetModal extends Modal {
 		const save = actions.createEl("button", { cls: "mod-cta", text: "Use target", attr: { type: "button" } });
 		const updatePreview = async (): Promise<void> => {
 			const run = ++this.previewRun;
-			const scope = await resolveManuscriptTarget(this.app, normalizeManuscriptTarget(this.target));
+			const scope = await resolveManuscriptTarget(this.app, normalizeManuscriptTarget(this.target), "", this.chosenBook());
 			if (run !== this.previewRun) return;
 			if (this.target.kind === "folder" && !scope.unavailableReason) scope.label = this.plugin.getManuscriptAssociations().find((folder) => folder.path === this.target.path)?.name ?? scope.label;
 			const files = this.app.vault.getMarkdownFiles().filter((file) => isSceneNoteForScope(this.app, file, scope, this.plugin.getCutFolderOverride()));
@@ -96,10 +120,13 @@ export class ManuscriptTargetModal extends Modal {
 			if (this.saving) return;
 			this.saving = true;
 			for (const control of Array.from(contentEl.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement>("input, select, textarea, button"))) control.disabled = true;
-			void this.plugin.setManuscriptTarget(this.target).then(() => { this.onSaved?.(); this.close(); }).catch((error: unknown) => {
+			const book = this.chosenBook();
+			// RT can ask about its Timetable during a switch; that prompt must not stack on this dialog.
+			if (book && !book.active) this.close();
+			void (book ? this.plugin.radialBookGoals.select(book.id) : Promise.resolve()).then(() => this.plugin.setManuscriptTarget(this.target)).then(() => { this.onSaved?.(); this.close(); }).catch((error: unknown) => {
 				this.saving = false;
 				new Notice(error instanceof Error ? error.message : "Could not save the manuscript target.");
-				this.render();
+				if (contentEl.isConnected) this.render();
 			});
 		});
 		void updatePreview();

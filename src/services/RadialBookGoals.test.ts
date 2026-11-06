@@ -14,6 +14,21 @@ describe("optional RT goal targets", () => {
 		expect(plan.targets[0]!.due).toBe("2026-12-31"); expect(rt.settings.activeBookId).toBe("b1");
 		expect(normalizeRevisionPlans({ version: 1, books: { [AUTHOR_PLAN_SCOPE]: plan } }).books[AUTHOR_PLAN_SCOPE]?.targets?.[0]?.rt).toEqual(goal.rt);
 	});
+	it("switches books through RT's own setter and only when the book changes", async () => {
+		const { rt, bridge } = setup(); const setActiveBookId = vi.fn(async function (this: typeof rt, id: string) { this.settings.activeBookId = id; });
+		Object.assign(rt, { setActiveBookId });
+		expect(bridge.activeBookId()).toBe("b1");
+		await bridge.select("b1"); expect(setActiveBookId).not.toHaveBeenCalled();
+		await bridge.select("b2"); expect(setActiveBookId).toHaveBeenCalledWith("b2"); expect(bridge.activeBookId()).toBe("b2");
+	});
+	it("refuses a book switch it cannot complete, leaving RT on its book", async () => {
+		const { rt, bridge } = setup();
+		await expect(bridge.select("b2")).rejects.toThrow(/Update Radial Timeline/);
+		await expect(bridge.select("gone")).rejects.toThrow(/no longer/);
+		rt.isSettingsPersistenceBlocked = () => true;
+		await expect(bridge.select("b2")).rejects.toThrow(/cannot be saved/);
+		expect(rt.settings.activeBookId).toBe("b1");
+	});
 	it("counts a linked word goal in the book's source folder", () => {
 		const { rt, bridge } = setup(); (rt.settings.books[1] as { sourceFolder?: string }).sourceFolder = "/Books/Saturn & Jupiter/";
 		const words = { target: 50000, folder: "Old folder", startCount: 0, days: {} };

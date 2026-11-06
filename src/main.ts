@@ -1,6 +1,7 @@
 import { ManuscriptReconnectModal } from "./ui/ManuscriptReconnectModal";
 import { ManuscriptReassociationService, type ReassociationPreview } from "./services/ManuscriptReassociationService";
-import type { ManuscriptReassociation } from "./core/ManuscriptReassociation";
+import { folderPlanKey, type ManuscriptReassociation } from "./core/ManuscriptReassociation";
+import { radialBookChoices, type RadialBookChoice } from "./core/RadialBookChoices";
 import { manuscriptScopeKey, createManuscriptTarget, normalizeManuscriptTarget, type ManuscriptTarget } from "./core/ManuscriptTarget";
 import { ManuscriptTargetModal } from "./ui/ManuscriptTargetModal";
 import { t } from "./i18n";
@@ -19,7 +20,7 @@ import { localDate, sourceKey, type RevisionPlan, type WorkCandidate } from "./c
 import { advancePlanProgress } from "./core/planning/PlanProgress";
 import { planDayLabel } from "./core/planning/WorkPresentation";
 import { batchWork, directiveWork, pendingWork } from "./core/planning/RevisionWork";
-import { isEngagementDelivery, preparationWork, recordProjectEvent, type EditorialProject } from "./core/planning/EditorialProject";
+import { isEngagementDelivery, preparationWork, projectEditor, recordProjectEvent, type EditorialProject } from "./core/planning/EditorialProject";
 import { countProseWords } from "./core/WordCount";
 import { collectPendingEdits, describeCollectFailure } from "./core/PendingEditsCollector";
 import { endReviewRound, getEndableRoundBatches } from "./orchestrators/EndReviewRound";
@@ -1482,6 +1483,13 @@ export default class EditorialistPlugin extends Plugin {
 	}
 
 	getManuscriptAssociations(): { path: string; name: string; missing: boolean }[] { return this.manuscriptAssociations.folders(); }
+	getRadialBookChoices(): RadialBookChoice[] {
+		const profiles = this.getReviewerProfiles();
+		return radialBookChoices(this.radialBookGoals.books(), this.radialBookGoals.activeBookId(), (folder) => {
+			const project = this.getRevisionPlan(folderPlanKey(folder)).project;
+			return project ? { title: project.title, editor: projectEditor(project, profiles).name } : null;
+		});
+	}
 	openManuscriptReconnection(onSaved?: () => void): void { new ManuscriptReconnectModal(this, onSaved).open(); }
 	previewManuscriptReconnection(change: ManuscriptReassociation): Promise<ReassociationPreview> { return this.manuscriptAssociations.preview(change); }
 	async applyManuscriptReconnection(preview: ReassociationPreview): Promise<void> {
