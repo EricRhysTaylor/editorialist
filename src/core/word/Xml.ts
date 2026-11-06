@@ -109,10 +109,18 @@ export function serializeXml(root: XmlElement): string {
 	return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\r\n${root.children.map(serializeNode).join("")}`;
 }
 
+// XML 1.0 allows tab, line feed, carriage return and everything from the
+// space up; a control character below the space makes Word refuse the file.
+// Author text can carry one, such as the vertical tab Word itself puts on the
+// clipboard for a line break, so it is dropped on the way out.
+function xmlChars(text: string): string {
+	return text.replace(/[^\t\n\r -\uFFFF]/g, "");
+}
+
 function serializeNode(node: XmlNode): string {
-	if (typeof node === "string") return node.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+	if (typeof node === "string") return xmlChars(node).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 	const attrs = Object.entries(node.attrs)
-		.map(([key, value]) => ` ${key}="${value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;")}"`)
+		.map(([key, value]) => ` ${key}="${xmlChars(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;")}"`)
 		.join("");
 	if (node.children.length === 0) return `<${node.name}${attrs}/>`;
 	return `<${node.name}${attrs}>${node.children.map(serializeNode).join("")}</${node.name}>`;
