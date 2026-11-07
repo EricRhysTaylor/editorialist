@@ -1,4 +1,4 @@
-[Radial Timeline](https://community.obsidian.md/plugins/radial-timeline) is a companion plugin for manuscript structure. Choose **Follow Radial Timeline** in the manuscript target selector to use its active book for review targeting. You can choose an independent folder or note while Radial Timeline remains enabled. Pending-edits review continues to use its active book.
+[Radial Timeline](https://community.obsidian.md/plugins/radial-timeline) is a companion plugin for manuscript structure. Choose **Follow Radial Timeline** in the manuscript target selector to use its active book for review targeting. It lists your books, and choosing one switches both plugins to it. Today shows sessions from all your books. You can choose an independent folder or note while Radial Timeline remains enabled. Pending-edits review continues to use its active book.
 
 <p align="center"><img src="images/settings-radial-timeline-rounded.png" alt="Radial Timeline based tracking placard in Editorialist settings" width="620"></p>
 
