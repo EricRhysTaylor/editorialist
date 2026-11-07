@@ -80,7 +80,7 @@ Use **Change target…** here, or click the manuscript line beneath a panel head
 
 <p align="center"><img src="images/manuscript-target.png" alt="Manuscript target dialog with A folder selected: the Book folder, Include subfolders on, Book/Research excluded, and a preview of 6 eligible notes" width="520"></p>
 
-- **Follow Radial Timeline** — use its active book while the plugin is enabled. An unavailable book or folder asks you to choose a target; it does not select another book.
+- **Follow Radial Timeline** — use its active book while the plugin is enabled. The list shows your books and which ones have an editor engagement. Choosing another book switches Radial Timeline to it too. If a book's folder is missing, you are asked to choose a target.
 - **A folder** — choose an existing vault folder. Include or skip subfolders and exclude supporting folders by their vault-relative paths. Plain Markdown notes need no `Class: Scene` property.
 - **Current note** — pins the note open when you choose this option. Opening another note does not move the target.
 - **Entire vault** — explicitly includes Markdown notes across the vault, subject to exclusions.
