@@ -2,6 +2,7 @@ import { saveOpenEditors } from "./SaveOpenEditors";
 import { prepareEditorialismUpdate } from "../core/EditorialismUpdate";
 import { estimateEditorialismEffort, type EffortParams } from "../core/EffortEstimate";
 import { normalizePath, TFile, TFolder, type App } from "obsidian";
+import { ensureVaultFolderPath } from "../core/VaultFolders";
 import { isSceneClassFile } from "../core/VaultScope";
 import {
 	insertAnchorLine,
@@ -169,7 +170,7 @@ export class EditorialismService {
 	// is treated as the deliberate update it always was.
 	async saveEditorialismFile(file: EditorialismFileToSave, confirmUpdate?: (details: string[]) => Promise<boolean>): Promise<SaveEditorialismResult> {
 		const { folderPath, filePath, existing, keptApart, conflict } = await this.resolveSaveTarget(file);
-		await this.ensureFolderExists(folderPath);
+		await ensureVaultFolderPath(this.app, folderPath);
 		if (conflict) {
 			throw new Error(`Another reviewer's agenda already lives at ${filePath}; rename the title and save again.`);
 		}
@@ -273,32 +274,6 @@ export class EditorialismService {
 		}
 		const normalize = (value: string | null): string => (value ?? "").trim().toLowerCase();
 		return normalize(current.reviewer) !== normalize(incomingReviewer);
-	}
-
-	private async ensureFolderExists(folderPath: string): Promise<void> {
-		if (!folderPath) {
-			return;
-		}
-		if (this.app.vault.getAbstractFileByPath(folderPath) instanceof TFolder) {
-			return;
-		}
-		// Build nested folders segment-by-segment; createFolder rejects when a
-		// folder already exists, so each level is guarded by an existence check.
-		const segments = folderPath.split("/");
-		let current = "";
-		for (const segment of segments) {
-			current = current ? `${current}/${segment}` : segment;
-			if (this.app.vault.getAbstractFileByPath(current) instanceof TFolder) {
-				continue;
-			}
-			try {
-				await this.app.vault.createFolder(current);
-			} catch (error) {
-				if (!(this.app.vault.getAbstractFileByPath(current) instanceof TFolder)) {
-					throw error;
-				}
-			}
-		}
 	}
 
 	private collectCandidateFiles(): TFile[] {
