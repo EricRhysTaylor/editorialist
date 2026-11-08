@@ -8,7 +8,7 @@ Watch the walkthrough: [Turn Your Editor's Notes Into a Revision Schedule](https
 
 ## Feedback and planning
 
-Working from an editor’s Word file needs no AI at all. Their tracked changes and comments come in directly: each change arrives as a line edit to accept or reject, with their comments beside it. When you are done, your replies and your reasons for the changes you kept go back into a copy of their Word file. Other feedback arrives in Editorialist’s format, packaged by an AI: the AI’s own review, or a human editor’s or beta reader’s notes converted with the instructions for AI. You choose the AI and paste its formatted response into Editorialist. The plugin makes no network calls and holds no API keys.
+Working from an editor’s Word file needs no AI at all. Their tracked changes and comments come in directly: each change arrives as a line edit to accept or reject, with their comments beside it. When you are done, your replies and your reasons for the changes you kept go back into a copy of their Word file. [Working with a Copy Editor](Working-with-a-Copy-Editor) walks the round trip step by step. Other feedback arrives in Editorialist’s format, packaged by an AI: the AI’s own review, or a human editor’s or beta reader’s notes converted with the instructions for AI. You choose the AI and paste its formatted response into Editorialist. The plugin makes no network calls and holds no API keys.
 
 The planners work locally without AI. [Editor Engagement](Editor-Engagement) records agreed dates, personal milestones, tasks, optional references, and activity history for the active book. [Author Planner](Author-Planner) schedules your own writing goals across the vault.
 
@@ -83,6 +83,7 @@ To schedule everything at once, open **Editor engagement → Schedule** (or the 
 | Page | What's there |
 |---|---|
 | [Getting Started](Getting-Started) | Commands and your first review pass |
+| [Working with a Copy Editor](Working-with-a-Copy-Editor) | The Word round trip, step by step: send the manuscript, bring in tracked changes, decide, and save your replies in their file |
 | [Editor Engagement](Editor-Engagement) | Agreed dates, editor return, milestones, references, and activity history |
 | [Author Planner](Author-Planner) | Personal goals, target dates, linked documents, and optional RT stage dates |
 | [Revision Scheduling](Revision-Plan) | Progress across the book, priorities, capacity, auto-planning, and delivery tracking |

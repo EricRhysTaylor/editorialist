@@ -3,6 +3,7 @@
 **Using Editorialist**
 
 - [Getting Started](Getting-Started)
+- [Working with a Copy Editor](Working-with-a-Copy-Editor)
 - [Editor Engagement](Editor-Engagement)
 - [Author Planner](Author-Planner)
 - [Revision Scheduling](Revision-Plan)

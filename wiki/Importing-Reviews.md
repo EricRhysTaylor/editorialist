@@ -231,7 +231,7 @@ Replies to the Editorialisms panel's **Draft fixes with AI…** and **Hand off t
 
 ## Word files with tracked changes
 
-A copy editor or line editor who works in Word sends back a .docx with tracked changes and comments. Editorialist reads that file directly, so no AI sits between your editor's changes and your manuscript.
+A copy editor or line editor who works in Word sends back a .docx with tracked changes and comments. Editorialist reads that file directly, so no AI sits between your editor's changes and your manuscript. For the whole round trip in order, from the file you send to the file you send back, see [Working with a Copy Editor](Working-with-a-Copy-Editor).
 
 1. Open the review launcher. Its first card is **Your editor's Word file**: choose **Choose Word file…** and pick the .docx.
 2. The launcher says how many edits, cuts and comments it found, and whose they are. If more than one person tracked changes (your own replies in an earlier round, for example), choose whose changes to bring in under **Changes by**. Set **Their role**; it starts as **Copy editor**.
