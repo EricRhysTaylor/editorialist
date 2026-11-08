@@ -42,6 +42,9 @@ export interface ApplySuggestionOptions {
 	syncSceneInventory?: boolean;
 }
 
+type DecisionStatus = "rejected" | "rewritten" | "deferred";
+type SessionTracking = ReturnType<ReviewStateMachineHost["getCurrentSessionTrackingContext"]>;
+
 interface EditorLike {
 	offsetToPos(offset: number): unknown;
 	replaceRange(replacement: string, from: unknown, to: unknown): void;
@@ -57,6 +60,49 @@ export class ReviewStateMachine {
 	// Mirrors main.ts getAdjacentRevealableSuggestionId wrapper (3011):
 	// getReviewSession, then store.getState().selectedSuggestionId, then the
 	// pure ranking. The two host reads must not be collapsed.
+	// Shared first and second halves of the reject / rewrite / defer flows.
+	// The callers interleave their own traversal reads between the two, so
+	// they stay separate calls to keep the recorded host-effect order.
+	private async persistDecision(
+		session: ReviewSession | null,
+		suggestion: ReviewSuggestion | null,
+		status: DecisionStatus,
+		tracking: SessionTracking,
+		scope: ReviewMutationScope,
+	): Promise<void> {
+		if (!session || !suggestion) {
+			return;
+		}
+		const { sessionId, sessionStartedAt } = tracking;
+		const restoreDecision = this.host.registry.captureReviewDecisionRollback(session.notePath, suggestion);
+		await this.host.registry.persistReviewDecision(session.notePath, suggestion, status, {
+			persist: false,
+			sessionId,
+			sessionStartedAt,
+		});
+		scope.onRollback(restoreDecision);
+	}
+
+	private async applyDecisionStatus(
+		id: string,
+		status: DecisionStatus,
+		previousStatus: ReviewSuggestion["status"] | null,
+		tracking: SessionTracking,
+		scope: ReviewMutationScope,
+	): Promise<void> {
+		const { sessionId, sessionStartedAt } = tracking;
+		this.host.store.updateSuggestionStatus(id, status);
+		if (previousStatus) {
+			scope.onRollback(() => this.host.store.updateSuggestionStatus(id, previousStatus));
+		}
+		await this.host.registry.syncReviewerSignalsForSession(this.host.store.getSession(), {
+			persist: false,
+			sessionId,
+			sessionStartedAt,
+		});
+		await this.host.registry.syncSceneInventoryForSession(this.host.store.getSession());
+	}
+
 	private computeAdjacent(
 		direction: "next" | "previous",
 		fromId?: string,
@@ -140,30 +186,12 @@ export class ReviewStateMachine {
 		const suggestion = this.host.getSuggestionById(id);
 		const previousStatus = suggestion?.status ?? null;
 		const tracking = this.host.getCurrentSessionTrackingContext();
-		const { sessionId, sessionStartedAt } = tracking;
 		const scope = new ReviewMutationScope();
 		try {
-			if (session && suggestion) {
-				const restoreDecision = this.host.registry.captureReviewDecisionRollback(session.notePath, suggestion);
-				await this.host.registry.persistReviewDecision(session.notePath, suggestion, "rejected", {
-					persist: false,
-					sessionId,
-					sessionStartedAt,
-				});
-				scope.onRollback(restoreDecision);
-			}
+			await this.persistDecision(session, suggestion, "rejected", tracking, scope);
 
 			const nextSuggestionId = this.computeAdjacent("next", id);
-			this.host.store.updateSuggestionStatus(id, "rejected");
-			if (previousStatus) {
-				scope.onRollback(() => this.host.store.updateSuggestionStatus(id, previousStatus));
-			}
-			await this.host.registry.syncReviewerSignalsForSession(this.host.store.getSession(), {
-				persist: false,
-				sessionId,
-				sessionStartedAt,
-			});
-			await this.host.registry.syncSceneInventoryForSession(this.host.store.getSession());
+			await this.applyDecisionStatus(id, "rejected", previousStatus, tracking, scope);
 			if (nextSuggestionId) {
 				this.host.store.selectSuggestion(nextSuggestionId);
 				await this.host.revealSelectedSuggestion();
@@ -187,29 +215,11 @@ export class ReviewStateMachine {
 		const suggestion = this.host.getSuggestionById(id);
 		const previousStatus = suggestion?.status ?? null;
 		const tracking = this.host.getCurrentSessionTrackingContext();
-		const { sessionId, sessionStartedAt } = tracking;
 		const scope = new ReviewMutationScope();
 		try {
-			if (session && suggestion) {
-				const restoreDecision = this.host.registry.captureReviewDecisionRollback(session.notePath, suggestion);
-				await this.host.registry.persistReviewDecision(session.notePath, suggestion, "rewritten", {
-					persist: false,
-					sessionId,
-					sessionStartedAt,
-				});
-				scope.onRollback(restoreDecision);
-			}
+			await this.persistDecision(session, suggestion, "rewritten", tracking, scope);
 
-			this.host.store.updateSuggestionStatus(id, "rewritten");
-			if (previousStatus) {
-				scope.onRollback(() => this.host.store.updateSuggestionStatus(id, previousStatus));
-			}
-			await this.host.registry.syncReviewerSignalsForSession(this.host.store.getSession(), {
-				persist: false,
-				sessionId,
-				sessionStartedAt,
-			});
-			await this.host.registry.syncSceneInventoryForSession(this.host.store.getSession());
+			await this.applyDecisionStatus(id, "rewritten", previousStatus, tracking, scope);
 
 			if (this.handoffApplies(this.host.store.getSession())) {
 				await this.host.enterGuidedSweepHandoff();
@@ -287,30 +297,12 @@ export class ReviewStateMachine {
 		const suggestion = this.host.getSuggestionById(id);
 		const previousStatus = suggestion?.status ?? null;
 		const tracking = this.host.getCurrentSessionTrackingContext();
-		const { sessionId, sessionStartedAt } = tracking;
 		const scope = new ReviewMutationScope();
 		try {
-			if (session && suggestion) {
-				const restoreDecision = this.host.registry.captureReviewDecisionRollback(session.notePath, suggestion);
-				await this.host.registry.persistReviewDecision(session.notePath, suggestion, "deferred", {
-					persist: false,
-					sessionId,
-					sessionStartedAt,
-				});
-				scope.onRollback(restoreDecision);
-			}
+			await this.persistDecision(session, suggestion, "deferred", tracking, scope);
 
 			const nextSuggestionId = this.computeAdjacent("next", id, true);
-			this.host.store.updateSuggestionStatus(id, "deferred");
-			if (previousStatus) {
-				scope.onRollback(() => this.host.store.updateSuggestionStatus(id, previousStatus));
-			}
-			await this.host.registry.syncReviewerSignalsForSession(this.host.store.getSession(), {
-				persist: false,
-				sessionId,
-				sessionStartedAt,
-			});
-			await this.host.registry.syncSceneInventoryForSession(this.host.store.getSession());
+			await this.applyDecisionStatus(id, "deferred", previousStatus, tracking, scope);
 			if (nextSuggestionId) {
 				this.host.store.selectSuggestion(nextSuggestionId);
 				await this.host.revealSelectedSuggestion();
