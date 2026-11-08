@@ -1,6 +1,7 @@
-import { isDate, isPlanEntryComplete, localDate, progressDoneKeys, resolvePlanSource, sourceKey, type PlanEntry, type RevisionPlan, type WorkCandidate } from "./RevisionPlan";
+import { isDate, isPlanEntryComplete, progressDoneKeys, resolvePlanSource, sourceKey, type PlanEntry, type RevisionPlan, type WorkCandidate } from "./RevisionPlan";
 import type { ScheduleDefaults, SchedulePreset, WorkPhase } from "./ScheduleDefaults";
 import { entryDeadline, workDeadline } from "./EditorialProject";
+import { addDays } from "./PlanProgress";
 export interface TriageChoice { phase?: WorkPhase | null; low?: number; high?: number; skip?: boolean }
 export interface ScheduleOptions extends ScheduleDefaults {
 	/** The delivery to plan, or null for every open piece of work in the book. */
@@ -12,9 +13,6 @@ export interface ScheduleOptions extends ScheduleDefaults {
 }
 export interface ScheduleIssue { title: string; reason: string; key?: string }
 export interface ScheduleDraft { plan: RevisionPlan; issues: ScheduleIssue[]; generated: PlanEntry[]; preserved: number; estimated: number }
-export function addDays(day: string, count: number): string {
-	const date = new Date(`${day}T12:00:00`); date.setDate(date.getDate() + count); return localDate(date);
-}
 /** Suggestions only: explicit scope/word cues outrank the source format. */
 export function suggestPhase(candidate: WorkCandidate, preset: SchedulePreset): WorkPhase | null {
 	if (candidate.kind === "preparation") return "structure";

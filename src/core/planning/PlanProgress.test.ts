@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { advancePlanProgress, normalizePlanProgress, summarizePlanProgress, type ProgressInput } from "./PlanProgress";
-import { emptyRevisionPlan, isPlanEntryComplete, normalizeRevisionPlans, progressDoneKeys, sourceKey, type PlanEntry } from "./RevisionPlan";
+import { addDays, advancePlanProgress, normalizePlanProgress, summarizePlanProgress, type ProgressInput } from "./PlanProgress";
+import { emptyRevisionPlan, isPlanEntryComplete, localDate, normalizeRevisionPlans, progressDoneKeys, sourceKey, type PlanEntry } from "./RevisionPlan";
 
 const open = (key: string, kind: ProgressInput["kind"] = "batch"): ProgressInput => ({ key, kind, state: "open" });
 
@@ -83,3 +83,23 @@ describe("plan progress", () => {
 		expect(isPlanEntryComplete(entry, [])).toBe(false);
 	});
 });
+
+describe("addDays", () => {
+	it("crosses month, year and leap-day boundaries", () => {
+		expect(addDays("2026-01-31", 1)).toBe("2026-02-01");
+		expect(addDays("2026-12-31", 1)).toBe("2027-01-01");
+		expect(addDays("2028-02-28", 1)).toBe("2028-02-29");
+		expect(addDays("2026-03-01", -1)).toBe("2026-02-28");
+	});
+
+	it("matches local-calendar day stepping on every day of two years, clock changes included", () => {
+		for (let day = "2026-01-01"; day < "2028-01-01"; day = addDays(day, 1)) {
+			const local = new Date(`${day}T12:00:00`);
+			local.setDate(local.getDate() + 1);
+			expect(addDays(day, 1)).toBe(localDate(local));
+			local.setDate(local.getDate() - 7);
+			expect(addDays(day, -6)).toBe(localDate(local));
+		}
+	});
+});
+
