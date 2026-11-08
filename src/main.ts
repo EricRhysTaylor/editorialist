@@ -6,6 +6,7 @@ import { manuscriptScopeKey, createManuscriptTarget, normalizeManuscriptTarget, 
 import { ManuscriptTargetModal } from "./ui/ManuscriptTargetModal";
 import { t } from "./i18n";
 import { editorMenuEntries, type EditorMenuEntry } from "./core/EditorMenuEntries";
+import { ensureVaultFolderPath } from "./core/VaultFolders";
 import { saveOpenEditors } from "./services/SaveOpenEditors";
 import { AutoScheduleModal } from "./ui/AutoScheduleModal";
 import { EditorialDeliveriesModal } from "./ui/EditorialDeliveriesModal";
@@ -1735,15 +1736,10 @@ export default class EditorialistPlugin extends Plugin {
 	}
 
 	private async ensureVaultFolder(folder: string): Promise<boolean> {
-		const parts = folder.split("/");
-		for (let index = 1; index <= parts.length; index++) {
-			const part = parts.slice(0, index).join("/");
-			const existing = this.app.vault.getAbstractFileByPath(part);
-			if (!existing) await this.app.vault.createFolder(part);
-			else if (!(existing instanceof TFolder)) {
-				new Notice(`A file named “${part}” is in the way of the ${folder} folder.`);
-				return false;
-			}
+		const blocked = await ensureVaultFolderPath(this.app, folder, { stopAtFile: true });
+		if (blocked !== null) {
+			new Notice(`A file named “${blocked}” is in the way of the ${folder} folder.`);
+			return false;
 		}
 		return true;
 	}

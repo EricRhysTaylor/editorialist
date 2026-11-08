@@ -145,6 +145,7 @@ export function daysBetween(from: string, to: string): number {
 	return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000);
 }
 
-function addDays(day: string, offset: number): string {
+/** The calendar day `offset` days after `day` (YYYY-MM-DD in, YYYY-MM-DD out). */
+export function addDays(day: string, offset: number): string {
 	return new Date(Date.parse(`${day}T00:00:00Z`) + offset * 86400000).toISOString().slice(0, 10);
 }

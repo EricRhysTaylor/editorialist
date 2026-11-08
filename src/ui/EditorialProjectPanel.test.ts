@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from "vitest";
-import { addDays } from "../core/planning/AutoSchedule";
+import { addDays } from "../core/planning/PlanProgress";
 import { createEditorialProject } from "../core/planning/EditorialProject";
 import { emptyRevisionPlan, localDate } from "../core/planning/RevisionPlan";
 import { planDayLabel } from "../core/planning/WorkPresentation";

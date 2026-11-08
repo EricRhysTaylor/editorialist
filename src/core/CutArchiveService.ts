@@ -1,5 +1,6 @@
 import { saveOpenEditors } from "../services/SaveOpenEditors";
-import { normalizePath, TFile, TFolder, type App } from "obsidian";
+import { normalizePath, TFile, type App } from "obsidian";
+import { ensureVaultFolderPath } from "./VaultFolders";
 import type { SupportedReviewOperationType } from "../models/ReviewSuggestion";
 import {
 	CUT_FOLDER_NAME,
@@ -138,7 +139,7 @@ export class CutArchiveService {
 		}
 
 		const folderPath = resolveCutFolderPath(request.sceneFile.path, this.resolutionInput());
-		await this.ensureFolderExists(folderPath);
+		await ensureVaultFolderPath(this.app, folderPath);
 
 		const block = formatCutBlock(request, request.text);
 
@@ -160,36 +161,5 @@ export class CutArchiveService {
 			override: this.deps.getCutFolderOverride(),
 			sourceFolder: this.deps.getActiveBookScope().sourceFolder,
 		};
-	}
-
-	private async ensureFolderExists(folderPath: string): Promise<void> {
-		if (!folderPath) {
-			return;
-		}
-
-		const existing = this.app.vault.getAbstractFileByPath(folderPath);
-		if (existing instanceof TFolder) {
-			return;
-		}
-
-		// Build nested folders segment-by-segment; createFolder rejects when a
-		// folder already exists, so each level is guarded by an existence check.
-		const segments = folderPath.split("/");
-		let current = "";
-		for (const segment of segments) {
-			current = current ? `${current}/${segment}` : segment;
-			if (this.app.vault.getAbstractFileByPath(current) instanceof TFolder) {
-				continue;
-			}
-			try {
-				await this.app.vault.createFolder(current);
-			} catch (error) {
-				// A concurrent create or an already-existing folder is benign; only
-				// re-throw when the path still is not a usable folder afterward.
-				if (!(this.app.vault.getAbstractFileByPath(current) instanceof TFolder)) {
-					throw error;
-				}
-			}
-		}
 	}
 }
