@@ -33,6 +33,8 @@ export class TodayPanel extends ItemView {
 	private goalWords: Record<string, number | null> = {};
 	private busy = false;
 	private day = localDate(new Date());
+	// What the view last drew; see show.
+	private shownSignature: string | null = null;
 	private refreshDebounced: Debouncer<[], void> | null = null;
 
 	constructor(leaf: WorkspaceLeaf, private readonly plugin: EditorialistPlugin) { super(leaf); }
@@ -63,7 +65,7 @@ export class TodayPanel extends ItemView {
 		if (this.busy) { this.scheduleRefresh(); return; }
 		this.busy = true;
 		this.contentEl.setAttribute("aria-busy", "true");
-		if (!this.agenda) this.render();
+		if (!this.agenda) this.show();
 		try {
 			await this.plugin.synchronizeAuthorTargets();
 			const books = await this.plugin.collectBooksWork();
@@ -95,8 +97,19 @@ export class TodayPanel extends ItemView {
 		} finally {
 			this.busy = false;
 			this.contentEl.setAttribute("aria-busy", "false");
-			this.render();
+			this.show();
 		}
+	}
+
+	// Every leaf change, the view's own focus included, refreshes Today after a
+	// pause. Redrawing unchanged content then replaced the button under the
+	// pointer, so a click landing at that moment was lost; it redraws only when
+	// what it shows has changed.
+	private show(): void {
+		const signature = JSON.stringify({ busy: this.busy, day: this.day, bookLabel: this.bookLabel, agenda: this.agenda, goals: this.goals, goalWords: this.goalWords, wordCounts: this.wordCounts, notices: this.notices, plans: this.plans });
+		if (signature === this.shownSignature) return;
+		this.shownSignature = signature;
+		this.render();
 	}
 
 	private render(): void {

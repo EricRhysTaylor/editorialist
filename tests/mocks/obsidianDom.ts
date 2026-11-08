@@ -181,6 +181,56 @@ export class Modal {
 	onClose(): void {}
 }
 
+// A view in a leaf: the leaf's app, a content element in the page, and
+// Obsidian's register helpers (cleanup is not modelled).
+export class ItemView {
+	readonly app: App;
+	readonly contentEl: HTMLElement = create(document.body, "div");
+
+	constructor(readonly leaf: { app: App }) {
+		this.app = leaf.app;
+	}
+	registerEvent(): void {}
+	registerInterval(id: number): number {
+		return id;
+	}
+	register(): void {}
+}
+
+// Obsidian's trailing debounce: the callback runs once, `timeout` ms after
+// the last call when `resetTimer` is set, otherwise after the first.
+export function debounce<T extends unknown[]>(callback: (...args: T) => unknown, timeout = 0, resetTimer = false) {
+	let timer: number | null = null;
+	let latest: T | null = null;
+	const fire = (): void => {
+		timer = null;
+		const args = latest;
+		latest = null;
+		if (args) callback(...args);
+	};
+	const debounced = Object.assign((...args: T) => {
+		latest = args;
+		if (timer !== null && resetTimer) {
+			window.clearTimeout(timer);
+			timer = null;
+		}
+		if (timer === null) timer = window.setTimeout(fire, timeout);
+		return debounced;
+	}, {
+		cancel: () => {
+			if (timer !== null) window.clearTimeout(timer);
+			timer = null;
+			latest = null;
+			return debounced;
+		},
+		run: () => {
+			if (timer !== null) window.clearTimeout(timer);
+			fire();
+		},
+	});
+	return debounced;
+}
+
 export class TFile {
 	path = "";
 	basename = "";

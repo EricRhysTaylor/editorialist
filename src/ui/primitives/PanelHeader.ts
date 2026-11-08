@@ -4,6 +4,19 @@ import { EDITORIALIST_ICON_ID } from "../EditorialistLogoIcon";
 import { Menu, setIcon } from "obsidian";
 import type EditorialistPlugin from "../../main";
 
+// The book target button: its words, and whether it reconnects a missing folder.
+function bookTarget(plugin: EditorialistPlugin): { reconnect: boolean; text: string } {
+	const scope = plugin.getActiveBookScopeInfo();
+	const reconnect = Boolean(scope.unavailableReason && scope.target?.kind === "folder" && scope.target.path);
+	const text = reconnect ? t("target.reconnect") : scope.unavailableReason ? t("panel.noActiveBook") : t("target.summary", { label: scope.label ?? t("target.legacyVault"), notes: tCount("target.notes", plugin.getManuscriptFiles().length) });
+	return { reconnect, text };
+}
+
+/** What renderPanelHeader shows, so a panel can tell whether its header needs redrawing. */
+export function panelHeaderSignature(plugin: EditorialistPlugin, scopeLabel?: string): string {
+	return scopeLabel ?? JSON.stringify(bookTarget(plugin));
+}
+
 /** Consistent navigation; source-specific work stays in the panel body. */
 export function renderPanelHeader(parent: HTMLElement, plugin: EditorialistPlugin, viewType: string, label: string, scopeLabel?: string, primary?: { label: string; action: () => void; disabled?: boolean }): HTMLElement {
 	const header = parent.createDiv({ cls: "editorialist-panel__header" });
@@ -44,13 +57,11 @@ export function renderPanelHeader(parent: HTMLElement, plugin: EditorialistPlugi
 	setIcon(book.createSpan({ cls: "editorialist-panel__book-icon" }), "book-open");
 	if (scopeLabel) book.createSpan({ text: scopeLabel });
 	else {
-		const scope = plugin.getActiveBookScopeInfo();
 		const target = book.createEl("button", { cls: "editorialist-panel__target", attr: { type: "button" } });
-		const count = plugin.getManuscriptFiles().length;
-		const reconnect = Boolean(scope.unavailableReason && scope.target?.kind === "folder" && scope.target.path);
+		const { reconnect, text } = bookTarget(plugin);
 		setAccessibleLabel(target, reconnect ? t("target.reconnect") : t("target.change"));
 		const open = (): void => { if (reconnect) plugin.openManuscriptReconnection(); else plugin.openManuscriptTargetSelector(); };
-		target.createSpan({ text: reconnect ? t("target.reconnect") : scope.unavailableReason ? t("panel.noActiveBook") : t("target.summary", { label: scope.label ?? t("target.legacyVault"), notes: tCount("target.notes", count) }) });
+		target.createSpan({ text });
 		setIcon(target.createSpan(), "chevron-down");
 		// Open before Obsidian focuses/rerenders the sidebar. Waiting for click
 		// loses the pressed element when the active editor is in another leaf.

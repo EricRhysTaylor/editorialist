@@ -1,5 +1,5 @@
 import { setAccessibleLabel } from "./primitives/AccessibleLabel";
-import { renderPanelHeader } from "./primitives/PanelHeader";
+import { panelHeaderSignature, renderPanelHeader } from "./primitives/PanelHeader";
 import { ItemView, TFile, debounce, setIcon, type Debouncer, type WorkspaceLeaf } from "obsidian";
 import type EditorialistPlugin from "../main";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
@@ -12,6 +12,8 @@ export const PENDING_EDITS_PANEL_VIEW_TYPE = "editorialist-pending-edits-panel";
 // of the review and editorialism views, swapped in the same leaf.
 export class PendingEditsPanel extends ItemView {
 	private summary: PendingEditsSummary | null = null;
+	// What the panel last drew; see refresh.
+	private shownSignature: string | null = null;
 	private refreshDebounced: Debouncer<[], void> | null = null;
 
 	constructor(leaf: WorkspaceLeaf, private readonly plugin: EditorialistPlugin) {
@@ -59,10 +61,32 @@ export class PendingEditsPanel extends ItemView {
 		this.refreshDebounced?.cancel();
 	}
 
+	// Reads the queue again, but repaints only when what the panel shows has
+	// changed. Taking focus refreshes it, and Obsidian moves focus on the
+	// mousedown, before mouseup: a repaint then replaced the pressed button and
+	// that first click never arrived.
 	async refresh(): Promise<void> {
 		await this.plugin.pendingEdits.refreshPendingEditsSummary({ force: true });
 		this.summary = this.plugin.pendingEdits.getPendingEditsSummary();
+		const signature = this.renderSignature();
+		if (signature === this.shownSignature) {
+			return;
+		}
+		this.shownSignature = signature;
 		this.render();
+	}
+
+	private renderSignature(): string {
+		const summary = this.summary;
+		return JSON.stringify({
+			header: panelHeaderSignature(this.plugin),
+			unavailable: this.plugin.pendingEdits.getUnavailableReason(),
+			summary: summary && {
+				segmentCount: summary.segmentCount,
+				sceneCount: summary.sceneCount,
+				scenes: summary.scenes.map((scene) => [scene.scenePath, scene.title, scene.count, scene.firstExcerpt]),
+			},
+		});
 	}
 
 	private render(): void {

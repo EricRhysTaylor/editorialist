@@ -9,18 +9,11 @@ import { ReviewPanel } from "./ReviewPanel";
 // pointer, and the click that focused the panel never arrives. These tests
 // render the real panel and send the leaf change the way Obsidian does.
 
-vi.mock("obsidian", async () => {
-	const dom = await import("../../tests/mocks/obsidianDom");
-	class ItemView {
-		readonly app: unknown;
-		readonly contentEl = document.body.createDiv();
-		constructor(readonly leaf: { app: unknown }) {
-			this.app = leaf.app;
-		}
-		registerEvent(): void {}
-	}
-	return { ...dom, ItemView, Menu: class {}, DropdownComponent: class {} };
-});
+vi.mock("obsidian", async () => ({
+	...await import("../../tests/mocks/obsidianDom"),
+	Menu: class {},
+	DropdownComponent: class {},
+}));
 
 const SCENE_8 = "Book/8 Netherfield Dinner.md";
 
