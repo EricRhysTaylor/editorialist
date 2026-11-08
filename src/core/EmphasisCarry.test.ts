@@ -48,6 +48,21 @@ describe("planEmphasisReplacement", () => {
 		expect(plan(note, note, "“Go home,” he said.")).toBe("“Go home,” he said.");
 	});
 
+	it("keeps italics and bold when the change is only to dashes or quotes", () => {
+		// Inside an italic or bold run.
+		expect(applied("She said _no--never_ again.", "_no--never_", "no—never")).toBe("She said _no—never_ again.");
+		expect(applied("He was **sure--certain** of it.", "**sure--certain**", "sure—certain")).toBe("He was **sure—certain** of it.");
+		expect(applied("_\"Go,\" she said._", "_\"Go,\" she said._", "“Go,” she said.")).toBe("_“Go,” she said._");
+		expect(applied("**\"Stop,\"** he said.", "**\"Stop,\"**", "“Stop,”")).toBe("**“Stop,”** he said.");
+		// Across a run's edge, with plain wording on the other side of the swap.
+		expect(applied("She said _no_--never.", "_no_--never", "no—never")).toBe("She said _no_—never.");
+		expect(applied("He was **sure**--quite sure.", "He was **sure**--quite sure.", "He was sure—quite sure.")).toBe("He was **sure**—quite sure.");
+		expect(applied("“_Yes_,” she said--quietly.", "“_Yes_,” she said--quietly.", "\"Yes,\" she said—quietly.")).toBe("\"_Yes_,\" she said—quietly.");
+		expect(applied("'**_Never_**,' he said.", "'**_Never_**,' he said.", "‘Never,’ he said.")).toBe("‘**_Never_**,’ he said.");
+		// A passage quoted from partway through a run.
+		expect(applied("_he was very_ bad--indeed", "very_ bad--indeed", "very bad—indeed")).toBe("_he was very_ bad—indeed");
+	});
+
 	it("refuses to guess the formatting of rewritten italic words", () => {
 		expect(plan("a _horrid_ man", "a _horrid_ man", "a dreadful man")).toBeNull();
 	});

@@ -38,11 +38,16 @@ export function planEmphasisReplacement(noteText: string, from: number, to: numb
 	if (replacement === "") ({ from, to } = widenToWrappingEmphasis(noteText, from, to));
 	const span = noteText.slice(from, to);
 	const markers = findEmphasisMarkers(noteText, from, to);
-	const kept = keepUnchangedCharacters(plainText(span, from, markers), replacement);
+	const plain = plainText(span, from, markers);
+	const kept = keepUnchangedCharacters(plain, replacement);
+	// Every word lines up and only quotes, dashes or spacing differ: those
+	// characters are the suggestion's whole change, so write the reviewer's
+	// text, with the author's italics and bold carried into it.
+	const base = kept === plain && replacement !== plain ? replacement : kept;
 	// A reviewer who wrote markers chose the formatting; their text stands.
 	const carried = markers.length === 0 || findEmphasisMarkers(replacement).length > 0
-		? kept
-		: carryMarkers(span, from, markers, kept);
+		? base
+		: carryMarkers(span, from, markers, base);
 	if (carried === null) return null;
 	// Carrying that gives back the passage exactly means the suggestion changes
 	// no wording, so its only change is taking the formatting off
