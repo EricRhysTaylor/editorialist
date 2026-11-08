@@ -57,9 +57,6 @@ interface EditorLike {
 export class ReviewStateMachine {
 	constructor(private readonly host: ReviewStateMachineHost) {}
 
-	// Mirrors main.ts getAdjacentRevealableSuggestionId wrapper (3011):
-	// getReviewSession, then store.getState().selectedSuggestionId, then the
-	// pure ranking. The two host reads must not be collapsed.
 	// Shared first and second halves of the reject / rewrite / defer flows.
 	// The callers interleave their own traversal reads between the two, so
 	// they stay separate calls to keep the recorded host-effect order.
@@ -103,6 +100,9 @@ export class ReviewStateMachine {
 		await this.host.registry.syncSceneInventoryForSession(this.host.store.getSession());
 	}
 
+	// Mirrors main.ts getAdjacentRevealableSuggestionId wrapper (3011):
+	// getReviewSession, then store.getState().selectedSuggestionId, then the
+	// pure ranking. The two host reads must not be collapsed.
 	private computeAdjacent(
 		direction: "next" | "previous",
 		fromId?: string,
