@@ -538,16 +538,7 @@ export default class EditorialistPlugin extends Plugin {
 		});
 		this.register(unsubscribe);
 
-		this.registerEvent(
-			this.app.workspace.on("active-leaf-change", () => {
-				if (this.workflow.isTransitioning()) {
-					return;
-				}
-				this.cutFiles.rememberActiveScene();
-				this.resyncSessionForActiveNote();
-				this.syncActiveEditorDecorations();
-			}),
-		);
+		this.registerEvent(this.app.workspace.on("active-leaf-change", (leaf) => this.handleActiveLeafChange(leaf)));
 
 		this.registerEvent(
 			this.app.workspace.on("file-open", () => {
@@ -2890,6 +2881,23 @@ export default class EditorialistPlugin extends Plugin {
 		const anchorSnapshot = this.anchors.getDecorationSnapshot(context.filePath);
 		syncReviewDecorations(editorView, anchorSnapshot ?? this.getReviewDecorationSnapshot(highlight));
 		this.toolbarOverlay.sync(editorView, toolbarState, highlight);
+	}
+
+	// Obsidian makes the review panel the active leaf on the mousedown that
+	// focuses it, before mouseup. Focusing the panel cannot change the note
+	// under review, so the session is not resynced then: the resync re-selects
+	// the current suggestion, which repaints the panel, and a repaint between
+	// mousedown and mouseup replaced the pressed tick box or button so that
+	// first click never arrived.
+	private handleActiveLeafChange(leaf: WorkspaceLeaf | null): void {
+		if (this.workflow.isTransitioning()) {
+			return;
+		}
+		this.cutFiles.rememberActiveScene();
+		if (!(leaf?.view instanceof ReviewPanel)) {
+			this.resyncSessionForActiveNote();
+		}
+		this.syncActiveEditorDecorations();
 	}
 
 	private resyncSessionForActiveNote(): void {

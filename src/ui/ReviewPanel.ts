@@ -142,6 +142,9 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	// previous one, and keying on the session left the card showing the old
 	// scene's directives.
 	private sceneDirectivesKey: string | null = null;
+	// The scene the panel was last drawn for, in the same form. Only a change
+	// of scene repaints the panel on a leaf change; see onOpen.
+	private renderedSceneKey: string | null = null;
 	private sceneDirectivesLoading = false;
 	private sceneDirectivesCollapsed = true;
 	private sceneDirectivesElsewhereOpen = false;
@@ -194,10 +197,14 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		this.registerEvent(this.app.vault.on("delete", (file) => this.invalidateSceneDirectivesFor(file.path)));
 		this.registerEvent(this.app.vault.on("rename", (file) => this.invalidateSceneDirectivesFor(file.path)));
 		// Scene relevance is computed against the note the author is looking at,
-		// so moving between scenes has to re-evaluate it. Guarded on the key so
-		// focusing the panel itself does not churn the card.
+		// so moving between scenes has to re-evaluate it. Focusing the panel
+		// itself must not repaint it: Obsidian fires this on the mousedown that
+		// focuses the panel, and a repaint before mouseup loses that click. The
+		// guard compares against the scene last drawn, not the directives cache,
+		// because views without a review session never load directives and
+		// would otherwise repaint on every focus change.
 		this.registerEvent(this.app.workspace.on("active-leaf-change", () => {
-			if (this.sceneDirectivesKey !== this.currentSceneDirectivesKey()) {
+			if (this.renderedSceneKey !== this.currentSceneDirectivesKey()) {
 				this.render();
 			}
 		}));
@@ -220,6 +227,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	render(): void {
 		const session = this.plugin.getCurrentReviewSession();
 		const selectedSuggestionId = this.plugin.getSelectedSuggestionId();
+		this.renderedSceneKey = this.currentSceneDirectivesKey();
 		this.contentEl.empty();
 		this.contentEl.addClass("editorialist-panel");
 
