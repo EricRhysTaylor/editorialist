@@ -37,7 +37,7 @@ Marking a session **Done** from its circle records work on that session. Use **M
 
 ## Optional Radial Timeline target dates
 
-In goal details, under **Book**, choose a **Radial Timeline book** and its **Stage**: Zero draft, Author draft, House draft, or Press ready. You can choose any available RT book, independently of the active book.
+In goal details, under **Book**, choose a **Radial Timeline book** and its **Stage**: Zero draft, Author draft, House draft, or Press ready. You can choose any available Radial Timeline book, independently of the active book.
 
 The goal shares that stage’s target date. Changing the goal’s date updates Radial Timeline; a date changed there appears here while the panel is open. Stage dates must retain their chronological order. If the stage date moves before the goal’s start date, the card says so in place of the countdown; edit the goal to choose a new start. Completing a goal records your outcome without changing the manuscript’s publishing status.
 
