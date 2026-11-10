@@ -57,9 +57,13 @@ export class ManuscriptTargetModal extends Modal {
 		// Radial Timeline tracks keeps its folder and title there.
 		const associations = this.plugin.getManuscriptAssociations();
 		const missing = associations.some((folder) => folder.missing);
-		if (missing || (associations.length && this.target.kind === "folder")) {
+		const reconnect = (): void => {
 			this.setting().setName(missing ? "Manuscript folder unavailable" : "Moved or renamed manuscript").setDesc("Reconnect saved work to its folder, or update the manuscript name.").addButton((button) => button.setButtonText("Reconnect…").onClick(() => { this.close(); this.plugin.openManuscriptReconnection(this.onSaved); }));
-		}
+		};
+		// A missing folder is the thing to fix, so it leads. Renaming a healthy
+		// folder target's manuscript is a rare chore, so it sits with the folder
+		// settings below and the dialog opens on the choice of what to review.
+		if (missing) reconnect();
 		this.setting().setName("Review").addDropdown((dropdown) => {
 			dropdown.addOptions({ none: "Choose a target…", radial: "Follow Radial Timeline", folder: "A folder", note: "Current note", vault: "Entire vault" }).setValue(this.target.kind).onChange((kind) => {
 				if (this.target.kind === "folder") this.folderPath = this.target.path;
@@ -84,6 +88,7 @@ export class ManuscriptTargetModal extends Modal {
 				new FolderPicker(this.app, (folder) => { this.target.path = folder.path; this.render(); }).open();
 			}));
 			this.setting().setName("Include subfolders").addToggle((toggle) => toggle.setValue(this.target.includeSubfolders).onChange((value) => { this.target.includeSubfolders = value; void updatePreview(); }));
+			if (!missing && associations.length) reconnect();
 		}
 		if (this.target.kind === "note") {
 			this.setting().setName("Pinned note").setDesc(this.target.path || "Open a Markdown note before choosing this target.").addButton((button) => button.setButtonText("Use current note").setDisabled(!this.notePath || this.notePath === this.target.path).onClick(() => {

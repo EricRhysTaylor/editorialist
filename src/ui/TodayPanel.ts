@@ -116,7 +116,7 @@ export class TodayPanel extends ItemView {
 		const container = this.contentEl;
 		const scrollTop = container.scrollTop;
 		container.empty();
-		renderPanelHeader(container, this.plugin, TODAY_VIEW_TYPE, "Today", "Your Books. Your Goals");
+		renderPanelHeader(container, this.plugin, TODAY_VIEW_TYPE, "Today", "Your books and goals");
 		const root = container.createDiv({ cls: "editorialist-plan__body" });
 		const agenda = this.agenda;
 		const hero = root.createDiv({ cls: "editorialist-project__hero editorialist-today__hero" });
