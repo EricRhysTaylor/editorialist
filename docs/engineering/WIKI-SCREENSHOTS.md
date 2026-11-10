@@ -250,3 +250,19 @@ Retaken the same day, after the release, from the same vaults and crops:
 - `panel-editor-engagement.png` — Next up now marks the Nov 2 session
   Overdue in red, with a red edge, and the word-limit bar sits under the
   meta line.
+
+## 3.2.0 refresh — November 10, 2026
+
+Captured from main after `2d47246` with the Today subtitle and manuscript
+target row fixes, desktop Obsidian 1.15.0, dark theme, 2x device scale, in a
+rebuilt synthetic `Editorialist Release Demo` vault (Morgan Lee's engagement
+with sessions moved to Nov 9 overdue, Nov 10 and later; the "Draft Book 2"
+word goal, with today's words written through the vault after the plugin
+recorded the opening total). No Author-vault content was used.
+
+- `panel-today.png` — same framing as 3.1.0; the subtitle now reads Your
+  books and goals and each session names its book.
+- `manuscript-target.png` — the folder target with Book/Research excluded,
+  now showing the Moved or renamed manuscript row below Include subfolders;
+  640 × 796 CSS px, rounded at 44 to match the modal's corners. Focus was
+  cleared before capture.

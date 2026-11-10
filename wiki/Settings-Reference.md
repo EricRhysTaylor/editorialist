@@ -78,7 +78,7 @@ A card grid, one per contributor:
 
 Use **Change target…** here, or click the manuscript line beneath a panel header.
 
-<p align="center"><img src="images/manuscript-target.png" alt="Manuscript target dialog with A folder selected: the Book folder, Include subfolders on, Book/Research excluded, and a preview of 6 eligible notes" width="520"></p>
+<p align="center"><img src="images/manuscript-target.png" alt="Manuscript target dialog with A folder selected: the Book folder, Include subfolders on, a Reconnect option for a moved or renamed manuscript, Book/Research excluded, and a preview of 6 eligible notes" width="520"></p>
 
 - **Follow Radial Timeline** — use its active book while the plugin is enabled. The list shows your books and which ones have an editor engagement. Choosing another book switches Radial Timeline to it too. If a book's folder is missing, you are asked to choose a target.
 - **A folder** — choose an existing vault folder. Include or skip subfolders and exclude supporting folders by their vault-relative paths. Plain Markdown notes need no `Class: Scene` property.
@@ -184,7 +184,7 @@ That count reaches every cleanup route, including **Clean all scenes**, so a cle
 
 ### Reconnect a moved or renamed manuscript
 
-Open the manuscript target selector and choose **Reconnect…**. It appears when a saved manuscript's folder is missing, and for a folder target. Select its saved association, choose the replacement folder, and review the manuscript name, revision plans, deliveries, tracked notes, and affected Editorialisms before applying. If the missing folder's name matches one Radial Timeline book, that book's folder is filled in for you to review. The original folder must be unavailable when reconnecting to a different folder. To change only a standalone manuscript name, keep the existing folder selected.
+Open the manuscript target selector and choose **Reconnect…**. It appears at the top when a saved manuscript's folder is missing, and below **Include subfolders** for a folder target. Select its saved association, choose the replacement folder, and review the manuscript name, revision plans, deliveries, tracked notes, and affected Editorialisms before applying. If the missing folder's name matches one Radial Timeline book, that book's folder is filled in for you to review. The original folder must be unavailable when reconnecting to a different folder. To change only a standalone manuscript name, keep the existing folder selected.
 
 Folder renames observed inside Obsidian update saved references automatically, including moves of a parent folder. If the destination already has manuscript records or review history, both sets are retained and reconnection is blocked until a different destination is chosen. Editorialisms sharing the old name with another manuscript require explicit selection. Their file locations and agenda bodies stay intact; only the selected book fields change. Radial Timeline book titles are managed in Radial Timeline.
 
