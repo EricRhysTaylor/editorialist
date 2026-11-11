@@ -335,6 +335,8 @@ function readParagraphs(body: XmlElement, author: string, skipped: WordConversio
 		for (const child of childElements(container)) {
 			const name = localName(child);
 			if (name === "p") paragraphs.push(readParagraph(child));
+			else if (name === "commentRangeStart") active.add(attribute(child, "id") ?? "");
+			else if (name === "commentRangeEnd") active.delete(attribute(child, "id") ?? "");
 			else if (["tbl", "tr", "tc", "sdt", "sdtContent", "customXml"].includes(name)) collect(child);
 		}
 	};

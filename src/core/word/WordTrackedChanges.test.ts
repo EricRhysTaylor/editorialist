@@ -161,6 +161,30 @@ describe("convertWordTrackedChanges", () => {
 		expect(result.memos).toBe(1);
 	});
 
+	it("ends a comment range at a marker between paragraphs", () => {
+		const document = documentOf(body(
+			para(`<w:commentRangeStart w:id="c1"/>`, run("She pulled her "), del("grey"), ins("gray"), run(" coat tighter against the wind.")),
+			`<w:commentRangeEnd w:id="c1"/>`,
+			para(run("The ferry "), del("horn"), ins("whistle"), run(" sounded across the harbour.")),
+		), [{ id: "c1", author: ED, text: "House style." }]);
+		const suggestions = parse(convert(document).text).suggestions;
+		expect(suggestions).toHaveLength(2);
+		expect(suggestions[0]?.why).toBe("House style.");
+		expect(suggestions[1]?.why ?? "").toBe("");
+	});
+
+	it("tracks a comment starting between paragraphs and ending in the next", () => {
+		const document = documentOf(body(
+			para(run("The ferry "), del("horn"), ins("whistle"), run(" sounded across the harbour.")),
+			`<w:commentRangeStart w:id="c1"/>`,
+			para(run("She pulled her "), del("grey"), ins("gray"), `<w:commentRangeEnd w:id="c1"/>`, run(" coat tighter against the wind.")),
+		), [{ id: "c1", author: ED, text: "House style." }]);
+		const suggestions = parse(convert(document).text).suggestions;
+		expect(suggestions).toHaveLength(2);
+		expect(suggestions[0]?.why ?? "").toBe("");
+		expect(suggestions[1]?.why).toBe("House style.");
+	});
+
 	it("brings in a note above the first scene as a note on the whole pass", () => {
 		const document = documentOf(body(
 			para(`<w:commentRangeStart w:id="c1"/>`, run("Pride and Prejudice"), `<w:commentRangeEnd w:id="c1"/>`),
