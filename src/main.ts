@@ -930,6 +930,11 @@ export default class EditorialistPlugin extends Plugin {
 	}
 
 	async openAuthorPlanner(): Promise<void> { await this.openEditorialistPanel(AUTHOR_PLAN_VIEW_TYPE); }
+	/** Opens the book's engagement or schedule, or a writing goal's editor, from Today. */
+	async openPlanSection(author: boolean, section: "overview" | "schedule", goalId: string | null = null): Promise<void> {
+		const leaf = await this.openEditorialistPanel(author ? AUTHOR_PLAN_VIEW_TYPE : REVISION_PLAN_VIEW_TYPE);
+		if (leaf?.view instanceof RevisionPlanPanel) leaf.view.focusSection(section, goalId);
+	}
 	openAuthorScheduler(): void { new AutoScheduleModal(this, null, false, AUTHOR_PLAN_SCOPE).open(); }
 	readonly radialBookGoals = new RadialBookGoals(() => {
 		// SAFE: Obsidian's loaded-plugin map is not in the public App typings.

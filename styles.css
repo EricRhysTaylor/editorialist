@@ -7364,9 +7364,15 @@ button.editorialist-panel__contributors-row:focus-visible {
 	color: var(--text-muted);
 }
 
+/* Inline at the start of the kind line, sized to it. */
+.editorialist-plan__body button.editorialist-plan__finish {
+	margin: -3px 0 -3px -4px;
+	padding: 3px;
+}
+
 .editorialist-plan__body button.editorialist-plan__finish svg {
-	width: 20px;
-	height: 20px;
+	width: 16px;
+	height: 16px;
 }
 
 .editorialist-plan__body button.editorialist-plan__finish:hover,
@@ -9476,6 +9482,11 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	display: flex;
 	flex-shrink: 0;
 	gap: 2px;
+	margin-inline-start: auto;
+}
+
+/* Where the Now card's work is managed: set apart from Start and Done. */
+.editorialist-today__now button.editorialist-today__home {
 	margin-inline-start: auto;
 }
 

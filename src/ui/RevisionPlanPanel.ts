@@ -35,6 +35,8 @@ export class RevisionPlanPanel extends ItemView {
 	// re-renders and tab switches; a section never toggled keeps its default.
 	private readonly sectionOpen = new Map<string, boolean>();
 	private dragging: string | null = null;
+	/** A goal Today asked to edit, opened as soon as the goals are loaded. */
+	private pendingGoal: string | null = null;
 	private busy = false;
 	private loaded = false;
 	private stale = false;
@@ -91,6 +93,12 @@ export class RevisionPlanPanel extends ItemView {
 	getIcon(): string { return EDITORIALIST_ICON_ID; }
 	/** Native contributor changes share the existing refresh path and preserve input focus. */
 	refreshContributorIdentity(): void { this.scheduleRefresh(); }
+	/** Shows a section, and in the author planner opens a goal's editor once the goals have loaded. */
+	focusSection(section: "overview" | "schedule", goalId: string | null = null): void {
+		this.section = section;
+		this.pendingGoal = goalId;
+		this.render();
+	}
 	async onOpen(): Promise<void> {
 		this.contentEl.addClass("editorialist-plan");
 		const markStale = (): void => {
@@ -255,9 +263,16 @@ export class RevisionPlanPanel extends ItemView {
 			const navigation = root.createDiv({ cls: "editorialist-project__tabs editorialist-author__tabs" });
 			for (const [value, label] of [["overview", "Goals"], ["schedule", "Schedule"]] as const) { const tab = this.button(navigation, label, () => { this.section = value; this.render(); }); tab.setAttribute("aria-pressed", String(this.section === value)); }
 			if (this.section !== "schedule") {
-				this.authorPanel().render(root);
+				const panel = this.authorPanel();
+				panel.render(root);
 				this.restoreSections(root);
-				container.scrollTop = scrollTop; return;
+				container.scrollTop = scrollTop;
+				if (this.pendingGoal && this.loaded && !this.busy) {
+					const goal = this.plan.targets?.find((target) => target.id === this.pendingGoal);
+					this.pendingGoal = null;
+					if (goal) panel.edit(goal); else new Notice("That goal is no longer in your planner.");
+				}
+				return;
 			}
 		}
 
@@ -491,9 +506,9 @@ export class RevisionPlanPanel extends ItemView {
 		}
 		details.createEl("p", { text: this.author ? "Set zero for days off. Capacity repeats weekly and includes a full allowance for today." : "Set zero for days off. Capacity repeats weekly and includes a full allowance for today. Work due to an editor is planned to finish this many days before its deadline, so a slow week does not make you late." });
 	}
-	// A queue card reads like the engagement rows: state at the left (drag
-	// handle, then a check circle that finishes or reopens the session), the
-	// work in the middle, and quiet icon actions at the right. Scheduling
+	// A queue card reads like the engagement rows: a drag handle at the left,
+	// the work in the middle led by a check circle that finishes or reopens the
+	// session, and quiet icon actions at the right. Scheduling
 	// fields stay one click away instead of a footer of grey text buttons;
 	// the date and estimate chips open them too.
 	private renderEntry(parent: HTMLElement, entry: PlanEntry): void {
@@ -518,6 +533,9 @@ export class RevisionPlanPanel extends ItemView {
 
 		const main = layout.createDiv({ cls: "editorialist-plan__entry-main" });
 		const heading = main.createDiv({ cls: "editorialist-plan__entry-heading" });
+		// The status circle leads the kind line instead of holding its own
+		// column, so the title and the cushion bar get the card's width.
+		heading.prepend(finish);
 		const badge = heading.createSpan({ cls: "editorialist-plan__kind" });
 		setIcon(badge.createSpan(), kindIcons[entry.source.kind]);
 		badge.createSpan({ text: this.author ? "Writing goal" : kindLabels[entry.source.kind] });

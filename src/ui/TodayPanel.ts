@@ -9,6 +9,7 @@ import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
 import { renderPanelHeader } from "./primitives/PanelHeader";
 import { renderWordLimit } from "./primitives/WordLimitBar";
 import { renderCushionBar } from "./primitives/CushionBar";
+import { setAccessibleLabel } from "./primitives/AccessibleLabel";
 import { cushionProgress, deadlineState, entryWorkDeadline, type ProjectMaterial, type WorkDeadline } from "../core/planning/EditorialProject";
 
 export const TODAY_VIEW_TYPE = "editorialist-today";
@@ -201,6 +202,9 @@ export class TodayPanel extends ItemView {
 		const start = this.button(actions, "Start", () => { void this.start(item); });
 		start.addClass("mod-cta");
 		this.button(actions, "Done", () => { void this.markDone(item); });
+		const home = this.home(item);
+		const manage = this.button(actions, home.label, () => { void home.open(); });
+		manage.addClass("editorialist-today__home");
 	}
 
 	private renderRow(parent: HTMLElement, item: AgendaItem, upcoming = false): void {
@@ -218,7 +222,8 @@ export class TodayPanel extends ItemView {
 			move.setAttribute("aria-label", "Move to today");
 			setIcon(move, "calendar-plus");
 		}
-		const open = this.button(actions, "", () => { void this.start(item); });
+		this.homeButton(actions, this.home(item));
+		const open =this.button(actions, "", () => { void this.start(item); });
 		open.addClass("clickable-icon", "editorialist-plan__icon-action");
 		open.setAttribute("aria-label", "Start this session");
 		setIcon(open, "arrow-up-right");
@@ -252,7 +257,9 @@ export class TodayPanel extends ItemView {
 			if (progress.perDay !== null) meta.createSpan({ text: `${count(progress.perDay)} a day to finish on time` });
 			if (progress.written !== null) meta.createSpan({ text: progress.reached ? "Target reached" : `${count(progress.written)} of ${count(words.target)} words` });
 		} else meta.createSpan({ text: `Target ${planDayLabel(goal.due)}${goal.hardDeadline ? " · hard deadline" : ""}` });
-		const open = this.button(foot.createDiv({ cls: "editorialist-today__row-actions" }), "", () => { void this.openGoal(goal); });
+		const goalActions = foot.createDiv({ cls: "editorialist-today__row-actions" });
+		this.homeButton(goalActions, { label: "Edit goal", icon: "pencil", open: () => this.plugin.openPlanSection(true, "overview", goal.id) });
+		const open = this.button(goalActions, "", () => { void this.openGoal(goal); });
 		open.addClass("clickable-icon", "editorialist-plan__icon-action");
 		open.setAttribute("aria-label", goal.file ? "Open the goal's document" : "Open the author planner");
 		setIcon(open, "arrow-up-right");
@@ -331,11 +338,7 @@ export class TodayPanel extends ItemView {
 			else await this.plugin.openAuthorPlanner();
 			return;
 		}
-		const folder = this.plan(item)?.folder;
-		if (folder && folder !== this.plugin.getActiveBookScopeInfo().sourceFolder?.replace(/\/$/, "")) {
-			try { await this.plugin.openBook(folder); }
-			catch (error) { new Notice(error instanceof Error ? error.message : "Could not switch to that book."); return; }
-		}
+		if (!await this.switchToBook(item)) return;
 		if (source.kind === "preparation") {
 			const document = this.material(item)?.source;
 			if (document) await this.app.workspace.openLinkText(document, "", false);
@@ -345,6 +348,34 @@ export class TodayPanel extends ItemView {
 		const candidate = this.candidate(item);
 		if (!candidate) { new Notice("This session's source has changed. Open the editor engagement to relink it."); return; }
 		await this.plugin.openRevisionWork(candidate);
+	}
+
+	/** Book work opens under its own book; switch to it first when another is active. */
+	private async switchToBook(item: AgendaItem): Promise<boolean> {
+		const folder = this.plan(item)?.folder;
+		if (!folder || folder === this.plugin.getActiveBookScopeInfo().sourceFolder?.replace(/\/$/, "")) return true;
+		try { await this.plugin.openBook(folder); return true; }
+		catch (error) { new Notice(error instanceof Error ? error.message : "Could not switch to that book."); return false; }
+	}
+
+	// Start opens the work itself; this opens where the work is managed: the
+	// engagement for an engagement task, the goal's editor for a writing goal,
+	// and the book's schedule for everything else.
+	private home(item: AgendaItem): { label: string; icon: string; open: () => Promise<void> } {
+		if (item.scope === AUTHOR_PLAN_SCOPE) return { label: "Edit goal", icon: "pencil", open: () => this.plugin.openPlanSection(true, "overview", item.entry.source.locator) };
+		const engagement = item.entry.source.kind === "preparation";
+		return {
+			label: engagement ? "Open engagement" : "Open in plan",
+			icon: engagement ? "clipboard-list" : "list-ordered",
+			open: async () => { if (await this.switchToBook(item)) await this.plugin.openPlanSection(false, engagement ? "overview" : "schedule"); },
+		};
+	}
+
+	private homeButton(parent: HTMLElement, home: { label: string; icon: string; open: () => Promise<void> }): void {
+		const button = this.button(parent, "", () => { void home.open(); });
+		button.addClass("clickable-icon", "editorialist-plan__icon-action");
+		setAccessibleLabel(button, home.label);
+		setIcon(button, home.icon);
 	}
 
 	private async markDone(item: AgendaItem): Promise<void> { await this.updateEntry(item, (entry) => { entry.done = true; }); }
