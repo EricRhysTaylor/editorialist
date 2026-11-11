@@ -170,6 +170,13 @@ export function entryWorkDeadline(plan: RevisionPlan, entry: Pick<PlanEntry, "so
 export function deadlineState(deadline: WorkDeadline, day: string): "on-track" | "cushion" | "late" {
 	return day > deadline.due ? "late" : day > deadline.aim ? "cushion" : "on-track";
 }
+/** Days of the cushion spent once the aim has passed; null outside the cushion. */
+export function cushionProgress(deadline: WorkDeadline, day: string): { used: number; total: number; left: number } | null {
+	if (deadlineState(deadline, day) !== "cushion") return null;
+	const span = (from: string, to: string) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000);
+	const total = span(deadline.aim, deadline.due), used = span(deadline.aim, day);
+	return { used, total, left: total - used };
+}
 export function recordProjectEvent(project: EditorialProject, text: string, at = new Date().toISOString()): void { project.history.push({ at, text }); }
 
 const record = (value: unknown): Record<string, unknown> | null => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;

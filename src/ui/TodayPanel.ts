@@ -8,7 +8,8 @@ import { deadlineLabel, kindIcons, kindLabels, pendingWorkTitle, planDayLabel } 
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
 import { renderPanelHeader } from "./primitives/PanelHeader";
 import { renderWordLimit } from "./primitives/WordLimitBar";
-import { deadlineState, entryWorkDeadline, type ProjectMaterial, type WorkDeadline } from "../core/planning/EditorialProject";
+import { renderCushionBar } from "./primitives/CushionBar";
+import { cushionProgress, deadlineState, entryWorkDeadline, type ProjectMaterial, type WorkDeadline } from "../core/planning/EditorialProject";
 
 export const TODAY_VIEW_TYPE = "editorialist-today";
 /** Device-local: the day Today was last shown, so a new day opens on it once. */
@@ -186,11 +187,14 @@ export class TodayPanel extends ItemView {
 		if (detail) card.createEl("p", { cls: "editorialist-project__hint", text: detail });
 		const parts = this.metaParts(item);
 		const deadline = this.deadline(item);
-		if (parts.length || deadline) {
+		// Inside the cushion the bar carries both dates; the text would repeat them.
+		const inCushion = deadline ? cushionProgress(deadline, this.day) !== null : false;
+		if (parts.length || (deadline && !inCushion)) {
 			const meta = card.createDiv({ cls: "editorialist-today__meta" });
 			for (const text of parts) meta.createSpan({ text });
-			this.renderDeadline(meta, deadline);
+			if (!inCushion) this.renderDeadline(meta, deadline);
 		}
+		renderCushionBar(card, deadline, this.day);
 		const material = this.material(item);
 		if (material?.wordLimit && this.wordCounts[material.id] !== undefined) renderWordLimit(card, this.wordCounts[material.id]!, material.wordLimit);
 		const actions = card.createDiv({ cls: "editorialist-project__actions" });

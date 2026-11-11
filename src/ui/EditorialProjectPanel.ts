@@ -5,6 +5,7 @@ import { Modal, Notice, TFile, normalizePath, setIcon, type App } from "obsidian
 import { candidateDeadline, collaborationUrl, createEditorialProject, deadlineState, engagementReturned, engagementStartCountdown, isProjectEditorProfile, materialDue, projectEditor, recordProjectEvent, shiftDate, type EditorialProject, type EngagementRecord, type EngagementTask, type ProjectMaterial } from "../core/planning/EditorialProject";
 import { isDate, localDate, type RevisionPlan } from "../core/planning/RevisionPlan";
 import { deadlineLabel, planDayLabel } from "../core/planning/WorkPresentation";
+import { renderCushionBar } from "./primitives/CushionBar";
 
 import type { EditorialDelivery } from "../core/EditorialDeliveries";
 import type { EditorialProjectService } from "../services/EditorialProjectService";
@@ -157,7 +158,8 @@ export class EditorialProjectPanel {
 		hero.createEl("h3", { cls: "editorialist-project__submission-heading", text: `${project.submissionDate < today ? "Started" : "Starts"} ${dayLabel(project.submissionDate)} · ${engagementStartCountdown(project.submissionDate, today)}` });
 		const ready = candidateDeadline(this.host.plan, { due: project.submissionDate, path: project.id })!;
 		const cushion = this.host.plan.cushionDays;
-		hero.createEl("p", { cls: "editorialist-project__hint", text: ready.aim < ready.due && project.submissionDate >= today ? `Agreed start date · aim to have everything ready by ${dayLabel(ready.aim)}, ${cushion} ${cushion === 1 ? "day" : "days"} early.` : "Agreed start date · prepare and exchange files directly through your collaboration." });
+		renderCushionBar(hero, ready, today);
+		hero.createEl("p", { cls: "editorialist-project__hint", text: ready.aim < ready.due && ready.aim >= today ?`Agreed start date · aim to have everything ready by ${dayLabel(ready.aim)}, ${cushion} ${cushion === 1 ? "day" : "days"} early.` : "Agreed start date · prepare and exchange files directly through your collaboration." });
 		const actions = hero.createDiv({ cls: "editorialist-project__actions" }); button(actions, "Engagement details", () => this.setup());
 		button(actions, "Record activity", () => this.recordActivity());
 		if (editor.profile) this.action(actions, "Editor profile", () => this.host.manageEditor(editor.profile!.id));

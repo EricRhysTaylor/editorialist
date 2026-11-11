@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { collaborationUrl, createEditorialProject, engagementReturned, engagementStartCountdown, isEngagementDelivery, entryWorkDeadline, isProjectEditorProfile, normalizeEditorialProject, preparationWork, projectEditor, shiftDate, taskDocument, type MaterialCheck } from "./EditorialProject";
+import { collaborationUrl, createEditorialProject, cushionProgress, engagementReturned, engagementStartCountdown, isEngagementDelivery, entryWorkDeadline, isProjectEditorProfile, normalizeEditorialProject, preparationWork, projectEditor, shiftDate, taskDocument, type MaterialCheck } from "./EditorialProject";
 import type { ContributorProfile } from "../../models/ContributorProfile";
 import { emptyRevisionPlan, normalizeRevisionPlans } from "./RevisionPlan";
 import { draftSchedule } from "./AutoSchedule";
@@ -59,6 +59,14 @@ describe("Editorial preparation project", () => {
 		const candidate = preparationWork(p)[1]!;
 		const result = draftSchedule({ ...emptyRevisionPlan(), project: p }, [candidate], { preset: "developmental", sessionMinutes: 60, useEstimates: false, deliveryId: null, start: "2027-01-12", end: "2027-01-20", replan: false, choices: { [JSON.stringify([candidate.kind, candidate.path, candidate.locator])]: { low: 30, high: 60 } } }, () => "session");
 		expect(result.generated[0]!.day).not.toBeNull();
+	});
+	it("measures the cushion only between the aim and the deadline", () => {
+		const deadline = { aim: "2026-11-06", due: "2026-11-20" };
+		expect(cushionProgress(deadline, "2026-11-06")).toBeNull();
+		expect(cushionProgress(deadline, "2026-11-11")).toEqual({ used: 5, total: 14, left: 9 });
+		expect(cushionProgress(deadline, "2026-11-20")).toEqual({ used: 14, total: 14, left: 0 });
+		expect(cushionProgress(deadline, "2026-11-21")).toBeNull();
+		expect(cushionProgress({ aim: "2026-11-20", due: "2026-11-20" }, "2026-11-20")).toBeNull();
 	});
 	it("uses calendar days through daylight saving for questions", () => { expect(shiftDate("2027-01-11", 10)).toBe("2027-01-21"); expect(() => shiftDate("2026-02-30", 1)).toThrow(); });
 	it("counts engagement calendar days across daylight saving changes", () => {

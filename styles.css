@@ -9558,6 +9558,68 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	background: var(--text-error);
 }
 
+/* The cushion, aim to deadline, once the aim has passed: a tick at each end. */
+.editorialist-cushion {
+	margin: 10px 0 4px;
+}
+
+.editorialist-cushion__label {
+	margin-bottom: 6px;
+	color: var(--text-warning);
+	font-size: var(--font-smallest);
+	font-weight: var(--font-medium);
+}
+
+.editorialist-cushion__bar {
+	position: relative;
+	height: 6px;
+	margin: 0 1px;
+	border-radius: 3px;
+	background: var(--background-modifier-border);
+}
+
+.editorialist-cushion__bar::before,
+.editorialist-cushion__bar::after {
+	position: absolute;
+	top: -3px;
+	width: 2px;
+	height: 12px;
+	border-radius: 1px;
+	background: var(--text-faint);
+	content: "";
+}
+
+.editorialist-cushion__bar::before {
+	left: -1px;
+}
+
+.editorialist-cushion__bar::after {
+	right: -1px;
+}
+
+.editorialist-cushion__fill {
+	width: var(--editorialist-cushion-share);
+	height: 100%;
+	border-radius: 3px;
+	background: var(--text-warning);
+}
+
+.editorialist-cushion__ends {
+	display: flex;
+	justify-content: space-between;
+	margin-top: 5px;
+	color: var(--text-faint);
+	font-size: var(--font-smallest);
+}
+
+.editorialist-cushion[data-final="true"] .editorialist-cushion__label {
+	color: var(--text-error);
+}
+
+.editorialist-cushion[data-final="true"] .editorialist-cushion__fill {
+	background: var(--text-error);
+}
+
 /* A task dialog's reference fields join the dialog grid as if they were its own. */
 .editorialist-project__fieldset {
 	display: contents;
