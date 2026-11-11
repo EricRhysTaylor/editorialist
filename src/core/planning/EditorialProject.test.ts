@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ENGAGEMENT_START, collaborationUrl, createEditorialProject, cushionProgress, documentDue, documentSends, engagementPhases, engagementReturned, engagementStartCountdown, isEngagementDelivery, entryWorkDeadline, isProjectEditorProfile, milestoneState, normalizeEditorialProject, preparationWork, projectEditor, removeDocument, removeMilestone, removeTask, shiftDate, taskDocument, taskDue, type MaterialCheck } from "./EditorialProject";
 import type { ContributorProfile } from "../../models/ContributorProfile";
-import { emptyRevisionPlan, normalizeRevisionPlans } from "./RevisionPlan";
+import { emptyRevisionPlan, localDate, normalizeRevisionPlans } from "./RevisionPlan";
 import { draftSchedule } from "./AutoSchedule";
 function project() { let n = 0; return createEditorialProject("Test Editor", "2026-11-30", () => `id-${++n}`); }
 const hash = "a".repeat(64);
@@ -109,12 +109,22 @@ describe("one status per thing", () => {
 		p.tasks.push({ id: "draft", title: "Draft query letter", materialId: "query", milestoneId: null, done: true }, { id: "upload", title: "Upload files", materialId: null, milestoneId: null, due: "2026-11-20", done: false });
 		return p;
 	}
-	it("loads a version 1 engagement without its hand-kept milestone and document statuses", () => {
-		const v1 = { ...engagement(), version: 1, milestones: [{ id: "letter", title: "Query letter drafted", day: "2026-11-09", done: true }], materials: [{ ...engagement().materials[0], completed: true }] };
+	it("loads a version 1 engagement without its hand-kept statuses, keeping a document marked done as sent", () => {
+		const v1 = { ...engagement(), version: 1, milestones: [{ id: "letter", title: "Query letter drafted", day: "2026-11-09", done: true }], materials: [{ ...engagement().materials[0], completed: true }], history: [{ at: "2026-11-07T18:00:00.000Z", text: "Query letter: completed" }] };
 		const loaded = normalizeEditorialProject(JSON.parse(JSON.stringify(v1)))!;
 		expect(loaded.version).toBe(2);
 		expect(loaded.milestones[0]).toEqual({ id: "letter", title: "Query letter drafted", day: "2026-11-09" });
 		expect(loaded.materials[0]).not.toHaveProperty("completed");
+		// Finished work does not come back as unsent and overdue.
+		expect(documentSends(loaded, "query")).toEqual([expect.objectContaining({ id: "done-query", kind: "sent", description: "Marked done in an earlier version", day: localDate(new Date("2026-11-07T18:00:00.000Z")) })]);
+		expect(milestoneState(loaded, loaded.milestones[0]!, "2026-11-20").open).toEqual([]);
+		// Loading it again as version 2 adds nothing.
+		expect(normalizeEditorialProject(JSON.parse(JSON.stringify(loaded)))!.records).toHaveLength(1);
+	});
+	it("counts an earlier recorded upload as a send of its document, with its copy", () => {
+		const v1 = { ...engagement(), version: 1, materials: [{ ...engagement().materials[0], check, uploads: [{ at: "2026-11-02T15:00:00Z", filename: "Query letter.docx", confirmation: "Uploaded to the collaboration", check }] }] };
+		const loaded = normalizeEditorialProject(JSON.parse(JSON.stringify(v1)))!;
+		expect(documentSends(loaded, "query")).toEqual([expect.objectContaining({ day: "2026-11-02", description: "Uploaded to the collaboration", filenames: "Query letter.docx", archive: { copy: check.copy, digest: check.exportDigest } })]);
 	});
 	it("round trips own due dates and a send's document", () => {
 		const p = engagement(); p.records.push({ id: "sent", day: "2026-11-09", kind: "sent", description: "Sent to Morgan Lee", filenames: "Query letter.docx", referencePath: "", archive: { copy: "Editorialist/Engagement history/x/Query letter.docx", digest: hash }, materialId: "query" });
@@ -122,7 +132,7 @@ describe("one status per thing", () => {
 	});
 	it("dates a task by its own date, else by its document's", () => {
 		const p = engagement();
-		expect(taskDue(p, p.tasks[0]!)).toEqual({ day: "2026-11-09", start: false, milestoneId: "letter" });
+		expect(taskDue(p, p.tasks[0]!)).toEqual({ day: "2026-11-09", start: false, milestoneId: "letter", inherited: true });
 		expect(taskDue(p, p.tasks[1]!)).toEqual({ day: "2026-11-20", start: false, milestoneId: null });
 		p.tasks[0]!.milestoneId = ENGAGEMENT_START;
 		expect(taskDue(p, p.tasks[0]!)).toEqual({ day: "2026-11-30", start: true, milestoneId: null });
@@ -150,6 +160,20 @@ describe("one status per thing", () => {
 		removeTask(plan, "upload");
 		expect(p.tasks.map((item) => item.id)).toEqual(["draft"]);
 		expect(plan.entries).toEqual([]);
+	});
+	it("deletes a task without counting it finished or breaking the order of what follows", () => {
+		const p = engagement();
+		const entry = (id: string, locator: string, afterId: string | null) => ({ id, source: { kind: "preparation" as const, path: p.id, locator }, title: id, day: null, lowMinutes: null, highMinutes: null, required: true, done: false, afterId });
+		const key = JSON.stringify(["preparation", p.id, "upload"]);
+		const plan = { ...emptyRevisionPlan(), project: p, entries: [entry("a", "draft", null), entry("b", "upload", "a"), entry("c", "upload", "b"), entry("d", "draft", "c")], progress: { since: "2026-11-01", open: [{ key, kind: "preparation" as const }], done: [] } };
+		removeTask(plan, "upload");
+		expect(plan.entries.map((item) => [item.id, item.afterId])).toEqual([["a", null], ["d", "a"]]);
+		expect(plan.progress.open).toEqual([]);
+	});
+	it("keeps a document that holds earlier preparation records", () => {
+		const p = engagement(); p.materials[0]!.check = check;
+		expect(() => removeDocument(p, "query")).toThrow(/earlier preparation records/);
+		expect(p.materials).toHaveLength(1);
 	});
 });
 

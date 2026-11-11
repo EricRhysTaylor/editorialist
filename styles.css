@@ -9176,14 +9176,72 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 /* Icons standing where a status circle stands elsewhere take the circle
    button's box, so titles line up down a section. */
 .editorialist-project__milestone .editorialist-project__row-icon,
-.editorialist-project__send .editorialist-project__row-icon {
+.editorialist-project__send .editorialist-project__row-icon,
+.editorialist-project__row-icon.editorialist-project__document-status {
 	padding: var(--size-2-2) var(--size-2-3);
 }
 
 .editorialist-project__milestone .editorialist-project__row-icon svg,
-.editorialist-project__send .editorialist-project__row-icon svg {
+.editorialist-project__send .editorialist-project__row-icon svg,
+.editorialist-project__document-status svg {
 	width: 20px;
 	height: 20px;
+}
+
+/* A document's status mark: dashed until it is sent, in its due date's color,
+   then a green check. */
+.editorialist-project__row-icon.editorialist-project__document-status {
+	color: var(--text-muted);
+}
+
+.editorialist-project__document-head.is-cushion .editorialist-project__document-status {
+	color: var(--text-warning);
+}
+
+.editorialist-project__document-head.is-sent .editorialist-project__document-status {
+	color: var(--color-green);
+}
+
+.editorialist-project__nowrap {
+	white-space: nowrap;
+}
+
+.editorialist-project__send.is-unsent .editorialist-project__row-icon {
+	color: var(--text-faint);
+}
+
+.editorialist-project__send.is-unsent .editorialist-project__row-title {
+	color: var(--text-muted);
+	font-weight: var(--font-normal);
+}
+
+.editorialist-project__send.is-unsent .editorialist-project__links {
+	margin-top: 0;
+}
+
+/* Under the sends, level with their titles: the icon's box and the row gap. */
+.editorialist-project__send-again {
+	padding: 2px 0 4px 40px;
+}
+
+.editorialist-project__send-again .editorialist-project__links,
+.editorialist-project__take-back.editorialist-project__links {
+	margin-top: 0;
+}
+
+/* With the actions row's own top margin, 14px to Save, as between fields. */
+.editorialist-project__take-back {
+	grid-column: 1 / -1;
+	margin-bottom: 4px;
+}
+
+.editorialist-project__fieldset-title {
+	margin: 18px 0 0;
+	padding-top: 12px;
+	border-top: 1px solid var(--background-modifier-border);
+	color: var(--text-muted);
+	font-size: var(--font-smallest);
+	font-weight: var(--font-semibold);
 }
 
 /* A milestone with nothing due on it, once its date has gone by: past, not done. */
@@ -9195,26 +9253,50 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	color: var(--text-faint);
 }
 
-/* The file of a record: a vault file with the computer's file chooser beside
-   it, wrapping under it in a narrow window. */
-.editorialist-project__file-group {
+/* A record's file on one line: the send date when there is one, the vault
+   file, and the button that chooses one from the computer instead, wrapping
+   in a narrow window. */
+.editorialist-project__file-row {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: flex-end;
 	gap: 0 10px;
+	margin-top: 14px;
 }
 
-.editorialist-project__file-group > .editorialist-project__field {
-	flex: 1 1 14rem;
+/* Spaced by their bottom margins only, so a wrapped line is as far from the
+   one above it as any two fields. */
+.editorialist-project__file-row > .editorialist-project__field {
+	flex: 1 1 11rem;
+	min-width: 0;
+	margin-top: 0;
 }
 
-.editorialist-project__file-group > button {
+/* Too narrow for all three, the date takes its own line so the file field
+   keeps its button beside it. */
+.editorialist-project__file-row > .editorialist-project__field--date {
+	flex: 1 1 9rem;
+}
+
+.editorialist-project__file-row input[type="date"] {
+	height: var(--input-height);
+}
+
+.editorialist-project__send-note {
+	margin: 0 0 14px;
+}
+
+.editorialist-project__send-note:empty {
+	display: none;
+}
+
+.editorialist-project__file-row > button {
 	flex: 0 0 auto;
 	margin-bottom: 14px;
 }
 
-.editorialist-project__file-group > .editorialist-project__field--checkbox,
-.editorialist-project__file-group > .editorialist-project__file-chosen {
+.editorialist-project__file-row > .editorialist-project__field--checkbox,
+.editorialist-project__file-row > .editorialist-project__file-chosen {
 	flex-basis: 100%;
 }
 
@@ -9332,8 +9414,8 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 		grid-column: 1 / -1;
 	}
 
-	.editorialist-project-dialog form > .editorialist-project__file-group,
-	.editorialist-project-dialog form > .editorialist-project__field--wide {
+	.editorialist-project-dialog form > .editorialist-project__field--wide,
+	.editorialist-project-dialog .editorialist-project__file-row {
 		grid-column: 1 / -1;
 	}
 }

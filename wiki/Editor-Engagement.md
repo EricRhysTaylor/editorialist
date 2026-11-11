@@ -25,11 +25,15 @@ Use **Add document** for what you prepare for your editor: a query letter, a syn
 
 A word limit caps the working document, a query letter at 500 words, say. Wherever that document appears, a bar shows its current prose words against the limit and turns red once over; the count leaves out properties, headings, and hidden comments. **Open working document** on the document's row, **Open document** in the schedule, or **Start** on Today opens it.
 
-A document's tasks sit in its card, under its title. Add one with the list icon on the document's row, or choose the document in a task's **Document** field; the task then edits the same working document and word limit. Tasks with no document are listed under **Other tasks**. Click a task's circle and choose **Done** or **Open**; opening the menu changes nothing until you choose, and finished tasks are struck through.
+A document's tasks sit in its card, under its title. Add one with the list icon on the document's row, or choose the document in a task's **Document** field. Tasks with no document are listed under **Other tasks**. Click a task's circle and choose **Done** or **Open**; opening the menu changes nothing until you choose, and finished tasks are struck through.
 
 ### Record sending a document
 
-The circle at the left of a document records sending it. Choose the date and the file you actually sent, which is usually not the working note but the Word file or PDF made from it: pick it from your vault, or **Choose from your computer…** to bring a copy in. With **Keep a copy of the file as it is now**, Editorialist keeps that copy, so later changes to the file don't change what you sent. The card then lists each send, newest first, with its date and file, and the file icon opens the copy you sent in Word or whichever app opens it. Sent a revised version? Click the circle again to record another send. A send is your record of what you did; it does not confirm that your editor received it.
+Every document card says whether it has gone to your editor: **Not sent yet**, or each send with its date and file. A document's details include **Sent to** your editor **on** and **File you sent**, right beside its working document and word limit. The same fields appear in the form of every task for that document, so finishing the last task and recording the send happen in one place. **Record sending…** on an unsent card opens the document's details at the send date.
+
+Enter the day you sent it and the file you actually sent, which is usually not the working note but the Word file or PDF made from it: pick it from your vault, or **Choose file…** to bring one in from your computer. Editorialist keeps a copy of the file as it was, so later changes to it don't change what you sent; for a file from your vault you can untick **Keep a copy of this file as it is now**. The file icon on the send opens the copy in Word or whichever app opens it.
+
+Sent a revised version? **Record another send…** under a document's sends adds a new one and keeps the earlier ones. **Take back this send** in a document's details removes the latest send when you save, for one recorded by mistake; its kept copy stays in your vault. A send is your record of what you did; it does not confirm that your editor received it.
 
 ## Due dates and milestones
 
@@ -61,7 +65,7 @@ Earlier preparation records and archived evidence remain readable in **Preserved
 
 ## Upgrading from 3.2
 
-Earlier versions gave every milestone and material its own **Done** circle, so one query letter could need a task, a milestone, and a material, each marked done separately. Now a milestone's status comes from what is due on it, and a document's from its sends, so those earlier marks are not carried over. Record a document's send to mark it sent, and delete any milestone you only made to give something a date: deleting it keeps that date on what was due on it. The **Materials** tab is now **Documents**.
+Earlier versions gave every milestone and material its own **Done** circle, so one query letter could need a task, a milestone, and a material, each marked done separately. Now a milestone's status comes from what is due on it, and a document's from its sends. A material you had marked done shows as sent, "Marked done in an earlier version", on the day you marked it, so finished work doesn't come back as overdue; you can edit that send to add the date and file you actually sent. Delete any milestone you only made to give something a date: deleting it keeps that date on what was due on it. The **Materials** tab is now **Documents**.
 
 ## Upgrading from 2.0.0
 

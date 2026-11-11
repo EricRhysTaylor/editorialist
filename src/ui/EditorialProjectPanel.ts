@@ -2,7 +2,7 @@ import { renderWordLimit } from "./primitives/WordLimitBar";
 import { setAccessibleLabel } from "./primitives/AccessibleLabel";
 import { bindCompletionMenu } from "./primitives/CompletionMenu";
 import { Modal, Notice, TFile, normalizePath, setIcon, type App } from "obsidian";
-import { ENGAGEMENT_START, MAX_AGREEMENT_LENGTH, candidateDeadline, collaborationUrl, createEditorialProject, deadlineState, documentDue, documentSends, engagementPhases, engagementReturned, engagementStartCountdown, isProjectEditorProfile, milestoneState, projectEditor, recordProjectEvent, removeDocument, removeMilestone, removeTask, shiftDate, taskDue, type EditorialProject, type EngagementRecord, type EngagementTask, type ItemDue, type ProjectMaterial } from "../core/planning/EditorialProject";
+import { ENGAGEMENT_START, MAX_AGREEMENT_LENGTH, candidateDeadline, collaborationUrl, createEditorialProject, deadlineState, documentDue, documentSends, dueDeadline, engagementPhases, engagementReturned, engagementStartCountdown, isProjectEditorProfile, milestoneState, projectEditor, recordProjectEvent, removeDocument, removeMilestone, removeTask, shiftDate, taskDue, type EditorialProject, type EngagementRecord, type EngagementTask, type ProjectMaterial } from "../core/planning/EditorialProject";
 import { isDate, localDate, type RevisionPlan } from "../core/planning/RevisionPlan";
 import { deadlineLabel, planDayLabel } from "../core/planning/WorkPresentation";
 import { renderCushionBar } from "./primitives/CushionBar";
@@ -11,7 +11,7 @@ import { isEditorSender, parseNoteThread } from "../core/planning/EngagementNote
 import { engagementTrack, type TrackTarget } from "../core/planning/EngagementTrack";
 
 import type { EditorialDelivery } from "../core/EditorialDeliveries";
-import type { EditorialProjectService } from "../services/EditorialProjectService";
+import { MAX_COPY_BYTES, type EditorialProjectService } from "../services/EditorialProjectService";
 import type { ContributorProfile } from "../models/ContributorProfile";
 
 export interface ProjectPanelHost {
@@ -199,7 +199,8 @@ export class EditorialProjectPanel {
 		}
 		// Each thing appears once, with its one status: a document and its tasks
 		// and sends together, the rest of the tasks, then the shared dates.
-		this.renderDocuments(section(root, "materials", "files", "Documents", project.materials.length), true);
+		// Counted like the other sections: what is still open, here documents not yet sent.
+		this.renderDocuments(section(root, "materials", "files", "Documents", project.materials.filter((item) => !documentSends(project, item.id).length).length), true);
 		this.renderOtherTasks(root); this.renderMilestones(root);
 	}
 	// The engagement notes: the conversation that set the engagement up, pasted
@@ -323,16 +324,16 @@ export class EditorialProjectPanel {
 	private renderDocument(parent: HTMLElement, project: EditorialProject, material: ProjectMaterial, compact: boolean): void {
 		const sends = documentSends(project, material.id), sent = sends.length > 0;
 		const due = documentDue(project, material);
-		const deadline = this.itemDeadline(project, due);
+		const deadline = due ? dueDeadline(this.host.plan, project, due) : null;
 		const state = deadline && !sent ? deadlineState(deadline, localDate(new Date())) : null;
 		const card = parent.createDiv({ cls: "editorialist-project__document", attr: { "data-material-id": material.id, "data-document-state": sent ? "sent" : "unsent" } });
-		const head = card.createDiv({ cls: `editorialist-project__row editorialist-project__document-head${state === "late" ? " is-overdue" : state === "cushion" ? " is-cushion" : ""}` });
-		// Not a task's circle: unsent, it is a send button; sent, a check.
-		const status = iconButton(head, sent ? "check-circle-2" : "send", sent ? `Sent ${planDayLabel(sends[0]!.day)}. Record sending a revised “${material.title}”.` : `Record sending “${material.title}”`, () => this.recordActivity(undefined, material.id), `editorialist-project__check editorialist-project__send-status${sent ? " is-done" : ""}`);
-		status.disabled = this.host.busy;
+		const head = card.createDiv({ cls: `editorialist-project__row editorialist-project__document-head${sent ? " is-sent" : state === "late" ? " is-overdue" : state === "cushion" ? " is-cushion" : ""}` });
+		// A status mark, not a control: the send itself is edited in the
+		// document's details, like everything else about it.
+		setIcon(head.createSpan({ cls: "editorialist-project__row-icon editorialist-project__document-status", attr: { role: "img", "aria-label": sent ? "Sent" : "Not sent yet" } }), sent ? "check-circle-2" : "circle-dashed");
 		const main = head.createDiv({ cls: "editorialist-project__row-main" });
 		main.createDiv({ cls: "editorialist-project__row-title", text: material.title });
-		if (due && deadline) main.createDiv({ cls: "editorialist-project__row-meta editorialist-project__row-deadline", text: sent ? `Due ${planDayLabel(due.day)}` : `${deadlineLabel(deadline, state === "late")}${state === "late" ? " · not sent" : ""}` });
+		if (due && deadline) main.createDiv({ cls: "editorialist-project__row-meta editorialist-project__row-deadline", text: sent ? `Due ${planDayLabel(due.day)}` : deadlineLabel(deadline, state === "late") });
 		if (material.notes) main.createDiv({ cls: "editorialist-project__row-notes", text: material.notes });
 		if (!compact && material.source) main.createDiv({ cls: "editorialist-project__path", text: material.source });
 		this.wordLimit(main, material);
@@ -347,34 +348,50 @@ export class EditorialProjectPanel {
 			const list = card.createDiv({ cls: "editorialist-project__document-tasks" });
 			for (const task of tasks) this.renderTask(list, project, task, true);
 		}
-		if (sent) {
-			const list = card.createDiv({ cls: "editorialist-project__sends" });
-			for (const send of sends) {
-				const row = list.createDiv({ cls: "editorialist-project__row editorialist-project__send" });
-				setIcon(row.createSpan({ cls: "editorialist-project__row-icon", attr: { "aria-hidden": "true" } }), "send");
-				const body = row.createDiv({ cls: "editorialist-project__row-main" });
-				body.createDiv({ cls: "editorialist-project__row-title", text: send.description });
-				const file = recordFileName(send);
-				body.createDiv({ cls: "editorialist-project__row-meta", text: [planDayLabel(send.day), file && send.archive ? `${file}, copy kept` : file].filter(Boolean).join(" · ") });
-				const sendActions = row.createDiv({ cls: "editorialist-project__row-actions" });
-				const copy = send.archive?.copy ?? send.referencePath;
-				if (copy) iconButton(sendActions, "file-check", send.archive ? "Open the copy you sent" : "Open the file you sent", () => this.open(copy, "Could not open the file."));
-				iconButton(sendActions, "pencil", "Edit this send", () => this.recordActivity(send));
-			}
+		// Whether and when it went to the editor, always in view: each send with
+		// its date and file, or plainly not sent yet, one click from recording it.
+		const list = card.createDiv({ cls: "editorialist-project__sends" });
+		if (!sent) {
+			const row = list.createDiv({ cls: "editorialist-project__row editorialist-project__send is-unsent" });
+			setIcon(row.createSpan({ cls: "editorialist-project__row-icon", attr: { "aria-hidden": "true" } }), "send");
+			const body = row.createDiv({ cls: "editorialist-project__row-main" });
+			body.createDiv({ cls: "editorialist-project__row-title", text: "Not sent yet" });
+			this.link(body, "Record sending…", () => this.editMaterial(material, "send"));
 		}
+		for (const send of sends) {
+			const row = list.createDiv({ cls: "editorialist-project__row editorialist-project__send" });
+			setIcon(row.createSpan({ cls: "editorialist-project__row-icon", attr: { "aria-hidden": "true" } }), "send");
+			const body = row.createDiv({ cls: "editorialist-project__row-main" });
+			body.createDiv({ cls: "editorialist-project__row-title", text: send.description });
+			const file = recordFileName(send);
+			const meta = body.createDiv({ cls: "editorialist-project__row-meta", text: [planDayLabel(send.day), file].filter(Boolean).join(" · ") });
+			// Kept whole when the line wraps.
+			if (file && send.archive) { meta.createSpan({ text: ", " }); meta.createSpan({ cls: "editorialist-project__nowrap", text: "copy kept" }); }
+			const sendActions = row.createDiv({ cls: "editorialist-project__row-actions" });
+			const copy = send.archive?.copy ?? send.referencePath;
+			if (copy) iconButton(sendActions, "file-check", send.archive ? "Open the copy you sent" : "Open the file you sent", () => this.open(copy, "Could not open the file."));
+			iconButton(sendActions, "pencil", "Edit this send", () => this.recordActivity(send));
+		}
+		// A revised version is a send of its own; the earlier one stays.
+		if (sent) this.link(list.createDiv({ cls: "editorialist-project__send-again" }), "Record another send…", () => this.editMaterial(material, "again"));
 	}
-	// A task's row, the same in a document card and in the other tasks. In a
-	// card, a due date the task takes from its document is not repeated.
+	private link(parent: HTMLElement, text: string, action: () => void): void {
+		const el = parent.createDiv({ cls: "editorialist-project__links" }).createEl("button", { cls: "editorialist-project__link", text, attr: { type: "button" } });
+		el.disabled = this.host.busy;
+		el.addEventListener("click", action);
+	}
+	// A task's row, the same in a document card and in the other tasks. Its
+	// state follows its due date, its own or its document's, as Today's does;
+	// in a card, a date the task takes from its document is not repeated.
 	private renderTask(parent: HTMLElement, project: EditorialProject, task: EngagementTask, inDocument: boolean): void {
 		const due = taskDue(project, task);
-		const own = due && !(inDocument && !task.milestoneId && !task.due);
-		const deadline = own ? this.itemDeadline(project, due) : null;
+		const deadline = due ? dueDeadline(this.host.plan, project, due) : null;
 		const state = deadline && !task.done ? deadlineState(deadline, localDate(new Date())) : null;
 		const row = parent.createDiv({ cls: `editorialist-project__row editorialist-project__task${task.done ? " is-done" : state === "late" ? " is-overdue" : state === "cushion" ? " is-cushion" : ""}`, attr: { "data-task-id": task.id } });
 		this.finishToggle(row, task);
 		const main = row.createDiv({ cls: "editorialist-project__row-main" });
 		main.createDiv({ cls: "editorialist-project__row-title", text: task.title });
-		if (deadline) main.createDiv({ cls: "editorialist-project__row-meta editorialist-project__row-deadline", text: task.done ? `Due ${planDayLabel(deadline.due)}` : deadlineLabel(deadline, state === "late") });
+		if (deadline && !(inDocument && due?.inherited)) main.createDiv({ cls: "editorialist-project__row-meta editorialist-project__row-deadline", text: task.done ? `Due ${planDayLabel(deadline.due)}` : deadlineLabel(deadline, state === "late") });
 		iconButton(row.createDiv({ cls: "editorialist-project__row-actions" }), "pencil", `Edit “${task.title}”`, () => this.editTask(task.id));
 	}
 	private renderOtherTasks(root: HTMLElement): void {
@@ -388,18 +405,13 @@ export class EditorialProjectPanel {
 		button(actions, "Add task", () => this.editTask()).addClass("editorialist-project__add");
 		button(actions, "Schedule work", () => this.host.openSchedule());
 	}
-	// A promise to the editor (the engagement start) is aimed at the plan's
-	// cushion early; the author's own dates are aimed at as set.
-	private itemDeadline(project: EditorialProject, due: ItemDue | null): ReturnType<typeof candidateDeadline> {
-		return due ? candidateDeadline(this.host.plan, { due: due.day, path: project.id, ...(due.start ? {} : { ownTarget: true }) }) : null;
-	}
 	private open(path: string, failure: string): void {
 		void this.host.openSource(path).catch((reason: unknown) => new Notice(reason instanceof Error ? reason.message : failure));
 	}
 	// When an item is due: on a date of its own, with the engagement start, or
 	// with a milestone, so moving the milestone moves everything due on it. A
 	// task with no date of its own is due with its document.
-	private dueField(form: HTMLElement, project: EditorialProject, item: { milestoneId: string | null; due?: string }, inherits?: () => { day: string | null } | null): { apply(target: { milestoneId: string | null; due?: string }): void; refresh(): void } {
+	private dueField(form: HTMLElement, project: EditorialProject, item: { milestoneId: string | null; due?: string }, inherits?: () => { day: string | null } | null): { read(): { milestoneId: string | null; due?: string }; refresh(): void } {
 		const owned = item.milestoneId ? item.milestoneId : item.due ? "__date__" : "";
 		const choice = select(form, "Due", [["", "No due date"], ["__date__", "On a date"], [ENGAGEMENT_START, `When the engagement starts · ${planDayLabel(project.submissionDate)}`], ...project.milestones.map((value): [string, string] => [value.id, `${value.title} · ${planDayLabel(value.day)}`])], owned);
 		if (item.milestoneId && item.milestoneId !== ENGAGEMENT_START && !project.milestones.some((value) => value.id === item.milestoneId)) choice.value = "";
@@ -414,10 +426,9 @@ export class EditorialProjectPanel {
 		choice.addEventListener("change", refresh); refresh();
 		return {
 			refresh,
-			apply: (target) => {
+			read: () => {
 				if (choice.value === "__date__" && !isDate(date.value)) throw new Error("Choose a valid due date.");
-				target.milestoneId = choice.value && choice.value !== "__date__" ? choice.value : null;
-				if (choice.value === "__date__") target.due = date.value; else delete target.due;
+				return { milestoneId: choice.value && choice.value !== "__date__" ? choice.value : null, ...(choice.value === "__date__" ? { due: date.value } : {}) };
 			},
 		};
 	}
@@ -432,24 +443,40 @@ export class EditorialProjectPanel {
 	}
 	private referencePath(input: HTMLInputElement, previous = ""): string {
 		const path = input.value.trim() ? normalizePath(input.value.trim()) : "";
-		if (path && path !== previous && !(this.host.app.vault.getAbstractFileByPath(path) instanceof TFile)) throw new Error("Choose an existing file in this vault, or leave the reference blank.");
+		if (path && path !== previous && !(this.host.app.vault.getAbstractFileByPath(path) instanceof TFile)) throw new Error("Choose an existing file in this vault, or leave it empty.");
 		return path;
 	}
-	private editMaterial(material: ProjectMaterial | null): void {
-		const expected = structuredClone(this.host.plan), next = structuredClone(expected), project = next.project!;
-		const dialog = new ProjectDialog(this.host.app, material ? "Edit document" : "Add document", (form) => {
+	// A document's form. "send" opens it at the send fields; "again" records a
+	// further send, such as a revised version, keeping the earlier ones. Each
+	// save starts from the plan as it was when the form opened, so a save that
+	// fails and is tried again never adds the document twice.
+	private editMaterial(material: ProjectMaterial | null, mode: "edit" | "send" | "again" = "edit"): void {
+		const expected = structuredClone(this.host.plan), snapshot = expected.project!;
+		const id = material?.id ?? crypto.randomUUID();
+		const sent = material ? documentSends(snapshot, material.id).length > 0 : false;
+		const heading = !material ? "Add document" : mode === "again" ? `Record another send of “${material.title}”` : mode === "send" && !sent ? `Record sending “${material.title}”` : "Edit document";
+		const dialog = new ProjectDialog(this.host.app, heading, (form) => {
 			const title = field(form, "Document title", material?.title ?? ""); title.required = true;
+			const due = this.dueField(form, snapshot, material ?? { milestoneId: null });
 			const notes = area(form, "Description (optional)", material?.notes ?? "");
-			const applyDocument = this.documentFields(form, material);
-			const due = this.dueField(form, project, material ?? { milestoneId: null });
+			const prepare = this.documentFields(form, material, snapshot, { focusSent: mode !== "edit", newSend: mode === "again" });
 			return async () => {
-				const target = material ? project.materials.find((item) => item.id === material.id)! : { id: crypto.randomUUID(), title: "", kind: "document" as const, required: false, source: "", exportPath: "", milestoneId: null, requirements: [], approvedDigest: null, check: null, uploads: [] };
 				if (!title.value.trim()) throw new Error("Enter a document title.");
-				applyDocument(target); due.apply(target);
-				target.title = title.value.trim(); target.notes = notes.value.trim();
-				if (!material) project.materials.push(target); recordProjectEvent(project, `${target.title}: document ${material ? "updated" : "added"}`); await this.host.save(expected, next);
+				const dated = due.read();
+				const commit = await prepare();
+				const next = structuredClone(expected), draft = next.project!;
+				let target = draft.materials.find((item) => item.id === id);
+				if (!target) { target = { id, title: "", kind: "document", required: false, source: "", exportPath: "", milestoneId: null, requirements: [], approvedDigest: null, check: null, uploads: [] }; draft.materials.push(target); }
+				target.title = title.value.trim(); target.milestoneId = dated.milestoneId;
+				if (dated.due) target.due = dated.due; else delete target.due;
+				if (notes.value.trim()) target.notes = notes.value.trim(); else delete target.notes;
+				commit(draft, target);
+				// A send records itself; the document's own change only when there is one.
+				if (!material) recordProjectEvent(draft, `${target.title}: document added`);
+				else if (JSON.stringify(target) !== JSON.stringify(material)) recordProjectEvent(draft, `${target.title}: document updated`);
+				await this.host.save(expected, next);
 			};
-		}, "Save", material ? (actions) => this.removeButton(actions, "Delete document", () => dialog, async () => {
+		}, "Save", material && mode === "edit" ? (actions) => this.removeButton(actions, "Delete document", () => dialog, async () => {
 			const after = structuredClone(expected), draft = after.project!;
 			removeDocument(draft, material.id); recordProjectEvent(draft, `${material.title}: document deleted`); await this.host.save(expected, after);
 		}) : undefined);
@@ -464,64 +491,146 @@ export class EditorialProjectPanel {
 			void remove().then(() => dialog().close()).catch((reason: unknown) => { new Notice(reason instanceof Error ? reason.message : "Could not delete."); el.disabled = false; });
 		});
 	}
-	// A reference's document, edited the same way from the reference dialog and
-	// from any task that works on it — both write the one reference.
-	private documentFields(parent: HTMLElement, material: ProjectMaterial | null, shared = false): (target: ProjectMaterial) => void {
-		const source = this.fileField(parent, "Working document in your vault (optional)", material?.source ?? "");
+	// Everything about a document, the same in the document's own form and in
+	// the form of any task for it, since both write the one document: its
+	// working note, word limit, and when it was sent to the editor and as
+	// which file, which is usually a Word file or PDF, not the working note.
+	// Checking the fields and keeping a file's copy come first; the returned
+	// commit then writes them into the draft being saved.
+	private documentFields(parent: HTMLElement, material: ProjectMaterial | null, project: EditorialProject, options: { shared?: boolean; focusSent?: boolean; newSend?: boolean } = {}): () => Promise<(draft: EditorialProject, document: ProjectMaterial) => void> {
+		if (options.shared && material) parent.createEl("p", { cls: "editorialist-project__fieldset-title", text: `The “${material.title}” document · changes here change it everywhere` });
+		const source = this.fileField(parent, "Working document (optional)", material?.source ?? "");
+		source.placeholder = "A note in your vault";
 		const limit = field(parent, "Word limit (optional)", material?.wordLimit ? String(material.wordLimit) : "", "number"); limit.min = "1"; limit.step = "1";
-		parent.createEl("p", { cls: "editorialist-project__hint editorialist-project__field-note", text: `${shared && material ? `Shared with the “${material.title}” document. ` : ""}The word count covers the document's prose, leaving out properties, headings and hidden comments.` });
-		return (target) => {
+		parent.createEl("p", { cls: "editorialist-project__hint editorialist-project__field-note", text: "The word count covers the document's prose, leaving out properties, headings and hidden comments." });
+		const sends = material ? documentSends(project, material.id) : [];
+		// The send these fields edit: the latest, or a new one.
+		const latest = options.newSend ? undefined : sends[0];
+		const sendId = latest?.id ?? crypto.randomUUID();
+		const editor = projectEditor(project, this.host.getReviewers()).name;
+		const today = localDate(new Date());
+		const row = parent.createDiv({ cls: "editorialist-project__file-row" });
+		const day = field(row, `Sent to ${editor} on`, latest?.day ?? "", "date"); day.max = today;
+		day.parentElement!.addClass("editorialist-project__field--date");
+		const file = this.fileChoice(row, "File you sent", latest);
+		const note = parent.createEl("p", { cls: "editorialist-project__hint editorialist-project__send-note" });
+		let takeBack = false;
+		const describe = (): void => {
+			note.setText(takeBack ? `This send is taken back when you save.${latest?.archive ? " Its kept copy stays in your vault." : ""}` : options.newSend ? "A new send; the earlier ones stay on the document's card." : sends.length > 1 ? `Sent ${sends.length} times; these are the latest send's details.` : latest ? "" : "Leave the date empty until you send it.");
+		};
+		// Taking a send back is its own choice, never a side effect of an
+		// emptied field.
+		if (latest) {
+			const toggle = parent.createDiv({ cls: "editorialist-project__links editorialist-project__take-back" }).createEl("button", { cls: "editorialist-project__link", text: "Take back this send", attr: { type: "button" } });
+			toggle.addEventListener("click", () => {
+				takeBack = !takeBack;
+				toggle.setText(takeBack ? "Keep this send" : "Take back this send");
+				day.disabled = takeBack; file.setDisabled(takeBack); describe();
+				// An error about the date no longer applies once the send is taken back.
+				parent.closest("form")?.querySelector("[role='alert']")?.setText("");
+			});
+		}
+		describe();
+		if (options.focusSent) window.setTimeout(() => day.focus(), 0);
+		return async () => {
 			const wordLimit = limit.value ? Number(limit.value) : null;
 			if (wordLimit !== null && (!Number.isInteger(wordLimit) || wordLimit < 1)) throw new Error("Enter the word limit as a whole number, or leave it blank.");
-			target.source = this.referencePath(source, material?.source);
-			if (wordLimit) target.wordLimit = wordLimit; else delete target.wordLimit;
+			const sourcePath = this.referencePath(source, material?.source);
+			if (!takeBack) {
+				if (day.value && (!isDate(day.value) || day.value > today)) throw new Error("Enter the day you sent it, today or earlier.");
+				if (!day.value && latest) throw new Error("Enter the day you sent it, or choose Take back this send.");
+				if (!day.value && file.changed()) throw new Error("Enter the day you sent this file, or leave the file empty.");
+			}
+			const files = !takeBack && day.value ? await file.save(project.id) : null;
+			return (draft, document) => {
+				document.source = sourcePath;
+				if (wordLimit) document.wordLimit = wordLimit; else delete document.wordLimit;
+				if (takeBack && latest) {
+					draft.records = draft.records.filter((item) => item.id !== latest.id);
+					recordProjectEvent(draft, `${document.title}: send of ${dayLabel(latest.day)} taken back`);
+					return;
+				}
+				if (!files) return;
+				const send: EngagementRecord = { id: sendId, day: day.value, kind: "sent", description: latest?.description ?? `Sent to ${editor}`, ...files, materialId: document.id };
+				const index = draft.records.findIndex((item) => item.id === send.id);
+				if (index >= 0) draft.records[index] = send; else draft.records.push(send);
+				const name = recordFileName(send);
+				if (!latest || latest.day !== send.day || latest.referencePath !== send.referencePath || latest.archive !== send.archive) recordProjectEvent(draft, `${document.title}: ${latest ? "send changed to" : "sent"} ${dayLabel(send.day)}${name ? `, as ${name}` : ""}`);
+			};
 		};
 	}
-	// One record of activity with the editor. Sending a document is a "sent"
-	// record linked to it, made from the document's circle; the file is the
-	// one actually sent, such as the Word file, which is not the working note.
-	private recordActivity(record?: EngagementRecord, materialId?: string): void {
-		const expected = structuredClone(this.host.plan), next = structuredClone(expected), project = next.project!;
-		const document = project.materials.find((item) => item.id === (record?.materialId ?? materialId));
-		const title = record ? (record.kind === "sent" && document ? `Edit sending “${document.title}”` : "Edit activity record") : document ? `Record sending “${document.title}”` : "Record activity";
+	// The file of a send or other record: one in the vault, or one chosen from
+	// the computer. A copy of a file from the computer is always kept, since
+	// the vault has no other; a newly chosen vault file is copied unless the
+	// author says not to. An unchanged file keeps the copy it has, and a copy
+	// made by a save that then failed is reused when the save is tried again.
+	private fileChoice(parent: HTMLElement, label: string, record: EngagementRecord | undefined): { changed(): boolean; setDisabled(disabled: boolean): void; save(projectId: string): Promise<Pick<EngagementRecord, "referencePath" | "filenames" | "archive">> } {
+		const reference = this.fileField(parent, label, record?.referencePath ?? "");
+		reference.placeholder = "A file in your vault";
+		let upload: File | null = null;
+		const input = parent.createEl("input", { type: "file", attr: { hidden: "" } });
+		const choose = button(parent, "Choose file…", () => input.click());
+		const note = parent.createDiv({ cls: "editorialist-project__hint editorialist-project__file-chosen" });
+		const keep = field(parent, "Keep a copy of this file as it is now", "", "checkbox"); keep.checked = true;
+		const keepField = keep.parentElement!;
+		const unchanged = (): boolean => !upload && reference.value.trim() === (record?.referencePath ?? "");
+		const describe = (): void => {
+			const name = record ? recordFileName(record) : "";
+			keepField.hidden = Boolean(upload) || unchanged() || !reference.value.trim();
+			if (upload) note.setText(`${upload.name}, from your computer. A copy is kept when you save.`);
+			else note.setText(unchanged() && name ? `${name}${record?.archive ? ", copy kept" : ""}` : "");
+		};
+		input.addEventListener("change", () => { upload = input.files?.[0] ?? null; if (upload) reference.value = ""; describe(); });
+		reference.addEventListener("input", () => { if (reference.value) { upload = null; input.value = ""; } describe(); });
+		describe();
+		let copied: { key: string; value: Pick<EngagementRecord, "referencePath" | "filenames" | "archive"> } | null = null;
+		const once = async (key: string, make: () => Promise<Pick<EngagementRecord, "referencePath" | "filenames" | "archive">>) => {
+			if (copied?.key !== key) copied = { key, value: await make() };
+			return copied.value;
+		};
+		return {
+			changed: () => !unchanged(),
+			setDisabled: (disabled) => { reference.disabled = disabled; choose.disabled = disabled; keep.disabled = disabled; },
+			save: async (projectId) => {
+				if (upload) {
+					const chosen = upload;
+					if (chosen.size > MAX_COPY_BYTES) throw new Error(`${chosen.name} is over the 64 MB limit for a kept copy.`);
+					return once(`upload:${chosen.name}:${chosen.size}:${chosen.lastModified}`, async () => ({ referencePath: "", filenames: chosen.name, archive: await this.host.service.keepCopy(projectId, chosen.name, await chosen.arrayBuffer()) }));
+				}
+				const referencePath = this.referencePath(reference, record?.referencePath);
+				if (record && unchanged()) return { referencePath, filenames: record.filenames, ...(record.archive ? { archive: record.archive } : {}) };
+				if (!referencePath || !keep.checked) return { referencePath, filenames: "" };
+				return once(`path:${referencePath}`, async () => ({ referencePath, filenames: "", archive: await this.host.service.archiveFile(projectId, referencePath) }));
+			},
+		};
+	}
+	// One record of activity with the editor: something sent or received, or a
+	// note. A document's latest send is also edited in the document's details.
+	private recordActivity(record?: EngagementRecord): void {
+		const expected = structuredClone(this.host.plan), snapshot = expected.project!;
+		const id = record?.id ?? crypto.randomUUID();
+		const document = snapshot.materials.find((item) => item.id === record?.materialId);
+		const title = record ? (record.kind === "sent" && document ? `Edit sending “${document.title}”` : "Edit activity record") : "Record activity";
 		const dialog = new ProjectDialog(this.host.app, title, (form) => {
 			const kind = select(form, "Activity", [["sent", "Sent to your editor"], ["received", "Received from your editor"], ["note", "Engagement note"]], record?.kind ?? "sent");
 			const day = field(form, "Date", record?.day ?? localDate(new Date()), "date"); day.required = true;
-			const linked = select(form, "Document", [["", "No document"], ...project.materials.map((item): [string, string] => [item.id, item.title])], document?.id ?? "");
+			const linked = select(form, "Document", [["", "No document"], ...snapshot.materials.map((item): [string, string] => [item.id, item.title])], document?.id ?? "");
 			linked.parentElement!.addClass("editorialist-project__field--wide");
-			const description = area(form, "Your record", record?.description ?? (document ? `Sent to ${projectEditor(project, this.host.getReviewers()).name}` : "")); description.required = true; description.rows = 2;
-			// The file: one in the vault, or one from elsewhere on the computer,
-			// which is always kept as a copy since the vault has no other.
-			const files = form.createDiv({ cls: "editorialist-project__file-group" });
-			const reference = this.fileField(files, "File you sent (optional)", record?.referencePath ?? "");
-			reference.placeholder = "A file in your vault";
-			let upload: File | null = null;
-			const input = files.createEl("input", { type: "file", attr: { hidden: "" } });
-			button(files, "Choose from your computer…", () => input.click());
-			const chosen = files.createDiv({ cls: "editorialist-project__hint editorialist-project__file-chosen" });
-			const keep = record?.archive ? null : field(files, "Keep a copy of the file as it is now", "", "checkbox");
-			if (keep) keep.checked = !record;
-			input.addEventListener("change", () => {
-				upload = input.files?.[0] ?? null;
-				chosen.setText(upload ? `${upload.name}, from your computer` : "");
-				if (upload) reference.value = "";
-				if (keep) { keep.checked = keep.checked || Boolean(upload); keep.disabled = Boolean(upload); }
-			});
-			reference.addEventListener("input", () => { if (!reference.value) return; upload = null; input.value = ""; chosen.setText(""); if (keep) keep.disabled = false; });
-			// Names typed for a file outside the vault, kept on records that have them.
-			const filenames = record?.filenames ? field(files, "File names", record.filenames) : null;
-			form.createEl("p", { cls: "editorialist-project__hint", text: "This is your record of what happened; it does not confirm your editor received anything. A kept copy stays as the file was when you sent it, even if you change the file later." });
-			if (record?.archive) form.createEl("p", { cls: "editorialist-project__path", text: `Copy kept: ${record.archive.copy}` });
+			const description = area(form, "Your record", record?.description ?? ""); description.required = true; description.rows = 2;
+			const file = this.fileChoice(form.createDiv({ cls: "editorialist-project__file-row" }), "File (optional)", record);
+			// Names typed for a file outside the vault, on older records that have them.
+			const filenames = record?.filenames && !record.archive ? field(form, "File names", record.filenames) : null;
+			form.createEl("p", { cls: "editorialist-project__hint", text: "This is your record of what happened; it does not confirm your editor received anything. The copy kept of a file stays as it was, even if you change the file later." });
 			return async () => {
 				if (!isDate(day.value) || day.value > localDate(new Date())) throw new Error("Record an activity that has already happened.");
 				if (!description.value.trim()) throw new Error("Describe the activity for your history.");
-				const referencePath = upload ? "" : this.referencePath(reference, record?.referencePath);
-				const item: EngagementRecord = { id: record?.id ?? crypto.randomUUID(), day: day.value, kind: kind.value as EngagementRecord["kind"], description: description.value.trim(), filenames: filenames?.value.trim() || upload?.name || "", referencePath, ...(record?.archive ? { archive: record.archive } : {}), ...(linked.value ? { materialId: linked.value } : {}) };
-				if (upload) item.archive = await this.host.service.keepCopy(project.id, upload.name, await upload.arrayBuffer());
-				else if (keep?.checked && referencePath) item.archive = await this.host.service.archiveFile(project.id, referencePath);
-				if (record) project.records[project.records.findIndex((value) => value.id === record.id)] = item; else project.records.push(item);
-				const about = project.materials.find((value) => value.id === item.materialId)?.title;
-				recordProjectEvent(project, `${record ? "Updated" : "Recorded"} activity${about ? ` for ${about}` : ""}: ${item.description}`);
+				const files = await file.save(snapshot.id);
+				const next = structuredClone(expected), draft = next.project!;
+				const item: EngagementRecord = { id, day: day.value, kind: kind.value as EngagementRecord["kind"], description: description.value.trim(), ...files, ...(filenames ? { filenames: filenames.value.trim() } : {}), ...(linked.value ? { materialId: linked.value } : {}) };
+				const index = draft.records.findIndex((value) => value.id === id);
+				if (index >= 0) draft.records[index] = item; else draft.records.push(item);
+				const about = draft.materials.find((value) => value.id === item.materialId)?.title;
+				recordProjectEvent(draft, `${record ? "Updated" : "Recorded"} activity${about ? ` for ${about}` : ""}: ${item.description}`);
 				try { await this.host.save(expected, next); } catch (error) { if (item.archive && item.archive !== record?.archive) new Notice(`The copy was kept at ${item.archive.copy}. The record could not be saved.`); throw error; }
 			};
 		}, "Save record", record ? (actions) => this.removeButton(actions, "Delete record", () => dialog, async () => {
@@ -556,49 +665,66 @@ export class EditorialProjectPanel {
 		button(body, "Add milestone", () => this.editMilestone()).addClass("editorialist-project__add");
 	}
 	private editMilestone(id?: string): void {
-		const expected = structuredClone(this.host.plan), next = structuredClone(expected), draft = next.project!;
-		const item = id ? draft.milestones.find((value) => value.id === id)! : { id: crypto.randomUUID(), title: "", day: "" };
+		const expected = structuredClone(this.host.plan), snapshot = expected.project!;
+		const original = id ? snapshot.milestones.find((value) => value.id === id) : undefined;
+		const milestoneId = id ?? crypto.randomUUID();
 		const dialog = new ProjectDialog(this.host.app, id ? "Edit milestone" : "Add milestone", (form) => {
-			const title = field(form, "Milestone title", item.title); title.required = true;
-			const date = field(form, "Date", item.day, "date"); date.required = true;
+			const title = field(form, "Milestone title", original?.title ?? ""); title.required = true;
+			const date = field(form, "Date", original?.day ?? "", "date"); date.required = true;
 			form.createEl("p", { cls: "editorialist-project__hint", text: "Tasks and documents due on this milestone move with its date. Deleting it leaves them due on the same day." });
-			return async () => { if (!title.value.trim() || !isDate(date.value)) throw new Error("Give this milestone a title and valid date."); item.title = title.value.trim(); item.day = date.value; if (!id) draft.milestones.push(item); recordProjectEvent(draft, `${item.title}: milestone ${id ? "updated" : "added"}`); await this.host.save(expected, next); };
+			return async () => {
+				if (!title.value.trim() || !isDate(date.value)) throw new Error("Give this milestone a title and valid date.");
+				const next = structuredClone(expected), draft = next.project!;
+				let item = draft.milestones.find((value) => value.id === milestoneId);
+				if (!item) { item = { id: milestoneId, title: "", day: "" }; draft.milestones.push(item); }
+				item.title = title.value.trim(); item.day = date.value;
+				recordProjectEvent(draft, `${item.title}: milestone ${id ? "updated" : "added"}`); await this.host.save(expected, next);
+			};
 		}, "Save", id ? (actions) => this.removeButton(actions, "Delete milestone", () => dialog, async () => {
 			const after = structuredClone(expected), project = after.project!;
-			removeMilestone(project, id); recordProjectEvent(project, `${item.title}: milestone deleted`); await this.host.save(expected, after);
+			removeMilestone(project, id); recordProjectEvent(project, `${original?.title ?? "Milestone"}: milestone deleted`); await this.host.save(expected, after);
 		}) : undefined);
 		dialog.open();
 	}
 	editTask(id?: string, materialId?: string): void {
-		const expected = structuredClone(this.host.plan), next = structuredClone(expected), draft = next.project!;
-		const task: EngagementTask = id ? draft.tasks.find((item) => item.id === id)! : { id: crypto.randomUUID(), title: "", materialId: materialId ?? null, milestoneId: null, done: false };
+		const expected = structuredClone(this.host.plan), snapshot = expected.project!;
+		const original = id ? snapshot.tasks.find((item) => item.id === id) : undefined;
+		const taskId = id ?? crypto.randomUUID();
 		const dialog = new ProjectDialog(this.host.app, id ? "Edit engagement task" : "Add engagement task", (form) => {
-			const title = field(form, "Task title", task.title); title.required = true;
-			const material = select(form, "Document", [["", "No document"], ...draft.materials.map((item): [string, string] => [item.id, item.title])], task.materialId ?? "");
-			// The chosen document's fields, so a task and its document are
-			// edited with the same controls.
+			const title = field(form, "Task title", original?.title ?? ""); title.required = true;
+			title.parentElement!.addClass("editorialist-project__field--wide");
+			const material = select(form, "Document", [["", "No document"], ...snapshot.materials.map((item): [string, string] => [item.id, item.title])], original?.materialId ?? materialId ?? "");
+			const chosen = (): ProjectMaterial | null => snapshot.materials.find((item) => item.id === material.value) ?? null;
+			const due = this.dueField(form, snapshot, original ?? { milestoneId: null }, () => { const document = chosen(); return document ? { day: documentDue(snapshot, document)?.day ?? null } : null; });
+			// The chosen document's details, the same fields as its own form, so
+			// finishing the work and recording the send happen in one place.
 			const shared = form.createDiv({ cls: "editorialist-project__fieldset" });
-			let applyDocument: ((target: ProjectMaterial) => void) | null = null;
-			const chosen = (): ProjectMaterial | null => draft.materials.find((item) => item.id === material.value) ?? null;
-			const due = this.dueField(form, draft, task, () => { const document = chosen(); return document ? { day: documentDue(draft, document)?.day ?? null } : null; });
+			let prepare: (() => Promise<(draft: EditorialProject, document: ProjectMaterial) => void>) | null = null;
 			const showDocument = (): void => {
 				shared.empty();
 				const document = chosen();
-				applyDocument = document ? this.documentFields(shared, document, true) : null;
+				prepare = document ? this.documentFields(shared, document, snapshot, { shared: true }) : null;
 				due.refresh();
 			};
 			material.addEventListener("change", showDocument); showDocument();
 			return async () => {
 				if (!title.value.trim()) throw new Error("Enter a task title.");
-				const document = chosen();
-				if (document && applyDocument) applyDocument(document);
-				due.apply(task);
-				task.title = title.value.trim(); task.materialId = material.value || null; if (!id) draft.tasks.push(task);
-				recordProjectEvent(draft, `Engagement task ${id ? "updated" : "added"}: ${task.title}`); await this.host.save(expected, next);
+				const dated = due.read();
+				const documentId = material.value || null;
+				const commit = documentId && prepare ? await prepare() : null;
+				const next = structuredClone(expected), draft = next.project!;
+				let task = draft.tasks.find((item) => item.id === taskId);
+				if (!task) { task = { id: taskId, title: "", materialId: null, milestoneId: null, done: false }; draft.tasks.push(task); }
+				task.title = title.value.trim(); task.materialId = documentId; task.milestoneId = dated.milestoneId;
+				if (dated.due) task.due = dated.due; else delete task.due;
+				if (!original || JSON.stringify(task) !== JSON.stringify(original)) recordProjectEvent(draft, `Engagement task ${id ? "updated" : "added"}: ${task.title}`);
+				const document = draft.materials.find((item) => item.id === documentId);
+				if (commit && document) commit(draft, document);
+				await this.host.save(expected, next);
 			};
 		}, "Save", id ? (actions) => this.removeButton(actions, "Delete task", () => dialog, async () => {
 			const after = structuredClone(expected);
-			removeTask(after, id); recordProjectEvent(after.project!, `Engagement task deleted: ${task.title}`); await this.host.save(expected, after);
+			removeTask(after, id); recordProjectEvent(after.project!, `Engagement task deleted: ${original?.title ?? "task"}`); await this.host.save(expected, after);
 		}) : undefined);
 		dialog.open();
 	}
@@ -608,7 +734,7 @@ export class EditorialProjectPanel {
 		const project = this.host.plan.project; if (!project) { this.renderOverview(root); return; }
 		const records = [...project.records].reverse().sort((a, b) => b.day.localeCompare(a.day));
 		const activity = section(root, "activity", "inbox", "Activity records", records.length);
-		if (!records.length) activity.createEl("p", { cls: "editorialist-project__hint", text: "Record materials sent, feedback received or a conversation with your editor." });
+		if (!records.length) activity.createEl("p", { cls: "editorialist-project__hint", text: "Record what you sent, what you received, or a conversation with your editor." });
 		const kinds = { sent: { icon: "send", label: "Sent" }, received: { icon: "inbox", label: "Received" }, note: { icon: "message-square", label: "Note" } } as const;
 		for (const record of records) {
 			const row = activity.createDiv({ cls: "editorialist-project__row editorialist-project__record" });
@@ -619,7 +745,7 @@ export class EditorialProjectPanel {
 			main.createDiv({ cls: "editorialist-project__row-meta", text: [kinds[record.kind].label, dayLabel(record.day), document?.title, "Author recorded"].filter(Boolean).join(" · ") });
 			if (record.filenames) main.createDiv({ cls: "editorialist-project__path", text: record.filenames });
 			const actions = row.createDiv({ cls: "editorialist-project__row-actions" });
-			if (record.referencePath) iconButton(actions, "file-text", "Open reference", () => this.open(record.referencePath, "Could not open the reference."));
+			if (record.referencePath) iconButton(actions, "file-text", "Open file", () => this.open(record.referencePath, "Could not open the file."));
 			if (record.archive) iconButton(actions, "archive", "Open kept copy", () => this.open(record.archive!.copy, "Could not open the kept copy."));
 			iconButton(actions, "pencil", "Edit record", () => this.recordActivity(record));
 		}

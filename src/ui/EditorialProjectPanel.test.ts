@@ -19,19 +19,99 @@ function nextUp(day: string): HTMLElement {
 	return root.querySelector<HTMLElement>(".editorialist-project__next")!;
 }
 
-function overview(): HTMLElement {
+function engagement(sent = true): { root: HTMLElement; save: ReturnType<typeof vi.fn> } {
 	let id = 0;
 	const project = createEditorialProject("Morgan Lee", "2026-11-30", () => String(++id));
 	project.milestones.push({ id: "letter", title: "Query letter drafted", day: "2026-11-09" }, { id: "call", title: "Call with Morgan", day: "2020-01-06" });
 	project.materials.push({ id: "query", title: "Query letter", kind: "document", required: false, source: "Publisher/Query Letter.md", exportPath: "", milestoneId: "letter", requirements: [], approvedDigest: null, check: null, uploads: [] });
 	project.tasks.push({ id: "draft", title: "Draft query letter", materialId: "query", milestoneId: null, done: true }, { id: "upload", title: "Upload files", materialId: null, milestoneId: null, done: false });
-	project.records.push({ id: "sent", day: "2026-11-09", kind: "sent", description: "Sent to Morgan Lee", filenames: "", referencePath: "", archive: { copy: "Editorialist/Engagement history/x/Query letter.docx", digest: "a".repeat(64) }, materialId: "query" });
-	const host = { app: {}, plan: { ...emptyRevisionPlan(), project }, deliveries: [], busy: false, getReviewers: () => [], nextInQueue: () => null, wordCounts: {} };
+	if (sent) project.records.push({ id: "sent", day: "2026-11-09", kind: "sent", description: "Sent to Morgan Lee", filenames: "", referencePath: "", archive: { copy: "Editorialist/Engagement history/x/Query letter.docx", digest: "a".repeat(64) }, materialId: "query" });
+	const save = vi.fn(async () => {});
+	const app = { vault: { getFiles: () => [], getAbstractFileByPath: () => null } };
+	const host = { app, plan: { ...emptyRevisionPlan(), project }, deliveries: [], busy: false, save, getReviewers: () => [], nextInQueue: () => null, wordCounts: {} };
 	const root = document.createElement("div");
 	// SAFE: the overview reaches the host only through the members stubbed above.
 	new EditorialProjectPanel(host as unknown as ProjectPanelHost).renderOverview(root);
-	return root;
+	return { root, save };
 }
+const overview = (): HTMLElement => engagement().root;
+
+// The dialog last opened, and its field by label.
+function dialogField(label: string): HTMLInputElement {
+	const dialogs = document.querySelectorAll(".editorialist-project-dialog");
+	const field = [...dialogs[dialogs.length - 1]!.querySelectorAll("label")].find((item) => item.textContent?.startsWith(label));
+	return field!.querySelector("input")!;
+}
+
+describe("Recording that a document was sent", () => {
+	it("says plainly that an unsent document is not sent yet, with a way to record it", () => {
+		const card = engagement(false).root.querySelector<HTMLElement>(".editorialist-project__document")!;
+		expect(card.dataset.documentState).toBe("unsent");
+		expect(card.querySelector(".editorialist-project__send.is-unsent")?.textContent).toContain("Not sent yet");
+		expect(card.querySelector(".editorialist-project__send.is-unsent button")?.textContent).toBe("Record sending…");
+	});
+
+	it("records the send from the document's own details, as a sent record linked to it", async () => {
+		const { root, save } = engagement(false);
+		root.querySelector<HTMLButtonElement>(".editorialist-project__send.is-unsent button")!.click();
+		const day = dialogField("Sent to Morgan Lee on");
+		day.value = "2026-11-10";
+		day.closest("form")!.dispatchEvent(new Event("submit", { cancelable: true }));
+		await vi.waitFor(() => expect(save).toHaveBeenCalled());
+		const next = save.mock.calls[0]![1] as { project: { records: { kind: string; day: string; materialId?: string; description: string }[] } };
+		expect(next.project.records).toEqual([expect.objectContaining({ kind: "sent", day: "2026-11-10", materialId: "query", description: "Sent to Morgan Lee" })]);
+	});
+
+	it("saves a new document once even when its first save is refused", async () => {
+		const { root, save } = engagement(false);
+		root.querySelector<HTMLButtonElement>("[data-plan-section='materials'] .editorialist-project__add")!.click();
+		dialogField("Document title").value = "Synopsis";
+		const file = dialogField("File you sent");
+		file.value = "Exports/Synopsis.docx";
+		const form = file.closest("form")!;
+		form.dispatchEvent(new Event("submit", { cancelable: true }));
+		await vi.waitFor(() => expect(form.querySelector("[role='alert']")?.textContent).toContain("Enter the day you sent this file"));
+		file.value = "";
+		file.dispatchEvent(new Event("input"));
+		form.dispatchEvent(new Event("submit", { cancelable: true }));
+		await vi.waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+		const next = save.mock.calls[0]![1] as { project: { materials: { title: string }[] } };
+		expect(next.project.materials.map((item) => item.title)).toEqual(["Query letter", "Synopsis"]);
+	});
+
+	it("records a revised send beside the earlier one, and takes a send back only when asked", async () => {
+		const { root, save } = engagement();
+		root.querySelector<HTMLButtonElement>(".editorialist-project__send-again button")!.click();
+		const day = dialogField("Sent to Morgan Lee on");
+		expect(day.value).toBe("");
+		day.value = "2026-11-10";
+		day.closest("form")!.dispatchEvent(new Event("submit", { cancelable: true }));
+		await vi.waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+		const again = save.mock.calls[0]![1] as { project: { records: { day: string }[] } };
+		expect(again.project.records.map((item) => item.day)).toEqual(["2026-11-09", "2026-11-10"]);
+
+		// An emptied date is not a quiet way to delete the send.
+		[...root.querySelectorAll<HTMLButtonElement>(".editorialist-project__document-head .editorialist-project__row-actions button")].pop()!.click();
+		const latest = dialogField("Sent to Morgan Lee on");
+		latest.value = "";
+		const form = latest.closest("form")!;
+		form.dispatchEvent(new Event("submit", { cancelable: true }));
+		await vi.waitFor(() => expect(form.querySelector("[role='alert']")?.textContent).toContain("Take back this send"));
+		[...form.querySelectorAll("button")].find((item) => item.textContent === "Take back this send")!.click();
+		form.dispatchEvent(new Event("submit", { cancelable: true }));
+		await vi.waitFor(() => expect(save).toHaveBeenCalledTimes(2));
+		const taken = save.mock.calls[1]![1] as { project: { records: unknown[] } };
+		expect(taken.project.records).toEqual([]);
+	});
+
+	it("shows the document's send fields in the form of a task for it", () => {
+		const { root } = engagement();
+		root.querySelector<HTMLButtonElement>(".editorialist-project__document-tasks .editorialist-project__row-actions button")!.click();
+		expect(dialogField("Sent to Morgan Lee on").value).toBe("2026-11-09");
+		const dialogs = document.querySelectorAll(".editorialist-project-dialog");
+		expect(dialogs[dialogs.length - 1]!.textContent).toContain("Query letter.docx, copy kept");
+	});
+});
 
 describe("Documents, tasks and milestones on the engagement overview", () => {
 	it("shows a document once, with its task and the file it was sent as", () => {

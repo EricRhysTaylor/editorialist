@@ -1,4 +1,4 @@
-import { isDate, localDate, resolvePlanSource, type PlanEntry, type RevisionPlan, type WorkCandidate, type WorkKind } from "./RevisionPlan";
+import { isDate, localDate, resolvePlanSource, sourceKey, type PlanEntry, type RevisionPlan, type WorkCandidate, type WorkKind } from "./RevisionPlan";
 import { normalizeContributorValue } from "../ContributorIdentity";
 import type { ContributorProfile } from "../../models/ContributorProfile";
 import type { EditorialDelivery } from "../EditorialDeliveries";
@@ -151,8 +151,11 @@ export function createEditorialProject(editor: string, deadline: string, makeId:
 	if (!isDate(deadline)) throw new Error("Choose a valid engagement start date.");
 	return { version: EDITORIAL_PROJECT_VERSION, id: makeId(), title: "Developmental edit", editor: editor.trim(), collaborationUrl: "", submissionDate: deadline, expectedReturn: null, actualReturn: null, questionsDays: 10, deliveryId: null, milestones: [], materials: [], tasks: [], history: [], records: [] };
 }
-/** When an item is due, and whether that date is the engagement start, which is a promise to the editor. */
-export interface ItemDue { day: string; start: boolean; milestoneId: string | null }
+/**
+ * When an item is due, whether that date is the engagement start, which is a
+ * promise to the editor, and, for a task, whether it is its document's date.
+ */
+export interface ItemDue { day: string; start: boolean; milestoneId: string | null; inherited?: true }
 function ownDue(project: EditorialProject, item: { milestoneId: string | null; due?: string }): ItemDue | null {
 	if (item.milestoneId === ENGAGEMENT_START) return { day: project.submissionDate, start: true, milestoneId: null };
 	if (item.milestoneId) {
@@ -166,8 +169,19 @@ export function documentDue(project: EditorialProject, material: ProjectMaterial
 }
 /** A task is due on its own date, or else with its document. */
 export function taskDue(project: EditorialProject, task: EngagementTask): ItemDue | null {
+	const own = ownDue(project, task);
+	if (own) return own;
 	const document = task.materialId ? project.materials.find((item) => item.id === task.materialId) : undefined;
-	return ownDue(project, task) ?? (document ? ownDue(project, document) : null);
+	const inherited = document ? ownDue(project, document) : null;
+	return inherited ? { ...inherited, inherited: true } : null;
+}
+/**
+ * The deadline an item's due date sets: a date due when the engagement starts
+ * is a promise to the editor, aimed at the plan's cushion early; the author's
+ * own dates are aimed at as set.
+ */
+export function dueDeadline(plan: Pick<RevisionPlan, "cushionDays">, project: EditorialProject, due: ItemDue): WorkDeadline {
+	return candidateDeadline(plan, { due: due.day, path: project.id, ...(due.start ? {} : { ownTarget: true }) })!;
 }
 /** A document's sends, newest first. */
 export function documentSends(project: EditorialProject, materialId: string): EngagementRecord[] {
@@ -210,6 +224,7 @@ export function removeMilestone(project: EditorialProject, id: string): void {
 export function removeDocument(project: EditorialProject, id: string): void {
 	const document = project.materials.find((item) => item.id === id);
 	if (!document) return;
+	if (document.check || document.frozenSources?.length || document.uploads.length) throw new Error(`“${document.title}” holds earlier preparation records, so it is kept.`);
 	for (const task of project.tasks) {
 		if (task.materialId !== id) continue;
 		if (!ownDue(project, task)) { task.milestoneId = document.milestoneId; if (document.due) task.due = document.due; }
@@ -218,12 +233,21 @@ export function removeDocument(project: EditorialProject, id: string): void {
 	for (const record of project.records) if (record.materialId === id) delete record.materialId;
 	project.materials = project.materials.filter((item) => item.id !== id);
 }
-/** Deleting a task also takes its sessions off the schedule. */
+/**
+ * Deleting a task also takes its sessions off the schedule, keeping the order
+ * of what came after them, and takes it out of the open work progress
+ * tracks, so a deleted task is never counted as finished.
+ */
 export function removeTask(plan: RevisionPlan, id: string): void {
 	const project = plan.project;
 	if (!project) return;
+	const source = { kind: "preparation" as const, path: project.id, locator: id };
 	project.tasks = project.tasks.filter((item) => item.id !== id);
-	plan.entries = plan.entries.filter((entry) => entry.source.kind !== "preparation" || entry.source.path !== project.id || entry.source.locator !== id);
+	const removed = new Map(plan.entries.filter((entry) => sourceKey(entry.source) === sourceKey(source)).map((entry) => [entry.id, entry.afterId]));
+	const before = (afterId: string | null): string | null => { let current = afterId; while (current && removed.has(current)) current = removed.get(current) ?? null; return current; };
+	plan.entries = plan.entries.filter((entry) => !removed.has(entry.id));
+	for (const entry of plan.entries) entry.afterId = before(entry.afterId);
+	if (plan.progress) plan.progress.open = plan.progress.open.filter((item) => item.key !== sourceKey(source));
 }
 /** The vault document an engagement task works on, through its related reference. */
 export function taskDocument(project: EditorialProject, taskId: string): string | null {
@@ -326,7 +350,34 @@ export function normalizeEditorialProject(raw: unknown): EditorialProject | unde
 		return [{ ...(str(item.notes) ? { notes: str(item.notes) } : {}), id: str(item.id), title: str(item.title), kind: item.kind as ProjectMaterial["kind"], required: item.required !== false, source: str(item.source), exportPath: str(item.exportPath), milestoneId: str(item.milestoneId) || null, ...due(item.due), requirements: texts(item.requirements), approvedDigest: digest(item.approvedDigest), check: normalizeCheck(item.check), uploads, ...(item.frozenSources !== undefined ? { frozenSources } : {}), ...(typeof item.wordCount === "number" && Number.isInteger(item.wordCount) && item.wordCount > 0 ? { wordCount: item.wordCount } : {}), ...(typeof item.wordLimit === "number" && Number.isInteger(item.wordLimit) && item.wordLimit > 0 ? { wordLimit: item.wordLimit } : {}) }];
 	}));
 	const tasks = unique(list(data.tasks).flatMap((value): EngagementTask[] => { const item = record(value); return item && str(item.id) && str(item.title) ? [{ id: str(item.id), title: str(item.title), materialId: str(item.materialId) || null, milestoneId: str(item.milestoneId) || null, ...due(item.due), done: item.done === true }] : []; }));
-	return { records: normalizeEngagementRecords(data.records), version: EDITORIAL_PROJECT_VERSION, id: str(data.id), title: str(data.title) || "Editorial project", editor: str(data.editor), ...(str(data.reviewerId) ? { reviewerId: str(data.reviewerId) } : {}), collaborationUrl: collaborationUrl(str(data.collaborationUrl)), ...(str(data.agreement) ? { agreement: str(data.agreement).slice(0, MAX_AGREEMENT_LENGTH) } : {}), ...(isDate(data.readinessDate) ? { readinessDate: data.readinessDate } : {}), submissionDate: data.submissionDate, expectedReturn: isDate(data.expectedReturn) ? data.expectedReturn : null, actualReturn: isDate(data.actualReturn) ? data.actualReturn : null, questionsDays: typeof data.questionsDays === "number" && Number.isFinite(data.questionsDays) ? Math.max(0, Math.min(365, Math.round(data.questionsDays))) : 10, deliveryId: str(data.deliveryId) || null, milestones, materials, tasks, history: list(data.history).flatMap((value): ProjectEvent[] => { const item = record(value); return item && stamp(item.at) && str(item.text) ? [{ at: stamp(item.at), text: str(item.text) }] : []; }) };
+	const records = normalizeEngagementRecords(data.records);
+	const history = list(data.history).flatMap((value): ProjectEvent[] => { const item = record(value); return item && stamp(item.at) && str(item.text) ? [{ at: stamp(item.at), text: str(item.text) }] : []; });
+	if (data.version === 1) carryVersion1Statuses(list(data.materials), materials, milestones, records, history, data.submissionDate);
+	return { records, version: EDITORIAL_PROJECT_VERSION, id: str(data.id), title: str(data.title) || "Editorial project", editor: str(data.editor), ...(str(data.reviewerId) ? { reviewerId: str(data.reviewerId) } : {}), collaborationUrl: collaborationUrl(str(data.collaborationUrl)), ...(str(data.agreement) ? { agreement: str(data.agreement).slice(0, MAX_AGREEMENT_LENGTH) } : {}), ...(isDate(data.readinessDate) ? { readinessDate: data.readinessDate } : {}), submissionDate: data.submissionDate, expectedReturn: isDate(data.expectedReturn) ? data.expectedReturn : null, actualReturn: isDate(data.actualReturn) ? data.actualReturn : null, questionsDays: typeof data.questionsDays === "number" && Number.isFinite(data.questionsDays) ? Math.max(0, Math.min(365, Math.round(data.questionsDays))) : 10, deliveryId: str(data.deliveryId) || null, milestones, materials, tasks, history };
+}
+
+/**
+ * Version 1 kept a document's status by hand, and an older preparation flow
+ * recorded uploads on the document. Both become sends, so work an author
+ * already finished does not come back as unsent and overdue: each upload is
+ * a send on its own day with its copy, and a document marked done becomes one
+ * send, dated when it was marked done (from its history) or else on its due
+ * date, saying plainly that it was marked done in an earlier version.
+ */
+function carryVersion1Statuses(raw: unknown[], materials: ProjectMaterial[], milestones: ProjectMilestone[], records: EngagementRecord[], history: ProjectEvent[], start: string): void {
+	for (const value of raw) {
+		const item = record(value), material = materials.find((entry) => entry.id === str(item?.id));
+		if (!item || !material) continue;
+		material.uploads.forEach((upload, index) => {
+			const day = upload.at.slice(0, 10);
+			if (isDate(day)) records.push({ id: `upload-${material.id}-${index}`, day, kind: "sent", description: upload.confirmation || "Sent", filenames: upload.filename, referencePath: "", archive: { copy: upload.check.copy, digest: upload.check.exportDigest }, materialId: material.id });
+		});
+		if (item.completed !== true || records.some((entry) => entry.kind === "sent" && entry.materialId === material.id)) continue;
+		const marked = [...history].reverse().find((event) => event.text === `${material.title}: completed`);
+		const markedDay = marked ? localDate(new Date(marked.at)) : null;
+		const day = markedDay && isDate(markedDay) ? markedDay : milestones.find((entry) => entry.id === material.milestoneId)?.day ?? start;
+		records.push({ id: `done-${material.id}`, day, kind: "sent", description: "Marked done in an earlier version", filenames: "", referencePath: "", materialId: material.id });
+	}
 }
 
 function normalizeEngagementRecords(raw: unknown): EngagementRecord[] {

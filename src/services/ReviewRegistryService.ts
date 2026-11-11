@@ -218,13 +218,6 @@ export class ReviewRegistryService {
 			for (const target of plan.targets ?? []) {
 				if (target.file === oldPath) { target.file = newPath; changed = true; }
 			}
-			for (const record of plan.project?.records ?? []) {
-				if (record.referencePath === oldPath) { record.referencePath = newPath; changed = true; }
-			}
-			for (const material of plan.project?.materials ?? []) {
-				if (material.source === oldPath) { material.source = newPath; changed = true; }
-				if (material.exportPath === oldPath) { material.exportPath = newPath; changed = true; }
-			}
 			for (const entry of plan.entries) {
 				if (entry.source.path === oldPath) {
 					entry.source.path = newPath;
@@ -236,10 +229,37 @@ export class ReviewRegistryService {
 		if (this.sweepManager.renameNotePath(this.sweepRegistry, oldPath, newPath)) {
 			changed = true;
 		}
+		if (this.renameEngagementPaths(oldPath, newPath)) {
+			changed = true;
+		}
 
 		if (changed) {
 			this.rebuildReviewerStatsFromSignals();
 			await this.persistData();
+		}
+		return changed;
+	}
+
+	/** A renamed file that is not a note: only engagement records point at those. */
+	async renameEngagementFile(oldPath: string, newPath: string): Promise<boolean> {
+		const changed = this.renameEngagementPaths(oldPath, newPath);
+		if (changed) await this.persistData();
+		return changed;
+	}
+
+	// Engagement paths follow a renamed file of any type: a document's working
+	// note and file reference, and a record's file and the copy kept of it.
+	private renameEngagementPaths(oldPath: string, newPath: string): boolean {
+		let changed = false;
+		for (const plan of Object.values(this.revisionPlans.books)) {
+			for (const record of plan.project?.records ?? []) {
+				if (record.referencePath === oldPath) { record.referencePath = newPath; changed = true; }
+				if (record.archive?.copy === oldPath) { record.archive.copy = newPath; changed = true; }
+			}
+			for (const material of plan.project?.materials ?? []) {
+				if (material.source === oldPath) { material.source = newPath; changed = true; }
+				if (material.exportPath === oldPath) { material.exportPath = newPath; changed = true; }
+			}
 		}
 		return changed;
 	}

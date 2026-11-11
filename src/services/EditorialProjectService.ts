@@ -5,7 +5,7 @@ async function sha256(bytes: ArrayBuffer): Promise<string> {
 	return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))).map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-const MAX_COPY_BYTES = 64 * 1024 * 1024;
+export const MAX_COPY_BYTES = 64 * 1024 * 1024;
 
 /** Explicit, single-file historical copies. Never assembles, checks or transfers a submission. */
 export class EditorialProjectService {

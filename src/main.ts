@@ -674,6 +674,13 @@ export default class EditorialistPlugin extends Plugin {
 							new Notice(error instanceof Error ? `Note moved. ${error.message}` : "Note moved, but its saved review references could not be updated. Check the manuscript target before continuing.", 12000);
 						});
 					} else {
+						if (file instanceof TFile) {
+							// A sent Word file or PDF, or a kept copy, keeps its link when renamed.
+							const newPath = file.path;
+							this.manuscriptRenameQueue = this.manuscriptRenameQueue.then(async () => {
+								if (await this.registry.renameEngagementFile(oldPath, newPath)) await this.refreshPlanViews();
+							}).catch((error: unknown) => console.error("Editorialist: engagement file rename tracking failed", error));
+						}
 						this.inventoryRescanDebouncer.schedule();
 					}
 				}),

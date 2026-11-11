@@ -25,7 +25,10 @@ Each fact has one home, and every other view derives from it:
   status is its sends: the `sent` activity records whose `materialId` is the
   document (`documentSends`). The document's `source` is the working note; the
   file recorded on a send is the one actually sent, usually a Word file or PDF,
-  with a kept copy. There is no completion flag.
+  with a kept copy. There is no completion flag. The latest send's date and file
+  are fields of the document's form (`documentFields`), which every task form
+  for that document embeds; emptying the date removes that send. Earlier or
+  extra sends are ordinary activity records.
 - A **milestone** is a shared date with no status of its own. `milestoneState`
   derives it: met once every task due on it is done and every document due on it
   is sent; with nothing due on it, met once its day has passed.
