@@ -9120,7 +9120,7 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: flex-end;
-	column-gap: 10px;
+	gap: 0 10px;
 }
 
 .editorialist-project__file-group > .editorialist-project__field {
