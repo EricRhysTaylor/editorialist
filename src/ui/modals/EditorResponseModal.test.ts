@@ -65,7 +65,7 @@ describe("EditorResponseModal", () => {
 		const [reply] = [...modal.querySelectorAll("textarea")];
 		typeInto(reply as HTMLTextAreaElement, "Agreed, I'll add a line.");
 		expect(host.saveEditorReply).toHaveBeenCalledWith("comment-key", "Agreed, I'll add a line.");
-		const answered = [...modal.querySelectorAll(".editorialist-response__stat")].find((chip) => chip.textContent?.includes("comment answered"));
+		const answered = [...modal.querySelectorAll(".editorialist-stat")].find((chip) => chip.textContent?.includes("comment answered"));
 		expect(answered?.textContent).toBe("1/1comment answered");
 		expect(answered?.classList.contains("is-done")).toBe(true);
 	});

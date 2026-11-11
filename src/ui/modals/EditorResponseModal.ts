@@ -191,10 +191,10 @@ export class EditorResponseModal extends Modal {
 		if (!summary) return;
 		summary.empty();
 		const { counts } = this.response;
-		const stats = summary.createDiv({ cls: "editorialist-response__stats" });
+		const stats = summary.createDiv({ cls: "editorialist-stats" });
 		const stat = (value: string, label: string, state = ""): void => {
-			const chip = stats.createDiv({ cls: `editorialist-response__stat${state ? ` is-${state}` : ""}` });
-			chip.createSpan({ cls: "editorialist-response__stat-value", text: value });
+			const chip = stats.createDiv({ cls: `editorialist-stat${state ? ` is-${state}` : ""}` });
+			chip.createSpan({ cls: "editorialist-stat__value", text: value });
 			chip.createSpan({ text: label });
 		};
 		if (counts.changes > 0) stat(`${counts.accepted}/${counts.changes}`, counts.changes === 1 ? "change accepted" : "changes accepted");

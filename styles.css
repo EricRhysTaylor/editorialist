@@ -9525,27 +9525,107 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 }
 
 /* Word file with tracked changes: who made them and what was left out. */
-.editorialist-control-modal__word-controls {
+.editorialist-control-modal__word-file {
 	display: flex;
-	flex-wrap: wrap;
-	gap: 0.5rem 1rem;
-	margin-top: 0.6rem;
+	align-items: center;
+	gap: var(--size-2-3);
+	min-width: 0;
+	margin-top: var(--size-4-2);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.editorialist-control-modal__word-file-icon {
+	display: inline-flex;
+	flex: 0 0 auto;
+}
+
+.editorialist-control-modal__word-file-icon svg,
+.editorialist-control-modal__word-callout-icon svg {
+	width: 14px;
+	height: 14px;
+}
+
+.editorialist-control-modal__word-file-name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.editorialist-control-modal__manual .editorialist-stats {
+	margin: var(--size-4-2) 0 var(--size-2-3);
+}
+
+.editorialist-control-modal__word-controls {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(12em, 1fr));
+	gap: var(--size-4-3);
+	margin-top: var(--size-4-3);
 }
 
 .editorialist-control-modal__word-field {
-	display: inline-flex;
-	align-items: center;
-	gap: 0.5rem;
-	font-size: var(--font-ui-small);
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-2);
+	min-width: 0;
+}
+
+.editorialist-control-modal__word-field-label {
 	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.editorialist-control-modal__word-field select {
+	width: 100%;
+}
+
+.editorialist-control-modal__word-callout {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--size-4-2);
+	margin-top: var(--size-4-3);
+	padding: var(--size-4-2) var(--size-4-3);
+	border-radius: var(--radius-m);
+	background: var(--background-modifier-hover);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	line-height: 1.45;
+}
+
+.editorialist-control-modal__word-callout-icon {
+	display: inline-flex;
+	flex: 0 0 auto;
+	margin-top: 1px;
+}
+
+.editorialist-control-modal__word-callout.is-warning {
+	border: 1px solid color-mix(in srgb, var(--color-orange) 40%, var(--background-modifier-border));
+	background: color-mix(in srgb, var(--color-orange) 8%, transparent);
+	color: var(--text-normal);
+}
+
+.editorialist-control-modal__word-callout.is-warning .editorialist-control-modal__word-callout-icon {
+	color: var(--color-orange);
+}
+
+.editorialist-control-modal__word-callout-title {
+	font-weight: var(--font-semibold);
 }
 
 .editorialist-control-modal__word-notes {
-	margin: 0.6rem 0 0;
-	padding-inline-start: 1.1rem;
-	font-size: var(--font-ui-smaller);
+	margin-top: var(--size-4-3);
 	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
 	line-height: 1.45;
+}
+
+.editorialist-control-modal__word-notes summary {
+	cursor: var(--cursor);
+}
+
+.editorialist-control-modal__word-notes ul {
+	margin: var(--size-2-3) 0 0;
+	padding-inline-start: 1.1rem;
 }
 
 /* The launcher's two steps: out to the AI, then back. */
@@ -9839,13 +9919,13 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	text-wrap: pretty;
 }
 
-.editorialist-response__stats {
+.editorialist-stats {
 	display: flex;
 	flex-wrap: wrap;
 	gap: var(--size-4-2);
 }
 
-.editorialist-response__stat {
+.editorialist-stat {
 	display: inline-flex;
 	align-items: baseline;
 	gap: var(--size-2-2);
@@ -9856,20 +9936,20 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	font-size: var(--font-ui-smaller);
 }
 
-.editorialist-response__stat-value {
+.editorialist-stat__value {
 	color: var(--text-normal);
 	font-weight: var(--font-semibold);
 	font-variant-numeric: tabular-nums;
 }
 
-.editorialist-response__stat.is-done,
-.editorialist-response__stat.is-done .editorialist-response__stat-value {
+.editorialist-stat.is-done,
+.editorialist-stat.is-done .editorialist-stat__value {
 	border-color: color-mix(in srgb, var(--color-green) 40%, var(--background-modifier-border));
 	color: var(--color-green);
 }
 
-.editorialist-response__stat.is-warning,
-.editorialist-response__stat.is-warning .editorialist-response__stat-value {
+.editorialist-stat.is-warning,
+.editorialist-stat.is-warning .editorialist-stat__value {
 	border-color: color-mix(in srgb, var(--color-orange) 40%, var(--background-modifier-border));
 	color: var(--color-orange);
 }

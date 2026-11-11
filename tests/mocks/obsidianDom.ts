@@ -158,6 +158,31 @@ export class TextAreaComponent extends InputComponent<HTMLTextAreaElement> {
 	}
 }
 
+export class DropdownComponent {
+	readonly selectEl: HTMLSelectElement;
+	constructor(parent: HTMLElement) {
+		this.selectEl = create(parent, "select");
+		this.selectEl.classList.add("dropdown");
+	}
+	addOption(value: string, text: string): this {
+		const option = create(this.selectEl, "option");
+		option.value = value;
+		option.textContent = text;
+		return this;
+	}
+	setValue(value: string): this {
+		this.selectEl.value = value;
+		return this;
+	}
+	getValue(): string {
+		return this.selectEl.value;
+	}
+	onChange(handler: (value: string) => unknown): this {
+		this.selectEl.addEventListener("change", () => void handler(this.selectEl.value));
+		return this;
+	}
+}
+
 export type App = Record<string, unknown>;
 
 export class Modal {

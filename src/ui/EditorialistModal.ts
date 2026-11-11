@@ -212,12 +212,17 @@ export class EditorialistModal extends Modal {
 		return Boolean(this.clipboardBatch && this.clipboardEditorialism);
 	}
 
+	/** The Word file being previewed, until its converted text is set aside or edited. */
+	private activeWordImport(): WordImport | null {
+		return this.wordImport && this.manualText === this.wordImport.conversion.text ? this.wordImport : null;
+	}
+
 	// After a review-batch import: close, unless the paste still holds an
 	// editorialism that is not in the library yet. Then stay open on it.
 	// A batch converted from a Word file keeps that file, so the author's
 	// replies can later be written into a copy of it.
 	private async importManualBatch(batch: ReviewImportBatch): Promise<void> {
-		const word = this.wordImport && this.manualText === this.wordImport.conversion.text ? this.wordImport : null;
+		const word = this.activeWordImport();
 		await this.options.onImportBatch(batch, true);
 		if (word) await this.options.onKeepWordFile(batch.batchId, word.fileName, word.author, word.bytes);
 	}
@@ -283,9 +288,12 @@ export class EditorialistModal extends Modal {
 			cls: "editorialist-control-modal__title",
 			text: "Revision notes",
 		});
+		const previewingWord = this.showManualPaste && this.activeWordImport();
 		text.createDiv({
 			cls: "editorialist-control-modal__description",
-			text: "Bring in your editor's Word file directly, or send your scenes to an AI and bring its notes back.",
+			text: previewingWord
+				? "Check what comes in from the Word file, then start the review."
+				: "Bring in your editor's Word file directly, or send your scenes to an AI and bring its notes back.",
 		});
 	}
 
@@ -517,28 +525,36 @@ export class EditorialistModal extends Modal {
 		this.render();
 	}
 
+	// Who sent what, then the two choices that shape it, then anything that did
+	// not come in, most important first.
 	private renderWordSummary(parent: HTMLElement, word: WordImport): void {
 		const { conversion } = word;
 		const name = word.author.trim() || "Unknown reviewer";
-		parent.createDiv({
-			cls: "editorialist-control-modal__section-title",
-			text: `Tracked changes from ${word.fileName}`,
-		});
-		const counts = [
-			countLabel(conversion.edits, "edit"),
-			countLabel(conversion.cuts, "cut"),
-			countLabel(conversion.memos, "comment"),
-		].filter(Boolean);
+		const file = parent.createDiv({ cls: "editorialist-control-modal__word-file", attr: { "aria-label": `Word file: ${word.fileName}` } });
+		setIcon(file.createSpan({ cls: "editorialist-control-modal__word-file-icon" }), "file-text");
+		file.createSpan({ cls: "editorialist-control-modal__word-file-name", text: word.fileName });
+		parent.createDiv({ cls: "editorialist-control-modal__section-title", text: `${name}'s tracked changes` });
+		const counts: Array<[number, string]> = [[conversion.edits, "edit"], [conversion.cuts, "cut"], [conversion.memos, "comment"]];
+		if (counts.some(([count]) => count > 0)) {
+			const stats = parent.createDiv({ cls: "editorialist-stats" });
+			for (const [count, noun] of counts) {
+				if (!count) continue;
+				const chip = stats.createDiv({ cls: "editorialist-stat" });
+				chip.createSpan({ cls: "editorialist-stat__value", text: String(count) });
+				chip.createSpan({ text: count === 1 ? noun : `${noun}s` });
+			}
+		}
 		parent.createDiv({
 			cls: "editorialist-control-modal__section-copy",
-			text: counts.length > 0
-				? `${counts.join(", ")} by ${name}. Nothing in your manuscript changes until you accept each one.`
+			text: counts.some(([count]) => count > 0)
+				? "Nothing in your manuscript changes until you accept each one."
 				: `Nothing by ${name} could be brought in.`,
 		});
 
 		const controls = parent.createDiv({ cls: "editorialist-control-modal__word-controls" });
 		if (word.authors.length > 1) {
-			const label = controls.createEl("label", { cls: "editorialist-control-modal__word-field", text: "Changes by" });
+			const label = controls.createEl("label", { cls: "editorialist-control-modal__word-field" });
+			label.createSpan({ cls: "editorialist-control-modal__word-field-label", text: "Changes by" });
 			const authors = new DropdownComponent(label);
 			for (const author of word.authors) {
 				authors.addOption(author.name, `${author.name.trim() || "Unknown reviewer"} · ${countLabel(author.changes, "change") || "comments only"}`);
@@ -548,7 +564,8 @@ export class EditorialistModal extends Modal {
 				this.showWordConversion();
 			});
 		}
-		const roleLabel = controls.createEl("label", { cls: "editorialist-control-modal__word-field", text: "Their role" });
+		const roleLabel = controls.createEl("label", { cls: "editorialist-control-modal__word-field" });
+		roleLabel.createSpan({ cls: "editorialist-control-modal__word-field-label", text: "Their role" });
 		const roles = new DropdownComponent(roleLabel);
 		for (const [value, text] of WORD_REVIEWER_ROLES) roles.addOption(value, text);
 		roles.setValue(word.reviewerType).onChange((value) => {
@@ -557,17 +574,34 @@ export class EditorialistModal extends Modal {
 		});
 
 		const { skipped } = conversion;
-		const notes = [
-			conversion.hasSceneIds ? "" : "This file has no scene IDs, so each change is placed by finding its sentence in your book. Export with Radial Timeline's Editor round to keep them.",
-			skipped.formatting ? `${countLabel(skipped.formatting, "formatting change")}, such as a font or size, not brought in. Italics and bold do come in.` : "",
-			skipped.headings ? `${countLabel(skipped.headings, "change")} to headings not brought in.` : "",
-			skipped.paragraphBreaks ? `${countLabel(skipped.paragraphBreaks, "paragraph")} split or joined: the wording comes in, the paragraph break does not.` : "",
-			skipped.unplacedComments ? `${countLabel(skipped.unplacedComments, "comment")} not tied to a scene, left out.` : "",
+		// Editor's words that did not come in: the author must read them in Word.
+		const missing = [
 			skipped.unconverted ? `${countLabel(skipped.unconverted, "change")} could not be brought in. Check ${skipped.unconverted === 1 ? "it" : "them"} in Word.` : "",
+			skipped.unplacedComments ? `${countLabel(skipped.unplacedComments, "comment")} not tied to a scene, left out.` : "",
 		].filter(Boolean);
-		if (notes.length > 0) {
-			const list = parent.createEl("ul", { cls: "editorialist-control-modal__word-notes" });
-			for (const note of notes) list.createEl("li", { text: note });
+		// Layout the review has no place for; the wording itself comes in.
+		const layout = [
+			skipped.formatting ? `${countLabel(skipped.formatting, "formatting change")}, such as a font or size. Italics and bold do come in.` : "",
+			skipped.headings ? `${countLabel(skipped.headings, "change")} to headings.` : "",
+			skipped.paragraphBreaks ? `${countLabel(skipped.paragraphBreaks, "paragraph")} split or joined: the wording comes in, the paragraph break does not.` : "",
+		].filter(Boolean);
+		if (missing.length > 0) {
+			const callout = parent.createDiv({ cls: "editorialist-control-modal__word-callout is-warning" });
+			setIcon(callout.createSpan({ cls: "editorialist-control-modal__word-callout-icon" }), "alert-triangle");
+			const body = callout.createDiv();
+			body.createDiv({ cls: "editorialist-control-modal__word-callout-title", text: "Read these in Word" });
+			for (const note of missing) body.createDiv({ text: note });
+		}
+		if (!conversion.hasSceneIds) {
+			const callout = parent.createDiv({ cls: "editorialist-control-modal__word-callout" });
+			setIcon(callout.createSpan({ cls: "editorialist-control-modal__word-callout-icon" }), "info");
+			callout.createDiv({ text: "This file has no scene IDs, so each change is placed by finding its sentence in your book. Export with Radial Timeline's Editor round to keep them." });
+		}
+		if (layout.length > 0) {
+			const details = parent.createEl("details", { cls: "editorialist-control-modal__word-notes" });
+			details.createEl("summary", { text: `What stays in Word (${layout.length})` });
+			const list = details.createEl("ul");
+			for (const note of layout) list.createEl("li", { text: note });
 		}
 	}
 
@@ -595,7 +629,7 @@ export class EditorialistModal extends Modal {
 	private renderManualPaste(parent: HTMLElement): void {
 		const section = parent.createDiv({ cls: "editorialist-control-modal__manual" });
 		if (this.manualText.trim()) this.renderBackToSteps(section);
-		const word = this.wordImport && this.manualText === this.wordImport.conversion.text ? this.wordImport : null;
+		const word = this.activeWordImport();
 		if (word) {
 			this.renderWordSummary(section, word);
 		} else {
