@@ -17,6 +17,8 @@ export interface WorkCandidate extends WorkSource {
 	inactive?: boolean;
 	deliveryId?: string;
 	due?: string | null;
+	/** The due date is the author's own target (a milestone), so it gets no cushion. */
+	ownTarget?: boolean;
 	/** Preferred author target date for ordering, without imposing a hard cutoff. */
 	targetDate?: string;
 	/** First day the work may be scheduled, such as a goal's start date. */

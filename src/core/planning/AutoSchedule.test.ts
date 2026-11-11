@@ -54,6 +54,8 @@ describe("Automatic delivery scheduling", () => {
 		expect(result.generated[0]!.day).toBe("2026-09-21");
 		expect(candidateDeadline(emptyRevisionPlan(), goal)).toEqual({ due: "2026-09-25", aim: "2026-09-25" });
 		expect(candidateDeadline({ cushionDays: 14 }, candidate("x", { due: "2026-10-09" }))).toEqual({ due: "2026-10-09", aim: "2026-09-25" });
+		// A milestone is the author's own early target; the cushion would double it.
+		expect(candidateDeadline({ cushionDays: 14 }, candidate("m", { due: "2026-10-09", ownTarget: true }))).toEqual({ due: "2026-10-09", aim: "2026-10-09" });
 	});
 	it("accounts for existing commitments and rest days before the earlier deadline", () => {
 		const plan = { ...emptyRevisionPlan(), entries: [entry("fixed", { highMinutes: 120 })] };

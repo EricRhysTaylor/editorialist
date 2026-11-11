@@ -138,8 +138,9 @@ export function taskDocument(project: EditorialProject, taskId: string): string 
 export function preparationWork(project: EditorialProject): WorkCandidate[] {
 	return project.tasks.map((task) => {
 		const milestone = project.milestones.find((item) => item.id === task.milestoneId);
-		const due = task.milestoneId === "__start__" ? project.submissionDate : milestone?.day;
-		return { kind: "preparation", path: project.id, locator: task.id, title: task.title, detail: [project.title, milestone?.title].filter(Boolean).join(" · "), ...(due ? { due } : {}), complete: task.done, deferred: false };
+		const start = task.milestoneId === "__start__";
+		const due = start ? project.submissionDate : milestone?.day;
+		return { kind: "preparation", path: project.id, locator: task.id, title: task.title, detail: [project.title, milestone?.title].filter(Boolean).join(" · "), ...(due ? { due } : {}), ...(due && !start ? { ownTarget: true } : {}), complete: task.done, deferred: false };
 	});
 }
 /** Only the author's explicit schedule deadline and the task's selected milestone constrain work. */
@@ -147,14 +148,15 @@ export function workDeadline(plan: RevisionPlan, _kind: WorkKind, due: string | 
 	return [required ? plan.deadline : null, due].filter((day): day is string => Boolean(day)).sort()[0] ?? null;
 }
 /**
- * A promise to an editor, an engagement date or a delivery's return deadline,
- * is aimed at the plan's cushion of days early; the author's own goals and
- * schedule deadline are aimed at as set. The hard date never moves.
+ * A promise to an editor, an engagement's start date or a delivery's return
+ * deadline, is aimed at the plan's cushion of days early. The author's own
+ * targets, goals, milestones and the schedule deadline, are aimed at as set,
+ * since they are already early. The hard date never moves.
  */
 export interface WorkDeadline { due: string; aim: string }
-export function candidateDeadline(plan: Pick<RevisionPlan, "cushionDays">, candidate: Pick<WorkCandidate, "due" | "path">): WorkDeadline | null {
+export function candidateDeadline(plan: Pick<RevisionPlan, "cushionDays">, candidate: Pick<WorkCandidate, "due" | "path" | "ownTarget">): WorkDeadline | null {
 	if (!candidate.due) return null;
-	return { due: candidate.due, aim: candidate.path === AUTHOR_PLAN_SCOPE ? candidate.due : shiftDate(candidate.due, -plan.cushionDays) };
+	return { due: candidate.due, aim: candidate.path === AUTHOR_PLAN_SCOPE || candidate.ownTarget ? candidate.due : shiftDate(candidate.due, -plan.cushionDays) };
 }
 /** The earliest of the entry's source deadline and, when required, the plan's own deadline. */
 export function entryWorkDeadline(plan: RevisionPlan, entry: Pick<PlanEntry, "source" | "required">, candidates: readonly WorkCandidate[]): WorkDeadline | null {

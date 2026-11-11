@@ -55,6 +55,7 @@ describe("Editorial preparation project", () => {
 		const p = project(); p.milestones.push({ id: "after", title: "Discuss feedback", day: "2027-01-20", done: false });
 		p.tasks.push({ id: "t1", title: "General work", materialId: null, milestoneId: null, done: false }, { id: "t2", title: "Discuss", materialId: null, milestoneId: "after", done: false }, { id: "t3", title: "Before start", materialId: null, milestoneId: "__start__", done: false });
 		expect(preparationWork(p).map((item) => item.due)).toEqual([undefined, "2027-01-20", "2026-11-30"]);
+		expect(preparationWork(p).map((item) => item.ownTarget ?? false)).toEqual([false, true, false]);
 		const candidate = preparationWork(p)[1]!;
 		const result = draftSchedule({ ...emptyRevisionPlan(), project: p }, [candidate], { preset: "developmental", sessionMinutes: 60, useEstimates: false, deliveryId: null, start: "2027-01-12", end: "2027-01-20", replan: false, choices: { [JSON.stringify([candidate.kind, candidate.path, candidate.locator])]: { low: 30, high: 60 } } }, () => "session");
 		expect(result.generated[0]!.day).not.toBeNull();

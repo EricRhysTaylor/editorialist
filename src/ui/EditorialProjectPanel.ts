@@ -214,7 +214,7 @@ export class EditorialProjectPanel {
 			card.createDiv({ cls: "editorialist-project__next-empty", text: "Your work queue is empty. Add tasks or auto-plan from the Schedule tab." });
 		}
 		if (milestone) {
-			const deadline = candidateDeadline(this.host.plan, { due: milestone.day, path: project.id })!;
+			const deadline = candidateDeadline(this.host.plan, { due: milestone.day, path: project.id, ownTarget: true })!;
 			const state = deadlineState(deadline, today);
 			const row = card.createDiv({ cls: `editorialist-project__next-milestone${state === "late" ? " is-overdue" : state === "cushion" ? " is-cushion" : ""}` });
 			setIcon(row.createSpan({ cls: "editorialist-project__next-milestone-icon", attr: { "aria-hidden": "true" } }), "flag");
@@ -334,7 +334,7 @@ export class EditorialProjectPanel {
 		if (!project.milestones.length) body.createEl("p", { cls: "editorialist-project__hint", text: "Set your own targets before or after the engagement starts." });
 		const today = localDate(new Date());
 		for (const milestone of [...project.milestones].sort((a, b) => a.day.localeCompare(b.day))) {
-			const deadline = candidateDeadline(this.host.plan, { due: milestone.day, path: project.id })!;
+			const deadline = candidateDeadline(this.host.plan, { due: milestone.day, path: project.id, ownTarget: true })!;
 			const state = deadlineState(deadline, today);
 			const row = body.createDiv({ cls: `editorialist-project__row editorialist-project__milestone${milestone.done ? " is-done" : state === "late" ? " is-overdue" : state === "cushion" ? " is-cushion" : ""}` });
 			this.completionControl(row, milestone.title, milestone.done, (draft, done) => {
