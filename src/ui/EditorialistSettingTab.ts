@@ -1,5 +1,5 @@
 import { setAccessibleLabel } from "./primitives/AccessibleLabel";
-import { ButtonComponent, Component, Notice, PluginSettingTab, setIcon, TFile, ToggleComponent, type App } from "obsidian";
+import { ButtonComponent, Component, Notice, PluginSettingTab, SettingPage, requireApiVersion, setIcon, TFile, ToggleComponent, type App, type SettingDefinitionItem } from "obsidian";
 import { formatReviewerTypeLabel } from "../core/ContributorIdentity";
 import { sweepStatusLabel } from "../core/status/ReviewStatusModel";
 import {
@@ -19,19 +19,6 @@ import { BACKUPS_FOLDER, EDITORIALISM_FOLDER_NAME, RESPONSES_FOLDER, WORD_FILES_
 import { describeUnremovedBlocksSuffix } from "../orchestrators/ReviewBatchProcessor";
 import { RADIAL_TIMELINE_ICON_ID } from "./RadialTimelineLogoIcon";
 
-// Deliberately imperative: the declarative settings API (getSettingDefinitions,
-// Obsidian 1.13.0+) is evaluated and deferred, not overlooked. Three blockers —
-// (1) returning a non-empty definition array suppresses display() entirely, so
-// there is no path that surfaces only the handful of atomic knobs while keeping
-// the rest; this tab is a bespoke three-tab dashboard (heroes, inventory,
-// activity, contributor cards, maintenance) rather than a list of settings.
-// (2) getSettingDefinitions() is synchronous, but rendering here depends on
-// awaited metadata (syncOperationalMetadata / refreshPendingEditsSummary).
-// (3) manifest minAppVersion is 1.8.7; the API is 1.13.0+, and carrying both
-// renderings would duplicate the whole tab and invite drift.
-// Cost accepted: these settings do not appear in Obsidian's settings search on
-// 1.13+. Revisit when minAppVersion moves to 1.13.0.
-// See docs/CODE-STANDARDS.md § "Settings tab rendering".
 export type SettingsTabId = "core" | "reviewer" | "configuration";
 
 export class EditorialistSettingTab extends PluginSettingTab {
@@ -41,6 +28,57 @@ export class EditorialistSettingTab extends PluginSettingTab {
 	private static readonly RADIAL_TIMELINE_WIKI_URL = "https://github.com/EricRhysTaylor/Obsidian-Manuscript-Timeline/wiki";
 	private activeBookOnly = true;
 	private activeTab: SettingsTabId = "core";
+	private dashboardEl: HTMLElement | null = null;
+
+	/** Search opens the same dashboard and controls, including on versions that support settings pages. */
+	getSettingDefinitions(): SettingDefinitionItem[] {
+		const destinations: Array<{ name: string; tab: SettingsTabId; section: string }> = [
+			{ name: "Manuscript target and book folder", tab: "configuration", section: "Manuscript target" },
+			{ name: "Name on your comments and files", tab: "configuration", section: "You and your files" },
+			{ name: "Cut folder and backup to cut file", tab: "configuration", section: "Cut location" },
+			{ name: "Notes an AI writes into a scene", tab: "configuration", section: "Notes an AI writes into a scene" },
+			...[
+				"Revision effort estimate", "Words per new scene", "Drafting rate words per hour",
+				"Minutes per Editorialism item", "Daily writing hours",
+			].map((name) => ({ name, tab: "configuration" as const, section: "Revision effort estimate" })),
+			{ name: "Contributors and reviewers", tab: "reviewer", section: "Contributor directory" },
+			{ name: "Save and restore backups", tab: "reviewer", section: "Backup" },
+			{ name: "Maintenance and review history", tab: "configuration", section: "Maintenance" },
+		];
+		if (requireApiVersion("1.13.0")) return [
+			{ name: "Dashboard", searchable: false, render: (setting) => {
+				setting.settingEl.empty();
+				setting.settingEl.removeClass("setting-item");
+				this.dashboardEl = setting.settingEl.createDiv();
+				void this.displayAsync(true);
+			} },
+			{ type: "group", cls: "editorialist-settings__tab-content is-hidden", items: destinations.map(({ name, tab, section }) => ({
+				type: "page" as const, name, page: () => {
+					const render = (container: HTMLElement): void => {
+						this.dashboardEl = container;
+						this.activeTab = tab;
+						void this.displayAsync(true).then(() => this.revealSearchSection(section));
+					};
+					const dispose = (): void => { this.hide(); this.dashboardEl = null; };
+					return new class extends SettingPage {
+						display(): void { render(this.containerEl); }
+						hide(): void { dispose(); }
+					}();
+				},
+			})) },
+		];
+		return [];
+	}
+
+	private revealSearchSection(title: string): void {
+		const sections = this.dashboardEl?.querySelectorAll<HTMLElement>(".editorialist-settings__section") ?? [];
+		for (const section of sections) {
+			if (section.querySelector(".editorialist-settings__section-title")?.textContent?.trim() === title) {
+				section.scrollIntoView({ block: "start" });
+				break;
+			}
+		}
+	}
 
 	// The tab to show. When the settings are already on screen, show it now:
 	// recording it alone left the old tab drawn, and a click on the new tab then
@@ -77,6 +115,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 	}
 
 	display(): void {
+		this.dashboardEl = this.containerEl;
 		void this.displayAsync(true);
 	}
 
@@ -90,7 +129,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		this.contributorEvents = new Component();
 		this.contributorEvents.load();
 		const runId = ++this.displayRunId;
-		const { containerEl } = this;
+		const containerEl = this.dashboardEl ?? this.containerEl;
 		containerEl.empty();
 		containerEl.addClass("editorialist-settings");
 

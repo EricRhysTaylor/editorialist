@@ -96,23 +96,12 @@ of these is a build failure.
 
 ### Settings tab rendering
 
-`EditorialistSettingTab` renders imperatively via `display()` and does **not**
-implement `getSettingDefinitions()` (Obsidian's declarative settings API,
-1.13.0+). `eslint-plugin-obsidianmd` ≥ 0.4.0 warns about this
-(`obsidianmd/settings-tab/prefer-setting-definitions`); the warning is known and
-accepted. Reasons:
-
-1. Returning a non-empty definition array suppresses `display()` entirely, so
-   there is no partial adoption. The tab is a bespoke three-tab dashboard
-   (heroes, inventory, activity, contributor cards, maintenance), not a list of
-   settings — only about five items are atomic knobs.
-2. `getSettingDefinitions()` is synchronous, but rendering depends on awaited
-   metadata (`syncOperationalMetadata`, `refreshPendingEditsSummary`).
-3. `manifest.json` sets `minAppVersion: 1.8.7`; the API is 1.13.0+. Carrying
-   both renderings would duplicate the whole tab and invite drift.
-
-Accepted cost: these settings do not appear in Obsidian's settings search on
-1.13+. Revisit when `minAppVersion` moves to 1.13.0.
+Obsidian 1.13 and later index declarative settings search destinations that open
+the existing tabbed dashboard at its relevant section. The dashboard continues
+to own validation, persistence, and its asynchronous refresh. On Obsidian
+1.8.7 through 1.12, the existing imperative `display()` path remains in use.
+Keep the search destinations aligned with the dashboard as controls change,
+and test both native search navigation and the older compatibility path.
 
 ### Tooltip policy
 
