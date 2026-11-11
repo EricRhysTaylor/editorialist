@@ -129,9 +129,23 @@ export class ReviewActionsOrchestrator {
 	// about, then kept up to date as the author decides.
 	private readonly copyEditChoices = new Map<string, Map<string, { accepted: Set<string>; declined: Set<string> }>>();
 	private readonly copyEditChoicesRead = new Set<string>();
+	private copyEditHistoryGeneration = 0;
 	// The author's ticks in the copy-edit list, by scene and change, so they
 	// survive closing the panel and moving between scenes.
 	private readonly copyEditTicks = new Map<string, boolean>();
+
+	/** Forget decisions and undo state belonging to data replaced by a backup. */
+	resetAfterDataRestore(): void {
+		this.copyEditHistoryGeneration++;
+		this.copyEditBatch = null;
+		this.copyEditBatchMemory = [];
+		this.copyEditChoices.clear();
+		this.copyEditChoicesRead.clear();
+		this.copyEditTicks.clear();
+		this.host.setLastAppliedChange(null);
+		this.host.setBulkApplyConfirmState(null);
+		this.host.clearToolbarDismissedSignature();
+	}
 
 	constructor(private readonly host: ReviewActionsOrchestratorHost) {}
 
@@ -479,7 +493,9 @@ export class ReviewActionsOrchestrator {
 	// one. A scene already known here is left as it is: what was just decided
 	// is newer than what was read.
 	private async readCopyEditChoices(batchId: string): Promise<void> {
+		const generation = this.copyEditHistoryGeneration;
 		const scenes = await this.host.getBatchSuggestionScenes(batchId);
+		if (generation !== this.copyEditHistoryGeneration) return;
 		const choices = this.copyEditChoices.get(batchId) ?? new Map<string, { accepted: Set<string>; declined: Set<string> }>();
 		this.copyEditChoices.set(batchId, choices);
 		let changed = false;

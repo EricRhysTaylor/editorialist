@@ -90,6 +90,7 @@ import { TrailingDebouncer } from "./state/TrailingDebouncer";
 import { ContributorDirectory } from "./state/ContributorDirectory";
 import { BACKUPS_FOLDER, EditorialismService, RESPONSES_FOLDER, WORD_FILES_FOLDER } from "./services/EditorialismService";
 import { parseBackup, serializeBackup } from "./services/EditorialistBackup";
+import { BackupRestoreSaveError, restoreBackupData } from "./services/RestoreEditorialistBackup";
 import { extractEditorialismFileFromText } from "./core/EditorialismImport";
 import { migratePluginData } from "./services/PluginDataMigration";
 import { ReviewRegistryService } from "./services/ReviewRegistryService";
@@ -3778,13 +3779,38 @@ export default class EditorialistPlugin extends Plugin {
 			new Notice(error instanceof Error ? error.message : "That backup could not be read.");
 			return false;
 		}
-		this.registry.load(data);
-		this.reviewerDirectory.setProfiles(data.reviewerProfiles);
-		this.reviewerDirectory.setPassAssignments(this.registry.getPassAssignments());
-		this.registry.rebuildReviewerStatsFromSignals();
-		await this.savePluginData();
-		await this.registry.syncSceneInventory();
-		this.refreshReviewPanel();
+		try {
+			await restoreBackupData({
+				flush: () => this.flushPluginDataSave(),
+				snapshot: () => this.registry.buildPluginData(this.reviewerDirectory.getProfiles()),
+				load: (next) => {
+					this.registry.load(next);
+					this.reviewerDirectory.setProfiles(next.reviewerProfiles);
+					this.reviewerDirectory.setPassAssignments(this.registry.getPassAssignments());
+					this.registry.rebuildReviewerStatsFromSignals();
+				},
+				save: () => this.savePluginData(),
+			}, data);
+		} catch (error) {
+			if (error instanceof BackupRestoreSaveError) {
+				this.reviewActions.resetAfterDataRestore();
+				this.store.clearSession();
+				this.store.setAppliedReview(null);
+				this.store.setGuidedSweep(null);
+				this.store.setCompletedSweep(null);
+				this.clearActiveHighlights();
+			}
+			new Notice(error instanceof Error ? error.message : "The backup could not be restored.", 10000);
+			return false;
+		}
+		this.reviewActions.resetAfterDataRestore();
+		try {
+			await this.refreshAfterManuscriptReconnection();
+		} catch (error) {
+			console.error("Editorialist: backup restored but views could not refresh", error);
+			new Notice("The backup was saved, but the open views could not refresh. Restart Editorialist to check them.", 10000);
+			return true;
+		}
 		new Notice(`Restored Editorialist from ${file.name}.`);
 		return true;
 	}

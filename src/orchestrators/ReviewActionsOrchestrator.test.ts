@@ -650,6 +650,25 @@ describe("ReviewActionsOrchestrator", () => {
 			expect(controller.getCopyEditHistory("b", "grey → gray", "z.md")).toEqual({ accepted: 1, declined: 2 });
 		});
 
+		it("drops cached copy-edit decisions and ignores reads started before a restore", async () => {
+			const { host } = makeFakeHost({ priorSession: makeSession("a.md") });
+			let finish!: (scenes: Array<{ notePath: string; suggestions: ReviewSuggestion[] }>) => void;
+			host.getBatchSuggestionScenes = () => new Promise((resolve) => { finish = resolve; });
+			const controller = new ReviewActionsOrchestrator(host);
+			await controller.acceptCopyEdits(["s1"], [{ id: "s1", batchId: "b", key: "grey → gray" }]);
+			controller.setCopyEditTick("a.md::fix", false);
+			expect(controller.getCopyEditHistory("b", "grey → gray", "b.md")).toEqual({ accepted: 1, declined: 0 });
+			controller.resetAfterDataRestore();
+			finish([{ notePath: "old.md", suggestions: [makeSuggestion("old", {
+				status: "accepted", source: { blockIndex: 0, entryIndex: 0, startOffset: 0, endOffset: 0, batchId: "b" },
+				payload: { original: "Her grey coat was wet.", revised: "Her gray coat was wet." },
+			} as Partial<ReviewSuggestion>)] }]);
+			await Promise.resolve();
+			expect(controller.getUndoableCopyEdits("a.md")).toBeNull();
+			expect(controller.getCopyEditTick("a.md::fix")).toBeUndefined();
+			expect(controller.getCopyEditHistory("b", "grey → gray", "b.md")).toBeNull();
+		});
+
 		it("keeps the list's ticks by scene and change", () => {
 			const { host } = makeFakeHost();
 			const controller = new ReviewActionsOrchestrator(host);
