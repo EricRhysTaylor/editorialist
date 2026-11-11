@@ -7423,6 +7423,33 @@ button.editorialist-panel__contributors-row:focus-visible {
 	line-height: 1.45;
 }
 
+.editorialist-plan__deadline {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	margin-top: 4px;
+	color: var(--text-muted);
+	font-size: var(--font-smallest);
+	font-variant-numeric: tabular-nums;
+}
+
+.editorialist-plan__deadline-icon {
+	display: inline-flex;
+}
+
+.editorialist-plan__deadline-icon svg {
+	width: 13px;
+	height: 13px;
+}
+
+.editorialist-plan__deadline.is-cushion {
+	color: var(--text-warning);
+}
+
+.editorialist-plan__deadline.is-late {
+	color: var(--text-error);
+}
+
 .editorialist-plan__task-meta {
 	display: flex;
 	flex-wrap: wrap;
@@ -7957,6 +7984,10 @@ button.editorialist-panel__contributors-row:focus-visible {
 .editorialist-autoschedule__issue {
 	padding: 12px 0;
 	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.editorialist-autoschedule__issue.is-cushion p {
+	color: var(--text-warning);
 }
 
 .editorialist-autoschedule__task .editorialist-deliveries__fields {
@@ -8580,12 +8611,16 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	height: 15px;
 }
 
-.editorialist-project__next-milestone.is-overdue {
+/* Amber once inside the cushion before a deadline, red once past it. */
+.editorialist-project__next-milestone.is-cushion {
 	color: var(--text-warning);
 }
 
-/* An overdue session: red, as Today and the work queue mark it. Milestones
-   stay amber. */
+.editorialist-project__next-milestone.is-overdue {
+	color: var(--text-error);
+}
+
+/* An overdue session: red, as Today and the work queue mark it. */
 .editorialist-project__next.is-overdue {
 	border-inline-start-color: var(--text-error);
 }
@@ -8728,9 +8763,18 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	height: 16px;
 }
 
-.editorialist-project__row.is-overdue .editorialist-project__row-icon,
-.editorialist-project__row.is-overdue .editorialist-project__row-date {
+.editorialist-project__row-deadline {
+	font-variant-numeric: tabular-nums;
+}
+
+.editorialist-project__row.is-cushion .editorialist-project__row-deadline {
 	color: var(--text-warning);
+}
+
+.editorialist-project__row.is-overdue .editorialist-project__row-icon,
+.editorialist-project__row.is-overdue .editorialist-project__row-date,
+.editorialist-project__row.is-overdue .editorialist-project__row-deadline {
+	color: var(--text-error);
 }
 
 .editorialist-project__row.is-done .editorialist-project__row-title {
@@ -9348,6 +9392,17 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	gap: 2px 10px;
 	color: var(--text-muted);
 	font-size: var(--font-smallest);
+}
+
+/* The aim and hard date: amber inside the cushion, red past the deadline. */
+.editorialist-today__deadline.is-cushion {
+	color: var(--text-warning);
+	font-weight: var(--font-semibold);
+}
+
+.editorialist-today__deadline.is-late {
+	color: var(--text-error);
+	font-weight: var(--font-semibold);
 }
 
 .editorialist-today__head {

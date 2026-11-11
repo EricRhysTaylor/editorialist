@@ -1,7 +1,8 @@
 import { isDate, isPlanEntryComplete, progressDoneKeys, resolvePlanSource, sourceKey, type PlanEntry, type RevisionPlan, type WorkCandidate } from "./RevisionPlan";
 import type { ScheduleDefaults, SchedulePreset, WorkPhase } from "./ScheduleDefaults";
-import { entryDeadline, workDeadline } from "./EditorialProject";
+import { entryWorkDeadline, workDeadline } from "./EditorialProject";
 import { addDays } from "./PlanProgress";
+import { planDayLabel } from "./WorkPresentation";
 export interface TriageChoice { phase?: WorkPhase | null; low?: number; high?: number; skip?: boolean }
 export interface ScheduleOptions extends ScheduleDefaults {
 	/** The delivery to plan, or null for every open piece of work in the book. */
@@ -12,7 +13,11 @@ export interface ScheduleOptions extends ScheduleDefaults {
 	choices: Record<string, TriageChoice>;
 }
 export interface ScheduleIssue { title: string; reason: string; key?: string }
-export interface ScheduleDraft { plan: RevisionPlan; issues: ScheduleIssue[]; generated: PlanEntry[]; preserved: number; estimated: number }
+export interface ScheduleDraft {
+	plan: RevisionPlan; issues: ScheduleIssue[]; generated: PlanEntry[]; preserved: number; estimated: number;
+	/** Work that fits only by spending some of the days kept free before its deadline. */
+	cushion: ScheduleIssue[];
+}
 /** Suggestions only: explicit scope/word cues outrank the source format. */
 export function suggestPhase(candidate: WorkCandidate, preset: SchedulePreset): WorkPhase | null {
 	if (candidate.kind === "preparation") return "structure";
@@ -105,11 +110,9 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 			remaining.set(entry.day, Math.max(0, remaining.get(entry.day)! - entry.highMinutes));
 		}
 	}
-	// Reserve time at the end of the window, after accounting for existing work.
-	let reserve = Math.max(0, plan.reserveMinutes);
-	for (const day of [...days].reverse()) { const take = Math.min(reserve, remaining.get(day)!); remaining.set(day, remaining.get(day)! - take); reserve -= take; }
 	const scheduled = new Map(fixed.map((entry) => [entry.id, entry]));
 	const generated: PlanEntry[] = [];
+	const cushion: ScheduleIssue[] = [];
 	let queue = pending;
 	while (queue.length) {
 		const waiting: PlanEntry[] = [];
@@ -121,16 +124,23 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 			const due = resolved.state === "ready" ? resolved.candidate.due : null;
 			// A goal's sessions wait for its start date.
 			const earliest = resolved.state === "ready" ? resolved.candidate.earliest ?? null : null;
-			const deadlines = [options.end, due, entryDeadline(plan, entry, candidates)].filter((day): day is string => Boolean(day));
-			const end = deadlines.sort()[0]!;
+			const deadline = entryWorkDeadline(plan, entry, candidates);
+			const end = [options.end, due, deadline?.due].filter((day): day is string => Boolean(day)).sort()[0]!;
+			// Aim for the cushion first; spend it only when the work will not fit otherwise.
+			const aim = deadline && deadline.aim < end ? deadline.aim : end;
 			let reason = "";
 			if (entry.afterId && (!parent || (!parentDone && !parent.day))) reason = "Prerequisite is missing or unscheduled.";
 			else if (entry.highMinutes === null || entry.lowMinutes === null) reason = "Needs an effort range.";
 			else if (earliest && earliest > end) reason = "Its start date is after its deadline or the end of the planning window.";
 			else {
-				entry.day = days.find((day) => day <= end && (!earliest || day >= earliest) && (parentDone || !parent?.day || day >= parent.day) && remaining.get(day)! >= entry.highMinutes!) ?? null;
+				const fits = (limit: string): string | null => days.find((day) => day <= limit && (!earliest || day >= earliest) && (parentDone || !parent?.day || day >= parent.day) && remaining.get(day)! >= entry.highMinutes!) ?? null;
+				entry.day = fits(aim) ?? fits(end);
 				if (entry.day) remaining.set(entry.day, remaining.get(entry.day)! - entry.highMinutes);
-				else reason = "Does not fit before the deadline with the current capacity and reserve.";
+				else reason = "Does not fit before the deadline with the current capacity.";
+				if (entry.day && deadline && entry.day > aim) {
+					const left = Math.round((Date.parse(`${deadline.due}T00:00:00Z`) - Date.parse(`${entry.day}T00:00:00Z`)) / 86400000);
+					cushion.push({ title: `${entry.title}${entry.sessionCount ? ` · Session ${entry.sessionIndex}/${entry.sessionCount}` : ""}`, reason: `Lands ${left} ${left === 1 ? "day" : "days"} before its ${planDayLabel(deadline.due)} deadline, not ${plan.cushionDays}.` });
+				}
 			}
 			if (reason) issues.push({ title: `${entry.title}${entry.sessionCount ? ` · Session ${entry.sessionIndex}/${entry.sessionCount}` : ""}`, reason });
 			generated.push(entry); scheduled.set(entry.id, entry);
@@ -142,5 +152,5 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 		queue = waiting;
 	}
 	next.entries = [...fixed, ...generated];
-	return { plan: next, issues, generated, preserved: fixed.length, estimated };
+	return { plan: next, issues, generated, preserved: fixed.length, estimated, cushion };
 }

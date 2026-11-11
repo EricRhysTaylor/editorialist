@@ -1,7 +1,7 @@
 import { normalizeAuthorTargets, type AuthorTarget } from "./AuthorPlan";
 import { DEFAULT_SCHEDULE, type ScheduleDefaults, type WorkPhase } from "./ScheduleDefaults";
 import { normalizePlanProgress, type PlanProgress } from "./PlanProgress";
-import { entryDeadline, normalizeEditorialProject, type EditorialProject } from "./EditorialProject";
+import { deadlineState, entryWorkDeadline, normalizeEditorialProject, type EditorialProject } from "./EditorialProject";
 /** Planning identity is independent of line numbers and pending-edit indexes. */
 // "response" is the author's answer to an editor's pass: its path is the
 // Responses folder and its locator the batch id.
@@ -56,7 +56,8 @@ export interface RevisionPlan {
 	deadline: string | null;
 	/** Sunday through Saturday; zero means a day off. */
 	capacity: number[];
-	reserveMinutes: number;
+	/** Days before an editor's deadline the author aims to finish; see candidateDeadline. */
+	cushionDays: number;
 	entries: PlanEntry[];
 	/** Book-wide finished work, recorded as sources change; see PlanProgress. */
 	progress?: PlanProgress;
@@ -65,8 +66,10 @@ export interface RevisionPlanStore {
 	version: 1;
 	books: Record<string, RevisionPlan>;
 }
+export const DEFAULT_CUSHION_DAYS = 14;
+export const MAX_CUSHION_DAYS = 90;
 export function emptyRevisionPlan(): RevisionPlan {
-	return { deadline: null, capacity: [0, 120, 120, 120, 120, 120, 0], reserveMinutes: 120, entries: [] };
+	return { deadline: null, capacity: [0, 120, 120, 120, 120, 120, 0], cushionDays: DEFAULT_CUSHION_DAYS, entries: [] };
 }
 export function sourceKey(source: WorkSource): string {
 	return JSON.stringify([source.kind, source.path, source.locator]);
@@ -106,7 +109,7 @@ export function normalizeRevisionPlans(raw: unknown): RevisionPlanStore {
 		plan.deadline = isDate(input.deadline) ? input.deadline : null;
 		const progress = normalizePlanProgress(input.progress);
 		if (progress) plan.progress = progress;
-		plan.reserveMinutes = minutes(input.reserveMinutes) ?? plan.reserveMinutes;
+		plan.cushionDays = Math.min(MAX_CUSHION_DAYS, minutes(input.cushionDays) ?? plan.cushionDays);
 		if (Array.isArray(input.capacity) && input.capacity.length === 7) {
 			plan.capacity = input.capacity.map((value, index) => Math.min(1440, minutes(value) ?? plan.capacity[index]!));
 		}
@@ -170,17 +173,21 @@ export interface PlanForecast {
 	dailyLoads: Record<string, number>;
 	overloadedDays: string[];
 	afterDeadlineCount: number;
+	/** Scheduled after its aim but by its deadline: eating into the cushion. */
+	inCushionCount: number;
 	dependencyWarnings: string[];
 }
 export function forecastPlan(plan: RevisionPlan, candidates: readonly WorkCandidate[], today = localDate(new Date())): PlanForecast {
-	const result: PlanForecast = { lowMinutes: 0, highMinutes: 0, unknownCount: 0, unlinkedCount: 0, unscheduledCount: 0, availableMinutes: null, dailyLoads: {}, overloadedDays: [], afterDeadlineCount: 0, dependencyWarnings: [] };
+	const result: PlanForecast = { lowMinutes: 0, highMinutes: 0, unknownCount: 0, unlinkedCount: 0, unscheduledCount: 0, availableMinutes: null, dailyLoads: {}, overloadedDays: [], afterDeadlineCount: 0, inCushionCount: 0, dependencyWarnings: [] };
 	const doneKeys = progressDoneKeys(plan);
 	const open = plan.entries.filter((entry) => !isPlanEntryComplete(entry, candidates, doneKeys));
 	for (const entry of open) {
 		if (resolvePlanSource(entry.source, candidates).state !== "ready") result.unlinkedCount++;
 		if (!entry.day) result.unscheduledCount++;
-		const due = entryDeadline(plan, entry, candidates);
-		if (entry.day && due && entry.day > due) result.afterDeadlineCount++;
+		const deadline = entryWorkDeadline(plan, entry, candidates);
+		const state = entry.day && deadline ? deadlineState(deadline, entry.day) : "on-track";
+		if (state === "late") result.afterDeadlineCount++;
+		if (state === "cushion") result.inCushionCount++;
 		if (entry.required) {
 			if (entry.lowMinutes === null || entry.highMinutes === null) result.unknownCount++;
 			else { result.lowMinutes += entry.lowMinutes; result.highMinutes += entry.highMinutes; }
@@ -199,7 +206,7 @@ export function forecastPlan(plan: RevisionPlan, candidates: readonly WorkCandid
 		let total = Math.floor(days / 7) * plan.capacity.reduce((sum, value) => sum + value, 0);
 		const startDay = new Date(today + "T12:00:00").getDay();
 		for (let day = 0; day < days % 7; day++) total += plan.capacity[(startDay + day) % 7] ?? 0;
-		result.availableMinutes = Math.max(0, total - plan.reserveMinutes);
+		result.availableMinutes = total;
 	}
 	result.overloadedDays = Object.keys(result.dailyLoads).filter((day) => result.dailyLoads[day]! > (plan.capacity[new Date(`${day}T12:00:00`).getDay()] ?? 0));
 	return result;

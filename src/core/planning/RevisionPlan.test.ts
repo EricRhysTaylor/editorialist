@@ -17,7 +17,14 @@ describe("Revision planning", () => {
 	it("retains unresolved work and exposes unknown estimates instead of promising a finish", () => {
 		const plan = { ...emptyRevisionPlan(), deadline: "2026-09-25", entries: [entry("a"), { ...entry("b"), lowMinutes: null, highMinutes: null }] };
 		const forecast = forecastPlan(plan, [], "2026-09-21");
-		expect(forecast).toMatchObject({ lowMinutes: 30, highMinutes: 60, unknownCount: 1, unlinkedCount: 2, availableMinutes: 480, unscheduledCount: 2 });
+		expect(forecast).toMatchObject({ lowMinutes: 30, highMinutes: 60, unknownCount: 1, unlinkedCount: 2, availableMinutes: 600, unscheduledCount: 2 });
+	});
+	it("keeps the cushion in days, defaulting to two weeks and capped at ninety", () => {
+		const load = (cushionDays: unknown) => normalizeRevisionPlans({ version: 1, books: { book: { cushionDays, reserveMinutes: 120 } } }).books.book!;
+		expect(load(undefined).cushionDays).toBe(14);
+		expect(load(0).cushionDays).toBe(0);
+		expect(load(400).cushionDays).toBe(90);
+		expect(load(undefined)).not.toHaveProperty("reserveMinutes");
 	});
 	it("counts day loads for optional work but excludes it from the milestone estimate", () => {
 		const plan = { ...emptyRevisionPlan(), entries: [{ ...entry("a"), required: false, day: "2026-09-27" }] };
@@ -60,7 +67,7 @@ it("preserves a partial estimate entered high-first and keeps it unknown", () =>
 });
 
 it("computes weekday capacity across daylight saving and long deadlines", () => {
-	const plan = { ...emptyRevisionPlan(), reserveMinutes: 0, deadline: "2026-11-08" };
+	const plan = { ...emptyRevisionPlan(), deadline: "2026-11-08" };
 	expect(forecastPlan(plan, [], "2026-11-01").availableMinutes).toBe(600);
 	plan.deadline = "2040-01-01";
 	expect(forecastPlan(plan, [], "2026-01-01").availableMinutes).toBeGreaterThan(400000);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { collaborationUrl, createEditorialProject, engagementReturned, engagementStartCountdown, isEngagementDelivery, entryDeadline, isProjectEditorProfile, normalizeEditorialProject, preparationWork, projectEditor, shiftDate, taskDocument, type MaterialCheck } from "./EditorialProject";
+import { collaborationUrl, createEditorialProject, engagementReturned, engagementStartCountdown, isEngagementDelivery, entryWorkDeadline, isProjectEditorProfile, normalizeEditorialProject, preparationWork, projectEditor, shiftDate, taskDocument, type MaterialCheck } from "./EditorialProject";
 import type { ContributorProfile } from "../../models/ContributorProfile";
 import { emptyRevisionPlan, normalizeRevisionPlans } from "./RevisionPlan";
 import { draftSchedule } from "./AutoSchedule";
@@ -49,14 +49,14 @@ describe("Editorial preparation project", () => {
 	it("keeps schedule deadlines independent of the engagement start and former readiness date", () => {
 		const p = project(); p.readinessDate = "2026-11-23";
 		const plan = normalizeRevisionPlans({ version: 1, books: { a: { ...emptyRevisionPlan(), project: p, deadline: "2027-03-01" } } }).books.a!;
-		expect(plan.deadline).toBe("2027-03-01"); expect(entryDeadline(plan, { required: true, source: { kind: "pending", path: "Book/1.md", locator: "fix" } }, [])).toBe("2027-03-01");
+		expect(plan.deadline).toBe("2027-03-01"); expect(entryWorkDeadline(plan, { required: true, source: { kind: "pending", path: "Book/1.md", locator: "fix" } }, [])?.due).toBe("2027-03-01");
 	});
 	it("uses only the task's explicit milestone or start-date target", () => {
 		const p = project(); p.milestones.push({ id: "after", title: "Discuss feedback", day: "2027-01-20", done: false });
 		p.tasks.push({ id: "t1", title: "General work", materialId: null, milestoneId: null, done: false }, { id: "t2", title: "Discuss", materialId: null, milestoneId: "after", done: false }, { id: "t3", title: "Before start", materialId: null, milestoneId: "__start__", done: false });
 		expect(preparationWork(p).map((item) => item.due)).toEqual([undefined, "2027-01-20", "2026-11-30"]);
 		const candidate = preparationWork(p)[1]!;
-		const result = draftSchedule({ ...emptyRevisionPlan(), project: p, reserveMinutes: 0 }, [candidate], { preset: "developmental", sessionMinutes: 60, useEstimates: false, deliveryId: null, start: "2027-01-12", end: "2027-01-20", replan: false, choices: { [JSON.stringify([candidate.kind, candidate.path, candidate.locator])]: { low: 30, high: 60 } } }, () => "session");
+		const result = draftSchedule({ ...emptyRevisionPlan(), project: p }, [candidate], { preset: "developmental", sessionMinutes: 60, useEstimates: false, deliveryId: null, start: "2027-01-12", end: "2027-01-20", replan: false, choices: { [JSON.stringify([candidate.kind, candidate.path, candidate.locator])]: { low: 30, high: 60 } } }, () => "session");
 		expect(result.generated[0]!.day).not.toBeNull();
 	});
 	it("uses calendar days through daylight saving for questions", () => { expect(shiftDate("2027-01-11", 10)).toBe("2027-01-21"); expect(() => shiftDate("2026-02-30", 1)).toThrow(); });

@@ -2,9 +2,9 @@ import { renderWordLimit } from "./primitives/WordLimitBar";
 import { setAccessibleLabel } from "./primitives/AccessibleLabel";
 import { bindCompletionMenu } from "./primitives/CompletionMenu";
 import { Modal, Notice, TFile, normalizePath, setIcon, type App } from "obsidian";
-import { collaborationUrl, createEditorialProject, engagementReturned, engagementStartCountdown, isProjectEditorProfile, materialDue, projectEditor, recordProjectEvent, shiftDate, type EditorialProject, type EngagementRecord, type EngagementTask, type ProjectMaterial } from "../core/planning/EditorialProject";
+import { candidateDeadline, collaborationUrl, createEditorialProject, deadlineState, engagementReturned, engagementStartCountdown, isProjectEditorProfile, materialDue, projectEditor, recordProjectEvent, shiftDate, type EditorialProject, type EngagementRecord, type EngagementTask, type ProjectMaterial } from "../core/planning/EditorialProject";
 import { isDate, localDate, type RevisionPlan } from "../core/planning/RevisionPlan";
-import { planDayLabel } from "../core/planning/WorkPresentation";
+import { deadlineLabel, planDayLabel } from "../core/planning/WorkPresentation";
 
 import type { EditorialDelivery } from "../core/EditorialDeliveries";
 import type { EditorialProjectService } from "../services/EditorialProjectService";
@@ -155,7 +155,9 @@ export class EditorialProjectPanel {
 		if (editor.state === "unavailable") hero.createEl("p", { cls: "editorialist-project__warning", text: "The saved editor profile is unavailable. Choose an existing contributor in engagement details." });
 		const today = localDate(new Date());
 		hero.createEl("h3", { cls: "editorialist-project__submission-heading", text: `${project.submissionDate < today ? "Started" : "Starts"} ${dayLabel(project.submissionDate)} · ${engagementStartCountdown(project.submissionDate, today)}` });
-		hero.createEl("p", { cls: "editorialist-project__hint", text: "Agreed start date · prepare and exchange files directly through your collaboration." });
+		const ready = candidateDeadline(this.host.plan, { due: project.submissionDate, path: project.id })!;
+		const cushion = this.host.plan.cushionDays;
+		hero.createEl("p", { cls: "editorialist-project__hint", text: ready.aim < ready.due && project.submissionDate >= today ? `Agreed start date · aim to have everything ready by ${dayLabel(ready.aim)}, ${cushion} ${cushion === 1 ? "day" : "days"} early.` : "Agreed start date · prepare and exchange files directly through your collaboration." });
 		const actions = hero.createDiv({ cls: "editorialist-project__actions" }); button(actions, "Engagement details", () => this.setup());
 		button(actions, "Record activity", () => this.recordActivity());
 		if (editor.profile) this.action(actions, "Editor profile", () => this.host.manageEditor(editor.profile!.id));
@@ -212,9 +214,11 @@ export class EditorialProjectPanel {
 			card.createDiv({ cls: "editorialist-project__next-empty", text: "Your work queue is empty. Add tasks or auto-plan from the Schedule tab." });
 		}
 		if (milestone) {
-			const row = card.createDiv({ cls: `editorialist-project__next-milestone${milestone.day < today ? " is-overdue" : ""}` });
+			const deadline = candidateDeadline(this.host.plan, { due: milestone.day, path: project.id })!;
+			const state = deadlineState(deadline, today);
+			const row = card.createDiv({ cls: `editorialist-project__next-milestone${state === "late" ? " is-overdue" : state === "cushion" ? " is-cushion" : ""}` });
 			setIcon(row.createSpan({ cls: "editorialist-project__next-milestone-icon", attr: { "aria-hidden": "true" } }), "flag");
-			row.createSpan({ text: `${milestone.title} · ${dayLabel(milestone.day)}${milestone.day < today ? " · overdue" : ""}` });
+			row.createSpan({ text: `${milestone.title} · ${deadlineLabel(deadline, state === "late")}${state === "late" ? " · overdue" : ""}` });
 		}
 		const actions = card.createDiv({ cls: "editorialist-project__actions" });
 		if (head?.open) button(actions, "Open", head.open);
@@ -330,14 +334,18 @@ export class EditorialProjectPanel {
 		if (!project.milestones.length) body.createEl("p", { cls: "editorialist-project__hint", text: "Set your own targets before or after the engagement starts." });
 		const today = localDate(new Date());
 		for (const milestone of [...project.milestones].sort((a, b) => a.day.localeCompare(b.day))) {
-			const row = body.createDiv({ cls: `editorialist-project__row editorialist-project__milestone${milestone.done ? " is-done" : milestone.day < today ? " is-overdue" : ""}` });
+			const deadline = candidateDeadline(this.host.plan, { due: milestone.day, path: project.id })!;
+			const state = deadlineState(deadline, today);
+			const row = body.createDiv({ cls: `editorialist-project__row editorialist-project__milestone${milestone.done ? " is-done" : state === "late" ? " is-overdue" : state === "cushion" ? " is-cushion" : ""}` });
 			this.completionControl(row, milestone.title, milestone.done, (draft, done) => {
 				const item = draft.milestones.find((value) => value.id === milestone.id);
 				if (!item) throw new Error("This milestone is no longer available. Reopen the engagement.");
 				item.done = done; recordProjectEvent(draft, `${item.title}: ${done ? "milestone finished" : "milestone reopened"}`);
 			});
-			row.createDiv({ cls: "editorialist-project__row-main" }).createDiv({ cls: "editorialist-project__row-title", text: milestone.title });
-			row.createSpan({ cls: "editorialist-project__row-date", text: `${dayLabel(milestone.day)}${milestone.done ? " · Finished" : ""}` });
+			// The aim and due date sit under the title, so a long title keeps its width.
+			const main = row.createDiv({ cls: "editorialist-project__row-main" });
+			main.createDiv({ cls: "editorialist-project__row-title", text: milestone.title });
+			main.createDiv({ cls: "editorialist-project__row-meta editorialist-project__row-deadline", text: milestone.done ? `${dayLabel(milestone.day)} · Finished` : deadlineLabel(deadline, state === "late") });
 			iconButton(row.createDiv({ cls: "editorialist-project__row-actions" }), "pencil", `Edit “${milestone.title}”`, () => this.editMilestone(milestone.id));
 		}
 		button(body, "Add milestone", () => this.editMilestone()).addClass("editorialist-project__add");

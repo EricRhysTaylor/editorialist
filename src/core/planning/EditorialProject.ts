@@ -2,6 +2,7 @@ import { isDate, localDate, resolvePlanSource, type PlanEntry, type RevisionPlan
 import { normalizeContributorValue } from "../ContributorIdentity";
 import type { ContributorProfile } from "../../models/ContributorProfile";
 import type { EditorialDelivery } from "../EditorialDeliveries";
+import { AUTHOR_PLAN_SCOPE } from "./AuthorPlan";
 
 export interface ProjectMilestone { id: string; title: string; day: string; done: boolean }
 export interface EngagementTask { id: string; title: string; materialId: string | null; milestoneId: string | null; done: boolean }
@@ -145,9 +146,27 @@ export function preparationWork(project: EditorialProject): WorkCandidate[] {
 export function workDeadline(plan: RevisionPlan, _kind: WorkKind, due: string | null | undefined, required = true): string | null {
 	return [required ? plan.deadline : null, due].filter((day): day is string => Boolean(day)).sort()[0] ?? null;
 }
-export function entryDeadline(plan: RevisionPlan, entry: Pick<PlanEntry, "source" | "required">, candidates: readonly WorkCandidate[]): string | null {
+/**
+ * A promise to an editor, an engagement date or a delivery's return deadline,
+ * is aimed at the plan's cushion of days early; the author's own goals and
+ * schedule deadline are aimed at as set. The hard date never moves.
+ */
+export interface WorkDeadline { due: string; aim: string }
+export function candidateDeadline(plan: Pick<RevisionPlan, "cushionDays">, candidate: Pick<WorkCandidate, "due" | "path">): WorkDeadline | null {
+	if (!candidate.due) return null;
+	return { due: candidate.due, aim: candidate.path === AUTHOR_PLAN_SCOPE ? candidate.due : shiftDate(candidate.due, -plan.cushionDays) };
+}
+/** The earliest of the entry's source deadline and, when required, the plan's own deadline. */
+export function entryWorkDeadline(plan: RevisionPlan, entry: Pick<PlanEntry, "source" | "required">, candidates: readonly WorkCandidate[]): WorkDeadline | null {
 	const source = resolvePlanSource(entry.source, candidates);
-	return workDeadline(plan, entry.source.kind, source.state === "ready" ? source.candidate.due : null, entry.required);
+	const own = entry.required && plan.deadline ? { due: plan.deadline, aim: plan.deadline } : null;
+	const editor = source.state === "ready" ? candidateDeadline(plan, source.candidate) : null;
+	if (!own || !editor) return own ?? editor;
+	return { due: own.due < editor.due ? own.due : editor.due, aim: own.aim < editor.aim ? own.aim : editor.aim };
+}
+/** Where a piece of work stands against its aim and deadline on a given day. */
+export function deadlineState(deadline: WorkDeadline, day: string): "on-track" | "cushion" | "late" {
+	return day > deadline.due ? "late" : day > deadline.aim ? "cushion" : "on-track";
 }
 export function recordProjectEvent(project: EditorialProject, text: string, at = new Date().toISOString()): void { project.history.push({ at, text }); }
 

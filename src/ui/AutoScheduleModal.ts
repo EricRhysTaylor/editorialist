@@ -6,7 +6,7 @@ import { deliveryDate, type EditorialDelivery } from "../core/EditorialDeliverie
 import { draftSchedule, estimateRange, suggestPhase, type ScheduleDraft, type ScheduleOptions } from "../core/planning/AutoSchedule";
 import { addDays } from "../core/planning/PlanProgress";
 import { DEFAULT_SCHEDULE, type SchedulePreset, type WorkPhase } from "../core/planning/ScheduleDefaults";
-import { localDate, sourceKey, type RevisionPlan, type WorkCandidate } from "../core/planning/RevisionPlan";
+import { MAX_CUSHION_DAYS, localDate, sourceKey, type RevisionPlan, type WorkCandidate } from "../core/planning/RevisionPlan";
 const PRESETS: Record<SchedulePreset, string> = { developmental: "Developmental revision", copy: "Copy-edit pass", mixed: "Mixed editorial delivery" };
 const PHASES: Record<WorkPhase, string> = { structure: "Structural decisions", rewrite: "Scene rewrites", polish: "Prose refinement" };
 
@@ -59,7 +59,10 @@ export class AutoScheduleModal extends Modal {
 		updateAvailability();
 		const days = capacity.createDiv({ cls: "editorialist-deliveries__fields" });
 		for (const [index, day] of ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].entries()) { const field = input(days, `${day} minutes`, "number", String(this.plan.capacity[index]), (value) => { this.plan.capacity[index] = Math.min(1440, Math.max(0, Number(value) || 0)); updateAvailability(); }); field.min = "0"; field.max = "1440"; }
-		input(days, "Reserve minutes", "number", String(this.plan.reserveMinutes), (value) => { this.plan.reserveMinutes = Math.max(0, Number(value) || 0); }).min = "0";
+		if (this.planningScope !== AUTHOR_PLAN_SCOPE) {
+			const cushion = input(grid, "Finish early by (days)", "number", String(this.plan.cushionDays), (value) => { this.plan.cushionDays = Math.max(0, Math.min(MAX_CUSHION_DAYS, Math.round(Number(value) || 0))); });
+			cushion.min = "0"; cushion.max = String(MAX_CUSHION_DAYS);
+		}
 		const advanced = root.createEl("details"); advanced.createEl("summary", { text: "Ordering & estimates" });
 		const settings = advanced.createDiv({ cls: "editorialist-deliveries__fields" });
 		const presetLabel = settings.createEl("label", { text: "Preset" }); const preset = presetLabel.createEl("select");
@@ -67,7 +70,7 @@ export class AutoScheduleModal extends Modal {
 		preset.addEventListener("change", () => { this.options.preset = preset.value as SchedulePreset; this.invalidate(); });
 		const session = input(settings, "Session minutes", "number", String(this.options.sessionMinutes), (value) => { this.options.sessionMinutes = Number(value); }); session.min = "15"; session.max = "240";
 		const explanation = advanced.createEl("details"); explanation.createEl("summary", { text: "How estimates work" });
-		explanation.createEl("p", { cls: "editorialist-deliveries__intro", text: "Estimates are editable starting points, not measured writing times. Editorialism effort hints guide checklist estimates; batches start at five minutes per suggestion and fifteen per memo, with a ±25% range. Scheduling uses the upper estimate and leaves your reserve free. Existing commitments stay in place; only eligible sessions from this delivery move when adjusting the schedule." });
+		explanation.createEl("p", { cls: "editorialist-deliveries__intro", text: "Estimates are editable starting points, not measured writing times. Editorialism effort hints guide checklist estimates; batches start at five minutes per suggestion and fifteen per memo, with a ±25% range. Scheduling uses the upper estimate. Work due to an editor is planned to finish your chosen number of days before its deadline, and only uses those days when it would not fit otherwise. Existing commitments stay in place; only eligible sessions from this delivery move when adjusting the schedule." });
 		const existing = new Set(this.plan.entries.map((entry) => sourceKey(entry.source)));
 		const fresh = this.candidates.filter((item) => this.inScope(item) && !item.complete && !item.inactive && !existing.has(sourceKey(item)));
 		const overrides = advanced.createEl("details"); overrides.createEl("summary", { text: `Review ordering & estimates · ${fresh.length} new items` });
@@ -100,7 +103,7 @@ export class AutoScheduleModal extends Modal {
 		if (attention) preview.addClass("is-attention");
 		const headingText = heading.createDiv();
 		headingText.createDiv({ cls: "editorialist-autoschedule__eyebrow", text: "Schedule preview" });
-		headingText.createEl("h3", { text: !draft.generated.length ? "No new work to schedule" : unscheduled || draft.issues.length || this.warnings.length ? "Some work needs attention" : `Fits by ${deliveryDate(finish ?? null)}` });
+		headingText.createEl("h3", { text: !draft.generated.length ? "No new work to schedule" : unscheduled || draft.issues.length || this.warnings.length ? "Some work needs attention" : `Fits by ${deliveryDate(finish ?? null)}${draft.cushion.length ? ", using some of your cushion" : ""}` });
 		const low = draft.generated.reduce((sum, entry) => sum + (entry.lowMinutes ?? 0), 0);
 		const high = draft.generated.reduce((sum, entry) => sum + (entry.highMinutes ?? 0), 0);
 		const metrics = preview.createDiv({ cls: "editorialist-autoschedule__metrics" });
@@ -121,6 +124,11 @@ export class AutoScheduleModal extends Modal {
 					target?.scrollIntoView({ block: "center" }); target?.querySelector<HTMLSelectElement>("select")?.focus();
 				});
 			}
+		}
+		if (draft.cushion.length) {
+			preview.createEl("h4", { text: `Inside your cushion · ${draft.cushion.length}` });
+			preview.createEl("p", { text: `These fit by the deadline, but not ${this.plan.cushionDays} ${this.plan.cushionDays === 1 ? "day" : "days"} early. Add working time or start sooner to win the days back.` });
+			for (const item of draft.cushion) { const row = preview.createDiv({ cls: "editorialist-autoschedule__issue is-cushion" }); row.createEl("strong", { text: item.title }); row.createEl("p", { text: item.reason }); }
 		}
 		const schedule = preview.createEl("details", { cls: "editorialist-autoschedule__agenda", attr: { open: "" } });
 		schedule.createEl("summary", { text: "Proposed sessions" });

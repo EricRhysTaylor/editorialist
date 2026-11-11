@@ -3,17 +3,17 @@ import { isPathInFolderScope, isPathInManuscriptScope } from "../core/VaultScope
 import { AUTHOR_PLAN_SCOPE } from "../core/planning/AuthorPlan";
 import { AuthorTargetPanel } from "./AuthorTargetPanel";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
-import { kindIcons, kindLabels, pendingWorkTitle, planDayLabel } from "../core/planning/WorkPresentation";
+import { deadlineLabel, kindIcons, kindLabels, pendingWorkTitle, planDayLabel } from "../core/planning/WorkPresentation";
 import { nextSession } from "../core/planning/TodayAgenda";
 import { ItemView, Notice, TFile, TFolder, setIcon, type TAbstractFile, type WorkspaceLeaf } from "obsidian";
 import type EditorialistPlugin from "../main";
 import { renderPanelHeader } from "./primitives/PanelHeader";
-import { emptyRevisionPlan, forecastPlan, isDate, isPlanEntryComplete, localDate, movePlanEntry, progressDoneKeys, resolvePlanSource, sourceKey, type PlanEntry, type RevisionPlan, type WorkCandidate } from "../core/planning/RevisionPlan";
+import { MAX_CUSHION_DAYS, emptyRevisionPlan, forecastPlan, isDate, isPlanEntryComplete, localDate, movePlanEntry, progressDoneKeys, resolvePlanSource, sourceKey, type PlanEntry, type RevisionPlan, type WorkCandidate } from "../core/planning/RevisionPlan";
 import { summarizePlanProgress } from "../core/planning/PlanProgress";
 import { estimateRange } from "../core/planning/AutoSchedule";
 import { type QueueHead, EditorialProjectPanel } from "./EditorialProjectPanel";
 import { EditorialProjectService } from "../services/EditorialProjectService";
-import { entryDeadline, taskDocument } from "../core/planning/EditorialProject";
+import { deadlineState, entryWorkDeadline, taskDocument } from "../core/planning/EditorialProject";
 import { bindCompletionMenu } from "./primitives/CompletionMenu";
 
 export const REVISION_PLAN_VIEW_TYPE = "editorialist-revision-plan";
@@ -431,6 +431,7 @@ export class RevisionPlanPanel extends ItemView {
 		const issues = [
 			forecast.unlinkedCount ? `${forecast.unlinkedCount} ${forecast.unlinkedCount === 1 ? "task needs" : "tasks need"} relinking` : "",
 			forecast.afterDeadlineCount ? `${forecast.afterDeadlineCount} required tasks fall after the deadline` : "",
+			forecast.inCushionCount ? `${forecast.inCushionCount} ${forecast.inCushionCount === 1 ? "session falls" : "sessions fall"} inside your cushion before a deadline` : "",
 			forecast.overloadedDays.length ? `Over capacity: ${forecast.overloadedDays.map(planDayLabel).join(", ")}` : "",
 			forecast.dependencyWarnings.length ? (forecast.dependencyWarnings.length === 1 ? "1 task needs prerequisite checks" : `${forecast.dependencyWarnings.length} tasks need prerequisite checks`) : "",
 			open.some((entry) => entry.day && entry.day < localDate(new Date())) ? "Past dates need rescheduling" : "",
@@ -438,7 +439,7 @@ export class RevisionPlanPanel extends ItemView {
 		for (const issue of issues) summary.createDiv({ cls: "editorialist-plan__warning", text: issue });
 		const notes = summary.createEl("details", { cls: "editorialist-plan__estimate-notes", attr: { "data-plan-section": "estimate-notes" } });
 		notes.createEl("summary", { text: "How this estimate works" });
-		notes.createEl("p", { text: `Selected required work only. Optional work still occupies daily capacity. ${duration(this.plan.reserveMinutes)} reserved for surprises. Unestimated work is not counted as zero.` });
+		notes.createEl("p", { text: `Selected required work only. Optional work still occupies daily capacity. Unestimated work is not counted as zero.${this.author ? "" : ` Work due to an editor aims to finish ${this.plan.cushionDays} ${this.plan.cushionDays === 1 ? "day" : "days"} early.`}` });
 		if (open.length) this.renderWeek(root, forecast.dailyLoads);
 	}
 	// The plan only counts work that is in it. Auto-plan brings every open
@@ -483,8 +484,11 @@ export class RevisionPlanPanel extends ItemView {
 			const input = this.input(days, `${day} minutes`, "number", String(this.plan.capacity[index]), (value) => { void this.change((plan) => { plan.capacity[index] = Math.min(1440, Number(value)); }); });
 			input.max = "1440";
 		});
-		this.input(details, "Reserve minutes", "number", String(this.plan.reserveMinutes), (value) => { void this.change((plan) => { plan.reserveMinutes = Number(value); }); });
-		details.createEl("p", { text: "Set zero for days off. Reserve leaves room for surprises. Capacity repeats weekly and includes a full allowance for today." });
+		if (!this.author) {
+			const cushion = this.input(details, "Finish early by (days)", "number", String(this.plan.cushionDays), (value) => { void this.change((plan) => { plan.cushionDays = Math.max(0, Math.min(MAX_CUSHION_DAYS, Math.round(Number(value) || 0))); }); });
+			cushion.min = "0"; cushion.max = String(MAX_CUSHION_DAYS);
+		}
+		details.createEl("p", { text: this.author ? "Set zero for days off. Capacity repeats weekly and includes a full allowance for today." : "Set zero for days off. Capacity repeats weekly and includes a full allowance for today. Work due to an editor is planned to finish this many days before its deadline, so a slow week does not make you late." });
 	}
 	// A queue card reads like the engagement rows: state at the left (drag
 	// handle, then a check circle that finishes or reopens the session), the
@@ -525,8 +529,14 @@ export class RevisionPlanPanel extends ItemView {
 		title.addEventListener("dragend", () => { this.dragging = null; row.removeClass("is-dragging"); });
 		main.createDiv({ cls: "editorialist-plan__task-context", text: `${resolved.state === "ready" ? resolved.candidate.detail : entry.source.path}${resolved.state === "ready" && resolved.candidate.deferred ? " · Deferred at source" : ""}` });
 		if (resolved.state === "ready" && resolved.candidate.inactive) main.createEl("p", { cls: "editorialist-plan__hint", text: "Source inactive · kept in your plan. Keep this task or remove it in its options." });
-		const deadline = entryDeadline(this.plan, entry, this.candidates);
-		if (deadline && entry.day && entry.day > deadline) main.createEl("p", { cls: "editorialist-plan__warning", text: `Scheduled after its deadline or milestone (${deadline}).` });
+		const deadline = entryWorkDeadline(this.plan, entry, this.candidates);
+		if (deadline && !entry.done) {
+			// Late against the hard date is red; inside the cushion is amber; on track is quiet.
+			const state = deadlineState(deadline, entry.day ?? localDate(new Date()));
+			const timing = main.createDiv({ cls: `editorialist-plan__deadline${state === "late" ? " is-late" : state === "cushion" ? " is-cushion" : ""}` });
+			setIcon(timing.createSpan({ cls: "editorialist-plan__deadline-icon", attr: { "aria-hidden": "true" } }), state === "on-track" ? "flag" : "alert-triangle");
+			timing.createSpan({ text: state === "late" ? `${entry.day ? "Scheduled after its deadline" : "Past its deadline"} · ${deadlineLabel(deadline, true)}` : state === "cushion" ? `${entry.day ? "Scheduled" : "Now"} inside your cushion · ${deadlineLabel(deadline)}` : deadlineLabel(deadline) });
+		}
 
 		const details = row.createEl("details", { cls: "editorialist-plan__entry-options", attr: { "data-plan-section": entry.id } });
 		details.createEl("summary", { text: "Schedule & options" });

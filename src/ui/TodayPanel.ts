@@ -4,11 +4,11 @@ import { folderPlanKey } from "../core/ManuscriptReassociation";
 import { AUTHOR_PLAN_SCOPE, goalTimeline, wordProgress, type AuthorTarget } from "../core/planning/AuthorPlan";
 import { localDate, resolvePlanSource, type PlanEntry, type RevisionPlan, type WorkCandidate } from "../core/planning/RevisionPlan";
 import { activeGoals, todayAgenda, type AgendaItem, type AgendaPlan, type TodayAgenda } from "../core/planning/TodayAgenda";
-import { kindIcons, kindLabels, pendingWorkTitle, planDayLabel } from "../core/planning/WorkPresentation";
+import { deadlineLabel, kindIcons, kindLabels, pendingWorkTitle, planDayLabel } from "../core/planning/WorkPresentation";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
 import { renderPanelHeader } from "./primitives/PanelHeader";
 import { renderWordLimit } from "./primitives/WordLimitBar";
-import type { ProjectMaterial } from "../core/planning/EditorialProject";
+import { deadlineState, entryWorkDeadline, type ProjectMaterial, type WorkDeadline } from "../core/planning/EditorialProject";
 
 export const TODAY_VIEW_TYPE = "editorialist-today";
 /** Device-local: the day Today was last shown, so a new day opens on it once. */
@@ -185,9 +185,11 @@ export class TodayPanel extends ItemView {
 		const detail = this.candidate(item)?.detail;
 		if (detail) card.createEl("p", { cls: "editorialist-project__hint", text: detail });
 		const parts = this.metaParts(item);
-		if (parts.length) {
+		const deadline = this.deadline(item);
+		if (parts.length || deadline) {
 			const meta = card.createDiv({ cls: "editorialist-today__meta" });
 			for (const text of parts) meta.createSpan({ text });
+			this.renderDeadline(meta, deadline);
 		}
 		const material = this.material(item);
 		if (material?.wordLimit && this.wordCounts[material.id] !== undefined) renderWordLimit(card, this.wordCounts[material.id]!, material.wordLimit);
@@ -204,6 +206,7 @@ export class TodayPanel extends ItemView {
 		const foot = row.createDiv({ cls: "editorialist-today__foot" });
 		const meta = foot.createDiv({ cls: "editorialist-today__meta" });
 		for (const text of this.metaParts(item)) meta.createSpan({ text });
+		this.renderDeadline(meta, this.deadline(item));
 		const actions = foot.createDiv({ cls: "editorialist-today__row-actions" });
 		if (upcoming) {
 			const move = this.button(actions, "", () => { void this.moveToToday(item); });
@@ -288,6 +291,19 @@ export class TodayPanel extends ItemView {
 	}
 
 	private plan(item: AgendaItem): LoadedPlan | undefined { return this.plans.find((plan) => plan.scope === item.scope); }
+
+	private deadline(item: AgendaItem): WorkDeadline | null {
+		const loaded = this.plan(item);
+		return loaded ? entryWorkDeadline(loaded.plan, item.entry, loaded.candidates) : null;
+	}
+
+	// The aim and the hard date. Amber once today is past the aim, red once
+	// past the deadline: the warning comes while there is still time to act.
+	private renderDeadline(meta: HTMLElement, deadline: WorkDeadline | null): void {
+		if (!deadline) return;
+		const state = deadlineState(deadline, this.day);
+		meta.createSpan({ cls: `editorialist-today__deadline${state === "late" ? " is-late" : state === "cushion" ? " is-cushion" : ""}`, text: deadlineLabel(deadline, state === "late") });
+	}
 
 	private candidate(item: AgendaItem): WorkCandidate | null {
 		const resolved = resolvePlanSource(item.entry.source, this.plan(item)?.candidates ?? []);

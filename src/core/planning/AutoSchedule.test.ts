@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { draftSchedule, type ScheduleOptions } from "./AutoSchedule";
+import { AUTHOR_PLAN_SCOPE } from "./AuthorPlan";
+import { candidateDeadline } from "./EditorialProject";
 import { emptyRevisionPlan, forecastPlan, isPlanEntryComplete, normalizeRevisionPlans, sourceKey, type PlanEntry, type WorkCandidate } from "./RevisionPlan";
 const candidate = (id: string, extra: Partial<WorkCandidate> = {}): WorkCandidate => ({ kind: "directive", path: "Agenda.md", locator: id, title: `Rewrite ${id}`, detail: id, sceneOrder: id, complete: false, deferred: false, deliveryId: "delivery", suggestedMinutes: 48, ...extra });
 const options = (extra: Partial<ScheduleOptions> = {}): ScheduleOptions => ({ deliveryId: "delivery", preset: "mixed", sessionMinutes: 60, useEstimates: true, start: "2026-09-21", end: "2026-09-25", replan: false, choices: {}, ...extra });
 const entry = (id: string, extra: Partial<PlanEntry> = {}): PlanEntry => ({ id, source: candidate(id), title: id, lowMinutes: 45, highMinutes: 60, day: "2026-09-21", required: true, done: false, afterId: null, ...extra });
-function run(plan = { ...emptyRevisionPlan(), reserveMinutes: 0 }, candidates = [candidate("one")], opts = options()) { let id = 0; return draftSchedule(plan, candidates, opts, () => `new-${++id}`); }
+function run(plan = emptyRevisionPlan(), candidates = [candidate("one")], opts = options()) { let id = 0; return draftSchedule(plan, candidates, opts, () => `new-${++id}`); }
 describe("Automatic delivery scheduling", () => {
 	it("plans every open item in the book when no delivery is chosen", () => {
 		const work = [candidate("one"), candidate("two", { deliveryId: undefined }), candidate("done", { complete: true }), candidate("off", { inactive: true })];
@@ -32,8 +34,29 @@ describe("Automatic delivery scheduling", () => {
 		expect(isPlanEntryComplete(result.generated[1]!, [work])).toBe(false);
 		expect(work.complete).toBe(false);
 	});
-	it("accounts for existing commitments, rest days, and reserve before the earlier deadline", () => {
-		const plan = { ...emptyRevisionPlan(), reserveMinutes: 60, entries: [entry("fixed")] };
+	it("plans editor work to finish the cushion early, and spends it only when it must", () => {
+		const editor = candidate("one", { due: "2026-10-09" });
+		const early = run(emptyRevisionPlan(), [editor], options({ end: "2026-10-09" }));
+		expect(early.generated[0]!.day).toBe("2026-09-21");
+		expect(early.cushion).toEqual([]);
+		// Aim is Sept 25; the week is full, so it lands on the next free day before the deadline.
+		const busy = { ...emptyRevisionPlan(), entries: ["21", "22", "23", "24", "25"].map((day) => entry(`fixed-${day}`, { day: `2026-09-${day}`, highMinutes: 120 })) };
+		const late = run(busy, [editor], options({ end: "2026-10-09" }));
+		expect(late.generated[0]!.day).toBe("2026-09-28");
+		expect(late.cushion).toHaveLength(1);
+		expect(late.cushion[0]!.reason).toContain("11 days before");
+		expect(late.cushion[0]!.reason).toContain("not 14");
+		expect(late.issues.some((issue) => issue.reason.includes("Does not fit"))).toBe(false);
+	});
+	it("gives the author's own goals no cushion", () => {
+		const goal = candidate("goal", { path: AUTHOR_PLAN_SCOPE, due: "2026-09-25" });
+		const result = run(emptyRevisionPlan(), [goal], options({ deliveryId: null }));
+		expect(result.generated[0]!.day).toBe("2026-09-21");
+		expect(candidateDeadline(emptyRevisionPlan(), goal)).toEqual({ due: "2026-09-25", aim: "2026-09-25" });
+		expect(candidateDeadline({ cushionDays: 14 }, candidate("x", { due: "2026-10-09" }))).toEqual({ due: "2026-10-09", aim: "2026-09-25" });
+	});
+	it("accounts for existing commitments and rest days before the earlier deadline", () => {
+		const plan = { ...emptyRevisionPlan(), entries: [entry("fixed", { highMinutes: 120 })] };
 		const result = run(plan, [candidate("one", { due: "2026-09-21" }), candidate("fixed", { deliveryId: "other" })]);
 		expect(result.generated[0]!.day).toBe(null);
 		expect(result.plan.entries[0]).toEqual(plan.entries[0]);
@@ -42,7 +65,7 @@ describe("Automatic delivery scheduling", () => {
 		expect(weekend.generated[0]!.day).toBe("2026-09-28");
 	});
 	it("preserves manual and locked sessions plus their prerequisite chains on regeneration", () => {
-		const plan = { ...emptyRevisionPlan(), reserveMinutes: 0, entries: [entry("a", { autoDeliveryId: "delivery" }), entry("b", { autoDeliveryId: "delivery", locked: true, afterId: "a" }), entry("c", { autoDeliveryId: "delivery", day: "2026-09-24" }), entry("manual", { day: "2026-09-25" })] };
+		const plan = { ...emptyRevisionPlan(), entries: [entry("a", { autoDeliveryId: "delivery" }), entry("b", { autoDeliveryId: "delivery", locked: true, afterId: "a" }), entry("c", { autoDeliveryId: "delivery", day: "2026-09-24" }), entry("manual", { day: "2026-09-25" })] };
 		const result = run(plan, plan.entries.map((item) => candidate(item.id)), options({ replan: true }));
 		expect(result.preserved).toBe(3);
 		expect(result.plan.entries.slice(0, 2)).toEqual(plan.entries.slice(0, 2));
@@ -74,7 +97,7 @@ describe("Automatic delivery scheduling", () => {
 		expect(run(undefined, items, options({ choices: { [sourceKey(items[0]!)]: { phase: "structure" } } })).generated[0]!.title).toBe("Rewrite scene two");
 	});
 	it("respects prerequisites and reports cycles without assigning bogus dates", () => {
-		const plan = { ...emptyRevisionPlan(), reserveMinutes: 0, entries: [entry("a", { autoDeliveryId: "delivery", afterId: "b" }), entry("b", { autoDeliveryId: "delivery", afterId: "a" })] };
+		const plan = { ...emptyRevisionPlan(), entries: [entry("a", { autoDeliveryId: "delivery", afterId: "b" }), entry("b", { autoDeliveryId: "delivery", afterId: "a" })] };
 		const result = run(plan, [candidate("a"), candidate("b")], options({ replan: true }));
 		expect(result.generated.every((item) => item.day === null)).toBe(true);
 		expect(result.issues.every((issue) => issue.reason.includes("Cyclic"))).toBe(true);
@@ -84,7 +107,7 @@ describe("Automatic delivery scheduling", () => {
 		expect(forecastPlan(ordered.plan, [candidate("a"), candidate("b")]).dependencyWarnings).toEqual([]);
 	});
 	it("reserves a day in full when an existing commitment is unestimated", () => {
-		const plan = { ...emptyRevisionPlan(), reserveMinutes: 0, entries: [entry("fixed", { highMinutes: null })] };
+		const plan = { ...emptyRevisionPlan(), entries: [entry("fixed", { highMinutes: null })] };
 		expect(run(plan).generated[0]!.day).toBe("2026-09-22");
 	});
 	it("keeps inactive, completed, other-delivery, and ambiguous work out", () => {
@@ -98,7 +121,7 @@ describe("Automatic delivery scheduling", () => {
 		expect(normalizeRevisionPlans({ version: 1, books: { book: result.plan } }).books.book).toEqual(result.plan);
 	});
 	it("does not overbook small working days and rejects unbounded windows", () => {
-		const plan = { ...emptyRevisionPlan(), reserveMinutes: 0, capacity: [0, 30, 30, 30, 30, 30, 0] };
+		const plan = { ...emptyRevisionPlan(), capacity: [0, 30, 30, 30, 30, 30, 0] };
 		const result = run(plan, [candidate("large", { suggestedMinutes: 144 })]);
 		expect(forecastPlan(result.plan, [candidate("large")]).overloadedDays).toEqual([]);
 		expect(result.generated.filter((item) => !item.day)).toHaveLength(1);

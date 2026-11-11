@@ -21,7 +21,7 @@ describe("vault-wide author commitments", () => {
 		plan.targets[0]!.done = true; expect(authorWork(plan)[0]?.complete).toBe(true);
 	});
 	it("enforces hard deadlines while leaving soft target dates flexible", () => {
-		const plan = { ...emptyRevisionPlan(), capacity: [120,120,120,120,120,120,120], reserveMinutes: 0, targets: [goal("hard"),goal("soft",false)] };
+		const plan = { ...emptyRevisionPlan(), capacity: [120,120,120,120,120,120,120], targets: [goal("hard"),goal("soft",false)] };
 		const candidates = authorWork(plan); let id = 0;
 		const choices = Object.fromEntries(candidates.map((c) => [sourceKey(c), { phase: "structure" as const, low: 30, high: 60 }]));
 		const draft = draftSchedule(plan, candidates, { ...DEFAULT_SCHEDULE, start: "2026-10-21", end: "2026-10-23", replan: false, deliveryId: null, choices }, () => String(++id));
@@ -48,7 +48,7 @@ describe("goal start dates", () => {
 	});
 
 	const schedule = (start: string | null, end: string) => {
-		const plan = { ...emptyRevisionPlan(), capacity: [120, 120, 120, 120, 120, 120, 120], reserveMinutes: 0, targets: [{ ...goal("letter", false), start, due: "2026-10-30" }] };
+		const plan = { ...emptyRevisionPlan(), capacity: [120, 120, 120, 120, 120, 120, 120], targets: [{ ...goal("letter", false), start, due: "2026-10-30" }] };
 		const candidates = authorWork(plan); let id = 0;
 		const choices = Object.fromEntries(candidates.map((c) => [sourceKey(c), { phase: "structure" as const, low: 90, high: 120 }]));
 		return draftSchedule(plan, candidates, { ...DEFAULT_SCHEDULE, sessionMinutes: 60, start: "2026-10-20", end, replan: false, deliveryId: null, choices }, () => String(++id));
