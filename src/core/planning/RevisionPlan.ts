@@ -152,6 +152,21 @@ export function movePlanEntry(entries: readonly PlanEntry[], id: string, beforeI
 	rest.splice(index, 0, moving);
 	return rest;
 }
+/**
+ * Takes sessions off the schedule. A session that waited on a removed one now
+ * waits on what that one waited on, so the order of what remains holds and no
+ * session is left pointing at one that is gone.
+ */
+export function removePlanEntries(entries: readonly PlanEntry[], remove: (entry: PlanEntry) => boolean): PlanEntry[] {
+	const removed = new Map(entries.filter(remove).map((entry) => [entry.id, entry.afterId]));
+	const before = (afterId: string): string | null => {
+		const seen = new Set<string>();
+		let current: string | null = afterId;
+		while (current && removed.has(current) && !seen.has(current)) { seen.add(current); current = removed.get(current) ?? null; }
+		return current && removed.has(current) ? null : current;
+	};
+	return entries.filter((entry) => !removed.has(entry.id)).map((entry) => entry.afterId && removed.has(entry.afterId) ? { ...entry, afterId: before(entry.afterId) } : entry);
+}
 /** Sources that progress saw finished; see PlanProgress. */
 export function progressDoneKeys(plan: Pick<RevisionPlan, "progress">): ReadonlySet<string> {
 	return new Set(plan.progress?.done.map((item) => item.key) ?? []);

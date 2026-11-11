@@ -1,6 +1,6 @@
 import { migratePluginData } from "../../services/PluginDataMigration";
 import { describe, expect, it } from "vitest";
-import { emptyRevisionPlan, forecastPlan, isDate, movePlanEntry, normalizeRevisionPlans, resolvePlanSource, type PlanEntry, type WorkCandidate } from "./RevisionPlan";
+import { emptyRevisionPlan, forecastPlan, isDate, movePlanEntry, normalizeRevisionPlans, removePlanEntries, resolvePlanSource, type PlanEntry, type WorkCandidate } from "./RevisionPlan";
 const source: WorkCandidate = { kind: "pending", path: "Book/A.md", locator: "Rewrite opening", title: "Opening", detail: "A", complete: false, deferred: false };
 const entry = (id: string): PlanEntry => ({ id, source: { kind: source.kind, path: source.path, locator: source.locator }, title: id, lowMinutes: 30, highMinutes: 60, day: null, required: true, done: false, afterId: null });
 describe("Revision planning", () => {
@@ -13,6 +13,15 @@ describe("Revision planning", () => {
 		const entries = [entry("a"), entry("b"), entry("c")];
 		expect(movePlanEntry(entries, "c", "a").map((item) => item.id)).toEqual(["c", "a", "b"]);
 		expect(entries.map((item) => item.id)).toEqual(["a", "b", "c"]);
+	});
+	it("removes sessions without leaving the next one waiting on a session that is gone", () => {
+		const entries = [entry("a"), { ...entry("b"), afterId: "a" }, { ...entry("c"), afterId: "b" }, { ...entry("d"), afterId: "c" }];
+		expect(removePlanEntries(entries, (item) => item.id === "b").map((item) => [item.id, item.afterId])).toEqual([["a", null], ["c", "a"], ["d", "c"]]);
+		expect(removePlanEntries(entries, (item) => item.id === "b" || item.id === "c").map((item) => [item.id, item.afterId])).toEqual([["a", null], ["d", "a"]]);
+		// A loop among removed sessions leaves the survivor with nothing to wait on.
+		const loop = [{ ...entry("x"), afterId: "y" }, { ...entry("y"), afterId: "x" }, { ...entry("z"), afterId: "x" }];
+		expect(removePlanEntries(loop, (item) => item.id !== "z")).toEqual([{ ...entry("z"), afterId: null }]);
+		expect(entries.map((item) => item.afterId)).toEqual([null, "a", "b", "c"]);
 	});
 	it("retains unresolved work and exposes unknown estimates instead of promising a finish", () => {
 		const plan = { ...emptyRevisionPlan(), deadline: "2026-09-25", entries: [entry("a"), { ...entry("b"), lowMinutes: null, highMinutes: null }] };

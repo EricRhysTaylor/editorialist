@@ -8,7 +8,7 @@ import { nextSession } from "../core/planning/TodayAgenda";
 import { ItemView, Notice, TFile, TFolder, setIcon, type TAbstractFile, type WorkspaceLeaf } from "obsidian";
 import type EditorialistPlugin from "../main";
 import { renderPanelHeader } from "./primitives/PanelHeader";
-import { MAX_CUSHION_DAYS, emptyRevisionPlan, forecastPlan, isDate, isPlanEntryComplete, localDate, movePlanEntry, progressDoneKeys, resolvePlanSource, sourceKey, type PlanEntry, type RevisionPlan, type WorkCandidate } from "../core/planning/RevisionPlan";
+import { MAX_CUSHION_DAYS, emptyRevisionPlan, forecastPlan, isDate, isPlanEntryComplete, localDate, movePlanEntry, progressDoneKeys, removePlanEntries, resolvePlanSource, sourceKey, type PlanEntry, type RevisionPlan, type WorkCandidate } from "../core/planning/RevisionPlan";
 import { summarizePlanProgress } from "../core/planning/PlanProgress";
 import { estimateRange } from "../core/planning/AutoSchedule";
 import { type QueueHead, EditorialProjectPanel } from "./EditorialProjectPanel";
@@ -625,7 +625,7 @@ export class RevisionPlanPanel extends ItemView {
 		const index = ordered.findIndex((item) => item.id === entry.id);
 		this.button(controls, "Move up", () => { void this.change((plan) => { plan.entries = movePlanEntry(plan.entries, entry.id, ordered[index - 1]?.id ?? null); }); }, index === 0);
 		this.button(controls, "Move down", () => { void this.change((plan) => { plan.entries = movePlanEntry(plan.entries, entry.id, ordered[index + 2]?.id ?? null); }); }, index === ordered.length - 1);
-		this.button(controls, "Remove from plan", () => { void this.change((plan) => { plan.entries = plan.entries.filter((item) => item.id !== entry.id); }); });
+		this.button(controls, "Remove from plan", () => { void this.change((plan) => { plan.entries = removePlanEntries(plan.entries, (item) => item.id === entry.id); }); });
 		if (resolved.state !== "ready" && !isPlanEntryComplete(entry, this.candidates, this.doneKeys())) {
 			row.createEl("p", { cls: "editorialist-plan__warning", text: resolved.state === "ambiguous" ? "Multiple source instructions match. Make them distinct in the source, refresh, then relink." : "Source changed or is unavailable. Refresh, then relink; its estimate and date are preserved." });
 			const controls = row.createDiv({ cls: "editorialist-plan__actions editorialist-plan__relink" });

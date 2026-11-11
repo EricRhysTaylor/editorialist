@@ -1,4 +1,4 @@
-import { isDate, localDate, resolvePlanSource, sourceKey, type PlanEntry, type RevisionPlan, type WorkCandidate, type WorkKind } from "./RevisionPlan";
+import { isDate, localDate, removePlanEntries, resolvePlanSource, sourceKey, type PlanEntry, type RevisionPlan, type WorkCandidate, type WorkKind } from "./RevisionPlan";
 import { normalizeContributorValue } from "../ContributorIdentity";
 import type { ContributorProfile } from "../../models/ContributorProfile";
 import type { EditorialDelivery } from "../EditorialDeliveries";
@@ -243,10 +243,7 @@ export function removeTask(plan: RevisionPlan, id: string): void {
 	if (!project) return;
 	const source = { kind: "preparation" as const, path: project.id, locator: id };
 	project.tasks = project.tasks.filter((item) => item.id !== id);
-	const removed = new Map(plan.entries.filter((entry) => sourceKey(entry.source) === sourceKey(source)).map((entry) => [entry.id, entry.afterId]));
-	const before = (afterId: string | null): string | null => { let current = afterId; while (current && removed.has(current)) current = removed.get(current) ?? null; return current; };
-	plan.entries = plan.entries.filter((entry) => !removed.has(entry.id));
-	for (const entry of plan.entries) entry.afterId = before(entry.afterId);
+	plan.entries = removePlanEntries(plan.entries, (entry) => sourceKey(entry.source) === sourceKey(source));
 	if (plan.progress) plan.progress.open = plan.progress.open.filter((item) => item.key !== sourceKey(source));
 }
 /** The vault document an engagement task works on, through its related reference. */

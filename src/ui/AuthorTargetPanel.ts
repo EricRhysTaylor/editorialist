@@ -1,6 +1,6 @@
 import { FuzzySuggestModal, Notice, TFile, TFolder, setIcon, type App } from "obsidian";
 import { AUTHOR_PLAN_SCOPE, RT_STAGES, goalTimeline, wordProgress, type RTStage, type AuthorTarget, type WordGoal } from "../core/planning/AuthorPlan";
-import { isDate, localDate, type RevisionPlan } from "../core/planning/RevisionPlan";
+import { isDate, localDate, removePlanEntries, type RevisionPlan } from "../core/planning/RevisionPlan";
 import type { RadialBookGoals, RTDateEdit } from "../services/RadialBookGoals";
 import { ProjectDialog, area, field, select } from "./EditorialProjectPanel";
 
@@ -251,7 +251,7 @@ export class AuthorTargetPanel {
 			remove.disabled = this.host.busy;
 			remove.addEventListener("click", () => {
 				next.targets = (next.targets ?? []).filter((target) => target.id !== existing.id);
-				next.entries = next.entries.filter((entry) => entry.source.path !== AUTHOR_PLAN_SCOPE || entry.source.locator !== existing.id);
+				next.entries = removePlanEntries(next.entries, (entry) => entry.source.path === AUTHOR_PLAN_SCOPE && entry.source.locator === existing.id);
 				void this.host.save(expected, next).then(() => dialog.close()).catch((error: unknown) => new Notice(error instanceof Error ? error.message : "Could not remove this goal."));
 			});
 		} : undefined);
