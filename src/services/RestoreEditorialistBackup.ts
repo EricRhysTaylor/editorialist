@@ -17,7 +17,7 @@ export async function restoreBackupData(host: RestoreHost, data: EditorialistPlu
 	const restoring = JSON.stringify(host.snapshot());
 	try {
 		await host.save();
-	} catch (error) {
+	} catch {
 		if (JSON.stringify(host.snapshot()) !== restoring) {
 			throw new BackupRestoreSaveError("The backup could not be saved and other work changed during the restore. Restart Editorialist and check your saved work before trying again.");
 		}

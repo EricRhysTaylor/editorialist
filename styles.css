@@ -9879,12 +9879,15 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	background: var(--text-error);
 }
 
-/* A task dialog's reference fields join the dialog grid as if they were its own. */
-.editorialist-project__fieldset {
-	display: contents;
-}
-
 @media (width >= 700px) {
+	/* Keep reference fields aligned with the dialog columns. */
+	.editorialist-project-dialog .editorialist-project__fieldset {
+		display: grid;
+		grid-column: 1 / -1;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0 12px;
+	}
+
 	.editorialist-project-dialog .editorialist-project__fieldset > p {
 		grid-column: 1 / -1;
 	}
