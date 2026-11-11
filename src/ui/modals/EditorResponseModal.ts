@@ -1,6 +1,7 @@
-import { ButtonComponent, Modal, Notice, Platform, TextAreaComponent, TextComponent, setIcon, type App } from "obsidian";
+import { ButtonComponent, Modal, Notice, TextAreaComponent, TextComponent, setIcon, type App } from "obsidian";
 import type { EditorResponse, EditorResponseItem } from "../../core/review/EditorResponse";
 import type EditorialistPlugin from "../../main";
+import { desktopFileActions, revealLabel } from "../primitives/DesktopFileActions";
 
 const KINDS: Record<EditorResponseItem["kind"], { label: string; icon: string }> = {
 	comment: { label: "Comment", icon: "message-square" },
@@ -211,28 +212,4 @@ export class EditorResponseModal extends Modal {
 			});
 		}
 	}
-}
-
-interface DesktopFileActions {
-	openWithDefaultApp(path: string): void;
-	showInFolder(path: string): void;
-}
-
-// The two file actions behind Obsidian's own "Open in default app" and
-// "Reveal in Finder" menu items, present only in the desktop app.
-function desktopFileActions(app: App): DesktopFileActions | null {
-	if (!Platform.isDesktopApp) return null;
-	// SAFE: both methods exist on the desktop App but are not in the public typings.
-	const files = app as App & Partial<DesktopFileActions>;
-	if (typeof files.openWithDefaultApp !== "function" || typeof files.showInFolder !== "function") return null;
-	return {
-		openWithDefaultApp: (path) => files.openWithDefaultApp?.(path),
-		showInFolder: (path) => files.showInFolder?.(path),
-	};
-}
-
-function revealLabel(): string {
-	if (Platform.isMacOS) return "Show in Finder";
-	if (Platform.isWin) return "Show in File Explorer";
-	return "Show in folder";
 }

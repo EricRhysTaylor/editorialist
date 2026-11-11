@@ -28,11 +28,13 @@ describe("vault-wide author commitments", () => {
 		expect(draft.plan.entries.filter((entry) => entry.source.locator === "hard").every((entry) => entry.day === null)).toBe(true);
 		expect(draft.plan.entries.find((entry) => entry.source.locator === "soft")?.day).not.toBeNull();
 	});
-	it("preserves explicit reference completion on reload", () => {
+	it("preserves a document's send and due date on reload", () => {
 		let id = 0; const project = createEditorialProject("Editor", "2026-11-30", () => String(++id));
-		project.materials.push({ id: "m", title: "Reference", kind: "document", source: "", exportPath: "", milestoneId: null, required: false, requirements: [], approvedDigest: null, check: null, uploads: [], completed: true });
+		project.materials.push({ id: "m", title: "Reference", kind: "document", source: "", exportPath: "", milestoneId: null, due: "2026-11-20", required: false, requirements: [], approvedDigest: null, check: null, uploads: [] });
+		project.records.push({ id: "r", day: "2026-11-10", kind: "sent", description: "Sent", filenames: "Reference.docx", referencePath: "", materialId: "m" });
 		const plan = normalizeRevisionPlans({ version: 1, books: { book: { ...emptyRevisionPlan(), project } } }).books.book!;
-		expect(plan.project?.materials[0]?.completed).toBe(true);
+		expect(plan.project?.materials[0]?.due).toBe("2026-11-20");
+		expect(plan.project?.records[0]?.materialId).toBe("m");
 	});
 });
 

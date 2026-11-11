@@ -16,6 +16,7 @@ import { EditorialProjectService } from "../services/EditorialProjectService";
 import { cushionProgress, deadlineState, entryWorkDeadline, taskDocument } from "../core/planning/EditorialProject";
 import { renderCushionBar } from "./primitives/CushionBar";
 import { bindCompletionMenu } from "./primitives/CompletionMenu";
+import { desktopFileActions, opensInObsidian } from "./primitives/DesktopFileActions";
 
 export const REVISION_PLAN_VIEW_TYPE = "editorialist-revision-plan";
 export const AUTHOR_PLAN_VIEW_TYPE = "editorialist-author-plan";
@@ -83,10 +84,20 @@ export class RevisionPlanPanel extends ItemView {
 		const book = this.book;
 		return new EditorialProjectPanel({ app: this.app, plan: this.plan, busy: this.busy || this.stale, service: this.projectService(), deliveries: this.plugin.getEditorialDeliveries(), saveDelivery: async (delivery) => { await this.plugin.saveEditorialDelivery(delivery); }, getReviewers: () => this.plugin.getReviewerProfiles(), manageEditor: async (id) => { await this.plugin.contributors.openContributorManagementFlow(id); },
 			save: async (expected, next) => { if (!book || book !== this.scopeKey()) throw new Error("The active book changed. Reopen the project before saving."); await this.plugin.applyScheduledPlan(book, expected, next); },
-			openWorkspace: () => this.plugin.openEditorialProjectWorkspace(), openSchedule: () => { this.section = "schedule"; this.render(); }, openSource: async (path) => { const file = this.app.vault.getAbstractFileByPath(path); if (!(file instanceof TFile)) throw new Error("This file is unavailable. Check its path in material details."); await this.app.workspace.openLinkText(file.path, "", false); },
+			openWorkspace: () => this.plugin.openEditorialProjectWorkspace(), openSchedule: () => { this.section = "schedule"; this.render(); }, openSource: (path) => this.openEngagementFile(path),
 			nextInQueue: () => this.queueHead(),
 			wordCounts: this.wordCounts,
 		});
+	}
+	// A working note opens in Obsidian; a file that was sent, such as a Word
+	// file, opens in the computer's own app for it.
+	private async openEngagementFile(path: string): Promise<void> {
+		const file = this.app.vault.getAbstractFileByPath(path);
+		if (!(file instanceof TFile)) throw new Error("This file is unavailable. Check its path in the document's details.");
+		if (opensInObsidian(file.extension)) { await this.app.workspace.openLinkText(file.path, "", false); return; }
+		const files = desktopFileActions(this.app);
+		if (!files) throw new Error(`Open ${file.name} from your file manager. It is at ${file.path}.`);
+		files.openWithDefaultApp(file.path);
 	}
 	getViewType(): string { return this.author ? AUTHOR_PLAN_VIEW_TYPE : REVISION_PLAN_VIEW_TYPE; }
 	getDisplayText(): string { return this.author ? "Author planner" : "Editor engagement"; }
@@ -278,11 +289,11 @@ export class RevisionPlanPanel extends ItemView {
 
 		if (this.plan.project) {
 			const navigation = root.createDiv({ cls: "editorialist-project__tabs" });
-			for (const [value, label] of [["overview", "Overview"], ["schedule", "Schedule"], ["materials", "Materials"], ["history", "History"]] as const) { const tab = this.button(navigation, label, () => { this.section = value; this.render(); }); tab.setAttribute("aria-pressed", String(this.section === value)); }
+			for (const [value, label] of [["overview", "Overview"], ["schedule", "Schedule"], ["materials", "Documents"], ["history", "History"]] as const) { const tab = this.button(navigation, label, () => { this.section = value; this.render(); }); tab.setAttribute("aria-pressed", String(this.section === value)); }
 			if (this.section !== "schedule") {
 				for (const warning of this.warnings) root.createEl("p", { cls: "editorialist-plan__warning", text: warning });
 				const project = this.projectPanel();
-				if (this.section === "overview") project.renderOverview(root); else if (this.section === "materials") project.renderMaterials(root); else project.renderHistory(root);
+				if (this.section === "overview") project.renderOverview(root); else if (this.section === "materials") project.renderDocuments(root); else project.renderHistory(root);
 				this.restoreSections(root);
 				if (this.busy) for (const control of Array.from(root.querySelectorAll<HTMLButtonElement>("button"))) control.disabled = true;
 				container.scrollTop = scrollTop; return;

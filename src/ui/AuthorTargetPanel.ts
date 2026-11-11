@@ -247,7 +247,7 @@ export class AuthorTargetPanel {
 				await this.host.save(expected, next, edit);
 			};
 		}, "Save", existing ? (actions) => {
-			const remove = actions.createEl("button", { cls: "mod-warning editorialist-goal__remove", text: "Remove goal", attr: { type: "button" } });
+			const remove = actions.createEl("button", { cls: "mod-warning editorialist-project__remove", text: "Remove goal", attr: { type: "button" } });
 			remove.disabled = this.host.busy;
 			remove.addEventListener("click", () => {
 				next.targets = (next.targets ?? []).filter((target) => target.id !== existing.id);

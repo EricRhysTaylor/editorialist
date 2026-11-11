@@ -11,30 +11,54 @@ date and optional collaboration link. Expected and actual return dates and the
 questions window are editable. Existing feedback deliveries can be linked after
 the author imports them through the review tools.
 
-New engagements start with empty milestones, tasks, references and records.
-The author adds milestones before or after the start date. Tasks optionally
-reference an item and target a milestone or the agreed start; no selected target
-means no task deadline. The schedule's own deadline is independently editable.
-The engagement start, former readiness dates and manuscript freeze dates never
-implicitly restrict revision work or block activity recording.
+New engagements start with empty documents, tasks, milestones and records.
+The schedule's own deadline is independently editable. The engagement start,
+former readiness dates and manuscript freeze dates never implicitly restrict
+revision work or block activity recording.
 
-Overview emphasizes the editor, agreed dates, next milestone and personal work.
-Materials is an optional reference register with descriptions, vault file links,
-personal milestone targets and explicit completion/reopening. Completion records
-an author decision; it has no connection to source hashes, export checks, task
-completion or remote delivery. Schedule retains Queue, Days, capacity, reserve
-and the existing auto-scheduler preview.
+### One status per thing (project schema version 2)
+
+Each fact has one home, and every other view derives from it:
+
+- A **task** is the author's work. `done` is the only status kept by hand.
+- A **document** (`materials`) is what the author prepares for the editor. Its
+  status is its sends: the `sent` activity records whose `materialId` is the
+  document (`documentSends`). The document's `source` is the working note; the
+  file recorded on a send is the one actually sent, usually a Word file or PDF,
+  with a kept copy. There is no completion flag.
+- A **milestone** is a shared date with no status of its own. `milestoneState`
+  derives it: met once every task due on it is done and every document due on it
+  is sent; with nothing due on it, met once its day has passed.
+
+A task or document is due on its own `due`, on a milestone (`milestoneId`), or
+at the engagement start (`milestoneId: "__start__"`, aimed at the cushion early
+like other promises to the editor). A task with neither is due with its document
+(`taskDue`). Deleting a milestone moves its date onto what was due on it;
+deleting a document keeps its tasks (with the date they had through it) and
+unlinks its sends; deleting a task removes its plan entries.
+
+Version 1 kept a `done` flag on milestones and a `completed` flag on materials.
+Normalizing version 1 drops both and stamps version 2; an older plugin refuses a
+version 2 engagement rather than saving over the new fields.
+
+Overview shows the editor, agreed dates and Next up, then Documents (each card
+holds the document's tasks and sends), Other tasks (tasks with no document) and
+Milestones. Schedule retains Queue, Days, capacity, reserve and the existing
+auto-scheduler preview.
 
 History contains author-recorded sent/received activity and notes. A record needs
-only an activity date and description; filenames and vault references are
-optional. Future activity belongs in the schedule rather than historical records.
+only an activity date and description; its document, filenames, a vault file or a
+file chosen from the computer are optional. A file from the computer is always
+kept as a copy, since the vault has no other reference to it. Records can be
+deleted; their kept copies stay. Future activity belongs in the schedule rather
+than historical records.
 Authors can correct records, retaining their original archived copy. Live vault
 references follow file renames; historical filenames and archive evidence do not.
 Missing original references do not prevent correcting an existing record.
 
 ## Optional reference archive
 
-On explicit request, a record can preserve a single saved vault file under
+A record can preserve a single file, from the vault or the computer, under
 `Editorialist/Engagement history/<project-id>/<unique-id>/`. Any file type is
 allowed within a 64 MB limit. The service copies saved bytes and checks that the
 copy was saved intact. It never assembles manuscript scenes, prepares packages,

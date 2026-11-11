@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { collaborationUrl, createEditorialProject, cushionProgress, engagementPhases, engagementReturned, engagementStartCountdown, isEngagementDelivery, entryWorkDeadline, isProjectEditorProfile, normalizeEditorialProject, preparationWork, projectEditor, shiftDate, taskDocument, type MaterialCheck } from "./EditorialProject";
+import { ENGAGEMENT_START, collaborationUrl, createEditorialProject, cushionProgress, documentDue, documentSends, engagementPhases, engagementReturned, engagementStartCountdown, isEngagementDelivery, entryWorkDeadline, isProjectEditorProfile, milestoneState, normalizeEditorialProject, preparationWork, projectEditor, removeDocument, removeMilestone, removeTask, shiftDate, taskDocument, taskDue, type MaterialCheck } from "./EditorialProject";
 import type { ContributorProfile } from "../../models/ContributorProfile";
 import { emptyRevisionPlan, normalizeRevisionPlans } from "./RevisionPlan";
 import { draftSchedule } from "./AutoSchedule";
@@ -45,14 +45,14 @@ describe("Editorial preparation project", () => {
 		const store = { version: 1, books: { a: { ...emptyRevisionPlan(), project: p }, b: emptyRevisionPlan() } }; expect(normalizeRevisionPlans(store)).toEqual(store);
 	});
 	it("fails clearly instead of dropping invalid activity records", () => { const p = project(); expect(() => normalizeEditorialProject({ ...p, records: [{ id: "r", day: "bad" }] })).toThrow(/record/); });
-	it("rejects unsupported project schemas rather than erasing them", () => { expect(() => normalizeEditorialProject({ ...project(), version: 2 })).toThrow(/Unsupported/); });
+	it("rejects unsupported project schemas rather than erasing them", () => { expect(() => normalizeEditorialProject({ ...project(), version: 3 })).toThrow(/Unsupported/); });
 	it("keeps schedule deadlines independent of the engagement start and former readiness date", () => {
 		const p = project(); p.readinessDate = "2026-11-23";
 		const plan = normalizeRevisionPlans({ version: 1, books: { a: { ...emptyRevisionPlan(), project: p, deadline: "2027-03-01" } } }).books.a!;
 		expect(plan.deadline).toBe("2027-03-01"); expect(entryWorkDeadline(plan, { required: true, source: { kind: "pending", path: "Book/1.md", locator: "fix" } }, [])?.due).toBe("2027-03-01");
 	});
 	it("uses only the task's explicit milestone or start-date target", () => {
-		const p = project(); p.milestones.push({ id: "after", title: "Discuss feedback", day: "2027-01-20", done: false });
+		const p = project(); p.milestones.push({ id: "after", title: "Discuss feedback", day: "2027-01-20" });
 		p.tasks.push({ id: "t1", title: "General work", materialId: null, milestoneId: null, done: false }, { id: "t2", title: "Discuss", materialId: null, milestoneId: "after", done: false }, { id: "t3", title: "Before start", materialId: null, milestoneId: "__start__", done: false });
 		expect(preparationWork(p).map((item) => item.due)).toEqual([undefined, "2027-01-20", "2026-11-30"]);
 		expect(preparationWork(p).map((item) => item.ownTarget ?? false)).toEqual([false, true, false]);
@@ -99,6 +99,58 @@ describe("Editorial preparation project", () => {
 	});
 	it("refuses unsafe collaboration URLs", () => { expect(collaborationUrl("https://reedsy.com/collaborations/123")).toBe("https://reedsy.com/collaborations/123"); for (const url of ["javascript:alert(1)", "http://example.com", "https://user:secret@example.com"]) expect(() => collaborationUrl(url)).toThrow(); });
 	it("rejects unsafe storage identities", () => { expect(() => normalizeEditorialProject({ ...project(), id: "../outside" })).toThrow(/identity/); });
+});
+
+describe("one status per thing", () => {
+	function engagement() {
+		const p = project();
+		p.milestones.push({ id: "letter", title: "Query letter drafted", day: "2026-11-09" }, { id: "freeze", title: "Manuscript frozen", day: "2026-11-16" }, { id: "call", title: "Call with editor", day: "2026-11-05" });
+		p.materials.push({ id: "query", title: "Query letter", kind: "document", required: false, source: "Publisher/Query Letter.md", exportPath: "", milestoneId: "letter", requirements: [], approvedDigest: null, check: null, uploads: [] });
+		p.tasks.push({ id: "draft", title: "Draft query letter", materialId: "query", milestoneId: null, done: true }, { id: "upload", title: "Upload files", materialId: null, milestoneId: null, due: "2026-11-20", done: false });
+		return p;
+	}
+	it("loads a version 1 engagement without its hand-kept milestone and document statuses", () => {
+		const v1 = { ...engagement(), version: 1, milestones: [{ id: "letter", title: "Query letter drafted", day: "2026-11-09", done: true }], materials: [{ ...engagement().materials[0], completed: true }] };
+		const loaded = normalizeEditorialProject(JSON.parse(JSON.stringify(v1)))!;
+		expect(loaded.version).toBe(2);
+		expect(loaded.milestones[0]).toEqual({ id: "letter", title: "Query letter drafted", day: "2026-11-09" });
+		expect(loaded.materials[0]).not.toHaveProperty("completed");
+	});
+	it("round trips own due dates and a send's document", () => {
+		const p = engagement(); p.records.push({ id: "sent", day: "2026-11-09", kind: "sent", description: "Sent to Morgan Lee", filenames: "Query letter.docx", referencePath: "", archive: { copy: "Editorialist/Engagement history/x/Query letter.docx", digest: hash }, materialId: "query" });
+		expect(normalizeEditorialProject(JSON.parse(JSON.stringify(p)))).toEqual(p);
+	});
+	it("dates a task by its own date, else by its document's", () => {
+		const p = engagement();
+		expect(taskDue(p, p.tasks[0]!)).toEqual({ day: "2026-11-09", start: false, milestoneId: "letter" });
+		expect(taskDue(p, p.tasks[1]!)).toEqual({ day: "2026-11-20", start: false, milestoneId: null });
+		p.tasks[0]!.milestoneId = ENGAGEMENT_START;
+		expect(taskDue(p, p.tasks[0]!)).toEqual({ day: "2026-11-30", start: true, milestoneId: null });
+		expect(documentDue(p, p.materials[0]!)?.day).toBe("2026-11-09");
+	});
+	it("meets a milestone once what is due on it is done and sent, and a bare one once it passes", () => {
+		const p = engagement();
+		const letter = p.milestones[0]!, call = p.milestones[2]!;
+		expect(milestoneState(p, letter, "2026-11-10")).toEqual({ done: false, open: ["Query letter not sent"], total: 2 });
+		p.records.push({ id: "older", day: "2026-11-08", kind: "sent", description: "First draft", filenames: "", referencePath: "", materialId: "query" }, { id: "newer", day: "2026-11-09", kind: "sent", description: "Final", filenames: "", referencePath: "", materialId: "query" }, { id: "other", day: "2026-11-09", kind: "received", description: "Reply", filenames: "", referencePath: "", materialId: "query" });
+		expect(documentSends(p, "query").map((item) => item.id)).toEqual(["newer", "older"]);
+		expect(milestoneState(p, letter, "2026-11-10")).toEqual({ done: true, open: [], total: 2 });
+		expect(milestoneState(p, call, "2026-11-05").done).toBe(false);
+		expect(milestoneState(p, call, "2026-11-06").done).toBe(true);
+	});
+	it("keeps dates and history when a milestone, document or task is deleted", () => {
+		const p = engagement(); p.records.push({ id: "sent", day: "2026-11-09", kind: "sent", description: "Sent", filenames: "", referencePath: "", materialId: "query" });
+		removeMilestone(p, "letter");
+		expect(p.materials[0]).toMatchObject({ milestoneId: null, due: "2026-11-09" });
+		expect(taskDue(p, p.tasks[0]!)?.day).toBe("2026-11-09");
+		removeDocument(p, "query");
+		expect(p.tasks[0]).toMatchObject({ materialId: null, milestoneId: null, due: "2026-11-09" });
+		expect(p.records[0]).not.toHaveProperty("materialId");
+		const plan = { ...emptyRevisionPlan(), project: p, entries: [{ id: "e", source: { kind: "preparation" as const, path: p.id, locator: "upload" }, title: "Upload files", day: null, lowMinutes: null, highMinutes: null, required: true, done: false, afterId: null }] };
+		removeTask(plan, "upload");
+		expect(p.tasks.map((item) => item.id)).toEqual(["draft"]);
+		expect(plan.entries).toEqual([]);
+	});
 });
 
 describe("taskDocument and word limits", () => {
