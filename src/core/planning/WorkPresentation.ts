@@ -8,8 +8,13 @@ export function planDayLabel(day: string): string {
 	return new Date(`${day}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-/** "Aim Nov 20 · Due Dec 4"; just the due date when there is no cushion or the deadline has passed. */
-export function deadlineLabel(deadline: { due: string; aim: string }, late = false): string {
+/**
+ * "Aim Nov 20 · Due Dec 4"; just the due date when there is no cushion or the
+ * deadline has passed. A date from the plan's schedule deadline says so, since
+ * it is set in the plan, not on the work.
+ */
+export function deadlineLabel(deadline: { due: string; aim: string; schedule?: true }, late = false): string {
+	if (deadline.schedule) return `Schedule deadline ${planDayLabel(deadline.due)}`;
 	return deadline.aim < deadline.due && !late ? `Aim ${planDayLabel(deadline.aim)} · Due ${planDayLabel(deadline.due)}` : `Due ${planDayLabel(deadline.due)}`;
 }
 

@@ -35,7 +35,9 @@ export function estimateRange(candidate: WorkCandidate): { low: number; high: nu
 export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandidate[], options: ScheduleOptions, makeId: () => string): ScheduleDraft {
 	if (!isDate(options.start) || !isDate(options.end) || options.end < options.start) throw new Error("Choose a valid planning window.");
 	if (options.sessionMinutes < 15 || options.sessionMinutes > 240 || !Number.isInteger(options.sessionMinutes)) throw new Error("Session length must be 15–240 minutes.");
-	const deadlines = [options.end, plan.deadline, ...candidates.filter((item) => options.deliveryId !== null && item.deliveryId === options.deliveryId).map((item) => item.due)].filter((day): day is string => Boolean(day));
+	// The schedule deadline is not a window cap: it binds only work without a
+	// date of its own, which entryWorkDeadline applies per entry below.
+	const deadlines = [options.end, ...candidates.filter((item) => options.deliveryId !== null && item.deliveryId === options.deliveryId).map((item) => item.due)].filter((day): day is string => Boolean(day));
 	const effectiveEnd = deadlines.sort()[0]!;
 	const days: string[] = [];
 	for (let day = options.start; day <= effectiveEnd && days.length <= 366; day = addDays(day, 1)) days.push(day);

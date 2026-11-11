@@ -557,7 +557,8 @@ export class RevisionPlanPanel extends ItemView {
 			const state = deadlineState(deadline, entry.day ?? today);
 			const timing = main.createDiv({ cls: `editorialist-plan__deadline${state === "late" ? " is-late" : state === "cushion" ? " is-cushion" : ""}` });
 			setIcon(timing.createSpan({ cls: "editorialist-plan__deadline-icon", attr: { "aria-hidden": "true" } }), state === "on-track" ? "flag" : "alert-triangle");
-			timing.createSpan({ text: state === "late" ? `${entry.day ? "Scheduled after its deadline" : "Past its deadline"} · ${deadlineLabel(deadline, true)}` : state === "cushion" ? `${entry.day ? "Scheduled" : "Now"} inside your cushion · ${deadlineLabel(deadline)}` : deadlineLabel(deadline) });
+			// Name which date it is: the work's own, or the plan's schedule deadline.
+			timing.createSpan({ text: state === "late" ? `${entry.day ? "Scheduled after" : "Past"} ${deadline.schedule ? `your schedule deadline · ${planDayLabel(deadline.due)}` : `its deadline · ${deadlineLabel(deadline, true)}`}` : state === "cushion" ? `${entry.day ? "Scheduled" : "Now"} inside your cushion · ${deadlineLabel(deadline)}` : deadlineLabel(deadline) });
 		}
 		if (barShown) renderCushionBar(main, deadline, today);
 
@@ -588,7 +589,15 @@ export class RevisionPlanPanel extends ItemView {
 		this.input(fields, "Low minutes", "number", entry.lowMinutes === null ? "" : String(entry.lowMinutes), (value) => { void this.edit(entry.id, (item) => { item.lowMinutes = value === "" ? null : Number(value); }); });
 		this.input(fields, "High minutes", "number", entry.highMinutes === null ? "" : String(entry.highMinutes), (value) => { void this.edit(entry.id, (item) => { item.highMinutes = value === "" ? null : Number(value); }); });
 		if (resolved.state === "ready" && resolved.candidate.suggestedMinutes !== undefined) details.createEl("p", { cls: "editorialist-plan__hint", text: `Suggested estimate: about ${Math.round(resolved.candidate.suggestedMinutes)} min. Enter your own range; this is not measured editing time.` });
-		const required = this.input(details, "Required for deadline", "checkbox", "", () => { void this.edit(entry.id, (item) => { item.required = required.checked; }); });
+		// A session is planning around a task; the task's own target date and
+		// document live on the engagement task, so say where and link to it.
+		const task = entry.source.kind === "preparation" && this.plan.project && entry.source.path === this.plan.project.id ? this.plan.project.tasks.find((item) => item.id === entry.source.locator) : undefined;
+		if (task) {
+			const owner = details.createDiv({ cls: "editorialist-plan__task-owner" });
+			owner.createSpan({ cls: "editorialist-plan__hint", text: "The target date and document are set on the engagement task." });
+			this.button(owner, "Edit task", () => this.projectPanel().editTask(task.id));
+		}
+		const required = this.input(details, deadline?.schedule || !deadline ? "Required by the schedule deadline" : "Required work", "checkbox", "", () => { void this.edit(entry.id, (item) => { item.required = required.checked; }); });
 		required.checked = entry.required;
 		const locked = this.input(details, "Keep this date", "checkbox", "", () => { void this.edit(entry.id, (item) => { item.locked = locked.checked; }); });
 		locked.checked = entry.locked === true;

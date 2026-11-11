@@ -2,10 +2,11 @@ import { renderWordLimit } from "./primitives/WordLimitBar";
 import { setAccessibleLabel } from "./primitives/AccessibleLabel";
 import { bindCompletionMenu } from "./primitives/CompletionMenu";
 import { Modal, Notice, TFile, normalizePath, setIcon, type App } from "obsidian";
-import { candidateDeadline, collaborationUrl, createEditorialProject, deadlineState, engagementReturned, engagementStartCountdown, isProjectEditorProfile, materialDue, projectEditor, recordProjectEvent, shiftDate, type EditorialProject, type EngagementRecord, type EngagementTask, type ProjectMaterial } from "../core/planning/EditorialProject";
+import { MAX_AGREEMENT_LENGTH, candidateDeadline, collaborationUrl, createEditorialProject, deadlineState, engagementPhases, engagementReturned, engagementStartCountdown, isProjectEditorProfile, materialDue, projectEditor, recordProjectEvent, shiftDate, type EditorialProject, type EngagementRecord, type EngagementTask, type ProjectMaterial } from "../core/planning/EditorialProject";
 import { isDate, localDate, type RevisionPlan } from "../core/planning/RevisionPlan";
 import { deadlineLabel, planDayLabel } from "../core/planning/WorkPresentation";
 import { renderCushionBar } from "./primitives/CushionBar";
+import { renderEngagementPhaseBar } from "./primitives/EngagementPhaseBar";
 
 import type { EditorialDelivery } from "../core/EditorialDeliveries";
 import type { EditorialProjectService } from "../services/EditorialProjectService";
@@ -177,12 +178,40 @@ export class EditorialProjectPanel {
 			heading.createSpan({ cls: "editorialist-project__hint", text: `${returned ? "Returned" : "Expected return"} · ${dayLabel(returnDate)}` });
 			setIcon(summary.createSpan({ cls: "editorialist-panel__disclosure-caret", attr: { "aria-hidden": "true" } }), "chevron-right");
 			const body = returnInfo.createDiv({ cls: "editorialist-project__return-body" });
-			body.createEl("p", { text: returned ? `Questions due ${dayLabel(shiftDate(returned, project.questionsDays))} · ${project.questionsDays} days after actual return.` : `${project.questionsDays} days for questions after actual return. Return not yet recorded.` });
+			const phases = engagementPhases(project, returned ?? null, today);
+			if (phases) renderEngagementPhaseBar(body, phases, today);
+			// The bar's legend carries the dates; the note says only what moves them.
+			if (phases) { if (!returned) body.createEl("p", { cls: "editorialist-project__hint", text: `Return not yet recorded. Your ${project.questionsDays} days for questions start from the actual return.` }); }
+			else body.createEl("p", { text: returned ? `Questions due ${dayLabel(shiftDate(returned, project.questionsDays))} · ${project.questionsDays} days after actual return.` : `${project.questionsDays} days for questions after actual return. Return not yet recorded.` });
 			if (project.deliveryId) body.createEl("p", { text: `Feedback: ${this.host.deliveries.find((item) => item.id === project.deliveryId)?.title ?? "Linked feedback unavailable"}` });
 			button(body, "Update return dates", () => this.setup());
 		}
 		this.renderTasks(root); this.renderMilestones(root);
 		this.renderMaterials(section(root, "materials", "folder-open", "Materials & references", project.materials.filter((item) => !item.completed).length), true);
+		this.renderAgreement(root, project);
+	}
+	// The conversation that set up the engagement, pasted once so the quote,
+	// scope and dates are a click away instead of in the editor's own site.
+	// Collapsed by default: it is for an occasional refresh, not daily work.
+	private renderAgreement(root: HTMLElement, project: EditorialProject): void {
+		const body = section(root, "agreement", "messages-square", "Agreement conversation", 0, false);
+		if (project.agreement) body.createDiv({ cls: "editorialist-project__agreement", text: project.agreement });
+		else body.createEl("p", { cls: "editorialist-project__hint", text: "Paste the messages that led to this engagement, such as the quote, what is included and the dates you agreed, so you can look back without opening your editor's site." });
+		button(body, project.agreement ? "Edit conversation" : "Paste conversation", () => this.editAgreement());
+	}
+	private editAgreement(): void {
+		const expected = structuredClone(this.host.plan), next = structuredClone(expected), draft = next.project!;
+		new ProjectDialog(this.host.app, "Agreement conversation", (form) => {
+			const text = area(form, "Conversation", draft.agreement ?? "");
+			text.rows = 16; text.maxLength = MAX_AGREEMENT_LENGTH;
+			text.addClass("editorialist-project__agreement-input");
+			return async () => {
+				const value = text.value.trim();
+				if (value) draft.agreement = value; else delete draft.agreement;
+				recordProjectEvent(draft, value ? "Agreement conversation saved" : "Agreement conversation cleared");
+				await this.host.save(expected, next);
+			};
+		}).open();
 	}
 	// What an author opening the engagement on any given day needs first: the
 	// next thing to work on and the next date that matters. "Next" follows
@@ -381,7 +410,7 @@ export class EditorialProjectPanel {
 		button(actions, "Add task", () => this.editTask()).addClass("editorialist-project__add");
 		button(actions, "Schedule work", () => this.host.openSchedule());
 	}
-	private editTask(id?: string): void {
+	editTask(id?: string): void {
 		const expected = structuredClone(this.host.plan), next = structuredClone(expected), draft = next.project!;
 		const task = id ? draft.tasks.find((item) => item.id === id)! : { id: crypto.randomUUID(), title: "", materialId: null, milestoneId: null, done: false };
 		new ProjectDialog(this.host.app, id ? "Edit engagement task" : "Add engagement task", (form) => {

@@ -58,6 +58,8 @@ export interface EditorialProject {
 	title: string;
 	editor: string;
 	collaborationUrl: string;
+	/** The author's pasted copy of the conversation that led to the engagement: quote, scope, dates. */
+	agreement?: string;
 	/** Historical date retained with earlier preparation evidence; never a scheduling gate. */
 	readinessDate?: string;
 	submissionDate: string;
@@ -104,6 +106,8 @@ export function isEngagementDelivery(project: EditorialProject, delivery: Editor
 	return names.includes(normalizeContributorValue(delivery.reviewer));
 }
 
+/** A pasted conversation, not a document store: enough for a long email thread. */
+export const MAX_AGREEMENT_LENGTH = 50000;
 export function shiftDate(day: string, offset: number): string {
 	if (!isDate(day)) throw new Error("Choose a valid date.");
 	return new Date(Date.parse(`${day}T00:00:00Z`) + offset * 86400000).toISOString().slice(0, 10);
@@ -143,9 +147,14 @@ export function preparationWork(project: EditorialProject): WorkCandidate[] {
 		return { kind: "preparation", path: project.id, locator: task.id, title: task.title, detail: [project.title, milestone?.title].filter(Boolean).join(" · "), ...(due ? { due } : {}), ...(due && !start ? { ownTarget: true } : {}), complete: task.done, deferred: false };
 	});
 }
-/** Only the author's explicit schedule deadline and the task's selected milestone constrain work. */
+/**
+ * Work with a date of its own (a milestone, the engagement start, an editor's
+ * return deadline) is due on that date; the plan's schedule deadline covers
+ * only required work that has none. The more specific date wins, so changing
+ * a task's target is never silently overruled by a date set elsewhere.
+ */
 export function workDeadline(plan: RevisionPlan, _kind: WorkKind, due: string | null | undefined, required = true): string | null {
-	return [required ? plan.deadline : null, due].filter((day): day is string => Boolean(day)).sort()[0] ?? null;
+	return due || (required ? plan.deadline : null);
 }
 /**
  * A promise to an editor, an engagement's start date or a delivery's return
@@ -153,18 +162,22 @@ export function workDeadline(plan: RevisionPlan, _kind: WorkKind, due: string | 
  * targets, goals, milestones and the schedule deadline, are aimed at as set,
  * since they are already early. The hard date never moves.
  */
-export interface WorkDeadline { due: string; aim: string }
+export interface WorkDeadline {
+	due: string;
+	aim: string;
+	/** Set when the date is the plan's schedule deadline rather than the work's own. */
+	schedule?: true;
+}
 export function candidateDeadline(plan: Pick<RevisionPlan, "cushionDays">, candidate: Pick<WorkCandidate, "due" | "path" | "ownTarget">): WorkDeadline | null {
 	if (!candidate.due) return null;
 	return { due: candidate.due, aim: candidate.path === AUTHOR_PLAN_SCOPE || candidate.ownTarget ? candidate.due : shiftDate(candidate.due, -plan.cushionDays) };
 }
-/** The earliest of the entry's source deadline and, when required, the plan's own deadline. */
+/** The work's own date when it has one; otherwise, when required, the plan's schedule deadline (see workDeadline). */
 export function entryWorkDeadline(plan: RevisionPlan, entry: Pick<PlanEntry, "source" | "required">, candidates: readonly WorkCandidate[]): WorkDeadline | null {
 	const source = resolvePlanSource(entry.source, candidates);
-	const own = entry.required && plan.deadline ? { due: plan.deadline, aim: plan.deadline } : null;
-	const editor = source.state === "ready" ? candidateDeadline(plan, source.candidate) : null;
-	if (!own || !editor) return own ?? editor;
-	return { due: own.due < editor.due ? own.due : editor.due, aim: own.aim < editor.aim ? own.aim : editor.aim };
+	const own = source.state === "ready" ? candidateDeadline(plan, source.candidate) : null;
+	if (own) return own;
+	return entry.required && plan.deadline ? { due: plan.deadline, aim: plan.deadline, schedule: true } : null;
 }
 /** Where a piece of work stands against its aim and deadline on a given day. */
 export function deadlineState(deadline: WorkDeadline, day: string): "on-track" | "cushion" | "late" {
@@ -176,6 +189,21 @@ export function cushionProgress(deadline: WorkDeadline, day: string): { used: nu
 	const span = (from: string, to: string) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000);
 	const total = span(deadline.aim, deadline.due), used = span(deadline.aim, day);
 	return { used, total, left: total - used };
+}
+/**
+ * The engagement's two stretches: the editor's, from the start date to their
+ * return, then the author's question window after it. The return is the
+ * recorded one when there is one, otherwise the expected date.
+ */
+export interface EngagementPhases { start: string; returned: string; questionsEnd: string; returnRecorded: boolean; phase: "before" | "editing" | "questions" | "done"; daysLeft: number }
+export function engagementPhases(project: Pick<EditorialProject, "submissionDate" | "questionsDays" | "expectedReturn">, actualReturn: string | null, day: string): EngagementPhases | null {
+	const returned = actualReturn ?? project.expectedReturn;
+	if (!returned || returned < project.submissionDate) return null;
+	const questionsEnd = shiftDate(returned, project.questionsDays);
+	const span = (to: string) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${day}T00:00:00Z`)) / 86400000);
+	const phase = day < project.submissionDate ? "before" : day <= returned ? "editing" : day <= questionsEnd ? "questions" : "done";
+	const daysLeft = phase === "before" ? span(project.submissionDate) : phase === "editing" ? span(returned) : phase === "questions" ? span(questionsEnd) : 0;
+	return { start: project.submissionDate, returned, questionsEnd, returnRecorded: actualReturn !== null, phase, daysLeft };
 }
 export function recordProjectEvent(project: EditorialProject, text: string, at = new Date().toISOString()): void { project.history.push({ at, text }); }
 
@@ -207,7 +235,7 @@ export function normalizeEditorialProject(raw: unknown): EditorialProject | unde
 		return [{ ...(str(item.notes) ? { notes: str(item.notes) } : {}), ...(item.completed === true ? { completed: true } : {}), id: str(item.id), title: str(item.title), kind: item.kind as ProjectMaterial["kind"], required: item.required !== false, source: str(item.source), exportPath: str(item.exportPath), milestoneId: str(item.milestoneId) || null, requirements: texts(item.requirements), approvedDigest: digest(item.approvedDigest), check: normalizeCheck(item.check), uploads, ...(item.frozenSources !== undefined ? { frozenSources } : {}), ...(typeof item.wordCount === "number" && Number.isInteger(item.wordCount) && item.wordCount > 0 ? { wordCount: item.wordCount } : {}), ...(typeof item.wordLimit === "number" && Number.isInteger(item.wordLimit) && item.wordLimit > 0 ? { wordLimit: item.wordLimit } : {}) }];
 	}));
 	const tasks = unique(list(data.tasks).flatMap((value): EngagementTask[] => { const item = record(value); return item && str(item.id) && str(item.title) ? [{ id: str(item.id), title: str(item.title), materialId: str(item.materialId) || null, milestoneId: str(item.milestoneId) || null, done: item.done === true }] : []; }));
-	return { records: normalizeEngagementRecords(data.records), version: 1, id: str(data.id), title: str(data.title) || "Editorial project", editor: str(data.editor), ...(str(data.reviewerId) ? { reviewerId: str(data.reviewerId) } : {}), collaborationUrl: collaborationUrl(str(data.collaborationUrl)), ...(isDate(data.readinessDate) ? { readinessDate: data.readinessDate } : {}), submissionDate: data.submissionDate, expectedReturn: isDate(data.expectedReturn) ? data.expectedReturn : null, actualReturn: isDate(data.actualReturn) ? data.actualReturn : null, questionsDays: typeof data.questionsDays === "number" && Number.isFinite(data.questionsDays) ? Math.max(0, Math.min(365, Math.round(data.questionsDays))) : 10, deliveryId: str(data.deliveryId) || null, milestones, materials, tasks, history: list(data.history).flatMap((value): ProjectEvent[] => { const item = record(value); return item && stamp(item.at) && str(item.text) ? [{ at: stamp(item.at), text: str(item.text) }] : []; }) };
+	return { records: normalizeEngagementRecords(data.records), version: 1, id: str(data.id), title: str(data.title) || "Editorial project", editor: str(data.editor), ...(str(data.reviewerId) ? { reviewerId: str(data.reviewerId) } : {}), collaborationUrl: collaborationUrl(str(data.collaborationUrl)), ...(str(data.agreement) ? { agreement: str(data.agreement).slice(0, MAX_AGREEMENT_LENGTH) } : {}), ...(isDate(data.readinessDate) ? { readinessDate: data.readinessDate } : {}), submissionDate: data.submissionDate, expectedReturn: isDate(data.expectedReturn) ? data.expectedReturn : null, actualReturn: isDate(data.actualReturn) ? data.actualReturn : null, questionsDays: typeof data.questionsDays === "number" && Number.isFinite(data.questionsDays) ? Math.max(0, Math.min(365, Math.round(data.questionsDays))) : 10, deliveryId: str(data.deliveryId) || null, milestones, materials, tasks, history: list(data.history).flatMap((value): ProjectEvent[] => { const item = record(value); return item && stamp(item.at) && str(item.text) ? [{ at: stamp(item.at), text: str(item.text) }] : []; }) };
 }
 
 function normalizeEngagementRecords(raw: unknown): EngagementRecord[] {

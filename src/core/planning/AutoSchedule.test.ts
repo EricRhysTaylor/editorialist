@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { draftSchedule, type ScheduleOptions } from "./AutoSchedule";
 import { AUTHOR_PLAN_SCOPE } from "./AuthorPlan";
-import { candidateDeadline } from "./EditorialProject";
+import { candidateDeadline, entryWorkDeadline } from "./EditorialProject";
 import { emptyRevisionPlan, forecastPlan, isPlanEntryComplete, normalizeRevisionPlans, sourceKey, type PlanEntry, type WorkCandidate } from "./RevisionPlan";
 const candidate = (id: string, extra: Partial<WorkCandidate> = {}): WorkCandidate => ({ kind: "directive", path: "Agenda.md", locator: id, title: `Rewrite ${id}`, detail: id, sceneOrder: id, complete: false, deferred: false, deliveryId: "delivery", suggestedMinutes: 48, ...extra });
 const options = (extra: Partial<ScheduleOptions> = {}): ScheduleOptions => ({ deliveryId: "delivery", preset: "mixed", sessionMinutes: 60, useEstimates: true, start: "2026-09-21", end: "2026-09-25", replan: false, choices: {}, ...extra });
@@ -47,6 +47,17 @@ describe("Automatic delivery scheduling", () => {
 		expect(late.cushion[0]!.reason).toContain("11 days before");
 		expect(late.cushion[0]!.reason).toContain("not 14");
 		expect(late.issues.some((issue) => issue.reason.includes("Does not fit"))).toBe(false);
+	});
+	it("lets work's own date win over the schedule deadline, which covers only undated work", () => {
+		const plan = { ...emptyRevisionPlan(), deadline: "2026-10-31" };
+		const dated = candidate("dated", { due: "2026-11-30" }), undated = candidate("undated");
+		expect(entryWorkDeadline(plan, entry("a", { source: dated }), [dated])).toEqual({ due: "2026-11-30", aim: "2026-11-16" });
+		expect(entryWorkDeadline(plan, entry("b", { source: undated }), [undated])).toEqual({ due: "2026-10-31", aim: "2026-10-31", schedule: true });
+		expect(entryWorkDeadline(plan, entry("c", { source: undated, required: false }), [undated])).toBeNull();
+		// The schedule deadline no longer cuts the window short for dated work.
+		const busy = { ...plan, entries: ["2026-10-30", "2026-10-31"].map((day) => entry(`fixed-${day}`, { day, highMinutes: 120 })) };
+		const result = run(busy, [dated], options({ start: "2026-10-30", end: "2026-11-30" }));
+		expect(result.generated[0]!.day).toBe("2026-11-02");
 	});
 	it("gives the author's own goals no cushion", () => {
 		const goal = candidate("goal", { path: AUTHOR_PLAN_SCOPE, due: "2026-09-25" });

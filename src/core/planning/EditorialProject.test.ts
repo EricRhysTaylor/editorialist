@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { collaborationUrl, createEditorialProject, cushionProgress, engagementReturned, engagementStartCountdown, isEngagementDelivery, entryWorkDeadline, isProjectEditorProfile, normalizeEditorialProject, preparationWork, projectEditor, shiftDate, taskDocument, type MaterialCheck } from "./EditorialProject";
+import { collaborationUrl, createEditorialProject, cushionProgress, engagementPhases, engagementReturned, engagementStartCountdown, isEngagementDelivery, entryWorkDeadline, isProjectEditorProfile, normalizeEditorialProject, preparationWork, projectEditor, shiftDate, taskDocument, type MaterialCheck } from "./EditorialProject";
 import type { ContributorProfile } from "../../models/ContributorProfile";
 import { emptyRevisionPlan, normalizeRevisionPlans } from "./RevisionPlan";
 import { draftSchedule } from "./AutoSchedule";
@@ -59,6 +59,21 @@ describe("Editorial preparation project", () => {
 		const candidate = preparationWork(p)[1]!;
 		const result = draftSchedule({ ...emptyRevisionPlan(), project: p }, [candidate], { preset: "developmental", sessionMinutes: 60, useEstimates: false, deliveryId: null, start: "2027-01-12", end: "2027-01-20", replan: false, choices: { [JSON.stringify([candidate.kind, candidate.path, candidate.locator])]: { low: 30, high: 60 } } }, () => "session");
 		expect(result.generated[0]!.day).not.toBeNull();
+	});
+	it("keeps a pasted agreement conversation with its line breaks, and drops an empty one", () => {
+		const raw = { ...project(), agreement: "  Editor\nOct 2 – 6:05am\nBooked until November.\n\nAuthor\nYes, please.  " };
+		expect(normalizeEditorialProject(raw)?.agreement).toBe("Editor\nOct 2 – 6:05am\nBooked until November.\n\nAuthor\nYes, please.");
+		expect(normalizeEditorialProject({ ...project(), agreement: "   " })).not.toHaveProperty("agreement");
+		expect(normalizeEditorialProject({ ...project(), agreement: "x".repeat(60000) })?.agreement).toHaveLength(50000);
+	});
+	it("splits the engagement into the editor's stretch and the author's questions", () => {
+		const p = { submissionDate: "2026-11-30", questionsDays: 10, expectedReturn: "2027-01-11" };
+		expect(engagementPhases(p, null, "2026-11-11")).toMatchObject({ phase: "before", daysLeft: 19, questionsEnd: "2027-01-21", returnRecorded: false });
+		expect(engagementPhases(p, null, "2027-01-01")).toMatchObject({ phase: "editing", daysLeft: 10 });
+		// A recorded return moves the question window with it.
+		expect(engagementPhases(p, "2027-01-05", "2027-01-08")).toMatchObject({ phase: "questions", returned: "2027-01-05", questionsEnd: "2027-01-15", daysLeft: 7, returnRecorded: true });
+		expect(engagementPhases(p, "2027-01-05", "2027-01-16")).toMatchObject({ phase: "done", daysLeft: 0 });
+		expect(engagementPhases({ ...p, expectedReturn: null }, null, "2026-11-11")).toBeNull();
 	});
 	it("measures the cushion only between the aim and the deadline", () => {
 		const deadline = { aim: "2026-11-06", due: "2026-11-20" };

@@ -8433,6 +8433,146 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	margin-bottom: 0;
 }
 
+/* A pasted conversation keeps its line breaks and scrolls inside the section. */
+.editorialist-project__agreement {
+	max-height: 320px;
+	margin: 0 0 10px;
+	padding: 10px 12px;
+	overflow-y: auto;
+	border-radius: 6px;
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	font-size: var(--font-small);
+	line-height: 1.55;
+	white-space: pre-wrap;
+	user-select: text;
+}
+
+.editorialist-project__agreement-input {
+	width: 100%;
+	min-height: 320px;
+	font-size: var(--font-small);
+	line-height: 1.5;
+}
+
+.editorialist-plan__task-owner {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 10px;
+	margin: 0 0 10px;
+}
+
+.editorialist-plan__task-owner .editorialist-plan__hint {
+	margin: 0;
+}
+
+/* The engagement on one bar: editor's stretch, then the author's questions. */
+.editorialist-phases {
+	--editorialist-phase-editing: var(--color-purple);
+	--editorialist-phase-questions: var(--color-cyan);
+
+	margin: 2px 0 12px;
+}
+
+.editorialist-phases__bar {
+	position: relative;
+	display: flex;
+	gap: 2px;
+	height: 6px;
+	margin: 6px 1px 10px;
+}
+
+.editorialist-phases__segment {
+	position: relative;
+	height: 100%;
+	border-radius: 3px;
+	overflow: hidden;
+}
+
+.editorialist-phases__segment.is-editing {
+	flex: 0 0 var(--editorialist-phase-return);
+	background: color-mix(in srgb, var(--editorialist-phase-editing) 22%, var(--background-modifier-border));
+}
+
+.editorialist-phases__segment.is-questions {
+	flex: 1 1 auto;
+	background: color-mix(in srgb, var(--editorialist-phase-questions) 22%, var(--background-modifier-border));
+}
+
+.editorialist-phases__fill {
+	width: var(--editorialist-phase-fill);
+	height: 100%;
+}
+
+.editorialist-phases__segment.is-editing .editorialist-phases__fill {
+	background: var(--editorialist-phase-editing);
+}
+
+.editorialist-phases__segment.is-questions .editorialist-phases__fill {
+	background: var(--editorialist-phase-questions);
+}
+
+.editorialist-phases__tick {
+	position: absolute;
+	top: -3px;
+	width: 2px;
+	height: 12px;
+	margin-left: -1px;
+	border-radius: 1px;
+	background: var(--text-faint);
+}
+
+.editorialist-phases__tick.is-start {
+	left: 0;
+}
+
+.editorialist-phases__tick.is-return {
+	left: var(--editorialist-phase-return);
+}
+
+.editorialist-phases__tick.is-end {
+	left: 100%;
+}
+
+.editorialist-phases__legend {
+	display: grid;
+	gap: 3px;
+	font-size: var(--font-smallest);
+}
+
+.editorialist-phases__row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 2px 8px;
+	color: var(--text-muted);
+}
+
+.editorialist-phases__row.is-current {
+	color: var(--text-normal);
+	font-weight: var(--font-medium);
+}
+
+.editorialist-phases__swatch {
+	flex: 0 0 auto;
+	width: 8px;
+	height: 8px;
+	border-radius: 2px;
+	background: var(--editorialist-phase-editing);
+}
+
+.editorialist-phases__row.is-questions .editorialist-phases__swatch {
+	background: var(--editorialist-phase-questions);
+}
+
+.editorialist-phases__range {
+	margin-inline-start: auto;
+	color: var(--text-faint);
+	font-weight: var(--font-normal);
+	font-variant-numeric: tabular-nums;
+}
+
 .editorialist-project__hero {
 	container-type: inline-size;
 	border-color: color-mix(in srgb, var(--interactive-accent) 45%, var(--background-modifier-border));
