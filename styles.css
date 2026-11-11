@@ -8019,9 +8019,11 @@ button.editorialist-panel__contributors-row:focus-visible {
 }
 
 /* Shared interaction feedback. A theme overlay preserves selected/accent colors
-   while giving custom controls the same response as native Obsidian controls. */
+   while giving custom controls the same response as native Obsidian controls.
+   Selects are left out: their chevron is a background image this would replace,
+   and Obsidian's dropdown already has its own hover. */
 :is(.editorialist-panel, .editorialist-plan, .editorialist-pending-panel, .editorialist-editorialism-panel, .editorialist-settings, .editorialist-control-modal, .editorialist-choice-modal, .editorialist-contributor-modal, .editorialist-deliveries, .editorialist-autoschedule, .editorialist-toolbar)
-:is(button, a, [role="button"], summary, select):not(:disabled, [aria-disabled="true"], .is-disabled):hover {
+:is(button, a, [role="button"], summary):not(:disabled, [aria-disabled="true"], .is-disabled):hover {
 	background-image: linear-gradient(var(--background-modifier-hover), var(--background-modifier-hover));
 	cursor: pointer;
 }
