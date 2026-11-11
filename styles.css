@@ -8574,8 +8574,54 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 }
 
 .editorialist-project__hero {
+	position: relative;
 	container-type: inline-size;
 	border-color: color-mix(in srgb, var(--interactive-accent) 45%, var(--background-modifier-border));
+}
+
+/* Engagement notes: a chat icon in the placard's corner opens the thread inside the placard. */
+.editorialist-project__notes-toggle {
+	position: absolute;
+	top: 10px;
+	right: 10px;
+	display: inline-flex;
+	padding: 6px;
+	border-radius: var(--radius-s);
+	color: var(--text-faint);
+	list-style: none;
+	cursor: pointer;
+}
+
+.editorialist-project__notes-toggle::-webkit-details-marker {
+	display: none;
+}
+
+.editorialist-project__notes-toggle.has-notes {
+	color: var(--interactive-accent);
+}
+
+.editorialist-project__notes[open] .editorialist-project__notes-toggle {
+	background: color-mix(in srgb, var(--interactive-accent) 18%, transparent);
+	color: var(--interactive-accent);
+}
+
+.editorialist-project__notes-toggle svg {
+	width: 18px;
+	height: 18px;
+}
+
+.editorialist-project__notes-body {
+	margin-top: 14px;
+	padding-top: 14px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.editorialist-project__notes-body .editorialist-project__eyebrow {
+	margin-bottom: 8px;
+}
+
+.editorialist-project__notes-body .editorialist-project__agreement {
+	max-height: none;
 }
 
 .editorialist-project__editor-label {

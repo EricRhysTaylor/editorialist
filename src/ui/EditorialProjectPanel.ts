@@ -166,6 +166,7 @@ export class EditorialProjectPanel {
 		if (editor.profile) this.action(actions, "Editor profile", () => this.host.manageEditor(editor.profile!.id));
 		this.action(actions, "Open in workspace", () => this.host.openWorkspace());
 		if (project.collaborationUrl) button(actions, "Open collaboration", () => window.open(project.collaborationUrl, "_blank", "noopener,noreferrer"));
+		this.renderAgreement(hero, project);
 		this.renderNextUp(root, project);
 		const returned = engagementReturned(project, this.host.deliveries).date;
 		if (project.expectedReturn || returned) {
@@ -188,27 +189,33 @@ export class EditorialProjectPanel {
 		}
 		this.renderTasks(root); this.renderMilestones(root);
 		this.renderMaterials(section(root, "materials", "folder-open", "Materials & references", project.materials.filter((item) => !item.completed).length), true);
-		this.renderAgreement(root, project);
 	}
-	// The conversation that set up the engagement, pasted once so the quote,
-	// scope and dates are a click away instead of in the editor's own site.
-	// Collapsed by default: it is for an occasional refresh, not daily work.
-	private renderAgreement(root: HTMLElement, project: EditorialProject): void {
-		const body = section(root, "agreement", "messages-square", "Agreement conversation", 0, false);
+	// The engagement notes: the conversation that set the engagement up, pasted
+	// once so the quote, scope and dates are a click away instead of in the
+	// editor's own site. A chat icon in the placard's corner opens the whole
+	// thread inside the placard and closes it again; as a details element it
+	// keeps its open state across refreshes with the panel's other sections.
+	private renderAgreement(hero: HTMLElement, project: EditorialProject): void {
+		const notes = hero.createEl("details", { cls: "editorialist-project__notes", attr: { "data-plan-section": "engagement-notes" } });
+		const toggle = notes.createEl("summary", { cls: `editorialist-project__notes-toggle${project.agreement ? " has-notes" : ""}` });
+		setAccessibleLabel(toggle, project.agreement ? "Engagement notes" : "Add engagement notes");
+		setIcon(toggle, "messages-square");
+		const body = notes.createDiv({ cls: "editorialist-project__notes-body" });
+		body.createDiv({ cls: "editorialist-project__eyebrow", text: "Engagement notes" });
 		if (project.agreement) body.createDiv({ cls: "editorialist-project__agreement", text: project.agreement });
 		else body.createEl("p", { cls: "editorialist-project__hint", text: "Paste the messages that led to this engagement, such as the quote, what is included and the dates you agreed, so you can look back without opening your editor's site." });
-		button(body, project.agreement ? "Edit conversation" : "Paste conversation", () => this.editAgreement());
+		button(body, project.agreement ? "Edit notes" : "Paste conversation", () => this.editAgreement());
 	}
 	private editAgreement(): void {
 		const expected = structuredClone(this.host.plan), next = structuredClone(expected), draft = next.project!;
-		new ProjectDialog(this.host.app, "Agreement conversation", (form) => {
+		new ProjectDialog(this.host.app, "Engagement notes", (form) => {
 			const text = area(form, "Conversation", draft.agreement ?? "");
 			text.rows = 16; text.maxLength = MAX_AGREEMENT_LENGTH;
 			text.addClass("editorialist-project__agreement-input");
 			return async () => {
 				const value = text.value.trim();
 				if (value) draft.agreement = value; else delete draft.agreement;
-				recordProjectEvent(draft, value ? "Agreement conversation saved" : "Agreement conversation cleared");
+				recordProjectEvent(draft, value ? "Engagement notes saved" : "Engagement notes cleared");
 				await this.host.save(expected, next);
 			};
 		}).open();
