@@ -13,7 +13,8 @@ import { summarizePlanProgress } from "../core/planning/PlanProgress";
 import { estimateRange } from "../core/planning/AutoSchedule";
 import { type QueueHead, EditorialProjectPanel } from "./EditorialProjectPanel";
 import { EditorialProjectService } from "../services/EditorialProjectService";
-import { deadlineState, entryWorkDeadline, taskDocument } from "../core/planning/EditorialProject";
+import { cushionProgress, deadlineState, entryWorkDeadline, taskDocument } from "../core/planning/EditorialProject";
+import { renderCushionBar } from "./primitives/CushionBar";
 import { bindCompletionMenu } from "./primitives/CompletionMenu";
 
 export const REVISION_PLAN_VIEW_TYPE = "editorialist-revision-plan";
@@ -530,13 +531,17 @@ export class RevisionPlanPanel extends ItemView {
 		main.createDiv({ cls: "editorialist-plan__task-context", text: `${resolved.state === "ready" ? resolved.candidate.detail : entry.source.path}${resolved.state === "ready" && resolved.candidate.deferred ? " · Deferred at source" : ""}` });
 		if (resolved.state === "ready" && resolved.candidate.inactive) main.createEl("p", { cls: "editorialist-plan__hint", text: "Source inactive · kept in your plan. Keep this task or remove it in its options." });
 		const deadline = entryWorkDeadline(this.plan, entry, this.candidates);
-		if (deadline && !entry.done) {
+		const today = localDate(new Date());
+		// Once today is inside the cushion the bar says so with both dates; the amber line would repeat it.
+		const barShown = Boolean(deadline && !entry.done && cushionProgress(deadline, today));
+		if (deadline && !entry.done && !(barShown && deadlineState(deadline, entry.day ?? today) === "cushion")) {
 			// Late against the hard date is red; inside the cushion is amber; on track is quiet.
-			const state = deadlineState(deadline, entry.day ?? localDate(new Date()));
+			const state = deadlineState(deadline, entry.day ?? today);
 			const timing = main.createDiv({ cls: `editorialist-plan__deadline${state === "late" ? " is-late" : state === "cushion" ? " is-cushion" : ""}` });
 			setIcon(timing.createSpan({ cls: "editorialist-plan__deadline-icon", attr: { "aria-hidden": "true" } }), state === "on-track" ? "flag" : "alert-triangle");
 			timing.createSpan({ text: state === "late" ? `${entry.day ? "Scheduled after its deadline" : "Past its deadline"} · ${deadlineLabel(deadline, true)}` : state === "cushion" ? `${entry.day ? "Scheduled" : "Now"} inside your cushion · ${deadlineLabel(deadline)}` : deadlineLabel(deadline) });
 		}
+		if (barShown) renderCushionBar(main, deadline, today);
 
 		const details = row.createEl("details", { cls: "editorialist-plan__entry-options", attr: { "data-plan-section": entry.id } });
 		details.createEl("summary", { text: "Schedule & options" });
