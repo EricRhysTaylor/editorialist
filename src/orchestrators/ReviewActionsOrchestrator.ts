@@ -115,14 +115,14 @@ export interface ReviewActionsOrchestratorHost {
 
 // The fixes a set of copy edits makes, by copyEditKey, each with the import it
 // came from.
-export type CopyEditMemory = ReadonlyArray<{ batchId: string; key: string }>;
+export type CopyEditMemory = ReadonlyArray<{ id: string; batchId: string; key: string }>;
 
 export class ReviewActionsOrchestrator {
 	// The last copy edits accepted together, while they can still be undone as
 	// one step.
 	private copyEditBatch: AppliedSuggestionBatch | null = null;
 	// Which fixes that batch made, so undoing it also forgets them.
-	private copyEditBatchMemory: CopyEditMemory = [];
+	private copyEditBatchMemory: Array<{ batchId: string; key: string; accepted: boolean; declined: boolean }> = [];
 	// The scenes where each fix (by copyEditKey) was accepted or rejected, per
 	// import, so the same fix in a later scene arrives ticked or unticked to
 	// match. Read from the saved decisions the first time an import is asked
@@ -403,8 +403,15 @@ export class ReviewActionsOrchestrator {
 			return;
 		}
 		this.copyEditBatch = batch;
-		this.copyEditBatchMemory = memory;
-		this.rememberCopyEdits(memory, "accepted", batch.notePath);
+		const applied = new Set(batch.suggestionIds);
+		const remembered = memory.filter(item => applied.has(item.id));
+		this.copyEditBatchMemory = [];
+		for (const { batchId, key } of remembered) {
+			if (this.copyEditBatchMemory.some(item => item.batchId === batchId && item.key === key)) continue;
+			const prior = this.copyEditChoices.get(batchId)?.get(key);
+			this.copyEditBatchMemory.push({ batchId, key, accepted: prior?.accepted.has(batch.notePath) ?? false, declined: prior?.declined.has(batch.notePath) ?? false });
+		}
+		this.rememberCopyEdits(remembered, "accepted", batch.notePath);
 		const skipped = ids.length - batch.suggestionIds.length;
 		new Notice(
 			`Accepted ${batch.suggestionIds.length} change${batch.suggestionIds.length === 1 ? "" : "s"}.`
@@ -433,8 +440,11 @@ export class ReviewActionsOrchestrator {
 			return;
 		}
 		if (await this.host.getReviewStateMachine().undoAppliedBatch(batch)) {
-			for (const { batchId, key } of this.copyEditBatchMemory) {
-				this.copyEditChoices.get(batchId)?.get(key)?.accepted.delete(batch.notePath);
+			for (const { batchId, key, accepted, declined } of this.copyEditBatchMemory) {
+				const choice = this.copyEditChoices.get(batchId)?.get(key);
+				if (!choice) continue;
+				if (accepted) choice.accepted.add(batch.notePath); else choice.accepted.delete(batch.notePath);
+				if (declined) choice.declined.add(batch.notePath); else choice.declined.delete(batch.notePath);
 			}
 			this.copyEditBatch = null;
 			this.copyEditBatchMemory = [];

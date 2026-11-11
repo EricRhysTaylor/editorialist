@@ -567,7 +567,7 @@ describe("ReviewActionsOrchestrator", () => {
 			const { host, calls } = makeFakeHost({ priorSession: makeSession("a.md") });
 			const controller = new ReviewActionsOrchestrator(host);
 
-			await controller.acceptCopyEdits(["s1", "s2"], [{ batchId: "b", key: "grey → gray" }]);
+			await controller.acceptCopyEdits(["s1", "s2"], [{ id: "s1", batchId: "b", key: "grey → gray" }]);
 
 			expect(calls).toContain("sm.applySuggestionsAsBatch:s1,s2");
 			expect(controller.getUndoableCopyEdits("a.md")?.suggestionIds).toEqual(["s1", "s2"]);
@@ -593,10 +593,10 @@ describe("ReviewActionsOrchestrator", () => {
 			const first = makeFakeHost({ priorSession: makeSession("a.md") });
 			const controller = new ReviewActionsOrchestrator(first.host);
 			await controller.acceptCopyEdits(["s1", "s2"], [
-				{ batchId: "b", key: "grey → gray" },
-				{ batchId: "b", key: "grey → gray" },
+				{ id: "s1", batchId: "b", key: "grey → gray" },
+				{ id: "s1", batchId: "b", key: "grey → gray" },
 			]);
-			await controller.rejectCopyEdits(["s3"], [{ batchId: "b", key: "OK → okay" }]);
+			await controller.rejectCopyEdits(["s3"], [{ id: "s3", batchId: "b", key: "OK → okay" }]);
 
 			expect(controller.getCopyEditHistory("b", "grey → gray", "a.md")).toBeNull();
 			expect(controller.getCopyEditHistory("b", "grey → gray", "b.md")).toEqual({ accepted: 1, declined: 0 });
@@ -604,10 +604,24 @@ describe("ReviewActionsOrchestrator", () => {
 			expect(controller.getCopyEditHistory("other", "grey → gray", "b.md")).toBeNull();
 		});
 
+		it("remembers only successfully applied edits and preserves earlier decisions on undo", async () => {
+			const { host } = makeFakeHost({ priorSession: makeSession("a.md"), unapplicableIds: ["s2"] });
+			const controller = new ReviewActionsOrchestrator(host);
+			await controller.rejectCopyEdits(["old"], [{ id: "old", batchId: "b", key: "grey → gray" }]);
+			await controller.acceptCopyEdits(["s1", "s2"], [
+				{ id: "s1", batchId: "b", key: "grey → gray" },
+				{ id: "s2", batchId: "b", key: "colour → color" },
+			]);
+			expect(controller.getCopyEditHistory("b", "grey → gray", "b.md")).toEqual({ accepted: 1, declined: 0 });
+			expect(controller.getCopyEditHistory("b", "colour → color", "b.md")).toBeNull();
+			await controller.undoCopyEdits();
+			expect(controller.getCopyEditHistory("b", "grey → gray", "b.md")).toEqual({ accepted: 0, declined: 1 });
+		});
+
 		it("forgets a fix's acceptance when the batch is undone", async () => {
 			const { host } = makeFakeHost({ priorSession: makeSession("a.md") });
 			const controller = new ReviewActionsOrchestrator(host);
-			await controller.acceptCopyEdits(["s1"], [{ batchId: "b", key: "grey → gray" }]);
+			await controller.acceptCopyEdits(["s1"], [{ id: "s1", batchId: "b", key: "grey → gray" }]);
 			await controller.undoCopyEdits();
 			expect(controller.getCopyEditHistory("b", "grey → gray", "b.md")).toBeNull();
 		});
@@ -632,7 +646,7 @@ describe("ReviewActionsOrchestrator", () => {
 			expect(controller.getCopyEditHistory("b", "grey → gray", "c.md")).toEqual({ accepted: 1, declined: 1 });
 
 			// What the author decides now is added to what was read.
-			await controller.rejectCopyEdits(["s9"], [{ batchId: "b", key: "grey → gray" }]);
+			await controller.rejectCopyEdits(["s9"], [{ id: "s9", batchId: "b", key: "grey → gray" }]);
 			expect(controller.getCopyEditHistory("b", "grey → gray", "z.md")).toEqual({ accepted: 1, declined: 2 });
 		});
 

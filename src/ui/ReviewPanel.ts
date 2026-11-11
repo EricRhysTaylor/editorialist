@@ -852,11 +852,11 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		return history.accepted > 0 ? `Accepted in ${scenes(history.accepted)}` : `Rejected in ${scenes(history.declined)}`;
 	}
 
-	private copyEditMemory(suggestions: readonly ReviewSuggestion[]): Array<{ batchId: string; key: string }> {
+	private copyEditMemory(suggestions: readonly ReviewSuggestion[]): Array<{ id: string; batchId: string; key: string }> {
 		return suggestions.flatMap((suggestion) => {
 			const batchId = suggestion.source.batchId;
 			const key = copyEditKey(suggestion);
-			return batchId && key ? [{ batchId, key }] : [];
+			return batchId && key ? [{ id: suggestion.id, batchId, key }] : [];
 		});
 	}
 
