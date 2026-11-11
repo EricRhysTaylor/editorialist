@@ -1,10 +1,17 @@
-import { ButtonComponent, Modal, Notice, Platform, TextAreaComponent, TextComponent, type App } from "obsidian";
-import { summaryLines, type EditorResponse, type EditorResponseItem } from "../../core/review/EditorResponse";
+import { ButtonComponent, Modal, Notice, Platform, TextAreaComponent, TextComponent, setIcon, type App } from "obsidian";
+import type { EditorResponse, EditorResponseItem } from "../../core/review/EditorResponse";
 import type EditorialistPlugin from "../../main";
+
+const KINDS: Record<EditorResponseItem["kind"], { label: string; icon: string }> = {
+	comment: { label: "Comment", icon: "message-square" },
+	stet: { label: "Kept as written", icon: "rotate-ccw" },
+	rewritten: { label: "Rewritten another way", icon: "pencil" },
+};
 
 // Where the author answers an editor: a reply to each comment and a reason for
 // each change kept as written, saved as they are typed, then written out as a
-// Word file to send back.
+// Word file to send back. Each item reads as a short thread, top to bottom:
+// the author's passage, what the editor said, then the author's reply.
 export class EditorResponseModal extends Modal {
 	private summaryEl: HTMLElement | null = null;
 
@@ -27,9 +34,7 @@ export class EditorResponseModal extends Modal {
 		const wordSource = this.plugin.getBatchWordSource(this.batchId);
 		contentEl.createEl("p", {
 			cls: "editorialist-response__intro",
-			text: wordSource
-				? `Reply to the editor's comments and say why you kept any change as written. Your replies are saved as you type. When you're done, save them into a copy of ${this.response.reviewer}'s Word file to send back.`
-				: "Reply to the editor's comments and say why you kept any change as written. Your replies are saved as you type. When you're done, save a Word file to send back.",
+			text: `Answer ${this.response.reviewer}'s comments and say why you kept any change as written. Replies save as you type.`,
 		});
 		this.summaryEl = contentEl.createDiv({ cls: "editorialist-response__summary" });
 		this.renderSummary();
@@ -44,7 +49,9 @@ export class EditorResponseModal extends Modal {
 		}
 		for (const scene of this.response.scenes) {
 			const section = list.createDiv({ cls: "editorialist-response__scene" });
-			section.createDiv({ cls: "editorialist-response__scene-title", text: scene.title });
+			const heading = section.createDiv({ cls: "editorialist-response__scene-title" });
+			setIcon(heading.createSpan({ cls: "editorialist-response__scene-icon" }), "file-text");
+			heading.createSpan({ text: scene.title });
 			for (const item of scene.items) {
 				const input = this.renderItem(section, item);
 				if (item.key === this.focusKey || (!this.focusKey && !focusTarget && item.kind === "comment" && !item.reply)) {
@@ -53,17 +60,20 @@ export class EditorResponseModal extends Modal {
 			}
 		}
 
+		// Pinned under the list, so saving never needs a scroll to the end.
 		const footer = contentEl.createDiv({ cls: "editorialist-response__footer" });
+		const saved = footer.createDiv({ cls: "editorialist-response__saved", attr: { "aria-live": "polite" } });
+		const bar = footer.createDiv({ cls: "editorialist-response__bar" });
 		let nameInput: TextComponent | null = null;
 		if (wordSource) {
-			const field = footer.createEl("label", { cls: "editorialist-response__name", text: "Name on your comments" });
+			const field = bar.createEl("label", { cls: "editorialist-response__name" });
+			field.createSpan({ cls: "editorialist-response__name-label", text: "Name on your comments" });
 			nameInput = new TextComponent(field)
 				.setPlaceholder("Your name")
 				.setValue(this.plugin.getAuthorName())
 				.onChange((value) => void this.plugin.setAuthorName(value));
 		}
-		const saved = footer.createDiv({ cls: "editorialist-response__saved" });
-		const buttons = footer.createDiv({ cls: "editorialist-response__buttons" });
+		const buttons = bar.createDiv({ cls: "editorialist-response__buttons" });
 		new ButtonComponent(buttons).setButtonText("Done").onClick(() => this.close());
 		const saveLetter = new ButtonComponent(buttons)
 			.setButtonText(wordSource ? "Save as a letter" : "Save Word file")
@@ -73,9 +83,12 @@ export class EditorResponseModal extends Modal {
 				this.renderSaved(saved, path, null);
 				new Notice(`Saved your response to ${this.response.reviewer}.`);
 			});
-		if (!wordSource) saveLetter.setCta();
+		if (!wordSource) {
+			saveLetter.setCta();
+			saveLetter.buttonEl.addClass("editorialist-response__primary");
+		}
 		if (wordSource) {
-			new ButtonComponent(buttons)
+			const saveInFile = new ButtonComponent(buttons)
 				.setButtonText("Save in their file")
 				.setCta()
 				.onClick(async () => {
@@ -89,6 +102,7 @@ export class EditorResponseModal extends Modal {
 					this.renderSaved(saved, result.path, result);
 					new Notice(`Saved your replies in ${this.response.reviewer}'s Word file.`);
 				});
+			saveInFile.buttonEl.addClass("editorialist-response__primary");
 		}
 
 		if (focusTarget) {
@@ -107,14 +121,14 @@ export class EditorResponseModal extends Modal {
 
 	private renderItem(parent: HTMLElement, item: EditorResponseItem): HTMLTextAreaElement {
 		const row = parent.createDiv({ cls: `editorialist-response__item editorialist-response__item--${item.kind}` });
-		row.createDiv({
-			cls: "editorialist-response__label",
-			text: item.kind === "comment" ? "Comment" : item.kind === "stet" ? "Kept as written (stet)" : "Rewritten another way",
-		});
+		const kind = KINDS[item.kind];
+		const badge = row.createDiv({ cls: "editorialist-response__label" });
+		setIcon(badge.createSpan({ cls: "editorialist-response__label-icon" }), kind.icon);
+		badge.createSpan({ text: kind.label });
 
+		// The author's own words come first, set as manuscript text.
 		if (item.kind === "comment") {
-			row.createDiv({ cls: "editorialist-response__comment", text: item.text });
-			if (item.quote) row.createDiv({ cls: "editorialist-response__passage", text: `On “${item.quote}”` });
+			if (item.quote) row.createDiv({ cls: "editorialist-response__passage", text: item.quote });
 		} else {
 			const passage = row.createDiv({ cls: "editorialist-response__passage" });
 			if (item.diff) {
@@ -124,11 +138,16 @@ export class EditorResponseModal extends Modal {
 			} else {
 				passage.setText(item.text);
 			}
-			if (item.editorNote) row.createDiv({ cls: "editorialist-response__editor-note", text: `Editor's note: ${item.editorNote}` });
+		}
+		const said = item.kind === "comment" ? item.text : item.editorNote;
+		if (said) {
+			const note = row.createDiv({ cls: "editorialist-response__note" });
+			note.createDiv({ cls: "editorialist-response__who", text: this.response.reviewer });
+			note.createDiv({ cls: item.kind === "comment" ? "editorialist-response__comment" : "editorialist-response__editor-note", text: said });
 		}
 
 		const textArea = new TextAreaComponent(row)
-			.setPlaceholder(item.kind === "comment" ? "Your reply" : "Why you kept it (optional)")
+			.setPlaceholder(item.kind === "comment" ? `Reply to ${this.response.reviewer}` : "Why you kept it (optional)")
 			.setValue(item.reply)
 			.onChange((value) => {
 				const hadReply = Boolean(item.reply.trim());
@@ -171,9 +190,18 @@ export class EditorResponseModal extends Modal {
 		const summary = this.summaryEl;
 		if (!summary) return;
 		summary.empty();
-		for (const line of summaryLines(this.response.counts)) {
-			summary.createDiv({ text: line });
-		}
+		const { counts } = this.response;
+		const stats = summary.createDiv({ cls: "editorialist-response__stats" });
+		const stat = (value: string, label: string, state = ""): void => {
+			const chip = stats.createDiv({ cls: `editorialist-response__stat${state ? ` is-${state}` : ""}` });
+			chip.createSpan({ cls: "editorialist-response__stat-value", text: value });
+			chip.createSpan({ text: label });
+		};
+		if (counts.changes > 0) stat(`${counts.accepted}/${counts.changes}`, counts.changes === 1 ? "change accepted" : "changes accepted");
+		if (counts.stet > 0) stat(String(counts.stet), "kept as written");
+		if (counts.rewritten > 0) stat(String(counts.rewritten), "rewritten another way");
+		if (counts.undecided > 0) stat(String(counts.undecided), "not decided yet", "warning");
+		if (counts.comments > 0) stat(`${counts.replied}/${counts.comments}`, counts.comments === 1 ? "comment answered" : "comments answered", counts.replied === counts.comments ? "done" : "");
 		if (this.response.counts.undecided > 0) {
 			summary.createDiv({
 				cls: "editorialist-response__warning",

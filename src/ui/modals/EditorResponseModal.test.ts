@@ -65,7 +65,20 @@ describe("EditorResponseModal", () => {
 		const [reply] = [...modal.querySelectorAll("textarea")];
 		typeInto(reply as HTMLTextAreaElement, "Agreed, I'll add a line.");
 		expect(host.saveEditorReply).toHaveBeenCalledWith("comment-key", "Agreed, I'll add a line.");
-		expect(modal.querySelector(".editorialist-response__summary")?.textContent).toContain("Replied to 1 of the 1 comment.");
+		const answered = [...modal.querySelectorAll(".editorialist-response__stat")].find((chip) => chip.textContent?.includes("comment answered"));
+		expect(answered?.textContent).toBe("1/1comment answered");
+		expect(answered?.classList.contains("is-done")).toBe(true);
+	});
+
+	it("shows each comment as a thread: the passage, then the editor, then the reply", () => {
+		const modal = open(plugin());
+		const comment = modal.querySelector(".editorialist-response__item--comment")!;
+		const order = [...comment.children].map((child) => child.className.split(" ")[0]);
+		expect(order).toEqual(["editorialist-response__label", "editorialist-response__passage", "editorialist-response__note", "editorialist-response__input"]);
+		expect(comment.querySelector(".editorialist-response__passage")?.textContent).toBe("She stared");
+		expect(comment.querySelector(".editorialist-response__who")?.textContent).toBe("Morgan Lee");
+		expect(comment.querySelector("textarea")?.placeholder).toBe("Reply to Morgan Lee");
+		expect(modal.querySelector(".editorialist-response__item--stet .editorialist-response__note")).toBeNull();
 	});
 
 	it("focuses the item it was opened for", async () => {
