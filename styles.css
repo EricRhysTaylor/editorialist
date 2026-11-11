@@ -8624,6 +8624,66 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	max-height: none;
 }
 
+/* A pasted thread as a conversation: editor left, author right. */
+.editorialist-notes {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin: 4px 0 14px;
+}
+
+.editorialist-notes__message {
+	max-width: 88%;
+	padding: 9px 12px 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 12px;
+	background: var(--background-secondary);
+	user-select: text;
+}
+
+.editorialist-notes__message.is-editor {
+	align-self: flex-start;
+	border-top-left-radius: 4px;
+}
+
+.editorialist-notes__message.is-author {
+	align-self: flex-end;
+	border-color: color-mix(in srgb, var(--interactive-accent) 30%, var(--background-modifier-border));
+	border-top-right-radius: 4px;
+	background: color-mix(in srgb, var(--interactive-accent) 12%, var(--background-secondary));
+}
+
+.editorialist-notes__head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 2px 8px;
+	margin-bottom: 4px;
+}
+
+.editorialist-notes__sender {
+	color: var(--text-normal);
+	font-size: var(--font-smallest);
+	font-weight: var(--font-semibold);
+}
+
+.editorialist-notes__message.is-author .editorialist-notes__sender {
+	color: var(--interactive-accent);
+}
+
+.editorialist-notes__stamp {
+	color: var(--text-faint);
+	font-size: var(--font-smallest);
+	font-variant-numeric: tabular-nums;
+}
+
+.editorialist-notes__body {
+	color: var(--text-normal);
+	font-size: var(--font-small);
+	line-height: 1.5;
+	white-space: pre-wrap;
+}
+
 .editorialist-project__editor-label {
 	margin-bottom: 8px;
 	font-size: var(--font-smallest);

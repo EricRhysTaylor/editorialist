@@ -7,6 +7,7 @@ import { isDate, localDate, type RevisionPlan } from "../core/planning/RevisionP
 import { deadlineLabel, planDayLabel } from "../core/planning/WorkPresentation";
 import { renderCushionBar } from "./primitives/CushionBar";
 import { renderEngagementPhaseBar } from "./primitives/EngagementPhaseBar";
+import { isEditorSender, parseNoteThread } from "../core/planning/EngagementNotes";
 
 import type { EditorialDelivery } from "../core/EditorialDeliveries";
 import type { EditorialProjectService } from "../services/EditorialProjectService";
@@ -157,18 +158,22 @@ export class EditorialProjectPanel {
 		if (editor.state === "unavailable") hero.createEl("p", { cls: "editorialist-project__warning", text: "The saved editor profile is unavailable. Choose an existing contributor in engagement details." });
 		const today = localDate(new Date());
 		hero.createEl("h3", { cls: "editorialist-project__submission-heading", text: `${project.submissionDate < today ? "Started" : "Starts"} ${dayLabel(project.submissionDate)} · ${engagementStartCountdown(project.submissionDate, today)}` });
+		// The whole engagement on one bar, right under its start date: the
+		// editor's stretch, then the author's question window.
+		const returned = engagementReturned(project, this.host.deliveries).date;
+		const phases = engagementPhases(project, returned ?? null, today);
+		if (phases) renderEngagementPhaseBar(hero, phases, today);
 		const ready = candidateDeadline(this.host.plan, { due: project.submissionDate, path: project.id })!;
 		const cushion = this.host.plan.cushionDays;
 		renderCushionBar(hero, ready, today);
-		hero.createEl("p", { cls: "editorialist-project__hint", text: ready.aim < ready.due && ready.aim >= today ?`Agreed start date · aim to have everything ready by ${dayLabel(ready.aim)}, ${cushion} ${cushion === 1 ? "day" : "days"} early.` : "Agreed start date · prepare and exchange files directly through your collaboration." });
+		hero.createEl("p", { cls: "editorialist-project__hint", text: ready.aim < ready.due && ready.aim >= today ? `Agreed start date · aim to have everything ready by ${dayLabel(ready.aim)}, ${cushion} ${cushion === 1 ? "day" : "days"} early.` : "Agreed start date · prepare and exchange files directly through your collaboration." });
 		const actions = hero.createDiv({ cls: "editorialist-project__actions" }); button(actions, "Engagement details", () => this.setup());
 		button(actions, "Record activity", () => this.recordActivity());
 		if (editor.profile) this.action(actions, "Editor profile", () => this.host.manageEditor(editor.profile!.id));
 		this.action(actions, "Open in workspace", () => this.host.openWorkspace());
 		if (project.collaborationUrl) button(actions, "Open collaboration", () => window.open(project.collaborationUrl, "_blank", "noopener,noreferrer"));
-		this.renderAgreement(hero, project);
+		this.renderAgreement(hero, project, editor.name);
 		this.renderNextUp(root, project);
-		const returned = engagementReturned(project, this.host.deliveries).date;
 		if (project.expectedReturn || returned) {
 			const returnInfo = root.createEl("details", { cls: "editorialist-project__return", attr: { open: "" } });
 			const summary = returnInfo.createEl("summary");
@@ -179,9 +184,7 @@ export class EditorialProjectPanel {
 			heading.createSpan({ cls: "editorialist-project__hint", text: `${returned ? "Returned" : "Expected return"} · ${dayLabel(returnDate)}` });
 			setIcon(summary.createSpan({ cls: "editorialist-panel__disclosure-caret", attr: { "aria-hidden": "true" } }), "chevron-right");
 			const body = returnInfo.createDiv({ cls: "editorialist-project__return-body" });
-			const phases = engagementPhases(project, returned ?? null, today);
-			if (phases) renderEngagementPhaseBar(body, phases, today);
-			// The bar's legend carries the dates; the note says only what moves them.
+			// The placard's bar carries the dates; the note says only what moves them.
 			if (phases) { if (!returned) body.createEl("p", { cls: "editorialist-project__hint", text: `Return not yet recorded. Your ${project.questionsDays} days for questions start from the actual return.` }); }
 			else body.createEl("p", { text: returned ? `Questions due ${dayLabel(shiftDate(returned, project.questionsDays))} · ${project.questionsDays} days after actual return.` : `${project.questionsDays} days for questions after actual return. Return not yet recorded.` });
 			if (project.deliveryId) body.createEl("p", { text: `Feedback: ${this.host.deliveries.find((item) => item.id === project.deliveryId)?.title ?? "Linked feedback unavailable"}` });
@@ -195,14 +198,28 @@ export class EditorialProjectPanel {
 	// editor's own site. A chat icon in the placard's corner opens the whole
 	// thread inside the placard and closes it again; as a details element it
 	// keeps its open state across refreshes with the panel's other sections.
-	private renderAgreement(hero: HTMLElement, project: EditorialProject): void {
+	private renderAgreement(hero: HTMLElement, project: EditorialProject, editorName: string): void {
 		const notes = hero.createEl("details", { cls: "editorialist-project__notes", attr: { "data-plan-section": "engagement-notes" } });
 		const toggle = notes.createEl("summary", { cls: `editorialist-project__notes-toggle${project.agreement ? " has-notes" : ""}` });
 		setAccessibleLabel(toggle, project.agreement ? "Engagement notes" : "Add engagement notes");
 		setIcon(toggle, "messages-square");
 		const body = notes.createDiv({ cls: "editorialist-project__notes-body" });
-		body.createDiv({ cls: "editorialist-project__eyebrow", text: "Engagement notes" });
-		if (project.agreement) body.createDiv({ cls: "editorialist-project__agreement", text: project.agreement });
+		// A pasted message thread reads as a conversation: the editor's
+		// messages on the left, the author's on the right, each with its
+		// sender and time. Anything else is shown as written.
+		const thread = project.agreement ? parseNoteThread(project.agreement) : null;
+		body.createDiv({ cls: "editorialist-project__eyebrow", text: thread ? `Engagement notes · ${thread.length} messages` : "Engagement notes" });
+		if (thread) {
+			const list = body.createDiv({ cls: "editorialist-notes" });
+			for (const message of thread) {
+				const editor = isEditorSender(message.sender, editorName);
+				const item = list.createDiv({ cls: `editorialist-notes__message ${editor ? "is-editor" : "is-author"}` });
+				const head = item.createDiv({ cls: "editorialist-notes__head" });
+				head.createSpan({ cls: "editorialist-notes__sender", text: message.sender });
+				head.createSpan({ cls: "editorialist-notes__stamp", text: message.stamp });
+				if (message.body) item.createDiv({ cls: "editorialist-notes__body", text: message.body });
+			}
+		} else if (project.agreement) body.createDiv({ cls: "editorialist-project__agreement", text: project.agreement });
 		else body.createEl("p", { cls: "editorialist-project__hint", text: "Paste the messages that led to this engagement, such as the quote, what is included and the dates you agreed, so you can look back without opening your editor's site." });
 		button(body, project.agreement ? "Edit notes" : "Paste conversation", () => this.editAgreement());
 	}
