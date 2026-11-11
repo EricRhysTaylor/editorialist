@@ -57,7 +57,9 @@ export class EditorialistSettingTab extends PluginSettingTab {
 					const render = (container: HTMLElement): void => {
 						this.dashboardEl = container;
 						this.activeTab = tab;
-						void this.displayAsync(true).then(() => this.revealSearchSection(section));
+						void this.displayAsync(true).then(() => {
+							if (this.dashboardEl === container && container.isConnected) this.revealSearchSection(section);
+						});
 					};
 					const dispose = (): void => { this.hide(); this.dashboardEl = null; };
 					return new class extends SettingPage {
