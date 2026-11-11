@@ -8,6 +8,7 @@ import { deadlineLabel, planDayLabel } from "../core/planning/WorkPresentation";
 import { renderCushionBar } from "./primitives/CushionBar";
 import { renderEngagementPhaseBar } from "./primitives/EngagementPhaseBar";
 import { isEditorSender, parseNoteThread } from "../core/planning/EngagementNotes";
+import { engagementTrack, type TrackTarget } from "../core/planning/EngagementTrack";
 
 import type { EditorialDelivery } from "../core/EditorialDeliveries";
 import type { EditorialProjectService } from "../services/EditorialProjectService";
@@ -163,11 +164,12 @@ export class EditorialProjectPanel {
 		if (editor.state === "unavailable") hero.createEl("p", { cls: "editorialist-project__warning", text: "The saved editor profile is unavailable. Choose an existing contributor in engagement details." });
 		const today = localDate(new Date());
 		hero.createEl("h3", { cls: "editorialist-project__submission-heading", text: `${project.submissionDate < today ? "Started" : "Starts"} ${dayLabel(project.submissionDate)} · ${engagementStartCountdown(project.submissionDate, today)}` });
-		// The whole engagement on one bar, right under its start date: the
-		// editor's stretch, then the author's question window.
+		// The whole engagement on one track, right under its start date: the
+		// author's preparation with its targets, the editor's stretch, then
+		// the author's question window. A target's mark goes to it below.
 		const returned = engagementReturned(project, this.host.deliveries).date;
 		const phases = engagementPhases(project, returned ?? null, today);
-		if (phases) renderEngagementPhaseBar(hero, phases, today);
+		renderEngagementPhaseBar(hero, engagementTrack(project, returned ?? null, today), today, (target) => this.revealTarget(root, target));
 		const ready = candidateDeadline(this.host.plan, { due: project.submissionDate, path: project.id })!;
 		const cushion = this.host.plan.cushionDays;
 		renderCushionBar(hero, ready, today);
@@ -229,6 +231,17 @@ export class EditorialProjectPanel {
 		} else if (project.agreement) body.createDiv({ cls: "editorialist-project__agreement", text: project.agreement });
 		else body.createEl("p", { cls: "editorialist-project__hint", text: "Paste the messages that led to this engagement, such as the quote, what is included and the dates you agreed, so you can look back without opening your editor's site." });
 		button(body, project.agreement ? "Edit notes" : "Paste conversation", () => this.editAgreement());
+	}
+	// A target's row on this page, opened out of any collapsed section,
+	// scrolled into view and briefly marked so the eye lands on it.
+	private revealTarget(root: HTMLElement, target: TrackTarget): void {
+		const attribute = target.kind === "document" ? "data-material-id" : target.kind === "task" ? "data-task-id" : "data-milestone-id";
+		const row = [...root.querySelectorAll<HTMLElement>(`[${attribute}]`)].find((item) => item.getAttribute(attribute) === target.id);
+		if (!row) { new Notice(`“${target.title}” is not on this page.`); return; }
+		for (let parent = row.parentElement; parent && parent !== root; parent = parent.parentElement) if (parent instanceof HTMLDetailsElement) parent.open = true;
+		row.scrollIntoView({ block: "center", behavior: "smooth" });
+		row.removeClass("is-revealed"); void row.offsetWidth; row.addClass("is-revealed");
+		window.setTimeout(() => { if (row.isConnected) row.removeClass("is-revealed"); }, 1800);
 	}
 	private editAgreement(): void {
 		const expected = structuredClone(this.host.plan), next = structuredClone(expected), draft = next.project!;
@@ -357,7 +370,7 @@ export class EditorialProjectPanel {
 		const own = due && !(inDocument && !task.milestoneId && !task.due);
 		const deadline = own ? this.itemDeadline(project, due) : null;
 		const state = deadline && !task.done ? deadlineState(deadline, localDate(new Date())) : null;
-		const row = parent.createDiv({ cls: `editorialist-project__row editorialist-project__task${task.done ? " is-done" : state === "late" ? " is-overdue" : state === "cushion" ? " is-cushion" : ""}` });
+		const row = parent.createDiv({ cls: `editorialist-project__row editorialist-project__task${task.done ? " is-done" : state === "late" ? " is-overdue" : state === "cushion" ? " is-cushion" : ""}`, attr: { "data-task-id": task.id } });
 		this.finishToggle(row, task);
 		const main = row.createDiv({ cls: "editorialist-project__row-main" });
 		main.createDiv({ cls: "editorialist-project__row-title", text: task.title });
@@ -531,7 +544,7 @@ export class EditorialProjectPanel {
 			const state = deadlineState(deadline, today);
 			// Met reads as done; a bare date that has gone by is only past.
 			const passed = done && !total;
-			const row = body.createDiv({ cls: `editorialist-project__row editorialist-project__milestone${passed ? " is-passed" : done ? " is-done" : state === "late" ? " is-overdue" : state === "cushion" ? " is-cushion" : ""}` });
+			const row = body.createDiv({ cls: `editorialist-project__row editorialist-project__milestone${passed ? " is-passed" : done ? " is-done" : state === "late" ? " is-overdue" : state === "cushion" ? " is-cushion" : ""}`, attr: { "data-milestone-id": milestone.id } });
 			setIcon(row.createSpan({ cls: "editorialist-project__row-icon", attr: { "aria-hidden": "true" } }), done && !passed ? "check-circle-2" : "flag");
 			// The aim and due date sit under the title, so a long title keeps its width.
 			const main = row.createDiv({ cls: "editorialist-project__row-main" });

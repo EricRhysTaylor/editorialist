@@ -8467,8 +8467,10 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	margin: 0;
 }
 
-/* The engagement on one bar: editor's stretch, then the author's questions. */
+/* The engagement on one track: the author's preparation, the editor at
+   work, then the author's questions, with the author's targets marked. */
 .editorialist-phases {
+	--editorialist-phase-preparation: var(--color-orange);
 	--editorialist-phase-editing: var(--color-purple);
 	--editorialist-phase-questions: var(--color-cyan);
 
@@ -8477,45 +8479,56 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 
 .editorialist-phases__bar {
 	position: relative;
-	display: flex;
-	gap: 2px;
 	height: 6px;
-	margin: 6px 1px 10px;
+	margin: 14px 1px;
+}
+
+.editorialist-phases__summary {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+.editorialist-phases__segment,
+.editorialist-phases__row {
+	--editorialist-phase-color: var(--editorialist-phase-editing);
+}
+
+.editorialist-phases__segment.is-preparation,
+.editorialist-phases__row.is-preparation {
+	--editorialist-phase-color: var(--editorialist-phase-preparation);
+}
+
+.editorialist-phases__segment.is-questions,
+.editorialist-phases__row.is-questions {
+	--editorialist-phase-color: var(--editorialist-phase-questions);
 }
 
 .editorialist-phases__segment {
-	position: relative;
+	position: absolute;
+	top: 0;
+	left: calc(var(--editorialist-phase-left) + 1px);
+	width: calc(var(--editorialist-phase-width) - 2px);
 	height: 100%;
 	border-radius: 3px;
 	overflow: hidden;
-}
-
-.editorialist-phases__segment.is-editing {
-	flex: 0 0 var(--editorialist-phase-return);
-	background: color-mix(in srgb, var(--editorialist-phase-editing) 22%, var(--background-modifier-border));
-}
-
-.editorialist-phases__segment.is-questions {
-	flex: 1 1 auto;
-	background: color-mix(in srgb, var(--editorialist-phase-questions) 22%, var(--background-modifier-border));
+	background: color-mix(in srgb, var(--editorialist-phase-color) 22%, var(--background-modifier-border));
+	transition: left 240ms ease, width 240ms ease;
 }
 
 .editorialist-phases__fill {
 	width: var(--editorialist-phase-fill);
 	height: 100%;
-}
-
-.editorialist-phases__segment.is-editing .editorialist-phases__fill {
-	background: var(--editorialist-phase-editing);
-}
-
-.editorialist-phases__segment.is-questions .editorialist-phases__fill {
-	background: var(--editorialist-phase-questions);
+	background: var(--editorialist-phase-color);
 }
 
 .editorialist-phases__tick {
 	position: absolute;
 	top: -3px;
+	left: var(--editorialist-phase-left);
 	width: 2px;
 	height: 12px;
 	margin-left: -1px;
@@ -8523,16 +8536,64 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	background: var(--text-faint);
 }
 
-.editorialist-phases__tick.is-start {
-	left: 0;
+/* A target on the track: hollow while open, green once finished or sent,
+   red once its day has passed. A shared day is larger and counts its targets. */
+.editorialist-phases .editorialist-phases__bar button.editorialist-phases__mark,
+.editorialist-phases .editorialist-phases__bar button.editorialist-phases__mark:hover {
+	position: absolute;
+	z-index: 1;
+	top: 50%;
+	left: var(--editorialist-phase-left);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 12px;
+	height: 12px;
+	min-height: 0;
+	margin: 0;
+	padding: 0;
+	border: 2px solid var(--text-muted);
+	border-radius: 50%;
+	background: var(--background-primary);
+	box-shadow: 0 0 0 2px var(--background-primary);
+	transform: translate(-50%, -50%);
+	cursor: pointer;
+	transition: transform 120ms ease;
 }
 
-.editorialist-phases__tick.is-return {
-	left: var(--editorialist-phase-return);
+.editorialist-phases .editorialist-phases__bar button.editorialist-phases__mark:hover,
+.editorialist-phases .editorialist-phases__bar button.editorialist-phases__mark:focus-visible {
+	transform: translate(-50%, -50%) scale(1.3);
 }
 
-.editorialist-phases__tick.is-end {
-	left: 100%;
+.editorialist-phases .editorialist-phases__bar button.editorialist-phases__mark.is-combined,
+.editorialist-phases .editorialist-phases__bar button.editorialist-phases__mark.is-combined:hover {
+	width: 17px;
+	height: 17px;
+}
+
+.editorialist-phases .editorialist-phases__bar button.editorialist-phases__mark.is-done,
+.editorialist-phases .editorialist-phases__bar button.editorialist-phases__mark.is-done:hover {
+	border-color: var(--color-green);
+	background: var(--color-green);
+}
+
+.editorialist-phases .editorialist-phases__bar button.editorialist-phases__mark.is-late,
+.editorialist-phases .editorialist-phases__bar button.editorialist-phases__mark.is-late:hover {
+	border-color: var(--color-red);
+	background: color-mix(in srgb, var(--color-red) 25%, var(--background-primary));
+}
+
+.editorialist-phases .editorialist-phases__mark-count {
+	color: var(--text-normal);
+	font-size: 9px;
+	font-weight: var(--font-bold);
+	line-height: 1;
+	font-variant-numeric: tabular-nums;
+}
+
+.editorialist-phases .editorialist-phases__bar button.editorialist-phases__mark.is-done .editorialist-phases__mark-count {
+	color: var(--background-primary);
 }
 
 .editorialist-phases__legend {
@@ -8559,11 +8620,7 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	width: 8px;
 	height: 8px;
 	border-radius: 2px;
-	background: var(--editorialist-phase-editing);
-}
-
-.editorialist-phases__row.is-questions .editorialist-phases__swatch {
-	background: var(--editorialist-phase-questions);
+	background: var(--editorialist-phase-color);
 }
 
 .editorialist-phases__range {
@@ -8571,6 +8628,30 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	color: var(--text-faint);
 	font-weight: var(--font-normal);
 	font-variant-numeric: tabular-nums;
+}
+
+/* A row reached from the engagement track, briefly marked. */
+.editorialist-project__row.is-revealed,
+.editorialist-project__document.is-revealed {
+	animation: editorialist-track-reveal 1.8s ease-out;
+}
+
+@keyframes editorialist-track-reveal {
+	0%,
+	30% {
+		background-color: color-mix(in srgb, var(--interactive-accent) 22%, transparent);
+	}
+
+	100% {
+		background-color: transparent;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.editorialist-phases__segment,
+	.editorialist-phases__mark {
+		transition: none;
+	}
 }
 
 .editorialist-project__hero {
