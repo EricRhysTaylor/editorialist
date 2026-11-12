@@ -1036,6 +1036,155 @@
 	font-size: var(--font-ui-smaller);
 }
 
+/* Every edit in the book as one dot, scene by scene. Colour is where the edit
+   came from; hollow is still to do, solid is done, faint was declined. */
+.editorialist-matrix {
+	--editorialist-matrix-word: var(--color-blue);
+	--editorialist-matrix-editor: var(--color-purple);
+	--editorialist-matrix-copy: var(--color-orange);
+	--editorialist-matrix-ai: var(--color-cyan);
+}
+
+.editorialist-matrix-slot:empty {
+	display: none;
+}
+
+.editorialist-matrix__grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px 9px;
+	padding: 2px 0;
+}
+
+.editorialist-matrix__scene {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 3px;
+}
+
+.editorialist-matrix__dot,
+.editorialist-matrix__key {
+	--editorialist-matrix-color: var(--text-muted);
+}
+
+.editorialist-matrix__dot.is-word,
+.editorialist-matrix__key.is-word {
+	--editorialist-matrix-color: var(--editorialist-matrix-word);
+}
+
+.editorialist-matrix__dot.is-editor,
+.editorialist-matrix__key.is-editor {
+	--editorialist-matrix-color: var(--editorialist-matrix-editor);
+}
+
+.editorialist-matrix__dot.is-copy,
+.editorialist-matrix__key.is-copy {
+	--editorialist-matrix-color: var(--editorialist-matrix-copy);
+}
+
+.editorialist-matrix__dot.is-ai,
+.editorialist-matrix__key.is-ai {
+	--editorialist-matrix-color: var(--editorialist-matrix-ai);
+}
+
+.editorialist-matrix .editorialist-matrix__grid .editorialist-matrix__scene button.editorialist-matrix__dot,
+.editorialist-matrix .editorialist-matrix__grid .editorialist-matrix__scene button.editorialist-matrix__dot:hover,
+.editorialist-matrix__dot.is-sample {
+	/* Obsidian squares off button corners; a dot stays a circle. */
+	--button-corner-shape: round;
+	--corner-shape: round;
+
+	display: block;
+	flex: 0 0 auto;
+	width: 10px;
+	height: 10px;
+	min-height: 0;
+	margin: 0;
+	padding: 0;
+	border: 2px solid var(--editorialist-matrix-color);
+	border-radius: 50%;
+	background: transparent;
+	box-shadow: none;
+	cursor: pointer;
+	transition: transform 100ms ease;
+}
+
+.editorialist-matrix .editorialist-matrix__grid .editorialist-matrix__scene button.editorialist-matrix__dot:hover,
+.editorialist-matrix .editorialist-matrix__grid .editorialist-matrix__scene button.editorialist-matrix__dot:focus-visible {
+	transform: scale(1.45);
+}
+
+.editorialist-matrix .editorialist-matrix__grid .editorialist-matrix__scene button.editorialist-matrix__dot.is-done,
+.editorialist-matrix .editorialist-matrix__grid .editorialist-matrix__scene button.editorialist-matrix__dot.is-done:hover,
+.editorialist-matrix__dot.is-sample.is-done {
+	background: var(--editorialist-matrix-color);
+}
+
+.editorialist-matrix .editorialist-matrix__grid .editorialist-matrix__scene button.editorialist-matrix__dot.is-declined,
+.editorialist-matrix .editorialist-matrix__grid .editorialist-matrix__scene button.editorialist-matrix__dot.is-declined:hover,
+.editorialist-matrix__dot.is-sample.is-declined {
+	border-color: transparent;
+	background: color-mix(in srgb, var(--editorialist-matrix-color) 30%, transparent);
+}
+
+.editorialist-matrix__legend {
+	display: grid;
+	gap: 3px;
+	font-size: var(--font-ui-smaller);
+}
+
+.editorialist-matrix__key {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	color: var(--text-normal);
+}
+
+.editorialist-matrix__swatch {
+	flex: 0 0 auto;
+	width: 8px;
+	height: 8px;
+	border-radius: 2px;
+	background: var(--editorialist-matrix-color);
+}
+
+.editorialist-matrix__key-count {
+	margin-inline-start: auto;
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+.editorialist-matrix__states {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 12px;
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+}
+
+.editorialist-matrix__state {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+}
+
+.editorialist-matrix__dot.is-sample {
+	width: 8px;
+	height: 8px;
+	cursor: default;
+}
+
+.editorialist-matrix__error {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.editorialist-matrix .editorialist-matrix__grid .editorialist-matrix__scene button.editorialist-matrix__dot {
+		transition: none;
+	}
+}
+
 /* "Up next" pending list hugs the Continue Review hero above it, so it uses a
    tighter top margin than a standalone review-state card. */
 .editorialist-panel__review-state--upnext {
@@ -8531,6 +8680,10 @@ a:not([aria-disabled="true"], .is-disabled):hover {
    red once its day has passed. A shared day is larger and counts its targets. */
 .editorialist-phases .editorialist-phases__bar button.editorialist-phases__mark,
 .editorialist-phases .editorialist-phases__bar button.editorialist-phases__mark:hover {
+	/* Obsidian squares off button corners; a mark stays a circle. */
+	--button-corner-shape: round;
+	--corner-shape: round;
+
 	position: absolute;
 	z-index: 1;
 	top: 50%;

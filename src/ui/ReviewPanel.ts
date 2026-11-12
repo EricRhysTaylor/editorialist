@@ -1,6 +1,8 @@
 import { t } from "../i18n";
 import { setAccessibleLabel } from "./primitives/AccessibleLabel";
 import { formatRelativeTime } from "../core/RelativeTime";
+import { renderEditMatrix } from "./primitives/EditMatrix";
+import type { EditMatrixScene } from "../core/review/EditMatrix";
 import { renderPanelHeader } from "./primitives/PanelHeader";
 import { ButtonComponent, DropdownComponent, ItemView, Menu, Notice, setIcon, type WorkspaceLeaf } from "obsidian";
 import { formatContributorIdentityLabel } from "../core/ContributorIdentity";
@@ -160,6 +162,9 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	// Which directive the one-at-a-time view is on, per scene; see
 	// resolveFocusedDirectiveIndex.
 	private sceneDirectiveFocus: (SceneDirectiveFocus & { scene: string }) | null = null;
+	// The last book-wide edit grid, drawn at once while a fresh one is gathered.
+	private editMatrix: EditMatrixScene[] = [];
+	private editMatrixRun = 0;
 	// null = follow the cold-start default; an explicit boolean once the user
 	// toggles the onboarding disclosure within this view session.
 	private onboardingExpanded: boolean | null = null;
@@ -346,6 +351,8 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			} else if (!overview?.pending.length) {
 				renderReviewWelcomeCard(this.plugin, this.contentEl);
 			}
+			// Every edit in the book as a dot: what is left and what is done.
+			if (overview) this.renderEditMatrix(this.contentEl.createDiv({ cls: "editorialist-matrix-slot" }));
 			if (overview) {
 				this.renderUpNextPendingScenes(overview.pending, launchTarget?.notePath ?? null, Boolean(launchTarget));
 			}
@@ -502,6 +509,26 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			renderContinueReviewCard(this, this.plugin, this.contentEl, launchTarget, overview);
 		}
 		this.renderUpNextPendingScenes(pending, launchTarget?.notePath ?? null, Boolean(launchTarget));
+	}
+
+	// The book's edits as a grid of dots. Gathering them reads every scene with
+	// review blocks, so the last grid is drawn straight away and replaced when
+	// the fresh one arrives; a newer render supersedes an older gather.
+	private renderEditMatrix(slot: HTMLElement): void {
+		const open = (notePath: string, id: string) => void this.plugin.openReviewSuggestion(notePath, id);
+		renderEditMatrix(slot, this.editMatrix, open);
+		const run = ++this.editMatrixRun;
+		void this.plugin.collectEditMatrix().then((scenes) => {
+			if (run !== this.editMatrixRun || !slot.isConnected) return;
+			this.editMatrix = scenes;
+			slot.empty();
+			renderEditMatrix(slot, scenes, open);
+		}, (error: unknown) => {
+			if (run !== this.editMatrixRun || !slot.isConnected) return;
+			console.error("Editorialist: could not gather the book's edits", error);
+			slot.empty();
+			slot.createDiv({ cls: "editorialist-matrix__error", text: "Could not gather the book's edits." });
+		});
 	}
 
 	// Pending scenes that belong to the "Up next" cluster beneath the Continue

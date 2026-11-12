@@ -61,6 +61,7 @@ import { authorQueryKey } from "../core/AuthorQueryMarker";
 import { SweepRegistryManager } from "./registry/SweepRegistryManager";
 import { SceneInventoryBuilder } from "./registry/SceneInventoryBuilder";
 import { getSceneBatchTally, tallyReviewStatuses } from "../core/review/SweepCompletion";
+import { editMatrixScene, type EditMatrixScene } from "../core/review/EditMatrix";
 import {
 	EDITORIALIST_PLUGIN_DATA_VERSION,
 	BATCH_ATTRIBUTION_VERSION,
@@ -434,6 +435,23 @@ export class ReviewRegistryService {
 
 	getSweepRegistryEntry(batchId?: string): ReviewSweepRegistryEntry | null {
 		return this.sweepManager.getEntry(this.sweepRegistry, batchId);
+	}
+
+	// Every edit still in the active book's review blocks, one entry per scene,
+	// with its decision and where it came from. Cleaned scenes hold no blocks,
+	// so their edits are no longer here to show.
+	async collectEditMatrix(): Promise<EditMatrixScene[]> {
+		const scenes: EditMatrixScene[] = [];
+		const fromWord = (batchId: string | undefined) => Boolean(batchId && this.sweepManager.getEntry(this.sweepRegistry, batchId)?.wordSource);
+		for (const record of this.getSceneReviewRecords({ activeBookOnly: true })) {
+			if (record.batchCount === 0) continue;
+			const file = this.app.vault.getAbstractFileByPath(record.notePath);
+			if (!(file instanceof TFile)) continue;
+			const noteText = this.openNoteTextResolver(record.notePath) ?? (await this.app.vault.cachedRead(file));
+			const session = this.applyPersistedReviewState(this.reviewEngine.buildSession(record.notePath, noteText, null));
+			if (session.suggestions.length) scenes.push(editMatrixScene(record.notePath, record.noteTitle, session.suggestions, fromWord));
+		}
+		return scenes;
 	}
 
 	getSceneReviewRecords(options?: { activeBookOnly?: boolean }): SceneReviewRecord[] {

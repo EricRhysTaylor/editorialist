@@ -52,6 +52,7 @@ import {
 	getAdjacentRevealableSuggestionId as getAdjacentRevealableSuggestionIdShared,
 	hasLiveActionableSuggestions as hasLiveActionableSuggestionsShared,
 } from "./core/review/SuggestionTraversal";
+import type { EditMatrixScene } from "./core/review/EditMatrix";
 import { ReviewStateMachine } from "./core/review/ReviewStateMachine";
 import { runEditorUndo } from "./core/review/EditorUndo";
 import type { ReviewStateMachineHost } from "./core/review/ReviewStateMachineHost";
@@ -2133,6 +2134,10 @@ export default class EditorialistPlugin extends Plugin {
 		return this.registry.getBatchDecisionStats(batchId);
 	}
 
+	collectEditMatrix(): Promise<EditMatrixScene[]> {
+		return this.registry.collectEditMatrix();
+	}
+
 	getSceneReviewRecords(options?: { activeBookOnly?: boolean }): SceneReviewRecord[] {
 		return this.registry.getSceneReviewRecords(options);
 	}
@@ -3613,6 +3618,18 @@ export default class EditorialistPlugin extends Plugin {
 		}
 
 		await this.sessionOrchestrator.parseReviewContext(context, true);
+	}
+
+	// Opens a scene's review and selects one edit in it. Ids are fixed by the
+	// edit's place in the review block, so they survive the session rebuild.
+	async openReviewSuggestion(notePath: string, suggestionId: string): Promise<void> {
+		await this.startOrResumeReviewForNote(notePath);
+		const session = this.getCurrentReviewSession();
+		if (session?.notePath !== notePath || !session.suggestions.some((suggestion) => suggestion.id === suggestionId)) {
+			new Notice("That edit is no longer in this scene's review.");
+			return;
+		}
+		await this.reviewActions.selectSuggestion(suggestionId);
 	}
 
 	// Every Clean entry point routes through here. There are four — the panel's
