@@ -112,6 +112,21 @@ export function liveEdits(
 	});
 }
 
+export function directivePlace(sectionIndex: number, itemIndex: number): string {
+	return `${sectionIndex}.${itemIndex}`;
+}
+
+/**
+ * The agenda line of a directive on the grid, or null when it is gone. Records
+ * made before directives were numbered by place hold the line itself.
+ */
+export function directiveLine(editorialism: Editorialism, id: string): number | null {
+	if (/^\d+$/.test(id)) return Number(id);
+	const match = /^(\d+)\.(\d+)$/.exec(id);
+	if (!match) return null;
+	return editorialism.sections[Number(match[1])]?.items[Number(match[2])]?.lineIndex ?? null;
+}
+
 // A directive's state on the grid. Deferred is the author choosing to skip
 // it, so it reads as declined; a question is still to do.
 export function directiveStatus(status: EditorialismItemStatus): ReviewStatus {
@@ -120,14 +135,17 @@ export function directiveStatus(status: EditorialismItemStatus): ReviewStatus {
 }
 
 // Each directive of an Editorialism agenda, grouped under the agenda. The
-// agenda's file is the "scene" and the directive's line is its place.
+// agenda's file is the "scene", and a directive's place is its position among
+// the directives (section, then item). File lines move whenever a line is
+// added, as when an anchor is pinned under a directive, so they would give the
+// same directive a new identity; its line only orders the dots.
 export function directiveEdits(editorialism: Editorialism, createdAt: number): LiveEdit[] {
 	const ai = Boolean(editorialism.reviewerType?.startsWith("ai-"));
-	return editorialism.sections.flatMap((section) => section.items).map((item) => ({
-		key: `ed|${editorialism.filePath}|${item.lineIndex}`,
+	return editorialism.sections.flatMap((section, sectionIndex) => section.items.map((item, itemIndex) => ({ item, place: directivePlace(sectionIndex, itemIndex) }))).map(({ item, place }) => ({
+		key: `ed|${editorialism.filePath}|${place}`,
 		notePath: editorialism.filePath,
 		title: editorialism.title,
-		id: String(item.lineIndex),
+		id: place,
 		source: "editorialism" as const,
 		status: directiveStatus(item.status),
 		summary: clip(item.text, 90),

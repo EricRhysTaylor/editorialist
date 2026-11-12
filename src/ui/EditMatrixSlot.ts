@@ -25,7 +25,7 @@ export class EditMatrixSlot {
 			// A directive opens in its agenda; an edit whose scene was cleaned has
 			// nothing left to select there, so it opens the scene.
 			open: (scene, dot) => void (dot.source === "editorialism"
-				? plugin.openEditorialismItem(scene.notePath, Number(dot.id))
+				? plugin.openEditorialismItem(scene.notePath, dot.id)
 				: dot.live ? plugin.openReviewSuggestion(scene.notePath, dot.id) : plugin.openSceneNote(scene.notePath)),
 			newRound: (archive) => void this.confirmNewRound(archive),
 			bringIn: () => void plugin.openEditorialistModal(),

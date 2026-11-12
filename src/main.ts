@@ -52,7 +52,7 @@ import {
 	getAdjacentRevealableSuggestionId as getAdjacentRevealableSuggestionIdShared,
 	hasLiveActionableSuggestions as hasLiveActionableSuggestionsShared,
 } from "./core/review/SuggestionTraversal";
-import { directiveEdits, type EditMatrixScene, type LiveEdit } from "./core/review/EditMatrix";
+import { directiveEdits, directiveLine, type EditMatrixScene, type LiveEdit } from "./core/review/EditMatrix";
 import type { EditRound } from "./core/review/EditLedger";
 import { ReviewStateMachine } from "./core/review/ReviewStateMachine";
 import { runEditorUndo } from "./core/review/EditorUndo";
@@ -2149,13 +2149,15 @@ export default class EditorialistPlugin extends Plugin {
 	}
 
 	// Opens an Editorialism agenda in its panel with one directive in view.
-	async openEditorialismItem(filePath: string, lineIndex: number): Promise<void> {
+	async openEditorialismItem(filePath: string, id: string): Promise<void> {
 		const leaf = await this.openEditorialistPanel(EDITORIALISM_PANEL_VIEW_TYPE);
 		if (!(leaf?.view instanceof EditorialismPanel)) {
 			new Notice("Could not open the Editorialism panel.");
 			return;
 		}
-		await leaf.view.showItem(filePath, lineIndex);
+		// The directive's line is found now, since lines move as the agenda changes.
+		const editorialism = await this.loadEditorialism(filePath);
+		await leaf.view.showItem(filePath, editorialism ? directiveLine(editorialism, id) ?? -1 : -1);
 	}
 
 	async startNewEditRound(archive: boolean): Promise<void> {

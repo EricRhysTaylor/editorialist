@@ -9,6 +9,22 @@ function edit(key: string, status: LiveEdit["status"], importedAt: number | null
 const keys = (book: EditLedgerBook) => Object.keys(book.entries).sort();
 
 describe("edit ledger", () => {
+	it("moves directives recorded by agenda line to their place, dropping copies left by shifted lines", () => {
+		const agenda = "Editorialist/Letter.md";
+		const directive = (place: string, line: number, text: string, status: LiveEdit["status"]): LiveEdit => ({ key: `ed|${agenda}|${place}`, notePath: agenda, title: "Letter", id: place, source: "editorialism", status, summary: text, viaWord: false, ai: false, order: line, batchId: null, importedAt: 1 });
+		// Line 5 held "Cut", then an anchor pushed it to 6; line 5 is now a copy left behind.
+		const byLine = (line: number, text: string, status: LiveEdit["status"]) => ({ ...directive(String(line), line, text, status), key: `ed|${agenda}|${line}` });
+		const old = recordLiveEdits(undefined, [byLine(4, "Tighten", "accepted"), byLine(5, "Cut", "pending"), byLine(9, "Gone", "accepted")], 100).book;
+		old.entries[`ed|${agenda}|6`] = { ...old.entries[`ed|${agenda}|5`]!, id: "6" };
+		old.entries[`ed|${agenda}|5`] = { ...old.entries[`ed|${agenda}|5`]!, live: false };
+		const { book, changed } = recordLiveEdits(old, [directive("0.0", 4, "Tighten", "accepted"), directive("0.1", 6, "Cut", "accepted")], 200);
+		expect(changed).toBe(true);
+		expect(keys(book)).toEqual([`ed|${agenda}|0.0`, `ed|${agenda}|0.1`, `ed|${agenda}|9`]);
+		expect(book.entries[`ed|${agenda}|0.1`]).toMatchObject({ status: "accepted", live: true, id: "0.1" });
+		// A directive since deleted keeps its last state.
+		expect(book.entries[`ed|${agenda}|9`]).toMatchObject({ status: "accepted", live: false });
+	});
+
 	it("records every edit in the blocks the first time, with its decision", () => {
 		const { book, changed } = recordLiveEdits(undefined, [edit("e1", "accepted"), edit("e2", "pending")], 200);
 		expect(changed).toBe(true);

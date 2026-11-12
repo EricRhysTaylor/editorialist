@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ContributorDirectory } from "../../state/ContributorDirectory";
 import { SuggestionParser } from "../SuggestionParser";
-import { directiveEdits, editState, liveEdits } from "./EditMatrix";
+import { directiveEdits, directiveLine, editState, liveEdits } from "./EditMatrix";
 
 function parse(reviewerType: string, body: string) {
 	return new SuggestionParser(new ContributorDirectory()).parse(`Reviewer: Morgan Lee\nReviewerType: ${reviewerType}\n\n${body}`).suggestions;
@@ -44,10 +44,16 @@ describe("liveEdits", () => {
 		};
 		const edits = directiveEdits(agenda, 42);
 		expect(edits.map((edit) => [edit.key, edit.id, edit.source, edit.status, edit.ai, edit.importedAt])).toEqual([
-			["ed|Editorialist/Book/Letter.md|4", "4", "editorialism", "accepted", true, 42],
-			["ed|Editorialist/Book/Letter.md|5", "5", "editorialism", "rejected", true, 42],
-			["ed|Editorialist/Book/Letter.md|6", "6", "editorialism", "pending", true, 42],
+			["ed|Editorialist/Book/Letter.md|0.0", "0.0", "editorialism", "accepted", true, 42],
+			["ed|Editorialist/Book/Letter.md|0.1", "0.1", "editorialism", "rejected", true, 42],
+			["ed|Editorialist/Book/Letter.md|0.2", "0.2", "editorialism", "pending", true, 42],
 		]);
+		// A line added above a directive, such as a pinned anchor, leaves its place unchanged.
+		const shifted = { ...agenda, sections: [{ heading: "Pacing", items: [item(4, "done", "Tighten the opening."), item(6, "deferred", "Cut the prologue."), item(7, "question", "Raspberries or blueberries?")] }] };
+		expect(directiveEdits(shifted, 42).map((edit) => edit.key)).toEqual(edits.map((edit) => edit.key));
+		expect(directiveLine(shifted, "0.1")).toBe(6);
+		expect(directiveLine(shifted, "5")).toBe(5);
+		expect(directiveLine(shifted, "0.9")).toBeNull();
 		expect(directiveEdits({ ...agenda, reviewerType: "editor" }, 42)[0]!.ai).toBe(false);
 	});
 

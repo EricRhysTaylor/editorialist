@@ -53,9 +53,10 @@ const emptyBook = (): EditLedgerBook => ({ startedAt: 0, entries: {}, rounds: []
  * round; a decided edit from an earlier round stays out after a reset.
  */
 export function recordLiveEdits(book: EditLedgerBook | undefined, live: readonly LiveEdit[], now: number): { book: EditLedgerBook; changed: boolean } {
-	const current = book ?? emptyBook();
+	const adopted = book ? adoptDirectivePlaces(book, live) : null;
+	const current = adopted ?? book ?? emptyBook();
 	const entries: Record<string, EditLedgerEntry> = {};
-	let changed = !book;
+	let changed = !book || adopted !== null;
 	const seen = new Set<string>();
 	for (const edit of live) {
 		seen.add(edit.key);
@@ -86,6 +87,36 @@ export function recordLiveEdits(book: EditLedgerBook | undefined, live: readonly
 		if (entry.live) changed = true;
 	}
 	return { book: { ...current, entries }, changed };
+}
+
+const LINE_KEY = /^ed\|(.*)\|(\d+)$/;
+
+/**
+ * Records made before directives were numbered by place keyed each one by its
+ * agenda line. A line still holding a directive moves to that directive's
+ * place. A line copy left behind when lines shifted, matching a directive now
+ * on the grid by its text, is dropped. Anything else, such as a directive
+ * since deleted, is kept. Returns null when nothing needed moving.
+ */
+export function adoptDirectivePlaces(book: EditLedgerBook, live: readonly LiveEdit[]): EditLedgerBook | null {
+	const legacy = Object.keys(book.entries).filter((key) => LINE_KEY.test(key));
+	if (!legacy.length) return null;
+	const directives = live.filter((edit) => edit.source === "editorialism");
+	const entries = { ...book.entries };
+	for (const key of legacy) {
+		const entry = entries[key];
+		const match = LINE_KEY.exec(key);
+		if (!entry || !match) continue;
+		const line = Number(match[2]);
+		const here = directives.find((edit) => edit.notePath === entry.notePath && edit.order === line);
+		delete entries[key];
+		if (here) {
+			if (!entries[here.key]) entries[here.key] = { ...entry, id: here.id };
+		} else if (!directives.some((edit) => edit.notePath === entry.notePath && edit.summary === entry.summary)) {
+			entries[key] = entry;
+		}
+	}
+	return { ...book, entries };
 }
 
 export function roundCounts(book: EditLedgerBook): EditCounts {
