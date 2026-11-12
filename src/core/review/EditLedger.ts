@@ -16,6 +16,7 @@ export interface EditLedgerEntry {
 	status: ReviewStatus;
 	summary: string;
 	viaWord: boolean;
+	ai: boolean;
 	order: number;
 	live: boolean;
 	seenAt: number;
@@ -69,12 +70,13 @@ export function recordLiveEdits(book: EditLedgerBook | undefined, live: readonly
 			status: edit.status,
 			summary: edit.summary,
 			viaWord: edit.viaWord,
+			ai: edit.ai,
 			order: edit.order,
 			live: true,
 			seenAt: known?.seenAt ?? now,
 			updatedAt: now,
 		};
-		const same = known && known.live && (["notePath", "title", "id", "source", "status", "summary", "viaWord", "order"] as const).every((field) => known[field] === next[field]);
+		const same = known && known.live && (["notePath", "title", "id", "source", "status", "summary", "viaWord", "ai", "order"] as const).every((field) => known[field] === next[field]);
 		entries[edit.key] = same ? known : next;
 		if (!same) changed = true;
 	}
@@ -112,7 +114,7 @@ export function ledgerScenes(book: EditLedgerBook | undefined): EditMatrixScene[
 		const scene = scenes.get(entry.notePath) ?? { notePath: entry.notePath, title: entry.title, dots: [] as EditMatrixScene["dots"], order: new Map<string, number>() };
 		scene.title = entry.title;
 		scene.order.set(key, entry.order);
-		scene.dots.push({ key, id: entry.id, source: entry.source, state: editState(entry.status), status: entry.status, summary: entry.summary, viaWord: entry.viaWord, live: entry.live });
+		scene.dots.push({ key, id: entry.id, source: entry.source, state: editState(entry.status), status: entry.status, summary: entry.summary, viaWord: entry.viaWord, ai: entry.ai, live: entry.live });
 		scenes.set(entry.notePath, scene);
 	}
 	return [...scenes.values()].map(({ order, ...scene }) => ({
@@ -138,14 +140,18 @@ const STATUSES: readonly ReviewStatus[] = ["pending", "accepted", "rejected", "d
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 const count = (value: unknown): number => (typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : 0);
 
-// Records saved before Word became how an edit arrived, rather than its kind,
-// carry "word" as the source. A Word import is always a copy edit.
+// Earlier records named two kinds that are now facts about an edit instead:
+// "word" (a person's copy edit from their Word file) and "ai" (a model's
+// edit, whose role went unrecorded, so it reads as an editorial pass).
 const LEGACY_WORD = "word";
+const LEGACY_AI = "ai";
+const LEGACY_KIND: Record<string, EditSource> = { [LEGACY_WORD]: "copy", [LEGACY_AI]: "editor" };
 
 function normalizeEntry(raw: unknown): EditLedgerEntry | null {
 	if (!isRecord(raw) || typeof raw.notePath !== "string" || typeof raw.id !== "string") return null;
 	const legacyWord = raw.source === LEGACY_WORD;
-	const source = legacyWord ? "copy" : raw.source;
+	const legacyAi = raw.source === LEGACY_AI;
+	const source = typeof raw.source === "string" ? LEGACY_KIND[raw.source] ?? raw.source : raw.source;
 	if (!EDIT_SOURCES.includes(source as EditSource) || !STATUSES.includes(raw.status as ReviewStatus)) return null;
 	return {
 		notePath: raw.notePath,
@@ -155,6 +161,7 @@ function normalizeEntry(raw: unknown): EditLedgerEntry | null {
 		status: raw.status as ReviewStatus,
 		summary: typeof raw.summary === "string" ? raw.summary : "",
 		viaWord: legacyWord || raw.viaWord === true,
+		ai: legacyAi || raw.ai === true,
 		order: count(raw.order),
 		live: raw.live === true,
 		seenAt: count(raw.seenAt),
@@ -167,7 +174,7 @@ function normalizeRound(raw: unknown): EditRound | null {
 	const rawCounts = raw.counts;
 	const tally = (source: string, state: EditState): number => count(isRecord(rawCounts[source]) ? rawCounts[source][state] : 0);
 	const counts = Object.fromEntries(EDIT_SOURCES.map((source) => [source, Object.fromEntries(EDIT_STATES.map((state) =>
-		[state, tally(source, state) + (source === "copy" ? tally(LEGACY_WORD, state) : 0)]))])) as EditCounts;
+		[state, tally(source, state) + Object.entries(LEGACY_KIND).reduce((sum, [legacy, kind]) => sum + (kind === source ? tally(legacy, state) : 0), 0)]))])) as EditCounts;
 	return { startedAt: count(raw.startedAt), endedAt: count(raw.endedAt), scenes: count(raw.scenes), counts };
 }
 

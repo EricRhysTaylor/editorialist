@@ -1037,11 +1037,12 @@
 }
 
 /* Every edit in the book as one dot, scene by scene. Colour is the kind of
-   work: copy edit, editorial pass, or Editorialist; hollow is still to do, solid is done, faint was declined. */
+   work: copy edit, editorial pass, or Editorialism directive; a centre mark
+   is a model's work rather than a person's; hollow is still to do, solid is done, faint was declined. */
 .editorialist-matrix {
 	--editorialist-matrix-editor: var(--color-purple);
 	--editorialist-matrix-copy: var(--color-orange);
-	--editorialist-matrix-ai: var(--color-cyan);
+	--editorialist-matrix-editorialism: var(--color-cyan);
 }
 
 .editorialist-matrix-slot:empty {
@@ -1076,9 +1077,9 @@
 	--editorialist-matrix-color: var(--editorialist-matrix-copy);
 }
 
-.editorialist-matrix__dot.is-ai,
-.editorialist-matrix__key.is-ai {
-	--editorialist-matrix-color: var(--editorialist-matrix-ai);
+.editorialist-matrix__dot.is-editorialism,
+.editorialist-matrix__key.is-editorialism {
+	--editorialist-matrix-color: var(--editorialist-matrix-editorialism);
 }
 
 .editorialist-matrix .editorialist-matrix__grid .editorialist-matrix__scene button.editorialist-matrix__dot,
@@ -1121,6 +1122,17 @@
 	background: color-mix(in srgb, var(--editorialist-matrix-color) 30%, transparent);
 }
 
+/* A model's work: a centre mark in the dot, contrasting with its fill. These
+   follow the fills above, whose background shorthand would clear the mark. */
+.editorialist-matrix .editorialist-matrix__grid .editorialist-matrix__scene button.editorialist-matrix__dot.is-ai,
+.editorialist-matrix .editorialist-matrix__states .editorialist-matrix__dot.is-sample.is-ai {
+	background-image: radial-gradient(circle, var(--editorialist-matrix-color) 0 1.5px, transparent 2px);
+}
+
+.editorialist-matrix .editorialist-matrix__grid .editorialist-matrix__scene button.editorialist-matrix__dot.is-done.is-ai {
+	background-image: radial-gradient(circle, var(--background-primary) 0 1.5px, transparent 2px);
+}
+
 .editorialist-matrix__legend {
 	display: grid;
 	gap: 3px;
@@ -1142,8 +1154,14 @@
 	background: var(--editorialist-matrix-color);
 }
 
+.editorialist-matrix__key-name {
+	flex: 0 0 auto;
+	white-space: nowrap;
+}
+
 .editorialist-matrix__key-count {
 	margin-inline-start: auto;
+	text-align: end;
 	color: var(--text-muted);
 	font-variant-numeric: tabular-nums;
 }
@@ -1166,6 +1184,10 @@
 	width: 8px;
 	height: 8px;
 	cursor: default;
+}
+
+.editorialist-matrix__states .editorialist-matrix__dot.is-sample.is-ai {
+	--editorialist-matrix-color: var(--text-muted);
 }
 
 .editorialist-matrix__error,
@@ -8885,7 +8907,8 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 
 /* A row reached from the engagement track, briefly marked. */
 .editorialist-project__row.is-revealed,
-.editorialist-project__document.is-revealed {
+.editorialist-project__document.is-revealed,
+.editorialist-editorialism-panel__item.is-revealed {
 	animation: editorialist-track-reveal 1.8s ease-out;
 }
 

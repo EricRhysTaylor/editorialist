@@ -25,12 +25,12 @@ vi.mock("obsidian", async () => ({
 	},
 }));
 
-const dot = (key: string, source: EditDot["source"], state: EditDot["state"], status: EditDot["status"], summary: string, live = true, viaWord = false): EditDot =>
-	({ key, id: `review-1-${key}`, source, state, status, summary, viaWord, live });
+const dot = (key: string, source: EditDot["source"], state: EditDot["state"], status: EditDot["status"], summary: string, live = true, viaWord = false, ai = false): EditDot =>
+	({ key, id: `review-1-${key}`, source, state, status, summary, viaWord, ai, live });
 
 const scenes: EditMatrixScene[] = [
 	{ notePath: "Book/12 Harbor.md", title: "12 Harbor", dots: [dot("1", "copy", "done", "accepted", "“teh” → “the”"), dot("2", "copy", "open", "pending", "“its” → “it's”")] },
-	{ notePath: "Book/3 Arrival.md", title: "3 Arrival", dots: [dot("3", "copy", "declined", "rejected", "Delete “very”", false, true), dot("4", "ai", "open", "unresolved", "Condense “The rain…”")] },
+	{ notePath: "Book/3 Arrival.md", title: "3 Arrival", dots: [dot("3", "copy", "declined", "rejected", "Delete “very”", false, true), dot("4", "editor", "open", "unresolved", "Condense “The rain…”", true, false, true)] },
 ];
 
 function render(round: Partial<EditMatrixRound> = {}) {
@@ -47,15 +47,15 @@ describe("Edit matrix", () => {
 		const dots = [...root.querySelectorAll<HTMLButtonElement>(".editorialist-matrix__grid .editorialist-matrix__dot")];
 		expect(dots.map((item) => item.className)).toEqual([
 			"editorialist-matrix__dot is-copy is-declined",
-			"editorialist-matrix__dot is-ai is-open",
+			"editorialist-matrix__dot is-editor is-open is-ai",
 			"editorialist-matrix__dot is-copy is-done",
 			"editorialist-matrix__dot is-copy is-open",
 		]);
 		expect(dots[0]!.getAttribute("aria-label")).toBe("3 Arrival\nCopy edit · from Word · declined (scene cleaned)\nDelete “very”");
-		expect(dots[1]!.getAttribute("aria-label")).toBe("3 Arrival\nEditorialist · to do (passage not found)\nCondense “The rain…”");
+		expect(dots[1]!.getAttribute("aria-label")).toBe("3 Arrival\nEditorial pass · AI · to do (passage not found)\nCondense “The rain…”");
 		expect(root.querySelector(".editorialist-panel__review-state-summary")?.textContent).toBe("2 of 4 handled");
 		expect([...root.querySelectorAll(".editorialist-matrix__key")].map((key) => key.textContent)).toEqual([
-			"Copy edit1 of 3 to do", "Editorialist1 of 1 to do",
+			"Copy edit1 of 3 to do", "Editorial pass1 of 1 to do · all AI",
 		]);
 	});
 
@@ -66,7 +66,7 @@ describe("Edit matrix", () => {
 	});
 
 	it("offers a new round or an archive, and lists earlier rounds", () => {
-		const counts = { copy: { open: 1, done: 6, declined: 1 }, editor: { open: 0, done: 0, declined: 0 }, ai: { open: 0, done: 0, declined: 0 } };
+		const counts = { copy: { open: 1, done: 6, declined: 1 }, editor: { open: 0, done: 0, declined: 0 }, editorialism: { open: 0, done: 0, declined: 0 } };
 		const { root, actions } = render({ rounds: [{ startedAt: 0, endedAt: Date.UTC(2026, 10, 2, 12), scenes: 3, counts }] });
 		root.querySelector<HTMLButtonElement>(".editorialist-matrix__menu")!.click();
 		const menu = state.menus[state.menus.length - 1]!;

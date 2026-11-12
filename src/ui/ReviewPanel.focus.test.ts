@@ -56,6 +56,7 @@ function mount(session: ReviewSession | null) {
 		getPanelOnlyReviewState: () => null,
 		getReviewPanelHeaderDetails: () => ({ summary: "" }),
 		getReviewStateOverview: () => null,
+		collectEditMatrix: async () => ({ scenes: [], startedAt: 0, rounds: [] }),
 		getSweepRegistryEntries: () => [],
 		getSortedReviewerProfiles: () => [],
 		getReviewerProfile: () => null,

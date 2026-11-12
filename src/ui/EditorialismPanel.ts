@@ -105,6 +105,28 @@ export class EditorialismPanel extends ItemView {
 		await this.refresh();
 	}
 
+	/** Opens one agenda with a directive in view, briefly marked. */
+	async showItem(filePath: string, lineIndex: number): Promise<void> {
+		this.activeFilePath = filePath;
+		this.activeEditorialism = await this.plugin.loadEditorialism(filePath);
+		if (!this.activeEditorialism) {
+			this.activeFilePath = null;
+			this.render();
+			new Notice("That agenda is no longer in the vault.");
+			return;
+		}
+		this.render();
+		const row = this.contentEl.querySelector<HTMLElement>(`[data-line-index="${lineIndex}"]`);
+		if (!row) {
+			new Notice("That directive is no longer in the agenda.");
+			return;
+		}
+		for (let open = row.parentElement?.closest("details"); open; open = open.parentElement?.closest("details")) open.open = true;
+		row.scrollIntoView({ block: "center", behavior: "smooth" });
+		row.addClass("is-revealed");
+		window.setTimeout(() => row.removeClass("is-revealed"), 1800);
+	}
+
 	async refresh(): Promise<void> {
 		if (this.isLoading) {
 			return;
@@ -463,6 +485,7 @@ export class EditorialismPanel extends ItemView {
 		const relevant = sceneContext !== null && scopeRelatesToScene(item.scope, sceneContext);
 		const row = parent.createDiv({
 			cls: `editorialist-editorialism-panel__item editorialist-editorialism-panel__item--${item.status}${relevant ? " editorialist-editorialism-panel__item--relevant" : ""}`,
+			attr: { "data-line-index": String(item.lineIndex) },
 		});
 		const checkbox = row.createEl("button", {
 			cls: "editorialist-editorialism-panel__item-status",

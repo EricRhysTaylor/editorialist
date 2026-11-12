@@ -52,7 +52,7 @@ import {
 	getAdjacentRevealableSuggestionId as getAdjacentRevealableSuggestionIdShared,
 	hasLiveActionableSuggestions as hasLiveActionableSuggestionsShared,
 } from "./core/review/SuggestionTraversal";
-import type { EditMatrixScene } from "./core/review/EditMatrix";
+import { directiveEdits, type EditMatrixScene, type LiveEdit } from "./core/review/EditMatrix";
 import type { EditRound } from "./core/review/EditLedger";
 import { ReviewStateMachine } from "./core/review/ReviewStateMachine";
 import { runEditorUndo } from "./core/review/EditorUndo";
@@ -2135,8 +2135,27 @@ export default class EditorialistPlugin extends Plugin {
 		return this.registry.getBatchDecisionStats(batchId);
 	}
 
-	collectEditMatrix(): Promise<{ scenes: EditMatrixScene[]; startedAt: number; rounds: EditRound[] }> {
-		return this.registry.collectEditMatrix();
+	// The round's edits: review edits from the scenes, plus each directive of
+	// the active book's Editorialism agendas that are still in use.
+	async collectEditMatrix(): Promise<{ scenes: EditMatrixScene[]; startedAt: number; rounds: EditRound[] }> {
+		const directives: LiveEdit[] = [];
+		for (const summary of await this.listEditorialismsForActiveBook(this.getActiveBookScopeInfo().label)) {
+			if (!isEditorialismActive(summary)) continue;
+			const editorialism = await this.loadEditorialism(summary.filePath);
+			const file = this.app.vault.getAbstractFileByPath(summary.filePath);
+			if (editorialism && file instanceof TFile) directives.push(...directiveEdits(editorialism, file.stat.ctime));
+		}
+		return this.registry.collectEditMatrix(directives);
+	}
+
+	// Opens an Editorialism agenda in its panel with one directive in view.
+	async openEditorialismItem(filePath: string, lineIndex: number): Promise<void> {
+		const leaf = await this.openEditorialistPanel(EDITORIALISM_PANEL_VIEW_TYPE);
+		if (!(leaf?.view instanceof EditorialismPanel)) {
+			new Notice("Could not open the Editorialism panel.");
+			return;
+		}
+		await leaf.view.showItem(filePath, lineIndex);
 	}
 
 	async startNewEditRound(archive: boolean): Promise<void> {

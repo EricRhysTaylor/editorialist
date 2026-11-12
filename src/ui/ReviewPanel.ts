@@ -352,7 +352,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 				renderReviewWelcomeCard(this.plugin, this.contentEl);
 			}
 			// Every edit in the book as a dot: what is left and what is done.
-			if (overview) this.renderEditMatrix(this.contentEl.createDiv({ cls: "editorialist-matrix-slot" }));
+			this.renderEditMatrix(this.contentEl.createDiv({ cls: "editorialist-matrix-slot" }));
 			if (overview) {
 				this.renderUpNextPendingScenes(overview.pending, launchTarget?.notePath ?? null, Boolean(launchTarget));
 			}
@@ -516,8 +516,11 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	// the fresh one arrives; a newer render supersedes an older gather.
 	private renderEditMatrix(slot: HTMLElement): void {
 		const actions: EditMatrixActions = {
-			// An edit whose scene was cleaned has nothing left to select there.
-			open: (scene, dot) => void (dot.live ? this.plugin.openReviewSuggestion(scene.notePath, dot.id) : this.plugin.openSceneNote(scene.notePath)),
+			// A directive opens in its agenda; an edit whose scene was cleaned has
+			// nothing left to select there, so it opens the scene.
+			open: (scene, dot) => void (dot.source === "editorialism"
+				? this.plugin.openEditorialismItem(scene.notePath, Number(dot.id))
+				: dot.live ? this.plugin.openReviewSuggestion(scene.notePath, dot.id) : this.plugin.openSceneNote(scene.notePath)),
 			newRound: (archive) => void this.confirmNewEditRound(archive),
 		};
 		renderEditMatrix(slot, this.editMatrix, actions);

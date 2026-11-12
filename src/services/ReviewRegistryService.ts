@@ -445,10 +445,11 @@ export class ReviewRegistryService {
 	}
 
 	// The active book's record of edits for the current round: whatever is in
-	// the review blocks now, plus the last known state of edits whose scene
-	// has since been cleaned. Reading it brings the record up to date.
-	async collectEditMatrix(): Promise<{ scenes: EditMatrixScene[]; startedAt: number; rounds: EditRound[] }> {
-		const live: LiveEdit[] = [];
+	// the review blocks now, the agendas' directives the caller gathered, and
+	// the last known state of edits whose scene has since been cleaned.
+	// Reading it brings the record up to date.
+	async collectEditMatrix(directives: readonly LiveEdit[]): Promise<{ scenes: EditMatrixScene[]; startedAt: number; rounds: EditRound[] }> {
+		const live: LiveEdit[] = [...directives];
 		const pass = (batchId: string | undefined) => {
 			const entry = batchId ? this.sweepManager.getEntry(this.sweepRegistry, batchId) : undefined;
 			return { fromWord: Boolean(entry?.wordSource), importedAt: entry?.importedAt ?? null };

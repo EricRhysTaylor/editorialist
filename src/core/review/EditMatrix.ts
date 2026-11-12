@@ -1,10 +1,11 @@
+import type { Editorialism, EditorialismItemStatus } from "../../models/Editorialism";
 import type { ReviewStatus, ReviewSuggestion } from "../../models/ReviewSuggestion";
 
-// The kind of work an edit is: a person's copy edit, a person's editorial
-// pass, or a pass Editorialist ran with a model. Any edit by a model is
-// Editorialist's, whatever role it was given. How the edit arrived, such as
-// the editor's Word file, is kept apart in `viaWord`.
-export type EditSource = "copy" | "editor" | "ai";
+// The kind of work an edit is: a copy edit, an editorial pass's edit, or a
+// directive from an Editorialism agenda. Any of them can come from a person
+// or a model, which `ai` records; tracked changes from the editor's Word file
+// are a person's copy edits, which `viaWord` records.
+export type EditSource = "copy" | "editor" | "editorialism";
 export type EditState = "open" | "done" | "declined";
 
 export interface EditDot {
@@ -16,6 +17,8 @@ export interface EditDot {
 	summary: string;
 	// The edit came in from the editor's Word file with tracked changes.
 	viaWord: boolean;
+	// A model made it, not a person.
+	ai: boolean;
 	// False once the scene's review block is gone: the edit is kept in the
 	// round's record, but there is nothing left in the scene to select.
 	live: boolean;
@@ -27,12 +30,12 @@ export interface EditMatrixScene {
 	dots: EditDot[];
 }
 
-export const EDIT_SOURCES: readonly EditSource[] = ["copy", "editor", "ai"];
+export const EDIT_SOURCES: readonly EditSource[] = ["copy", "editor", "editorialism"];
 export const EDIT_STATES: readonly EditState[] = ["open", "done", "declined"];
 
 export function editSource(suggestion: ReviewSuggestion): EditSource {
-	if (suggestion.contributor.kind === "ai") return "ai";
-	return suggestion.contributor.reviewerType === "copy-editor" ? "copy" : "editor";
+	const role = suggestion.contributor.reviewerType;
+	return role === "copy-editor" || role === "ai-copy-editor" ? "copy" : "editor";
 }
 
 export function editState(status: ReviewStatus): EditState {
@@ -70,6 +73,7 @@ export interface LiveEdit {
 	status: ReviewStatus;
 	summary: string;
 	viaWord: boolean;
+	ai: boolean;
 	order: number;
 	batchId: string | null;
 	// When the edit's pass was imported; null for a block never imported.
@@ -100,9 +104,37 @@ export function liveEdits(
 			status: suggestion.status,
 			summary: editSummary(suggestion),
 			viaWord: fromWord,
+			ai: suggestion.contributor.kind === "ai",
 			order: suggestion.source.blockIndex * 10000 + suggestion.source.entryIndex,
 			batchId: suggestion.source.batchId ?? null,
 			importedAt,
 		};
 	});
+}
+
+// A directive's state on the grid. Deferred is the author choosing to skip
+// it, so it reads as declined; a question is still to do.
+export function directiveStatus(status: EditorialismItemStatus): ReviewStatus {
+	if (status === "done") return "accepted";
+	return status === "deferred" ? "rejected" : "pending";
+}
+
+// Each directive of an Editorialism agenda, grouped under the agenda. The
+// agenda's file is the "scene" and the directive's line is its place.
+export function directiveEdits(editorialism: Editorialism, createdAt: number): LiveEdit[] {
+	const ai = Boolean(editorialism.reviewerType?.startsWith("ai-"));
+	return editorialism.sections.flatMap((section) => section.items).map((item) => ({
+		key: `ed|${editorialism.filePath}|${item.lineIndex}`,
+		notePath: editorialism.filePath,
+		title: editorialism.title,
+		id: String(item.lineIndex),
+		source: "editorialism" as const,
+		status: directiveStatus(item.status),
+		summary: clip(item.text, 90),
+		viaWord: false,
+		ai,
+		order: item.lineIndex,
+		batchId: null,
+		importedAt: createdAt,
+	}));
 }

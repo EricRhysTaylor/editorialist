@@ -6,7 +6,7 @@ import { planDayLabel } from "../../core/planning/WorkPresentation";
 import { compareSceneTitles } from "../panels/ReviewPanelIdleSections";
 import { bindMenuAction } from "../util/bindMenuAction";
 
-const SOURCE_NAMES: Record<EditSource, string> = { copy: "Copy edit", editor: "Editorial pass", ai: "Editorialist" };
+const SOURCE_NAMES: Record<EditSource, string> = { copy: "Copy edit", editor: "Editorial pass", editorialism: "Editorialism" };
 const STATE_NAMES: Record<EditState, string> = { open: "to do", done: "done", declined: "declined" };
 const STATUS_NOTES: Partial<Record<EditDot["status"], string>> = { deferred: "deferred", unresolved: "passage not found", rewritten: "you rewrote it" };
 
@@ -34,8 +34,9 @@ function roundLine(round: EditRound): string {
 
 /**
  * The round's edits as one dot each, scene by scene in story order. The
- * colour says what kind of work an edit is (a person's copy edit or
- * editorial pass, or Editorialist's); a hollow dot is still to do, a solid
+ * colour says what kind of work an edit is (a copy edit, an editorial pass's
+ * edit, or an Editorialism directive), and a centre mark says a model made
+ * it rather than a person; a hollow dot is still to do, a solid
  * one is done, a faint one was declined. Click a dot to open its scene at that
  * edit. The menu starts a new round, which clears the handled dots, or
  * archives this round's totals first.
@@ -75,10 +76,10 @@ export function renderEditMatrix(parent: HTMLElement, round: EditMatrixRound, ac
 		const group = grid.createDiv({ cls: "editorialist-matrix__scene", attr: { role: "listitem", "aria-label": scene.title } });
 		for (const dot of scene.dots) {
 			const note = [STATUS_NOTES[dot.status], dot.live ? null : "scene cleaned"].filter(Boolean).join(", ");
-			const kind = [SOURCE_NAMES[dot.source], dot.viaWord ? "from Word" : null, STATE_NAMES[dot.state]].filter(Boolean).join(" · ");
+			const kind = [SOURCE_NAMES[dot.source], dot.viaWord ? "from Word" : dot.ai ? "AI" : null, STATE_NAMES[dot.state]].filter(Boolean).join(" · ");
 			const label = [scene.title, `${kind}${note ? ` (${note})` : ""}`, dot.summary].join("\n");
 			const button = group.createEl("button", {
-				cls: `editorialist-matrix__dot is-${dot.source} is-${dot.state}`,
+				cls: `editorialist-matrix__dot is-${dot.source} is-${dot.state}${dot.ai ? " is-ai" : ""}`,
 				attr: { type: "button", "aria-label": label, "data-tooltip-position": "top" },
 			});
 			button.addEventListener("click", () => actions.open(scene, dot));
@@ -93,12 +94,19 @@ export function renderEditMatrix(parent: HTMLElement, round: EditMatrixRound, ac
 		const item = legend.createDiv({ cls: `editorialist-matrix__key is-${source}` });
 		item.createSpan({ cls: "editorialist-matrix__swatch", attr: { "aria-hidden": "true" } });
 		item.createSpan({ cls: "editorialist-matrix__key-name", text: SOURCE_NAMES[source] });
-		item.createSpan({ cls: "editorialist-matrix__key-count", text: left ? `${left} of ${mine.length} to do` : `all ${mine.length} handled` });
+		const models = mine.filter((dot) => dot.ai).length;
+		const byModel = !models ? "" : models === mine.length ? " · all AI" : ` · ${models} AI`;
+		item.createSpan({ cls: "editorialist-matrix__key-count", text: `${left ? `${left} of ${mine.length} to do` : `all ${mine.length} handled`}${byModel}` });
 	}
 	const key = card.createDiv({ cls: "editorialist-matrix__states", attr: { "aria-hidden": "true" } });
 	for (const state of ["open", "done", "declined"] as const) {
 		const item = key.createSpan({ cls: "editorialist-matrix__state" });
 		item.createSpan({ cls: `editorialist-matrix__dot is-sample is-${state}` });
 		item.createSpan({ text: STATE_NAMES[state] });
+	}
+	if (dots.some((dot) => dot.ai)) {
+		const item = key.createSpan({ cls: "editorialist-matrix__state" });
+		item.createSpan({ cls: "editorialist-matrix__dot is-sample is-open is-ai" });
+		item.createSpan({ text: "AI" });
 	}
 }
