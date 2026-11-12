@@ -191,7 +191,7 @@ export class TodayPanel extends ItemView {
 		// names the book, since Today also lists other books' sessions.
 		const edits = root.createDiv({ cls: "editorialist-today__edits is-empty" });
 		edits.createEl("h3", { cls: "editorialist-today__heading", text: this.bookLabel ? `Edits in ${this.bookLabel}` : "Edits" });
-		this.editMatrix.mount(edits.createDiv({ cls: "editorialist-matrix-slot" }), (filled) => edits.toggleClass("is-empty", !filled));
+		this.editMatrix.mount(edits.createDiv({ cls: "editorialist-matrix-slot" }), { drawn: (filled) => edits.toggleClass("is-empty", !filled) });
 		container.scrollTop = scrollTop;
 	}
 

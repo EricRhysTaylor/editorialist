@@ -20,7 +20,12 @@ function summaryOf(scenes: Array<{ scenePath: string; title: string; count: numb
 		inquiryCount: 0,
 		scenePaths: new Set(scenes.map((scene) => scene.scenePath)),
 		segmentCountsByScene: new Map(scenes.map((scene) => [scene.scenePath, scene.count])),
-		scenes: scenes.map((scene) => ({ ...scene, firstExcerpt: "Give the walk a line of weather." })),
+		scenes: scenes.map((scene) => ({
+			...scene,
+			firstExcerpt: "Give the walk a line of weather.",
+			// The last note in each scene is an Inquiry follow-up.
+			segments: Array.from({ length: scene.count }, (_, index) => ({ id: `${scene.title}-${index}`, inquiry: index === scene.count - 1 && index > 0, excerpt: index ? "Why does she stay?" : "Give the walk a line of weather." })),
+		})),
 	};
 }
 
@@ -72,6 +77,24 @@ describe("the pending edits panel taking focus", () => {
 		expect(reviewAll(panel)).toBe(button);
 		button!.click();
 		expect(pendingEdits.startPendingEditsReview).toHaveBeenCalledTimes(1);
+	});
+
+	it("shows each pending edit as a dot to do, and a dot opens its scene's review", async () => {
+		const { panel, pendingEdits } = mount();
+		await panel.onOpen();
+		await vi.waitFor(() => expect(panel.contentEl.querySelector(".editorialist-matrix__grid")).not.toBeNull());
+		const dots = [...panel.contentEl.querySelectorAll<HTMLButtonElement>(".editorialist-matrix__grid .editorialist-matrix__dot")];
+		expect(dots.map((dot) => dot.className)).toEqual([
+			"editorialist-matrix__dot is-pending is-open",
+			"editorialist-matrix__dot is-pending is-open is-ai",
+		]);
+		expect(panel.contentEl.querySelector(".editorialist-matrix .editorialist-panel__review-state-title")?.textContent).toBe("Pending edits");
+		expect(panel.contentEl.querySelector(".editorialist-panel__review-state-summary")?.textContent).toBe("2 to do");
+		// Pending edits are only ever to do, so the key shows nothing else.
+		expect([...panel.contentEl.querySelectorAll(".editorialist-matrix__state")].map((state) => state.textContent)).toEqual(["to do", "AI"]);
+		expect(panel.contentEl.querySelector(".editorialist-matrix__menu")).toBeNull();
+		dots[1]!.click();
+		expect(pendingEdits.startPendingEditsReviewForScene).toHaveBeenCalledWith("Book/7 Jane Falls Ill.md");
 	});
 
 	it("redraws when the queue has changed", async () => {

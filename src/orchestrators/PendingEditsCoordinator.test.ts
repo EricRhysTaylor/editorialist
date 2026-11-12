@@ -355,7 +355,7 @@ describe("PendingEditsCoordinator — summary dedupe", () => {
 });
 
 describe("PendingEditsCoordinator — summary scenes", () => {
-	it("captures per-scene title, count, and a first-item excerpt", async () => {
+	it("captures per-scene title, count, a first-item excerpt, and each item for the grid", async () => {
 		const { host } = makeHost();
 		collectResult = {
 			ok: true,
@@ -372,6 +372,10 @@ describe("PendingEditsCoordinator — summary scenes", () => {
 			title: "S1",
 			count: 2,
 			firstExcerpt: "Brief Note tighten the opening",
+			segments: [
+				{ id: "seg1", inquiry: true, excerpt: "Brief Note tighten the opening" },
+				{ id: "seg2", inquiry: true, excerpt: "Brief Note tighten the opening" },
+			],
 		});
 	});
 

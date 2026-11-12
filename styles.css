@@ -1044,6 +1044,7 @@
 	--editorialist-matrix-editor: var(--color-purple);
 	--editorialist-matrix-copy: var(--color-orange);
 	--editorialist-matrix-editorialism: var(--color-cyan);
+	--editorialist-matrix-pending: var(--color-yellow);
 }
 
 /* The dots and their groups carry labels for screen readers; the popover,
@@ -1097,6 +1098,12 @@
 .editorialist-matrix__key.is-editorialism,
 .editorialist-edit-popover.is-editorialism {
 	--editorialist-matrix-color: var(--editorialist-matrix-editorialism);
+}
+
+.editorialist-matrix__dot.is-pending,
+.editorialist-matrix__key.is-pending,
+.editorialist-edit-popover.is-pending {
+	--editorialist-matrix-color: var(--editorialist-matrix-pending);
 }
 
 .editorialist-matrix .editorialist-matrix__grid .editorialist-matrix__scene button.editorialist-matrix__dot,

@@ -8,6 +8,7 @@ import { renderPanelHeader } from "./primitives/PanelHeader";
 import { DropdownComponent, Menu, Notice, ItemView, TFile, setIcon, type WorkspaceLeaf } from "obsidian";
 import type EditorialistPlugin from "../main";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
+import { EditMatrixSlot } from "./EditMatrixSlot";
 import { formatEffortDuration } from "../core/EffortEstimate";
 import { formatReviewerTypeLabel } from "../core/ContributorIdentity";
 import {
@@ -52,8 +53,11 @@ export class EditorialismPanel extends ItemView {
 	// status change re-renders the panel; the list being worked through stays open.
 	private readonly openAnchorLists = new Set<string>();
 
+	private readonly editMatrix: EditMatrixSlot;
+
 	constructor(leaf: WorkspaceLeaf, private readonly plugin: EditorialistPlugin) {
 		super(leaf);
+		this.editMatrix = new EditMatrixSlot(plugin);
 	}
 
 	getViewType(): string {
@@ -154,6 +158,10 @@ export class EditorialismPanel extends ItemView {
 		if (this.activeEditorialism) {
 			this.renderDetail(shell, this.activeEditorialism);
 		} else {
+			// Every active agenda's directives as dots.
+			this.editMatrix.mount(shell.createDiv({ cls: "editorialist-matrix-slot" }), {
+				subset: { title: "Editorialisms", keep: (_scene, dot) => dot.source === "editorialism" },
+			});
 			this.renderList(shell);
 		}
 	}
@@ -370,6 +378,10 @@ export class EditorialismPanel extends ItemView {
 			});
 		}
 
+		// This agenda's directives as dots.
+		this.editMatrix.mount(detail.createDiv({ cls: "editorialist-matrix-slot" }), {
+			subset: { title: "Directives", keep: (scene, dot) => dot.source === "editorialism" && scene.notePath === editorialism.filePath },
+		});
 		this.renderEstimateCard(detail, editorialism);
 		this.renderHandoffCard(detail, editorialism);
 

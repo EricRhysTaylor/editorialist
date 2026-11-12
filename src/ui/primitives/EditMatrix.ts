@@ -1,5 +1,5 @@
 import { Menu, setIcon } from "obsidian";
-import { EDIT_SOURCES, type EditDot, type EditMatrixScene, type EditSource, type EditState } from "../../core/review/EditMatrix";
+import { DOT_SOURCES, type DotSource, type EditDot, type EditMatrixScene, type EditState } from "../../core/review/EditMatrix";
 import type { EditRound } from "../../core/review/EditLedger";
 import { localDate } from "../../core/planning/RevisionPlan";
 import { planDayLabel } from "../../core/planning/WorkPresentation";
@@ -7,7 +7,7 @@ import { compareSceneTitles } from "../panels/ReviewPanelIdleSections";
 import { bindMenuAction } from "../util/bindMenuAction";
 import { displayDirectiveText } from "../../core/DirectiveText";
 
-const SOURCE_NAMES: Record<EditSource, string> = { copy: "Copy edit", editor: "Editorial pass", editorialism: "Editorialism" };
+const SOURCE_NAMES: Record<DotSource, string> = { copy: "Copy edit", editor: "Editorial pass", editorialism: "Editorialism", pending: "Pending edit" };
 const STATE_NAMES: Record<EditState, string> = { open: "to do", done: "done", declined: "declined" };
 const STATUS_NOTES: Partial<Record<EditDot["status"], string>> = { deferred: "deferred", unresolved: "passage not found", rewritten: "you rewrote it" };
 
@@ -27,6 +27,16 @@ export interface EditMatrixActions {
 	openAgendas: () => void;
 	/** Lights a dot's scene up elsewhere while Shift is held over it; null puts it out. */
 	spotlight: (edit: { scene: EditMatrixScene; dot: EditDot } | null) => void;
+}
+
+/**
+ * One kind of work out of the round, as a panel for that kind shows it. A
+ * subset draws nothing when it has no dots, since its panel says so in its
+ * own way, and leaves rounds to the whole grid.
+ */
+export interface EditMatrixSubset {
+	title: string;
+	keep: (scene: EditMatrixScene, dot: EditDot) => boolean;
 }
 
 // Holding Shift over a dot lights its scene up wherever the scene is shown,
@@ -124,7 +134,9 @@ function openEditPopover(anchor: HTMLElement, scene: EditMatrixScene, dot: EditD
 	card.createDiv({ cls: "editorialist-edit-popover__summary", text: dotSummary(dot) });
 	const notes = dotNotes(dot);
 	if (notes.length) card.createDiv({ cls: "editorialist-edit-popover__note", text: capitalize(notes.join(" · ")) });
-	const open = dot.source === "editorialism" ? "Click to open it in its agenda" : dot.live ? "Click to go to this edit" : "Click to open the scene";
+	const open = dot.source === "editorialism" ? "Click to open it in its agenda"
+		: dot.source === "pending" ? "Click to review this scene's pending edits"
+		: dot.live ? "Click to go to this edit" : "Click to open the scene";
 	card.createDiv({ cls: "editorialist-edit-popover__hint", text: `${open} · Hold Shift to find the scene` });
 	popover = card;
 	placePopover(card, anchor);
@@ -164,21 +176,24 @@ function roundLine(round: EditRound): string {
  * one is done, a faint one was declined. Click a dot to open its scene at that
  * edit; hold Shift over it to light the scene up elsewhere. The menu starts
  * a new round, which clears the handled dots, or archives this round's totals
- * first.
+ * first. A subset draws one kind of work only, without the menu.
  */
-export function renderEditMatrix(parent: HTMLElement, round: EditMatrixRound, actions: EditMatrixActions): void {
-	const scenes = [...round.scenes].sort((left, right) => compareSceneTitles(left.title, right.title));
+export function renderEditMatrix(parent: HTMLElement, round: EditMatrixRound, actions: EditMatrixActions, subset?: EditMatrixSubset): void {
+	const scenes = [...round.scenes]
+		.map((scene) => (subset ? { ...scene, dots: scene.dots.filter((dot) => subset.keep(scene, dot)) } : scene))
+		.filter((scene) => scene.dots.length)
+		.sort((left, right) => compareSceneTitles(left.title, right.title));
 	const dots = scenes.flatMap((scene) => scene.dots);
 	if (!dots.length) {
-		renderTray(parent, round, actions);
+		if (!subset) renderTray(parent, round, actions);
 		return;
 	}
 	const card = parent.createDiv({ cls: "editorialist-panel__review-state editorialist-matrix" });
 	const settled = dots.filter((dot) => dot.state !== "open").length;
 	const head = card.createDiv({ cls: "editorialist-panel__review-state-header" });
-	head.createSpan({ cls: "editorialist-panel__review-state-title", text: "All edits" });
-	head.createSpan({ cls: "editorialist-panel__review-state-summary", text: `${settled} of ${dots.length} handled` });
-	renderRoundsMenu(head, round, dots.length, settled, actions);
+	head.createSpan({ cls: "editorialist-panel__review-state-title", text: subset?.title ?? "All edits" });
+	head.createSpan({ cls: "editorialist-panel__review-state-summary", text: settled ? `${settled} of ${dots.length} handled` : `${dots.length} to do` });
+	if (!subset) renderRoundsMenu(head, round, dots.length, settled, actions);
 	if (round.startedAt) card.createDiv({ cls: "editorialist-matrix__since", text: `This round since ${day(round.startedAt)}` });
 
 	const grid = card.createDiv({ cls: "editorialist-matrix__grid", attr: { role: "list", "aria-label": `${dots.length} edits in ${scenes.length} ${scenes.length === 1 ? "scene" : "scenes"}` } });
@@ -201,7 +216,7 @@ export function renderEditMatrix(parent: HTMLElement, round: EditMatrixRound, ac
 	}
 
 	const legend = card.createDiv({ cls: "editorialist-matrix__legend" });
-	for (const source of EDIT_SOURCES) {
+	for (const source of DOT_SOURCES) {
 		const mine = dots.filter((dot) => dot.source === source);
 		if (!mine.length) continue;
 		const left = mine.filter((dot) => dot.state === "open").length;
@@ -210,10 +225,13 @@ export function renderEditMatrix(parent: HTMLElement, round: EditMatrixRound, ac
 		item.createSpan({ cls: "editorialist-matrix__key-name", text: SOURCE_NAMES[source] });
 		const models = mine.filter((dot) => dot.ai).length;
 		const byModel = !models ? "" : models === mine.length ? " · all AI" : ` · ${models} AI`;
-		item.createSpan({ cls: "editorialist-matrix__key-count", text: `${left ? `${left} of ${mine.length} to do` : `all ${mine.length} handled`}${byModel}` });
+		const status = left === mine.length ? `${left} to do` : left ? `${left} of ${mine.length} to do` : `all ${mine.length} handled`;
+		item.createSpan({ cls: "editorialist-matrix__key-count", text: `${status}${byModel}` });
 	}
+	// Only the states the grid shows: a grid of pending edits, all to do,
+	// has no use for done or declined.
 	const key = card.createDiv({ cls: "editorialist-matrix__states", attr: { "aria-hidden": "true" } });
-	for (const state of ["open", "done", "declined"] as const) {
+	for (const state of (["open", "done", "declined"] as const).filter((state) => dots.some((dot) => dot.state === state))) {
 		const item = key.createSpan({ cls: "editorialist-matrix__state" });
 		item.createSpan({ cls: `editorialist-matrix__dot is-sample is-${state}` });
 		item.createSpan({ text: STATE_NAMES[state] });

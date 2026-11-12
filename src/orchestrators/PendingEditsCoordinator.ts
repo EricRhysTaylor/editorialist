@@ -43,6 +43,8 @@ export interface PendingEditsSceneSummary {
 	title: string;
 	count: number;
 	firstExcerpt: string;
+	// Each pending edit, for the panel's grid of dots.
+	segments: ReadonlyArray<{ id: string; inquiry: boolean; excerpt: string }>;
 }
 
 export interface PendingEditsSummary {
@@ -172,6 +174,7 @@ export class PendingEditsCoordinator {
 						title: scene.sceneTitle,
 						count: scene.segments.length,
 						firstExcerpt: buildPendingEditExcerpt(scene.segments[0]?.text),
+						segments: scene.segments.map((segment) => ({ id: segment.id, inquiry: segment.kind !== "human", excerpt: buildPendingEditExcerpt(segment.text) })),
 					});
 				}
 

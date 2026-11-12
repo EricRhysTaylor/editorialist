@@ -2,6 +2,7 @@ import { t } from "../i18n";
 import { setAccessibleLabel } from "./primitives/AccessibleLabel";
 import { formatRelativeTime } from "../core/RelativeTime";
 import { EditMatrixSlot } from "./EditMatrixSlot";
+import type { EditMatrixSubset } from "./primitives/EditMatrix";
 import { renderPanelHeader } from "./primitives/PanelHeader";
 import { ButtonComponent, DropdownComponent, ItemView, Menu, Notice, setIcon, type WorkspaceLeaf } from "obsidian";
 import { formatContributorIdentityLabel } from "../core/ContributorIdentity";
@@ -65,6 +66,9 @@ import {
 } from "./panels/ReviewPanelIdleSections";
 
 export const REVIEW_PANEL_VIEW_TYPE = "editorialist-review-panel";
+
+// Copy edits and an editorial pass's edits: the work this panel reviews.
+const LINE_EDITS: EditMatrixSubset = { title: "Line edits", keep: (_scene, dot) => dot.source === "copy" || dot.source === "editor" };
 
 // Fewer small edits than this read just as well as cards.
 const MIN_COPY_EDIT_LIST = 2;
@@ -349,8 +353,9 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			} else if (!overview?.pending.length) {
 				renderReviewWelcomeCard(this.plugin, this.contentEl);
 			}
-			// Every edit in the book as a dot: what is left and what is done.
-			this.editMatrix.mount(this.contentEl.createDiv({ cls: "editorialist-matrix-slot" }));
+			// The book's line edits as dots: what is left and what is done. Today
+			// shows every kind of work together.
+			this.editMatrix.mount(this.contentEl.createDiv({ cls: "editorialist-matrix-slot" }), { subset: LINE_EDITS });
 			if (overview) {
 				this.renderUpNextPendingScenes(overview.pending, launchTarget?.notePath ?? null, Boolean(launchTarget));
 			}

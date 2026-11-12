@@ -1,33 +1,36 @@
 import { Notice } from "obsidian";
 import type EditorialistPlugin from "../main";
 import { openEditorialistChoiceModal } from "./EditorialistChoiceModal";
-import { closeEditPopover, renderEditMatrix, type EditMatrixActions, type EditMatrixRound } from "./primitives/EditMatrix";
+import { closeEditPopover, renderEditMatrix, type EditMatrixActions, type EditMatrixRound, type EditMatrixSubset } from "./primitives/EditMatrix";
 
 type EditMatrixHost = Pick<EditorialistPlugin,
-	"app" | "collectEditMatrix" | "openEditorialismItem" | "openReviewSuggestion" | "openSceneNote" | "startNewEditRound" | "openEditorialistModal" | "openEditorialismPanel" | "spotlightEdit">;
+	"app" | "collectEditMatrix" | "openEditorialismItem" | "openReviewSuggestion" | "openSceneNote" | "startNewEditRound" | "openEditorialistModal" | "openEditorialismPanel" | "spotlightEdit" | "pendingEdits">;
 
-// The active book's edit grid, as the review panel and Today both show it.
-// Gathering reads every scene with review blocks and every active agenda, so
-// the last grid is drawn straight away and replaced when the fresh one
-// arrives; a newer gather supersedes an older one. Until the first gather
-// arrives the slot stays empty, so an empty tray never stands in for edits
-// that are still being read.
+// The active book's edit grid, as Today shows it whole and each panel shows
+// its own kind of work. Gathering reads every scene with review blocks and
+// every active agenda, so the last grid is drawn straight away and replaced
+// when the fresh one arrives; a newer gather supersedes an older one. Until
+// the first gather arrives the slot stays empty, so an empty tray never
+// stands in for edits that are still being read. Pending edits are gathered
+// from their own queue instead, passed as `collect`.
 export class EditMatrixSlot {
 	private round: EditMatrixRound | null = null;
 	private run = 0;
 	private slot: HTMLElement | null = null;
 	private shown: string | null = null;
 	private drawn: ((filled: boolean) => void) | null = null;
+	private subset: EditMatrixSubset | undefined;
 	// A dot of this grid has a scene lit up.
 	private lit = false;
 	private readonly actions: EditMatrixActions;
 
-	constructor(private readonly plugin: EditMatrixHost) {
+	constructor(private readonly plugin: EditMatrixHost, private readonly collect: () => Promise<EditMatrixRound> = () => plugin.collectEditMatrix()) {
 		this.actions = {
-			// A directive opens in its agenda; an edit whose scene was cleaned has
+			// A directive opens in its agenda and a pending edit in the review of
+			// its scene's pending edits; an edit whose scene was cleaned has
 			// nothing left to select there, so it opens the scene.
-			open: (scene, dot) => void (dot.source === "editorialism"
-				? plugin.openEditorialismItem(scene.notePath, dot.id)
+			open: (scene, dot) => void (dot.source === "editorialism" ? plugin.openEditorialismItem(scene.notePath, dot.id)
+				: dot.source === "pending" ? plugin.pendingEdits.startPendingEditsReviewForScene(scene.notePath)
 				: dot.live ? plugin.openReviewSuggestion(scene.notePath, dot.id) : plugin.openSceneNote(scene.notePath)),
 			newRound: (archive) => void this.confirmNewRound(archive),
 			bringIn: () => void plugin.openEditorialistModal(),
@@ -41,11 +44,13 @@ export class EditMatrixSlot {
 
 	/**
 	 * Draws the last grid into a fresh slot, then gathers the current edits.
-	 * `drawn` hears whether the slot holds anything after each draw.
+	 * `drawn` hears whether the slot holds anything after each draw; `subset`
+	 * draws one kind of work only.
 	 */
-	mount(slot: HTMLElement, drawn?: (filled: boolean) => void): void {
+	mount(slot: HTMLElement, options: { drawn?: (filled: boolean) => void; subset?: EditMatrixSubset } = {}): void {
 		this.slot = slot;
-		this.drawn = drawn ?? null;
+		this.drawn = options.drawn ?? null;
+		this.subset = options.subset;
 		if (this.round) this.draw(slot, this.round);
 		else this.drawn?.(false);
 		this.reload();
@@ -56,7 +61,7 @@ export class EditMatrixSlot {
 		const slot = this.slot;
 		if (!slot?.isConnected) return;
 		const run = ++this.run;
-		void this.plugin.collectEditMatrix().then((round) => {
+		void this.collect().then((round) => {
 			if (run !== this.run || !slot.isConnected) return;
 			this.round = round;
 			this.draw(slot, round);
@@ -80,7 +85,7 @@ export class EditMatrixSlot {
 		if (this.lit) this.actions.spotlight(null);
 		closeEditPopover();
 		slot.empty();
-		renderEditMatrix(slot, round, this.actions);
+		renderEditMatrix(slot, round, this.actions, this.subset);
 		this.drawn?.(slot.hasChildNodes());
 	}
 

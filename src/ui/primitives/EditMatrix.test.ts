@@ -55,7 +55,7 @@ describe("Edit matrix", () => {
 		expect(dots[1]!.getAttribute("aria-label")).toBe("3 Arrival. Editorial pass · AI · to do. Passage not found. Condense “The rain…”");
 		expect(root.querySelector(".editorialist-panel__review-state-summary")?.textContent).toBe("2 of 4 handled");
 		expect([...root.querySelectorAll(".editorialist-matrix__key")].map((key) => key.textContent)).toEqual([
-			"Copy edit1 of 3 to do", "Editorial pass1 of 1 to do · all AI",
+			"Copy edit1 of 3 to do", "Editorial pass1 to do · all AI",
 		]);
 	});
 
@@ -63,6 +63,21 @@ describe("Edit matrix", () => {
 		const { root, actions } = render();
 		root.querySelectorAll<HTMLButtonElement>(".editorialist-matrix__grid .editorialist-matrix__dot")[3]!.click();
 		expect(actions.open).toHaveBeenCalledWith(expect.objectContaining({ notePath: "Book/12 Harbor.md" }), expect.objectContaining({ id: "review-1-2" }));
+	});
+
+	it("draws one kind of work as a subset, without rounds, and nothing when there is none", () => {
+		const root = document.createElement("div");
+		const actions = { open: vi.fn(), newRound: vi.fn(), bringIn: vi.fn(), openAgendas: vi.fn(), spotlight: vi.fn() };
+		const round = { scenes, startedAt: 0, rounds: [] };
+		renderEditMatrix(root, round, actions, { title: "Editorial pass", keep: (_scene, item) => item.source === "editor" });
+		expect(root.querySelector(".editorialist-panel__review-state-title")?.textContent).toBe("Editorial pass");
+		expect([...root.querySelectorAll(".editorialist-matrix__scene")].map((group) => group.getAttribute("aria-label"))).toEqual(["3 Arrival"]);
+		expect(root.querySelectorAll(".editorialist-matrix__grid .editorialist-matrix__dot")).toHaveLength(1);
+		expect(root.querySelector(".editorialist-panel__review-state-summary")?.textContent).toBe("1 to do");
+		expect(root.querySelector(".editorialist-matrix__menu")).toBeNull();
+		const empty = document.createElement("div");
+		renderEditMatrix(empty, round, actions, { title: "Editorialisms", keep: (_scene, item) => item.source === "editorialism" });
+		expect(empty.hasChildNodes()).toBe(false);
 	});
 
 	it("shows an edit in a popover while the pointer is over its dot", () => {

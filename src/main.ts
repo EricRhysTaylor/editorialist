@@ -52,7 +52,7 @@ import {
 	getAdjacentRevealableSuggestionId as getAdjacentRevealableSuggestionIdShared,
 	hasLiveActionableSuggestions as hasLiveActionableSuggestionsShared,
 } from "./core/review/SuggestionTraversal";
-import { directiveEdits, directiveItem, directiveLine, type EditMatrixScene, type EditSource, type LiveEdit } from "./core/review/EditMatrix";
+import { directiveEdits, directiveItem, directiveLine, type DotSource, type EditMatrixScene, type LiveEdit } from "./core/review/EditMatrix";
 import { SceneSpotlight } from "./ui/SceneSpotlight";
 import { closeEditPopover } from "./ui/primitives/EditMatrix";
 import type { EditRound } from "./core/review/EditLedger";
@@ -2173,7 +2173,7 @@ export default class EditorialistPlugin extends Plugin {
 	 * first scene of the range it is scoped to. A directive with none of those
 	 * lights nothing, rather than a guess.
 	 */
-	async spotlightEdit(edit: { notePath: string; source: EditSource; id: string } | null): Promise<void> {
+	async spotlightEdit(edit: { notePath: string; source: DotSource; id: string } | null): Promise<void> {
 		const run = ++this.spotlightRun;
 		this.sceneSpotlight ??= new SceneSpotlight(this.app);
 		if (!edit) {

@@ -7,11 +7,15 @@ import type { ReviewStatus, ReviewSuggestion } from "../../models/ReviewSuggesti
 // are a person's copy edits, which `viaWord` records.
 export type EditSource = "copy" | "editor" | "editorialism";
 export type EditState = "open" | "done" | "declined";
+// What a dot can stand for. A pending edit is a note the author left on a
+// scene to revise; it is never part of a round's record, and it leaves the
+// scene once handled, so it is only ever to do.
+export type DotSource = EditSource | "pending";
 
 export interface EditDot {
 	key: string;
 	id: string;
-	source: EditSource;
+	source: DotSource;
 	state: EditState;
 	status: ReviewStatus;
 	summary: string;
@@ -31,6 +35,7 @@ export interface EditMatrixScene {
 }
 
 export const EDIT_SOURCES: readonly EditSource[] = ["copy", "editor", "editorialism"];
+export const DOT_SOURCES: readonly DotSource[] = [...EDIT_SOURCES, "pending"];
 export const EDIT_STATES: readonly EditState[] = ["open", "done", "declined"];
 
 export function editSource(suggestion: ReviewSuggestion): EditSource {
