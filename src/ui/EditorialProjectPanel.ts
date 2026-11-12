@@ -539,6 +539,8 @@ export class EditorialProjectPanel {
 			if (!takeBack) {
 				if (day.value && (!isDate(day.value) || day.value > today)) throw new Error("Enter the day you sent it, today or earlier.");
 				if (!day.value && latest) throw new Error("Enter the day you sent it, or choose Take back this send.");
+				// A new send has nothing to record without its day.
+				if (!day.value && options.newSend) throw new Error("Enter the day you sent it, today or earlier.");
 				if (!day.value && file.changed()) throw new Error("Enter the day you sent this file, or leave the file empty.");
 			}
 			const files = !takeBack && day.value ? await file.save(project.id) : null;
