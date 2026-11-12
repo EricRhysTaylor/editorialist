@@ -26,6 +26,8 @@ Use it when the work is already in your manuscript workflow as a pending revisio
 3. Start the full queue or choose a scene.
 4. Work through each pending edit in context and record the decision.
 
+Above the scene list, a grid shows one yellow dot for each pending edit, scene by scene. Hover a dot to read the note; click it to review that scene's pending edits. See [The edit grid](Line-Edits#the-edit-grid).
+
 With [Radial Timeline](Radial-Timeline-Integration) installed, Editorialist uses the active book's scene list and Inquiry metadata. Without Radial Timeline, the traditional review-batch workflow still works, but active-book pending-edits review depends on the Radial Timeline book context.
 
 ## The pending-edits toolbar

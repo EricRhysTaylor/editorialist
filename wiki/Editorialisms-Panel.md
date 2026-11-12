@@ -39,6 +39,7 @@ Files without `type: editorialism` are ignored. The full file format — section
 ## The panel
 
 - **Header** — the active book label (or "No active book selected").
+- **Editorialisms** — a grid above the list with one dot for each directive in every active agenda; an agenda's details show its own under **Directives**. Click a dot to open its directive. See [The edit grid](Line-Edits#the-edit-grid).
 - **Document list** — files for the active book, filtered by activity, delivery, and reviewer; each shows remaining work, attribution, dates, and completion.
 - **Detail view** — select a document to see its items grouped by section. A dropdown above the items shows **Open items** (the default), **This scene** (open items scoped to the scene you are in), or **All items**, including finished ones.
 

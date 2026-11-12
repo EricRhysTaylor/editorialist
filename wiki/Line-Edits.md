@@ -10,7 +10,7 @@ Between sessions the panel shows:
 
 - **Active book** — which book Editorialist is currently scoped to (via [Radial Timeline](Radial-Timeline-Integration) when installed).
 - **Continue review / Next in this pass** — the scene to pick up next, with **Resume review** or **Start scene**. Pending edits has its own mode.
-- **All edits** — one dot for every edit in scenes that still hold review blocks, grouped by scene in story order, with how many are handled. A dot's colour says where the edit came from: your editor's Word file, an editorial pass, a copy edit, or Editorialist. A hollow dot is still to do, a solid one is done (accepted or rewritten), and a faint one was declined. Hover a dot to see its scene and the change; click it to open that scene's review with the edit selected. The legend counts what is left from each source. A scene you clean drops out of the grid.
+- **Line edits** — a grid with one dot for each copy edit and editorial-pass edit in this round, scene by scene. See [The edit grid](#the-edit-grid).
 - **Up next** — the other scenes with suggestions still to review, in story order. Click a row to open that scene's review.
 - **Reviewed** — every scene you have finished, in the same rows and story order as Up next, directly beneath it. Click a row to reopen that scene's review and step back through what you decided. A scene you have already cleaned has no review block left, so its row simply opens the scene and shows when it was cleaned; rows whose review block is still in the note keep a **Clean** button.
 - **Recent review rounds** — a disclosure with your recent import rounds and each round's accepted, rejected, and rewritten counts.
@@ -31,6 +31,29 @@ Between sessions the panel shows:
 | **… → Settings** | Open Editorialist settings. |
 
 Use the editor toolbar, right-click menu, or command palette to back up selected prose to a cut file. The right-click **Ed —** items appear only in scene notes of the active book, and act on the note and selection you right-clicked.
+
+## The edit grid
+
+The edit grid shows a round of edits as dots, one for each edit, grouped by scene in story order. **Today** shows the whole grid for the active book under **Edits in** *(book)*. Each panel shows its own part of it: **Line edits** shows copy edits and an editorial pass's edits, **Editorialisms** shows the directives of every active agenda (and an open agenda's own, under **Directives**), and **Pending edits** shows one dot for each pending edit.
+
+- **The colour is the kind of work:** a copy edit, an edit from an editorial pass, a directive from an Editorialism agenda, or a pending edit, in yellow.
+- **The fill is where it stands.** A hollow dot is still to do, a solid one is done (accepted or rewritten), and a faint one was declined. A directive you deferred is faint too.
+- **A small mark in the centre means an AI made it.** The legend counts what is left of each kind and how many an AI made, for example *11 of 22 to do · 3 AI*.
+
+Hover a dot to see a card with its kind of work, whether it came from your editor's Word file or from an AI, where it stands, its scene or agenda, and the edit itself. Click the dot to go to it: an edit opens its scene's review with that edit selected, a directive opens its agenda in the Editorialisms panel, and a pending edit opens the review of that scene's pending edits.
+
+Hold **Shift** over a dot to find its scene without leaving the grid. The scene lights up wherever it is shown: on Radial Timeline's timeline and Timetable, in the file list, in a base, and on an open canvas. Nothing opens, and letting go of Shift or moving off the dot puts it out. A directive lights the first scene it is anchored to, or the scene it covers; a directive about the whole manuscript lights nothing.
+
+### Rounds
+
+The grid keeps a record of the current round, so an edit stays on it after you clean its scene, with your last decision. Clicking that dot opens the scene. When a round is finished, open the **…** menu on Today's grid:
+
+- **Start a new round** takes the handled edits off the grid. Edits still to do stay.
+- **Archive this round and start a new one** does the same, and keeps the round's totals under **Earlier rounds** in the same menu.
+
+Neither changes your scenes or your decisions. From then on, the grid shows the edits still to do and every pass you bring in. Today also draws your pending edits, but they are not part of the round: the count reads, for example, *22 of 23 handled · 3 pending*, and a new round leaves them where they are.
+
+With nothing in the round, Today shows an empty tray, **Your first round starts here** or **Ready for the next round** with the last round's totals, and offers **Bring in edits** and **Start an agenda**.
 
 ## Review sessions
 

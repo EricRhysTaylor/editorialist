@@ -23,6 +23,8 @@ Under the start date, one bar runs through the whole engagement in up to three s
 
 Your documents and tasks sit on the bar on the day they are due, and so does a milestone with nothing due on it. Hover a mark to see what is due and whether it is sent or done; click it to go to its row below, opening its section if it was closed. Things due on the same day share one mark with a count. Click it to zoom the bar into that day: its targets spread out, finished ones first, with a list of each underneath, and **Whole engagement** zooms back out. Once everything due by the start is done and sent, the preparation stretch drops off and the bar is your editor's. While anything is still open, it stays, with late marks in red.
 
+**Today** shows the same bar for each engagement, from the day you set it up until your question window closes, with your editor's name and the days to the start. Click a mark there to open the engagement.
+
 ### Engagement notes
 
 The chat icon in the corner of the editor's card opens **Engagement notes**, the messages that set up the engagement: the quote, what is included, the dates you agreed. Choose **Paste conversation** and paste the thread, and you can look back at what was agreed without opening your editor's site. A pasted message thread reads as a conversation, your editor's messages on the left and yours on the right, each with its sender and time; anything else shows as you pasted it. Click the icon again to close the notes. The icon is highlighted once notes are saved.
