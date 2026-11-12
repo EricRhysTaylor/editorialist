@@ -88,14 +88,14 @@ describe("Edit matrix", () => {
 		const button = root.querySelector<HTMLButtonElement>(".editorialist-matrix__grid .editorialist-matrix__dot")!;
 		expect(button.getAttribute("data-tooltip-position")).toBeNull();
 		button.dispatchEvent(new PointerEvent("pointerenter"));
-		expect(document.querySelector(".editorialist-edit-popover")).toBeNull();
+		expect(document.querySelector(".editorialist-dot-popover")).toBeNull();
 		vi.advanceTimersByTime(300);
-		const card = document.querySelector(".editorialist-edit-popover")!;
-		const text = (part: string) => card.querySelector(`.editorialist-edit-popover__${part}`)?.textContent;
+		const card = document.querySelector(".editorialist-dot-popover")!;
+		const text = (part: string) => card.querySelector(`.editorialist-dot-popover__${part}`)?.textContent;
 		expect([text("kind"), text("tag"), text("state"), text("title"), text("summary")]).toEqual(["Editorialism", "AI", "To do", "Stage 2 Handoff", "Review FP06 in the final batch."]);
 		expect(text("hint")).toBe("Click to open it in its agenda · Hold Shift to find the scene");
 		button.dispatchEvent(new PointerEvent("pointerleave"));
-		expect(document.querySelector(".editorialist-edit-popover")).toBeNull();
+		expect(document.querySelector(".editorialist-dot-popover")).toBeNull();
 		root.remove();
 		vi.useRealTimers();
 	});
@@ -157,5 +157,14 @@ describe("Edit matrix", () => {
 		expect(root.querySelector(".editorialist-matrix__tray-title")?.textContent).toBe("Your first round starts here");
 		expect(root.querySelector(".editorialist-matrix__tray-last")).toBeNull();
 		expect(root.querySelector(".editorialist-matrix__menu")).toBeNull();
+	});
+	it("keeps the first-round tray when only pending edits are in the scenes", () => {
+		const pending = [{ notePath: "Book/4 Harbor.md", title: "4 Harbor", dots: [dot("pending|h", "pending", "open", "pending", "Open on the rain.")] }];
+		const { root } = render({ scenes: pending });
+		expect(root.querySelector(".editorialist-matrix__tray-title")?.textContent).toBe("Your first round starts here");
+		expect(root.querySelector(".editorialist-matrix__grid")).toBeNull();
+		const panel = document.createElement("div");
+		renderEditMatrix(panel, { scenes: pending, startedAt: 0, rounds: [] }, { open: vi.fn(), newRound: vi.fn(), bringIn: vi.fn(), openAgendas: vi.fn(), spotlight: vi.fn() }, { title: "Pending edits", keep: () => true });
+		expect(panel.querySelector(".editorialist-panel__review-state-summary")?.textContent).toBe("1 to do");
 	});
 });

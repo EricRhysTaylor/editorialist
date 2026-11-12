@@ -62,4 +62,32 @@ describe("Engagement track bar", () => {
 		expect(block.querySelectorAll(".editorialist-phases__segment")).toHaveLength(3);
 		expect(document.activeElement?.getAttribute("data-mark-day")).toBe("2026-11-20");
 	});
+	it("shows a mark in a popover, and a shared day's targets each with its state", () => {
+		vi.useFakeTimers();
+		const { root } = render();
+		const popover = () => document.querySelector(".editorialist-dot-popover");
+		const text = (part: string) => popover()?.querySelector(`.editorialist-dot-popover__${part}`)?.textContent;
+		const [late, shared] = [...root.querySelectorAll<HTMLButtonElement>(".editorialist-phases__mark")];
+		late!.dispatchEvent(new PointerEvent("pointerenter"));
+		vi.advanceTimersByTime(300);
+		expect(popover()?.classList.contains("is-preparation")).toBe(true);
+		expect([text("kind"), text("tag"), text("state"), text("title"), text("summary"), text("hint")]).toEqual(["Your preparation", undefined, "Not sent, overdue", "Query letter", "Document · Nov 2", "Click to go to it"]);
+		expect(popover()?.querySelector(".editorialist-dot-popover__state")?.classList.contains("is-warning")).toBe(true);
+		late!.dispatchEvent(new PointerEvent("pointerleave"));
+		shared!.dispatchEvent(new PointerEvent("pointerenter"));
+		vi.advanceTimersByTime(0);
+		expect([text("tag"), text("state"), text("title"), text("summary"), text("hint")]).toEqual(["2 targets", "1 of 2 done", "Final polish", "Nov 20", "Click to zoom in"]);
+		expect([...popover()!.querySelectorAll(".editorialist-dot-popover__item")].map((item) => [item.className, item.textContent])).toEqual([
+			["editorialist-dot-popover__item is-open", "Final line editsopen"],
+			["editorialist-dot-popover__item is-done", "Revise series outlinedone"],
+		]);
+		shared!.click();
+		expect(popover()).toBeNull();
+		root.remove();
+		vi.useRealTimers();
+	});
+	it("raises the tick where one stage hands over to the next above any mark", () => {
+		const { root } = render();
+		expect([...root.querySelectorAll(".editorialist-phases__tick")].map((tick) => tick.classList.contains("is-boundary"))).toEqual([false, true, true, false]);
+	});
 });

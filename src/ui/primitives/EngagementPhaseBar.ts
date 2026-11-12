@@ -2,6 +2,7 @@ import { setIcon } from "obsidian";
 import { stageWidths, type EngagementTrack, type TrackMark, type TrackStage, type TrackTarget } from "../../core/planning/EngagementTrack";
 import { planDayLabel } from "../../core/planning/WorkPresentation";
 import { setAccessibleLabel } from "./AccessibleLabel";
+import { bindDotPopover, type DotPopoverContent, type DotPopoverItem } from "./DotPopover";
 
 const days = (from: string, to: string): number => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000);
 const NAMES: Record<TrackStage["key"], string> = { preparation: "Your preparation", editing: "Editor at work", questions: "Your questions" };
@@ -13,6 +14,43 @@ function targetState(target: TrackTarget, late: boolean): string {
 }
 
 const markState = (done: boolean, late: boolean): string => done ? "is-done" : late ? "is-late" : "is-open";
+const KINDS: Record<TrackTarget["kind"], string> = { document: "Document", task: "Task", milestone: "Milestone" };
+const capitalize = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
+
+/** A target's own state, as its popover's head shows it. */
+function targetTitle(target: TrackTarget, late: boolean): DotPopoverContent["state"] {
+	const text = capitalize(targetState(target, late && !target.done));
+	return { text, tone: target.done ? "success" : late ? "warning" : "accent" };
+}
+
+/**
+ * A mark in full: the stage it falls in, then the target and its day, or for
+ * a shared day, each of its targets with its state.
+ */
+function markPopover(stage: TrackStage, mark: TrackMark, late: boolean, goTo: string): DotPopoverContent {
+	const when = planDayLabel(mark.day);
+	const base = { color: `is-${stage.key}`, kind: NAMES[stage.key] };
+	if (mark.targets.length === 1) {
+		const target = mark.targets[0]!;
+		return { ...base, state: targetTitle(target, late), title: target.title, summary: [KINDS[target.kind], mark.milestone, when].filter(Boolean).join(" · "), hint: goTo };
+	}
+	const done = mark.targets.filter((target) => target.done).length;
+	const open = mark.targets.length - done;
+	const items: DotPopoverItem[] = mark.targets.map((target) => ({
+		text: target.title,
+		state: targetState(target, late && !target.done),
+		look: target.done ? "done" : late ? "late" : "open",
+	}));
+	return {
+		...base,
+		tag: `${mark.targets.length} targets`,
+		state: !open ? { text: "All done", tone: "success" } : late ? { text: `${open} overdue`, tone: "warning" } : { text: `${done} of ${mark.targets.length} done`, tone: "accent" },
+		title: mark.milestone ?? when,
+		summary: mark.milestone ? when : null,
+		items,
+		hint: "Click to zoom in",
+	};
+}
 const place = (el: HTMLElement, left: number, width?: number): void => {
 	el.style.setProperty("--editorialist-phase-left", `${left}%`);
 	if (width !== undefined) el.style.setProperty("--editorialist-phase-width", `${width}%`);
@@ -42,20 +80,20 @@ function layout(track: EngagementTrack): Layout {
  * same day share a mark; clicking it zooms the track into just those targets,
  * with a way back to the whole engagement.
  */
-export function renderEngagementPhaseBar(parent: HTMLElement, track: EngagementTrack, day: string, jump: (target: TrackTarget) => void): void {
+export function renderEngagementPhaseBar(parent: HTMLElement, track: EngagementTrack, day: string, jump: (target: TrackTarget) => void, goTo = "Click to go to it"): void {
 	if (!track.stages.length) return;
 	const block = parent.createDiv({ cls: "editorialist-phases", attr: { "data-phase": track.current } });
 	const whole = (focus?: TrackMark) => {
 		block.empty();
 		block.removeClass("is-zoomed");
-		renderWhole(block, track, day, jump, (mark) => zoom(block, track, mark, day, jump, () => whole(mark)));
+		renderWhole(block, track, day, jump, goTo, (mark) => zoom(block, track, mark, day, jump, goTo, () => whole(mark)));
 		if (focus) block.querySelector<HTMLElement>(`[data-mark-day="${focus.day}"]`)?.focus();
 	};
 	whole();
 }
 
-function renderWhole(block: HTMLElement, track: EngagementTrack, day: string, jump: (target: TrackTarget) => void, open: (mark: TrackMark) => void): void {
-	const { widths, offsets, position } = layout(track);
+function renderWhole(block: HTMLElement, track: EngagementTrack, day: string, jump: (target: TrackTarget) => void, goTo: string, open: (mark: TrackMark) => void): void {
+	const { widths, offsets, stageOf, position } = layout(track);
 	const summary = track.stages.map((stage) => `${NAMES[stage.key]} ${planDayLabel(stage.from)} to ${planDayLabel(stage.to)}`).join(", ");
 	const bar = block.createDiv({ cls: "editorialist-phases__bar", attr: { role: "group" } });
 	setAccessibleLabel(bar, summary);
@@ -64,10 +102,12 @@ function renderWhole(block: HTMLElement, track: EngagementTrack, day: string, ju
 		place(segment, offsets[index]!, widths[index]);
 		segment.style.setProperty("--editorialist-phase-fill", `${Math.min(100, Math.max(0, (days(stage.from, day) / Math.max(1, days(stage.from, stage.to))) * 100))}%`);
 		segment.createDiv({ cls: "editorialist-phases__fill" });
-		place(bar.createDiv({ cls: "editorialist-phases__tick", attr: { "aria-hidden": "true" } }), offsets[index]!);
+		// Where one stage hands over to the next, the tick stands taller than
+		// any mark, so a target due that day cannot hide the change.
+		place(bar.createDiv({ cls: `editorialist-phases__tick${index ? " is-boundary" : ""}`, attr: { "aria-hidden": "true" } }), offsets[index]!);
 	});
 	place(bar.createDiv({ cls: "editorialist-phases__tick", attr: { "aria-hidden": "true" } }), 100);
-	for (const mark of track.marks) renderMark(bar, mark, position(mark.day), day, jump, open);
+	for (const mark of track.marks) renderMark(bar, track.stages[stageOf(mark.day)]!, mark, position(mark.day), day, jump, goTo, open);
 	const legend = block.createDiv({ cls: "editorialist-phases__legend" });
 	const left = (count: number) => `${count} ${count === 1 ? "day" : "days"} left`;
 	for (const stage of track.stages) {
@@ -83,7 +123,7 @@ function renderWhole(block: HTMLElement, track: EngagementTrack, day: string, ju
 	}
 }
 
-function renderMark(bar: HTMLElement, mark: TrackMark, at: number, day: string, jump: (target: TrackTarget) => void, open: (mark: TrackMark) => void): void {
+function renderMark(bar: HTMLElement, stage: TrackStage, mark: TrackMark, at: number, day: string, jump: (target: TrackTarget) => void, goTo: string, open: (mark: TrackMark) => void): void {
 	const late = mark.day < day;
 	const combined = mark.targets.length > 1;
 	const heading = [mark.milestone, planDayLabel(mark.day)].filter(Boolean).join(" · ");
@@ -91,9 +131,10 @@ function renderMark(bar: HTMLElement, mark: TrackMark, at: number, day: string, 
 	const hint = combined ? ["Click to zoom in"] : [];
 	const el = bar.createEl("button", {
 		cls: `editorialist-phases__mark ${markState(mark.targets.every((target) => target.done), late)}${combined ? " is-combined" : ""}`,
-		attr: { type: "button", "aria-label": [heading, ...lines, ...hint].join("\n"), "data-tooltip-position": "top", "data-mark-day": mark.day },
+		attr: { type: "button", "aria-label": [heading, ...lines, ...hint].join("\n"), "data-mark-day": mark.day },
 	});
 	place(el, at);
+	bindDotPopover(el, () => markPopover(stage, mark, late, goTo));
 	if (!combined) { el.addEventListener("click", () => jump(mark.targets[0]!)); return; }
 	el.createSpan({ cls: "editorialist-phases__mark-count", text: String(mark.targets.length) });
 	el.addEventListener("click", () => open(mark));
@@ -104,7 +145,7 @@ function renderMark(bar: HTMLElement, mark: TrackMark, at: number, day: string, 
  * first so the fill reads as how much of the day is done. They open out from
  * where the day sat on the whole track.
  */
-function zoom(block: HTMLElement, track: EngagementTrack, mark: TrackMark, day: string, jump: (target: TrackTarget) => void, exit: () => void): void {
+function zoom(block: HTMLElement, track: EngagementTrack, mark: TrackMark, day: string, jump: (target: TrackTarget) => void, goTo: string, exit: () => void): void {
 	const { widths, offsets, stageOf, position } = layout(track);
 	const index = stageOf(mark.day);
 	const stage = track.stages[index]!;
@@ -132,9 +173,10 @@ function zoom(block: HTMLElement, track: EngagementTrack, mark: TrackMark, day: 
 	const dots = targets.map((target) => {
 		const dot = bar.createEl("button", {
 			cls: `editorialist-phases__mark ${markState(target.done, late)}`,
-			attr: { type: "button", "aria-label": `${target.done ? "✓" : "○"} ${target.title} · ${targetState(target, late && !target.done)}`, "data-tooltip-position": "top" },
+			attr: { type: "button", "aria-label": `${target.done ? "✓" : "○"} ${target.title} · ${targetState(target, late && !target.done)}` },
 		});
 		place(dot, from);
+		bindDotPopover(dot, () => markPopover(stage, { ...mark, targets: [target] }, late, goTo));
 		dot.addEventListener("click", () => jump(target));
 		return dot;
 	});

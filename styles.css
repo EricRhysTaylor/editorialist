@@ -1040,7 +1040,7 @@
    work: copy edit, editorial pass, or Editorialism directive; a centre mark
    is a model's work rather than a person's; hollow is still to do, solid is done, faint was declined. */
 .editorialist-matrix,
-.editorialist-edit-popover {
+.editorialist-dot-popover {
 	--editorialist-matrix-editor: var(--color-purple);
 	--editorialist-matrix-copy: var(--color-orange);
 	--editorialist-matrix-editorialism: var(--color-cyan);
@@ -1084,25 +1084,25 @@
 
 .editorialist-matrix__dot.is-editor,
 .editorialist-matrix__key.is-editor,
-.editorialist-edit-popover.is-editor {
+.editorialist-dot-popover.is-editor {
 	--editorialist-matrix-color: var(--editorialist-matrix-editor);
 }
 
 .editorialist-matrix__dot.is-copy,
 .editorialist-matrix__key.is-copy,
-.editorialist-edit-popover.is-copy {
+.editorialist-dot-popover.is-copy {
 	--editorialist-matrix-color: var(--editorialist-matrix-copy);
 }
 
 .editorialist-matrix__dot.is-editorialism,
 .editorialist-matrix__key.is-editorialism,
-.editorialist-edit-popover.is-editorialism {
+.editorialist-dot-popover.is-editorialism {
 	--editorialist-matrix-color: var(--editorialist-matrix-editorialism);
 }
 
 .editorialist-matrix__dot.is-pending,
 .editorialist-matrix__key.is-pending,
-.editorialist-edit-popover.is-pending {
+.editorialist-dot-popover.is-pending {
 	--editorialist-matrix-color: var(--editorialist-matrix-pending);
 }
 
@@ -1223,8 +1223,11 @@
 	font-size: var(--font-ui-smaller);
 }
 
-/* An edit in full beside its dot, in place of a tooltip. */
-.editorialist-edit-popover {
+/* A dot in full beside it, in place of a tooltip: an edit in the grid, or a
+   target on the engagement track. */
+.editorialist-dot-popover {
+	--editorialist-dot-color: var(--editorialist-matrix-color, var(--text-muted));
+
 	position: fixed;
 	top: var(--editorialist-popover-top, 0);
 	left: var(--editorialist-popover-left, 0);
@@ -1244,51 +1247,100 @@
 	pointer-events: none;
 }
 
-.editorialist-edit-popover__head {
+.editorialist-dot-popover__head {
 	display: flex;
 	align-items: center;
 	gap: 6px;
 	font-size: var(--font-ui-smaller);
 }
 
-.editorialist-edit-popover__kind {
+.editorialist-dot-popover__kind {
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
 	color: var(--text-muted);
-	font-weight: var(--font-semibold);
+	font-weight: var(--font-semibold);	white-space: nowrap;
 }
 
-.editorialist-edit-popover__swatch {
+.editorialist-dot-popover__swatch {
 	width: 8px;
 	height: 8px;
 	border-radius: 2px;
-	background: var(--editorialist-matrix-color);
+	background: var(--editorialist-dot-color);
 }
 
-.editorialist-edit-popover__tag {
+.editorialist-dot-popover__tag {
 	padding: 0 5px;
 	border-radius: var(--radius-s);
 	background: var(--background-modifier-hover);
 	color: var(--text-muted);
 }
 
-.editorialist-edit-popover__state {
+.editorialist-dot-popover__state {
 	margin-inline-start: auto;
 	padding-inline-start: 12px;
+	color: var(--text-muted);	white-space: nowrap;
+}
+
+.editorialist-dot-popover__state.is-accent {
+	color: var(--editorialist-dot-color);
+	font-weight: var(--font-semibold);
+}
+
+.editorialist-dot-popover__state.is-warning {
+	color: var(--color-red);
+	font-weight: var(--font-semibold);
+}
+
+.editorialist-dot-popover__state.is-success {
+	color: var(--color-green);
+	font-weight: var(--font-semibold);
+}
+
+/* A shared day's targets, one line each with its own state. */
+.editorialist-dot-popover__items {
+	display: grid;
+	gap: 4px;
+}
+
+.editorialist-dot-popover__item {
+	display: grid;
+	grid-template-columns: 8px minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 7px;
+}
+
+.editorialist-dot-popover__item-dot {
+	width: 8px;
+	height: 8px;
+	border: 1.5px solid var(--text-muted);
+	border-radius: 50%;
+}
+
+.editorialist-dot-popover__item.is-done .editorialist-dot-popover__item-dot {
+	border-color: var(--color-green);
+	background: var(--color-green);
+}
+
+.editorialist-dot-popover__item.is-late .editorialist-dot-popover__item-dot {
+	border-color: var(--color-red);
+}
+
+.editorialist-dot-popover__item-state {
 	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	white-space: nowrap;
 }
 
-.editorialist-edit-popover__state.is-open {
-	color: var(--editorialist-matrix-color);
+.editorialist-dot-popover__item.is-late .editorialist-dot-popover__item-state {
+	color: var(--color-red);
+}
+
+.editorialist-dot-popover__title {
 	font-weight: var(--font-semibold);
 }
 
-.editorialist-edit-popover__title {
-	font-weight: var(--font-semibold);
-}
-
-.editorialist-edit-popover__summary {
+.editorialist-dot-popover__summary {
 	display: -webkit-box;
 	overflow: hidden;
 	-webkit-box-orient: vertical;
@@ -1297,12 +1349,12 @@
 	overflow-wrap: anywhere;
 }
 
-.editorialist-edit-popover__note {
+.editorialist-dot-popover__note {
 	color: var(--text-warning);
 	font-size: var(--font-ui-smaller);
 }
 
-.editorialist-edit-popover__hint {
+.editorialist-dot-popover__hint {
 	padding-top: 6px;
 	border-top: 1px solid var(--background-modifier-border);
 	color: var(--text-faint);
@@ -8898,6 +8950,33 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	background: var(--text-faint);
 }
 
+/* A handover between stages rises above and below the largest mark, so a
+   target on that day leaves both ends of it showing. */
+.editorialist-phases__tick.is-boundary {
+	top: -11px;
+	height: 28px;
+	background: var(--text-muted);
+}
+
+/* A target's popover in its stage's colour. */
+.editorialist-dot-popover.is-preparation {
+	--editorialist-dot-color: var(--color-orange);
+}
+
+.editorialist-dot-popover.is-editing {
+	--editorialist-dot-color: var(--color-purple);
+}
+
+.editorialist-dot-popover.is-questions {
+	--editorialist-dot-color: var(--color-cyan);
+}
+
+/* The marks carry labels for screen readers; the popover shows them. */
+.editorialist-phases__bar,
+.editorialist-phases__mark {
+	--no-tooltip: true;
+}
+
 /* A target on the track: hollow while open, green once finished or sent,
    red once its day has passed. A shared day is larger and counts its targets. */
 .editorialist-phases .editorialist-phases__bar button.editorialist-phases__mark,
@@ -10419,6 +10498,22 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 
 .editorialist-today__row[data-work-kind="goal"] {
 	--editorialist-source-color: var(--color-green);
+}
+
+/* The editor engagement in the editor's colour, its track under the title. */
+.editorialist-today__row[data-work-kind="engagement"] {
+	--editorialist-source-color: var(--color-purple);
+}
+
+.editorialist-today__engagement .editorialist-phases {
+	margin: 2px 0 0;
+}
+
+.editorialist-today__engagement-title {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
 }
 
 .editorialist-today__words-today {

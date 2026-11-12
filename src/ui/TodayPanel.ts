@@ -12,7 +12,9 @@ import { renderPanelHeader } from "./primitives/PanelHeader";
 import { renderWordLimit } from "./primitives/WordLimitBar";
 import { renderCushionBar } from "./primitives/CushionBar";
 import { setAccessibleLabel } from "./primitives/AccessibleLabel";
-import { cushionProgress, deadlineState, entryWorkDeadline, type ProjectMaterial, type WorkDeadline } from "../core/planning/EditorialProject";
+import { cushionProgress, deadlineState, engagementReturned, entryWorkDeadline, projectEditor, type EditorialProject, type ProjectMaterial, type WorkDeadline } from "../core/planning/EditorialProject";
+import { engagementTrack } from "../core/planning/EngagementTrack";
+import { renderEngagementPhaseBar } from "./primitives/EngagementPhaseBar";
 
 export const TODAY_VIEW_TYPE = "editorialist-today";
 /** Device-local: the day Today was last shown, so a new day opens on it once. */
@@ -172,6 +174,14 @@ export class TodayPanel extends ItemView {
 		}
 		// One unreadable source can warn for several books; say it once.
 		for (const warning of new Set([...this.notices, ...this.plans.flatMap((plan) => plan.warnings)])) root.createEl("p", { cls: "editorialist-plan__warning", text: warning });
+		// An editor engagement under way is the biggest thing on the calendar,
+		// so its track stays in view every day until the questions are done.
+		const engagements = this.engagements();
+		if (engagements.length) {
+			root.createEl("h3", { cls: "editorialist-today__heading", text: engagements.length === 1 ? "Your editor engagement" : "Your editor engagements" });
+			const list = root.createDiv({ cls: "editorialist-today__list" });
+			for (const { plan, project } of engagements) this.renderEngagement(list, plan, project);
+		}
 		if (now) this.renderNow(root, now);
 		if (rest.length) {
 			root.createEl("h3", { cls: "editorialist-today__heading", text: "Up next" });
@@ -290,6 +300,38 @@ export class TodayPanel extends ItemView {
 		setIcon(open, "arrow-up-right");
 	}
 
+	private engagements(): { plan: LoadedPlan; project: EditorialProject }[] {
+		return this.plans.flatMap((plan) => {
+			const project = plan.plan.project;
+			if (!project || !plan.folder) return [];
+			const track = engagementTrack(project, this.returned(plan, project), this.day);
+			return track.stages.length && track.current !== "done" ? [{ plan, project }] : [];
+		});
+	}
+
+	private returned(plan: LoadedPlan, project: EditorialProject): string | null {
+		return engagementReturned(project, this.plugin.getEditorialDeliveries(plan.folder ?? undefined)).date ?? null;
+	}
+
+	// The engagement's track as its overview draws it: the author's
+	// preparation, the editor at work, then the questions, with the author's
+	// targets on it. A target opens the engagement, where it is listed.
+	private renderEngagement(parent: HTMLElement, plan: LoadedPlan, project: EditorialProject): void {
+		const open = async (): Promise<void> => { if (await this.switchToBook(plan.folder)) await this.plugin.openPlanSection(false, "overview"); };
+		const row = parent.createDiv({ cls: "editorialist-today__row editorialist-today__engagement", attr: { "data-work-kind": "engagement" } });
+		const head = row.createDiv({ cls: "editorialist-today__head" });
+		const badge = head.createSpan({ cls: "editorialist-plan__kind" });
+		setIcon(badge.createSpan(), "messages-square");
+		badge.createSpan({ text: plan.label ?? "Editor engagement" });
+		const start = project.submissionDate;
+		const away = Math.round((Date.parse(`${start}T00:00:00Z`) - Date.parse(`${this.day}T00:00:00Z`)) / 86400000);
+		head.createSpan({ cls: "editorialist-today__day", text: !away ? "Starts today" : away < 0 ? `Started ${planDayLabel(start)}` : `Starts in ${away} ${away === 1 ? "day" : "days"}` });
+		const title = row.createDiv({ cls: "editorialist-today__engagement-title" });
+		title.createDiv({ cls: "editorialist-today__row-title", text: `${projectEditor(project, this.plugin.getReviewerProfiles()).name} · ${project.title}` });
+		this.homeButton(title.createDiv({ cls: "editorialist-today__row-actions" }), { label: "Open engagement", icon: "arrow-up-right", open });
+		renderEngagementPhaseBar(row, engagementTrack(project, this.returned(plan, project), this.day), this.day, () => { void open(); }, "Click to open the engagement");
+	}
+
 	private async openGoal(goal: AuthorTarget): Promise<void> {
 		const file = goal.file ? this.app.vault.getAbstractFileByPath(goal.file) : null;
 		if (file instanceof TFile) await this.app.workspace.openLinkText(file.path, "", false);
@@ -363,7 +405,7 @@ export class TodayPanel extends ItemView {
 			else await this.plugin.openAuthorPlanner();
 			return;
 		}
-		if (!await this.switchToBook(item)) return;
+		if (!await this.switchToBook(this.plan(item)?.folder)) return;
 		if (source.kind === "preparation") {
 			const document = this.material(item)?.source;
 			if (document) await this.app.workspace.openLinkText(document, "", false);
@@ -376,8 +418,7 @@ export class TodayPanel extends ItemView {
 	}
 
 	/** Book work opens under its own book; switch to it first when another is active. */
-	private async switchToBook(item: AgendaItem): Promise<boolean> {
-		const folder = this.plan(item)?.folder;
+	private async switchToBook(folder: string | null | undefined): Promise<boolean> {
 		if (!folder || folder === this.plugin.getActiveBookScopeInfo().sourceFolder?.replace(/\/$/, "")) return true;
 		try { await this.plugin.openBook(folder); return true; }
 		catch (error) { new Notice(error instanceof Error ? error.message : "Could not switch to that book."); return false; }
@@ -392,7 +433,7 @@ export class TodayPanel extends ItemView {
 		return {
 			label: engagement ? "Open engagement" : "Open in plan",
 			icon: engagement ? "clipboard-list" : "list-ordered",
-			open: async () => { if (await this.switchToBook(item)) await this.plugin.openPlanSection(false, engagement ? "overview" : "schedule"); },
+			open: async () => { if (await this.switchToBook(this.plan(item)?.folder)) await this.plugin.openPlanSection(false, engagement ? "overview" : "schedule"); },
 		};
 	}
 

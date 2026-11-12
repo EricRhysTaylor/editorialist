@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { emptyRevisionPlan } from "../core/planning/RevisionPlan";
+import { emptyRevisionPlan, localDate } from "../core/planning/RevisionPlan";
+import { createEditorialProject } from "../core/planning/EditorialProject";
 import type EditorialistPlugin from "../main";
 import { TodayPanel } from "./TodayPanel";
 
@@ -13,9 +14,17 @@ vi.mock("obsidian", () => import("../../tests/mocks/obsidianDom"));
 
 function mount() {
 	let goalWarnings: string[] = [];
+	const bookPlan = emptyRevisionPlan();
 	const plugin = {
 		synchronizeAuthorTargets: vi.fn(async () => {}),
-		collectBooksWork: vi.fn(async () => []),
+		collectBooksWork: vi.fn(async (): Promise<unknown[]> => []),
+		recordRevisionProgress: vi.fn(async () => {}),
+		getRevisionPlan: () => bookPlan,
+		materialWordCounts: vi.fn(async () => ({})),
+		getEditorialDeliveries: () => [],
+		getReviewerProfiles: () => [],
+		openPlanSection: vi.fn(async () => {}),
+		getActiveBookScopeInfo: () => ({ sourceFolder: "Book" }),
 		collectAuthorWork: () => ({ candidates: [], warnings: goalWarnings }),
 		getAuthorPlanningPlan: () => emptyRevisionPlan(),
 		recordAuthorWordGoals: vi.fn(async () => ({ counts: {} })),
@@ -36,7 +45,7 @@ function mount() {
 	// SAFE: the view reaches the plugin and app only through the members stubbed above.
 	const panel = new TodayPanel({ app } as never, plugin as unknown as EditorialistPlugin);
 	const warn = (warning: string): void => { goalWarnings = [warning]; };
-	return { panel, plugin, warn };
+	return { panel, plugin, warn, bookPlan };
 }
 
 const planGoals = (panel: TodayPanel): HTMLElement | null =>
@@ -94,5 +103,23 @@ describe("Today refreshing after a leaf change", () => {
 		await Promise.resolve();
 
 		expect(panel.contentEl.querySelector(".editorialist-matrix__grid .editorialist-matrix__dot")).toBe(shown);
+	});
+
+	it("keeps a book's editor engagement on its track, which opens the engagement", async () => {
+		const { panel, plugin, bookPlan } = mount();
+		const start = new Date(); start.setDate(start.getDate() + 18);
+		bookPlan.project = createEditorialProject("Morgan Lee", localDate(start), () => "project");
+		bookPlan.project.title = "Developmental edit";
+		const back = new Date(start); back.setDate(back.getDate() + 40);
+		bookPlan.project.expectedReturn = localDate(back);
+		bookPlan.project.history.push({ at: `${localDate(new Date(Date.now() - 30 * 86400000))}T12:00:00.000Z`, text: "Editor engagement created" });
+		plugin.collectBooksWork.mockResolvedValue([{ folder: "Book", label: "Shail + Trisan", active: true, work: { held: [], warnings: [], candidates: [] } }]);
+		await panel.onOpen();
+		const card = panel.contentEl.querySelector(".editorialist-today__engagement")!;
+		expect(card.querySelector(".editorialist-today__row-title")?.textContent).toBe("Morgan Lee · Developmental edit");
+		expect(card.querySelector(".editorialist-today__day")?.textContent).toBe("Starts in 18 days");
+		expect(card.querySelectorAll(".editorialist-phases__segment").length).toBeGreaterThan(0);
+		card.querySelector<HTMLButtonElement>(".editorialist-today__row-actions button")!.click();
+		await vi.waitFor(() => expect(plugin.openPlanSection).toHaveBeenCalledWith(false, "overview"));
 	});
 });
