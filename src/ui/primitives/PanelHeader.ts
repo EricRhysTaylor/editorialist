@@ -1,4 +1,4 @@
-import { setAccessibleLabel } from "./AccessibleLabel";
+import { setAccessibleLabel, setIconLabel } from "./AccessibleLabel";
 import { t, tCount } from "../../i18n";
 import { EDITORIALIST_ICON_ID } from "../EditorialistLogoIcon";
 import { Menu, setIcon } from "obsidian";
@@ -37,7 +37,7 @@ export function renderPanelHeader(parent: HTMLElement, plugin: EditorialistPlugi
 	launch.addEventListener("click", () => { if (primary) primary.action(); else void plugin.openEditorialistModal(); });
 	const more = row.createEl("button", { cls: "editorialist-panel__settings-button", attr: { type: "button", "aria-haspopup": "menu" } });
 	setIcon(more.createSpan(), "ellipsis");
-	setAccessibleLabel(more, t("panel.actions"));
+	setIconLabel(more, t("panel.actions"));
 	more.addEventListener("click", (event) => {
 		const menu = new Menu();
 		menu.addItem((item) => item.setTitle(t("panel.deliveries")).setIcon("package").onClick(() => plugin.openEditorialDeliveries()));

@@ -1,5 +1,5 @@
 import { renderWordLimit } from "./primitives/WordLimitBar";
-import { setAccessibleLabel } from "./primitives/AccessibleLabel";
+import { setIconLabel } from "./primitives/AccessibleLabel";
 import { bindCompletionMenu } from "./primitives/CompletionMenu";
 import { Modal, Notice, TFile, normalizePath, setIcon, type App } from "obsidian";
 import { ENGAGEMENT_START, MAX_AGREEMENT_LENGTH, candidateDeadline, collaborationUrl, createEditorialProject, deadlineState, documentDue, documentSends, dueDeadline, engagementPhases, engagementReturned, engagementStartCountdown, isProjectEditorProfile, milestoneState, projectEditor, recordProjectEvent, removeDocument, removeMilestone, removeTask, shiftDate, taskDue, type EditorialProject, type EngagementRecord, type EngagementTask, type ProjectMaterial } from "../core/planning/EditorialProject";
@@ -48,7 +48,7 @@ const button = (parent: HTMLElement, text: string, action: () => void): HTMLButt
 // their weight instead of competing with a dozen identical grey ones.
 const iconButton = (parent: HTMLElement, icon: string, label: string, action?: () => void, cls = ""): HTMLButtonElement => {
 	const el = parent.createEl("button", { cls: `clickable-icon editorialist-project__icon-button ${cls}`.trim(), attr: { type: "button" } });
-	setIcon(el, icon); setAccessibleLabel(el, label); if (action) el.addEventListener("click", action); return el;
+	setIcon(el, icon); setIconLabel(el, label); if (action) el.addEventListener("click", action); return el;
 };
 // One collapsible section shape for milestones, tasks, and materials: icon,
 // full-strength title, count, and a large chevron. Open by default; the
@@ -211,7 +211,7 @@ export class EditorialProjectPanel {
 	private renderAgreement(hero: HTMLElement, project: EditorialProject, editorName: string): void {
 		const notes = hero.createEl("details", { cls: "editorialist-project__notes", attr: { "data-plan-section": "engagement-notes" } });
 		const toggle = notes.createEl("summary", { cls: `editorialist-project__notes-toggle${project.agreement ? " has-notes" : ""}` });
-		setAccessibleLabel(toggle, project.agreement ? "Engagement notes" : "Add engagement notes");
+		setIconLabel(toggle, project.agreement ? "Engagement notes" : "Add engagement notes");
 		setIcon(toggle, "messages-square");
 		const body = notes.createDiv({ cls: "editorialist-project__notes-body" });
 		// A pasted message thread reads as a conversation: the editor's
@@ -330,7 +330,9 @@ export class EditorialProjectPanel {
 		const head = card.createDiv({ cls: `editorialist-project__row editorialist-project__document-head${sent ? " is-sent" : state === "late" ? " is-overdue" : state === "cushion" ? " is-cushion" : ""}` });
 		// A status mark, not a control: the send itself is edited in the
 		// document's details, like everything else about it.
-		setIcon(head.createSpan({ cls: "editorialist-project__row-icon editorialist-project__document-status", attr: { role: "img", "aria-label": sent ? "Sent" : "Not sent yet" } }), sent ? "check-circle-2" : "circle-dashed");
+		const mark = head.createSpan({ cls: "editorialist-project__row-icon editorialist-project__document-status", attr: { role: "img" } });
+		setIcon(mark, sent ? "check-circle-2" : "circle-dashed");
+		setIconLabel(mark, sent ? "Sent to your editor" : state === "late" ? "Not sent yet, overdue" : "Not sent yet");
 		const main = head.createDiv({ cls: "editorialist-project__row-main" });
 		main.createDiv({ cls: "editorialist-project__row-title", text: material.title });
 		if (due && deadline) main.createDiv({ cls: "editorialist-project__row-meta editorialist-project__row-deadline", text: sent ? `Due ${planDayLabel(due.day)}` : deadlineLabel(deadline, state === "late") });

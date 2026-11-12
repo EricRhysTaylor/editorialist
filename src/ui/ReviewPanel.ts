@@ -1,5 +1,5 @@
 import { t } from "../i18n";
-import { setAccessibleLabel } from "./primitives/AccessibleLabel";
+import { setAccessibleLabel, setIconLabel } from "./primitives/AccessibleLabel";
 import { formatRelativeTime } from "../core/RelativeTime";
 import { EditMatrixSlot } from "./EditMatrixSlot";
 import type { EditMatrixSubset } from "./primitives/EditMatrix";
@@ -945,7 +945,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 				"aria-expanded": this.sceneDirectivesCollapsed ? "false" : "true",
 			},
 		});
-		setAccessibleLabel(toggle, this.sceneDirectivesCollapsed ? "Show editorialisms" : "Hide editorialisms");
+		setIconLabel(toggle, this.sceneDirectivesCollapsed ? "Show editorialisms" : "Hide editorialisms");
 		const toggleIcon = toggle.createSpan({ cls: "editorialist-panel__directives-toggle-icon" });
 		setIcon(toggleIcon, this.sceneDirectivesCollapsed ? "chevron-down" : "chevron-up");
 		this.bindImmediateAction(toggle, () => {
@@ -1417,7 +1417,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 				"aria-expanded": this.commentsCollapsed ? "false" : "true",
 			},
 		});
-		setAccessibleLabel(toggle, this.commentsCollapsed ? "Show comments" : "Hide comments");
+		setIconLabel(toggle, this.commentsCollapsed ? "Show comments" : "Hide comments");
 		const toggleIcon = toggle.createSpan({ cls: "editorialist-panel__comments-toggle-icon" });
 		setIcon(toggleIcon, this.commentsCollapsed ? "chevron-down" : "chevron-up");
 		this.bindImmediateAction(toggle, () => {
@@ -1611,7 +1611,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		if (this.starredOnly) {
 			starredButton.buttonEl.addClass("is-active");
 		}
-		setAccessibleLabel(starredButton.buttonEl, this.starredOnly ? "Show all reviewers" : "Show starred reviewers");
+		setIconLabel(starredButton.buttonEl, this.starredOnly ? "Show all reviewers" : "Show starred reviewers");
 		setIcon(starredButton.buttonEl, "star");
 	}
 
@@ -2564,7 +2564,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 				type: "button",
 			},
 		});
-		if (options?.iconOnly) setAccessibleLabel(button, accessibleLabel);
+		if (options?.iconOnly) setIconLabel(button, accessibleLabel);
 		if (options?.iconOnly) {
 			button.addClass("editorialist-suggestion__control--icon-only");
 		}

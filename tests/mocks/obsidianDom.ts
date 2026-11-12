@@ -91,6 +91,11 @@ export function setIcon(element: HTMLElement, icon: string): void {
 	element.setAttribute("data-icon", icon);
 }
 
+// Obsidian names the element and shows the name on hover.
+export function setTooltip(element: HTMLElement, tooltip: string): void {
+	element.setAttribute("aria-label", tooltip);
+}
+
 export class ButtonComponent {
 	readonly buttonEl: HTMLButtonElement;
 

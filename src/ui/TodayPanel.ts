@@ -11,7 +11,7 @@ import { withPendingEdits } from "./PendingEditDots";
 import { renderPanelHeader } from "./primitives/PanelHeader";
 import { renderWordLimit } from "./primitives/WordLimitBar";
 import { renderCushionBar } from "./primitives/CushionBar";
-import { setAccessibleLabel } from "./primitives/AccessibleLabel";
+import { setIconLabel } from "./primitives/AccessibleLabel";
 import { cushionProgress, deadlineState, engagementReturned, entryWorkDeadline, projectEditor, type EditorialProject, type ProjectMaterial, type WorkDeadline } from "../core/planning/EditorialProject";
 import { engagementTrack } from "../core/planning/EngagementTrack";
 import { renderEngagementPhaseBar } from "./primitives/EngagementPhaseBar";
@@ -440,7 +440,7 @@ export class TodayPanel extends ItemView {
 	private homeButton(parent: HTMLElement, home: { label: string; icon: string; open: () => Promise<void> }): void {
 		const button = this.button(parent, "", () => { void home.open(); });
 		button.addClass("clickable-icon", "editorialist-plan__icon-action");
-		setAccessibleLabel(button, home.label);
+		setIconLabel(button, home.label);
 		setIcon(button, home.icon);
 	}
 

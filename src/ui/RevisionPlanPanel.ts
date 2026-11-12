@@ -1,4 +1,4 @@
-import { setAccessibleLabel } from "./primitives/AccessibleLabel";
+import { setAccessibleLabel, setIconLabel } from "./primitives/AccessibleLabel";
 import { isPathInFolderScope, isPathInManuscriptScope } from "../core/VaultScope";
 import { AUTHOR_PLAN_SCOPE } from "../core/planning/AuthorPlan";
 import { AuthorTargetPanel } from "./AuthorTargetPanel";
@@ -589,10 +589,10 @@ export class RevisionPlanPanel extends ItemView {
 		if (entry.source.kind !== "preparation" || openWork) {
 			this.sourceButton(actions, "", () => openWork?.(), !openWork || this.stale);
 			const open = actions.lastElementChild as HTMLButtonElement;
-			open.addClass("clickable-icon", "editorialist-plan__icon-action"); setAccessibleLabel(open, entry.source.kind === "preparation" ? "Open document" : "Open source"); setIcon(open, entry.source.kind === "preparation" ? "file-text" : "arrow-up-right");
+			open.addClass("clickable-icon", "editorialist-plan__icon-action"); setIconLabel(open, entry.source.kind === "preparation" ? "Open document" : "Open source"); setIcon(open, entry.source.kind === "preparation" ? "file-text" : "arrow-up-right");
 		}
 		const options = this.button(actions, "", () => { details.open = !details.open; });
-		options.addClass("clickable-icon", "editorialist-plan__icon-action"); setAccessibleLabel(options, "Schedule & options"); setIcon(options, "sliders-horizontal");
+		options.addClass("clickable-icon", "editorialist-plan__icon-action"); setIconLabel(options, "Schedule & options"); setIcon(options, "sliders-horizontal");
 
 		details.createEl("p", { cls: "editorialist-plan__hint", text: this.author ? "The check records this work period as finished. Mark complete on the goal when its outcome is ready." : "The check finishes this session in your plan only. It does not accept edits or resolve the source instruction." });
 		const fields = details.createDiv({ cls: "editorialist-plan__fields" });
@@ -678,7 +678,7 @@ export class RevisionPlanPanel extends ItemView {
 				this.sourceButton(row, "", () => { void this.change((plan) => { plan.entries.push({ id: crypto.randomUUID(), source: { kind: candidate.kind, path: candidate.path, locator: candidate.locator }, title: candidate.title, lowMinutes: null, highMinutes: null, day: null, required: true, done: false, afterId: null }); }); }, this.stale);
 				const add = row.querySelector<HTMLButtonElement>("button")!;
 				add.addClass("editorialist-plan__add");
-				setAccessibleLabel(add, `Add to plan: ${candidate.title}`); setIcon(add.createSpan(), "plus");
+				setIconLabel(add, `Add to plan: ${candidate.title}`); setIcon(add.createSpan(), "plus");
 			}
 			if (shown.length > this.backlogLimit) this.button(list, `Show ${Math.min(12, shown.length - this.backlogLimit)} more`, () => { this.backlogLimit += 12; render(); });
 			if (shown.length > 1) {

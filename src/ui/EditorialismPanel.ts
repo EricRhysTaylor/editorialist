@@ -1,4 +1,4 @@
-import { setAccessibleLabel } from "./primitives/AccessibleLabel";
+import { setAccessibleLabel, setIconLabel } from "./primitives/AccessibleLabel";
 import { bindMenuAction } from "./util/bindMenuAction";
 import { deliveryDate } from "../core/EditorialDeliveries";
 import { displayDirectiveText, handoffItems } from "../core/DirectiveText";
@@ -329,7 +329,7 @@ export class EditorialismPanel extends ItemView {
 				type: "button",
 			},
 		});
-		setAccessibleLabel(openSource, "Open agenda");
+		setIconLabel(openSource, "Open agenda");
 		const openIcon = openSource.createSpan({ cls: "editorialist-editorialism-panel__detail-open-icon" });
 		setIcon(openIcon, "external-link");
 		openSource.addEventListener("click", () => {
@@ -628,7 +628,7 @@ export class EditorialismPanel extends ItemView {
 			cls: "editorialist-editorialism-panel__anchor-jump",
 			attr: { type: "button" },
 		});
-		setAccessibleLabel(jump, "Jump to this passage");
+		setIconLabel(jump, "Jump to this passage");
 		setIcon(
 			jump.createSpan({ cls: "editorialist-editorialism-panel__anchor-jump-icon" }),
 			"corner-down-right",

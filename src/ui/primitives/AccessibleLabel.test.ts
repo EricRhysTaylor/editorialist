@@ -1,5 +1,8 @@
-import { describe, expect, it } from "vitest";
-import { setAccessibleLabel } from "./AccessibleLabel";
+// @vitest-environment happy-dom
+import { describe, expect, it, vi } from "vitest";
+import { setAccessibleLabel, setIconLabel } from "./AccessibleLabel";
+
+vi.mock("obsidian", async () => await import("../../../tests/mocks/obsidianDom"));
 
 function fixture() {
 	const spans: { id: string; parentElement: object; text: string; hidden: boolean; setText(value: string): void }[] = [];
@@ -42,5 +45,19 @@ describe("accessible control names without hover labels", () => {
 		expect(first.attributes.get("aria-labelledby")).not.toBe(second.attributes.get("aria-labelledby"));
 		expect(first.spans[0]?.parentElement).toBe(first.control.parentElement);
 		expect(second.spans[0]?.parentElement).toBe(second.control.parentElement);
+	});
+});
+
+describe("icons that say what they do on hover", () => {
+	it("gives an icon-only control a hover label in place of a hidden name", () => {
+		const { control, attributes, spans } = fixture();
+		const removed: unknown[] = [];
+		setAccessibleLabel(control, "Edit");
+		(spans[0] as unknown as { remove: () => void }).remove = () => removed.push(spans[0]);
+		setIconLabel(control, "Edit “Query letter”");
+		expect(attributes.get("aria-label")).toBe("Edit “Query letter”");
+		expect(attributes.has("aria-labelledby")).toBe(false);
+		expect(attributes.has("title")).toBe(false);
+		expect(removed).toHaveLength(1);
 	});
 });

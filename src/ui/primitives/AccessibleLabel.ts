@@ -1,7 +1,10 @@
+import { setTooltip } from "obsidian";
+
 /** Name a control without Obsidian turning aria-label into a hover tooltip.
- * Visible text already names ordinary buttons; use this for icon-only controls
- * or a more specific screen-reader name. Helpful hover copy uses aria-label
- * alone. Never combine it with a native title tooltip.
+ * Use it where visible text already says what the control does and only
+ * the screen-reader name is more specific. An icon with no text uses
+ * setIconLabel, so it says what it does on hover. Never combine it with a
+ * native title tooltip.
  */
 const labels = new WeakMap<HTMLElement, HTMLSpanElement>();
 export function setAccessibleLabel(element: HTMLElement, text: string): void {
@@ -16,4 +19,16 @@ export function setAccessibleLabel(element: HTMLElement, text: string): void {
 	element.setAttribute("aria-labelledby", label.id);
 	element.removeAttribute("aria-label");
 	element.removeAttribute("title");
+}
+
+/**
+ * Name an icon that has no text of its own, and show that name on hover:
+ * an icon alone does not say what it does.
+ */
+export function setIconLabel(element: HTMLElement, text: string): void {
+	labels.get(element)?.remove();
+	labels.delete(element);
+	element.removeAttribute("aria-labelledby");
+	element.removeAttribute("title");
+	setTooltip(element, text);
 }

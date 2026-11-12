@@ -1,4 +1,4 @@
-import { setAccessibleLabel } from "./primitives/AccessibleLabel";
+import { setAccessibleLabel, setIconLabel } from "./primitives/AccessibleLabel";
 import { TextComponent, setIcon, type App } from "obsidian";
 import { PromiseModal } from "./modals/PromiseModal";
 import { buildModalFooter, type ModalFooter } from "./primitives/ModalFooter";
@@ -342,7 +342,7 @@ class ContributorStrengthsModal extends PromiseModal<ContributorStrengthsModalRe
 					cls: "editorialist-contributor-modal__identity-icon",
 				});
 				setIcon(iconEl, definition.icon);
-				setAccessibleLabel(iconEl, definition.label);
+				setIconLabel(iconEl, definition.label);
 			}
 		}
 	}

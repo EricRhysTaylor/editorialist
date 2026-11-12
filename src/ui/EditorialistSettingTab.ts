@@ -1,4 +1,4 @@
-import { setAccessibleLabel } from "./primitives/AccessibleLabel";
+import { setAccessibleLabel, setIconLabel } from "./primitives/AccessibleLabel";
 import { ButtonComponent, Component, Notice, PluginSettingTab, SettingPage, requireApiVersion, setIcon, TFile, ToggleComponent, type App, type SettingDefinitionItem } from "obsidian";
 import { formatReviewerTypeLabel } from "../core/ContributorIdentity";
 import { sweepStatusLabel } from "../core/status/ReviewStatusModel";
@@ -1001,7 +1001,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			const completionIcon = completionCell.createSpan({
 				cls: `editorialist-settings__inventory-completion${openCount === 0 ? " is-complete" : ""}`,
 			});
-			setAccessibleLabel(completionIcon, openCount === 0 ? `${record.noteTitle} complete` : `${record.noteTitle} still open`);
+			setIconLabel(completionIcon, openCount === 0 ? `${record.noteTitle} complete` : `${record.noteTitle} still open`);
 			setIcon(completionIcon, openCount === 0 ? "square-check" : "square");
 
 			const sceneCell = row.createEl("td", {
@@ -1198,7 +1198,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			cls: `editorialist-settings__inventory-rt-glyph editorialist-settings__inventory-rt-glyph--${kind} editorialist-settings__inventory-rt-glyph--${tone}`,
 			text: glyph,
 		});
-		setAccessibleLabel(glyphEl, label);
+		setIconLabel(glyphEl, label);
 	}
 
 	private renderContributorsSection(parent: HTMLElement): void {
@@ -1313,7 +1313,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 				.onClick(() => {
 					void this.plugin.contributors.toggleReviewerStarById(profile.id).then(() => this.displayAsync(false));
 				});
-			setAccessibleLabel(starButton.buttonEl, profile.isStarred ? "Unstar contributor" : "Star contributor");
+			setIconLabel(starButton.buttonEl, profile.isStarred ? "Unstar contributor" : "Star contributor");
 			starButton.buttonEl.addClass("editorialist-settings__star-button");
 			if (profile.isStarred) {
 				starButton.buttonEl.addClass("is-starred");
@@ -1329,7 +1329,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 						}
 					});
 				});
-			setAccessibleLabel(manageButton.buttonEl, "Manage contributor");
+			setIconLabel(manageButton.buttonEl, "Manage contributor");
 			manageButton.buttonEl.addClass("editorialist-settings__star-button");
 			manageButton.buttonEl.addClass("editorialist-settings__contributor-menu-button");
 			const manageIcon = manageButton.buttonEl.createSpan({ cls: "editorialist-settings__action-button-icon" });
@@ -1848,7 +1848,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			const roleIcon = icons.createSpan({
 				cls: "editorialist-settings__contributor-use-icon editorialist-settings__contributor-use-icon--inline",
 			});
-			setAccessibleLabel(roleIcon, roleDefinition.label);
+			setIconLabel(roleIcon, roleDefinition.label);
 			setIcon(roleIcon, roleDefinition.icon);
 		}
 
@@ -1865,7 +1865,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			const strengthIcon = icons.createSpan({
 				cls: "editorialist-settings__contributor-use-icon editorialist-settings__contributor-use-icon--inline",
 			});
-			setAccessibleLabel(strengthIcon, definition.label);
+			setIconLabel(strengthIcon, definition.label);
 			setIcon(strengthIcon, definition.icon);
 		}
 	}
