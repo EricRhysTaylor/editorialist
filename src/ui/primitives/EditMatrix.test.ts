@@ -51,8 +51,8 @@ describe("Edit matrix", () => {
 			"editorialist-matrix__dot is-copy is-done",
 			"editorialist-matrix__dot is-copy is-open",
 		]);
-		expect(dots[0]!.getAttribute("aria-label")).toBe("3 Arrival\nCopy edit · from Word · declined (scene cleaned)\nDelete “very”");
-		expect(dots[1]!.getAttribute("aria-label")).toBe("3 Arrival\nEditorial pass · AI · to do (passage not found)\nCondense “The rain…”");
+		expect(dots[0]!.getAttribute("aria-label")).toBe("3 Arrival. Copy edit · from Word · declined. Scene cleaned. Delete “very”");
+		expect(dots[1]!.getAttribute("aria-label")).toBe("3 Arrival. Editorial pass · AI · to do. Passage not found. Condense “The rain…”");
 		expect(root.querySelector(".editorialist-panel__review-state-summary")?.textContent).toBe("2 of 4 handled");
 		expect([...root.querySelectorAll(".editorialist-matrix__key")].map((key) => key.textContent)).toEqual([
 			"Copy edit1 of 3 to do", "Editorial pass1 of 1 to do · all AI",
@@ -63,6 +63,26 @@ describe("Edit matrix", () => {
 		const { root, actions } = render();
 		root.querySelectorAll<HTMLButtonElement>(".editorialist-matrix__grid .editorialist-matrix__dot")[3]!.click();
 		expect(actions.open).toHaveBeenCalledWith(expect.objectContaining({ notePath: "Book/12 Harbor.md" }), expect.objectContaining({ id: "review-1-2" }));
+	});
+
+	it("shows an edit in a popover while the pointer is over its dot", () => {
+		vi.useFakeTimers();
+		const directive = dot("5", "editorialism", "open", "pending", "**C16** — Review FP06 in the final batch.", true, false, true);
+		const { root } = render({ scenes: [{ notePath: "Editorialist/Book/Letter.md", title: "Stage 2 Handoff", dots: [directive] }] });
+		document.body.appendChild(root);
+		const button = root.querySelector<HTMLButtonElement>(".editorialist-matrix__grid .editorialist-matrix__dot")!;
+		expect(button.getAttribute("data-tooltip-position")).toBeNull();
+		button.dispatchEvent(new PointerEvent("pointerenter"));
+		expect(document.querySelector(".editorialist-edit-popover")).toBeNull();
+		vi.advanceTimersByTime(300);
+		const card = document.querySelector(".editorialist-edit-popover")!;
+		const text = (part: string) => card.querySelector(`.editorialist-edit-popover__${part}`)?.textContent;
+		expect([text("kind"), text("tag"), text("state"), text("title"), text("summary")]).toEqual(["Editorialism", "AI", "To do", "Stage 2 Handoff", "Review FP06 in the final batch."]);
+		expect(text("hint")).toBe("Click to open it in its agenda · Hold Shift to find the scene");
+		button.dispatchEvent(new PointerEvent("pointerleave"));
+		expect(document.querySelector(".editorialist-edit-popover")).toBeNull();
+		root.remove();
+		vi.useRealTimers();
 	});
 
 	it("lights a dot's scene up only while Shift is held over it", () => {

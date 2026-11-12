@@ -1039,10 +1039,19 @@
 /* Every edit in the book as one dot, scene by scene. Colour is the kind of
    work: copy edit, editorial pass, or Editorialism directive; a centre mark
    is a model's work rather than a person's; hollow is still to do, solid is done, faint was declined. */
-.editorialist-matrix {
+.editorialist-matrix,
+.editorialist-edit-popover {
 	--editorialist-matrix-editor: var(--color-purple);
 	--editorialist-matrix-copy: var(--color-orange);
 	--editorialist-matrix-editorialism: var(--color-cyan);
+}
+
+/* The dots and their groups carry labels for screen readers; the popover,
+   not Obsidian's tooltip, shows them on screen. */
+.editorialist-matrix__grid,
+.editorialist-matrix__scene,
+.editorialist-matrix__dot {
+	--no-tooltip: true;
 }
 
 .editorialist-matrix-slot:empty {
@@ -1073,17 +1082,20 @@
 }
 
 .editorialist-matrix__dot.is-editor,
-.editorialist-matrix__key.is-editor {
+.editorialist-matrix__key.is-editor,
+.editorialist-edit-popover.is-editor {
 	--editorialist-matrix-color: var(--editorialist-matrix-editor);
 }
 
 .editorialist-matrix__dot.is-copy,
-.editorialist-matrix__key.is-copy {
+.editorialist-matrix__key.is-copy,
+.editorialist-edit-popover.is-copy {
 	--editorialist-matrix-color: var(--editorialist-matrix-copy);
 }
 
 .editorialist-matrix__dot.is-editorialism,
-.editorialist-matrix__key.is-editorialism {
+.editorialist-matrix__key.is-editorialism,
+.editorialist-edit-popover.is-editorialism {
 	--editorialist-matrix-color: var(--editorialist-matrix-editorialism);
 }
 
@@ -1201,6 +1213,92 @@
 
 .editorialist-matrix__error {
 	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+/* An edit in full beside its dot, in place of a tooltip. */
+.editorialist-edit-popover {
+	position: fixed;
+	top: var(--editorialist-popover-top, 0);
+	left: var(--editorialist-popover-left, 0);
+	z-index: var(--layer-tooltip);
+	display: grid;
+	gap: 6px;
+	width: max-content;
+	max-width: min(300px, calc(100vw - 16px));
+	padding: 10px 12px 9px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-primary);
+	box-shadow: var(--shadow-s);
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+	line-height: 1.4;
+	pointer-events: none;
+}
+
+.editorialist-edit-popover__head {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: var(--font-ui-smaller);
+}
+
+.editorialist-edit-popover__kind {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	color: var(--text-muted);
+	font-weight: var(--font-semibold);
+}
+
+.editorialist-edit-popover__swatch {
+	width: 8px;
+	height: 8px;
+	border-radius: 2px;
+	background: var(--editorialist-matrix-color);
+}
+
+.editorialist-edit-popover__tag {
+	padding: 0 5px;
+	border-radius: var(--radius-s);
+	background: var(--background-modifier-hover);
+	color: var(--text-muted);
+}
+
+.editorialist-edit-popover__state {
+	margin-inline-start: auto;
+	padding-inline-start: 12px;
+	color: var(--text-muted);
+}
+
+.editorialist-edit-popover__state.is-open {
+	color: var(--editorialist-matrix-color);
+	font-weight: var(--font-semibold);
+}
+
+.editorialist-edit-popover__title {
+	font-weight: var(--font-semibold);
+}
+
+.editorialist-edit-popover__summary {
+	display: -webkit-box;
+	overflow: hidden;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 4;
+	color: var(--text-normal);
+	overflow-wrap: anywhere;
+}
+
+.editorialist-edit-popover__note {
+	color: var(--text-warning);
+	font-size: var(--font-ui-smaller);
+}
+
+.editorialist-edit-popover__hint {
+	padding-top: 6px;
+	border-top: 1px solid var(--background-modifier-border);
+	color: var(--text-faint);
 	font-size: var(--font-ui-smaller);
 }
 

@@ -54,6 +54,7 @@ import {
 } from "./core/review/SuggestionTraversal";
 import { directiveEdits, directiveItem, directiveLine, type EditMatrixScene, type EditSource, type LiveEdit } from "./core/review/EditMatrix";
 import { SceneSpotlight } from "./ui/SceneSpotlight";
+import { closeEditPopover } from "./ui/primitives/EditMatrix";
 import type { EditRound } from "./core/review/EditLedger";
 import { ReviewStateMachine } from "./core/review/ReviewStateMachine";
 import { runEditorUndo } from "./core/review/EditorUndo";
@@ -700,6 +701,7 @@ export default class EditorialistPlugin extends Plugin {
 		this.toolbarOverlay.destroy();
 		this.toolbarKeyTracker.dispose();
 		this.sceneSpotlight?.clear();
+		closeEditPopover();
 		this.editorChangeResyncDebouncer.cancel();
 		this.inventoryRescanDebouncer.cancel();
 		this.pendingEdits.clearInquiryMaps();

@@ -1,7 +1,7 @@
 import { Notice } from "obsidian";
 import type EditorialistPlugin from "../main";
 import { openEditorialistChoiceModal } from "./EditorialistChoiceModal";
-import { renderEditMatrix, type EditMatrixActions, type EditMatrixRound } from "./primitives/EditMatrix";
+import { closeEditPopover, renderEditMatrix, type EditMatrixActions, type EditMatrixRound } from "./primitives/EditMatrix";
 
 type EditMatrixHost = Pick<EditorialistPlugin,
 	"app" | "collectEditMatrix" | "openEditorialismItem" | "openReviewSuggestion" | "openSceneNote" | "startNewEditRound" | "openEditorialistModal" | "openEditorialismPanel" | "spotlightEdit">;
@@ -78,6 +78,7 @@ export class EditMatrixSlot {
 		this.shown = shown;
 		// A lit dot may be going, and with it the pointer's leave that puts it out.
 		if (this.lit) this.actions.spotlight(null);
+		closeEditPopover();
 		slot.empty();
 		renderEditMatrix(slot, round, this.actions);
 		this.drawn?.(slot.hasChildNodes());

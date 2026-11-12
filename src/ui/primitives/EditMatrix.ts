@@ -5,6 +5,7 @@ import { localDate } from "../../core/planning/RevisionPlan";
 import { planDayLabel } from "../../core/planning/WorkPresentation";
 import { compareSceneTitles } from "../panels/ReviewPanelIdleSections";
 import { bindMenuAction } from "../util/bindMenuAction";
+import { displayDirectiveText } from "../../core/DirectiveText";
 
 const SOURCE_NAMES: Record<EditSource, string> = { copy: "Copy edit", editor: "Editorial pass", editorialism: "Editorialism" };
 const STATE_NAMES: Record<EditState, string> = { open: "to do", done: "done", declined: "declined" };
@@ -58,6 +59,93 @@ function bindSpotlight(button: HTMLElement, scene: EditMatrixScene, dot: EditDot
 	button.addEventListener("pointerleave", leave);
 }
 
+const STATE_TITLES: Record<EditState, string> = { open: "To do", done: "Done", declined: "Declined" };
+
+function kindLine(dot: EditDot): string {
+	return [SOURCE_NAMES[dot.source], dot.viaWord ? "from Word" : dot.ai ? "AI" : null, STATE_NAMES[dot.state]].filter(Boolean).join(" · ");
+}
+
+function dotNotes(dot: EditDot): string[] {
+	return [STATUS_NOTES[dot.status], dot.live ? null : "scene cleaned"].filter((note): note is string => Boolean(note));
+}
+
+// A directive's text as the author reads it, without the agenda's tracking
+// code or emphasis marks.
+function dotSummary(dot: EditDot): string {
+	return dot.source === "editorialism" ? displayDirectiveText(dot.summary) : dot.summary;
+}
+
+const capitalize = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
+
+// One popover at a time, wherever its grid is. Moving from dot to dot keeps
+// it up without waiting again.
+const POPOVER_WAIT = 300;
+let popover: HTMLElement | null = null;
+let popoverTimer: number | null = null;
+let popoverClosedAt = 0;
+
+/** Closes the dot popover, if one is up; a grid being redrawn or unloaded calls it. */
+export function closeEditPopover(): void {
+	if (popoverTimer !== null) window.clearTimeout(popoverTimer);
+	popoverTimer = null;
+	if (!popover) return;
+	popover.remove();
+	popover = null;
+	popoverClosedAt = Date.now();
+}
+
+function bindPopover(button: HTMLElement, scene: EditMatrixScene, dot: EditDot): void {
+	button.addEventListener("pointerenter", () => {
+		if (popoverTimer !== null) window.clearTimeout(popoverTimer);
+		const wait = popover || Date.now() - popoverClosedAt < POPOVER_WAIT ? 0 : POPOVER_WAIT;
+		popoverTimer = window.setTimeout(() => openEditPopover(button, scene, dot), wait);
+	});
+	button.addEventListener("pointerleave", closeEditPopover);
+}
+
+/**
+ * An edit in full beside its dot: what kind of work it is and where it
+ * stands, the scene or agenda it belongs to, the edit itself, and what a
+ * click and Shift do.
+ */
+function openEditPopover(anchor: HTMLElement, scene: EditMatrixScene, dot: EditDot): void {
+	closeEditPopover();
+	if (!anchor.isConnected) return;
+	const doc = anchor.ownerDocument;
+	const card = doc.body.createDiv({ cls: `editorialist-edit-popover is-${dot.source}`, attr: { "aria-hidden": "true" } });
+	const head = card.createDiv({ cls: "editorialist-edit-popover__head" });
+	const kind = head.createSpan({ cls: "editorialist-edit-popover__kind" });
+	kind.createSpan({ cls: "editorialist-edit-popover__swatch" });
+	kind.createSpan({ text: SOURCE_NAMES[dot.source] });
+	const origin = dot.viaWord ? "From Word" : dot.ai ? "AI" : null;
+	if (origin) head.createSpan({ cls: "editorialist-edit-popover__tag", text: origin });
+	head.createSpan({ cls: `editorialist-edit-popover__state is-${dot.state}`, text: STATE_TITLES[dot.state] });
+	card.createDiv({ cls: "editorialist-edit-popover__title", text: scene.title });
+	card.createDiv({ cls: "editorialist-edit-popover__summary", text: dotSummary(dot) });
+	const notes = dotNotes(dot);
+	if (notes.length) card.createDiv({ cls: "editorialist-edit-popover__note", text: capitalize(notes.join(" · ")) });
+	const open = dot.source === "editorialism" ? "Click to open it in its agenda" : dot.live ? "Click to go to this edit" : "Click to open the scene";
+	card.createDiv({ cls: "editorialist-edit-popover__hint", text: `${open} · Hold Shift to find the scene` });
+	popover = card;
+	placePopover(card, anchor);
+}
+
+// Above the dot, centred on it and kept on screen; below it when there is no
+// room above.
+function placePopover(card: HTMLElement, anchor: HTMLElement): void {
+	const view = anchor.ownerDocument.defaultView ?? window;
+	const dot = anchor.getBoundingClientRect();
+	const box = card.getBoundingClientRect();
+	const gap = 8;
+	const margin = 8;
+	const below = dot.top - gap - box.height < margin;
+	const top = below ? dot.bottom + gap : dot.top - gap - box.height;
+	const left = Math.min(Math.max(dot.left + dot.width / 2 - box.width / 2, margin), view.innerWidth - box.width - margin);
+	card.toggleClass("is-below", below);
+	card.style.setProperty("--editorialist-popover-top", `${Math.round(top)}px`);
+	card.style.setProperty("--editorialist-popover-left", `${Math.round(left)}px`);
+}
+
 const day = (at: number): string => planDayLabel(localDate(new Date(at)));
 
 function roundLine(round: EditRound): string {
@@ -97,14 +185,17 @@ export function renderEditMatrix(parent: HTMLElement, round: EditMatrixRound, ac
 	for (const scene of scenes) {
 		const group = grid.createDiv({ cls: "editorialist-matrix__scene", attr: { role: "listitem", "aria-label": scene.title } });
 		for (const dot of scene.dots) {
-			const note = [STATUS_NOTES[dot.status], dot.live ? null : "scene cleaned"].filter(Boolean).join(", ");
-			const kind = [SOURCE_NAMES[dot.source], dot.viaWord ? "from Word" : dot.ai ? "AI" : null, STATE_NAMES[dot.state]].filter(Boolean).join(" · ");
-			const label = [scene.title, `${kind}${note ? ` (${note})` : ""}`, dot.summary].join("\n");
+			// The label is for screen readers; sighted readers get the popover.
+			const label = [scene.title, kindLine(dot), capitalize(dotNotes(dot).join(", ")), dotSummary(dot)].filter(Boolean).join(". ");
 			const button = group.createEl("button", {
 				cls: `editorialist-matrix__dot is-${dot.source} is-${dot.state}${dot.ai ? " is-ai" : ""}`,
-				attr: { type: "button", "aria-label": label, "data-tooltip-position": "top" },
+				attr: { type: "button", "aria-label": label },
 			});
-			button.addEventListener("click", () => actions.open(scene, dot));
+			button.addEventListener("click", () => {
+				closeEditPopover();
+				actions.open(scene, dot);
+			});
+			bindPopover(button, scene, dot);
 			bindSpotlight(button, scene, dot, actions);
 		}
 	}
