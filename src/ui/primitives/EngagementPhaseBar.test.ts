@@ -4,26 +4,7 @@ import { engagementTrack } from "../../core/planning/EngagementTrack";
 import { createEditorialProject } from "../../core/planning/EditorialProject";
 import { renderEngagementPhaseBar } from "./EngagementPhaseBar";
 
-interface Choice { title: string; disabled: boolean; select: () => void }
-const state = vi.hoisted(() => ({ menus: [] as { choices: Choice[] }[] }));
-vi.mock("obsidian", async () => ({
-	...(await import("../../../tests/mocks/obsidianDom")),
-	Menu: class {
-		choices: Choice[] = [];
-		constructor() { state.menus.push(this); }
-		addItem(build: (item: unknown) => void) {
-			const choice: Choice = { title: "", disabled: false, select: () => {} };
-			const item = {
-				setTitle: (title: string) => { choice.title = title; return item; },
-				setIcon: () => item,
-				setDisabled: (disabled: boolean) => { choice.disabled = disabled; return item; },
-				onClick: (select: () => void) => { choice.select = select; return item; },
-			};
-			build(item); this.choices.push(choice); return this;
-		}
-		showAtPosition() {}
-	},
-}));
+vi.mock("obsidian", async () => await import("../../../tests/mocks/obsidianDom"));
 
 function render() {
 	const p = createEditorialProject("Morgan Lee", "2026-11-30", () => "project");
@@ -33,6 +14,7 @@ function render() {
 	p.materials.push({ id: "query", title: "Query letter", kind: "document", required: true, source: "", exportPath: "", milestoneId: null, due: "2026-11-02", requirements: [], approvedDigest: null, check: null, uploads: [] });
 	p.tasks.push({ id: "edits", title: "Final line edits", materialId: null, milestoneId: "polish", done: false }, { id: "outline", title: "Revise series outline", materialId: null, milestoneId: "polish", done: true });
 	const root = document.createElement("div");
+	document.body.append(root);
 	const jump = vi.fn();
 	renderEngagementPhaseBar(root, engagementTrack(p, null, "2026-11-11"), "2026-11-11", jump);
 	return { root, jump };
@@ -55,16 +37,24 @@ describe("Engagement track bar", () => {
 		mark.click();
 		expect(jump).toHaveBeenCalledWith(expect.objectContaining({ kind: "document", id: "query" }));
 	});
-	it("gives targets on one day one mark, with a menu of each", () => {
+	it("zooms a shared day into just its targets, finished first, and back out", () => {
 		const { root, jump } = render();
 		const mark = root.querySelector<HTMLButtonElement>(".editorialist-phases__mark.is-combined")!;
 		expect(mark.textContent).toBe("2");
-		expect(mark.getAttribute("aria-label")).toBe("Final polish · Nov 20\n○ Final line edits · open\n✓ Revise series outline · done");
+		expect(mark.getAttribute("aria-label")).toBe("Final polish · Nov 20\n○ Final line edits · open\n✓ Revise series outline · done\nClick to zoom in");
 		mark.click();
-		const menu = state.menus[state.menus.length - 1]!;
-		expect(menu.choices.map((item) => item.title)).toEqual(["Final polish · Nov 20", "Final line edits · open", "Revise series outline · done"]);
-		expect(menu.choices[0]!.disabled).toBe(true);
-		menu.choices[2]!.select();
-		expect(jump).toHaveBeenCalledWith(expect.objectContaining({ kind: "task", id: "outline" }));
+		const block = root.querySelector(".editorialist-phases")!;
+		expect(block.classList.contains("is-zoomed")).toBe(true);
+		expect(block.querySelector(".editorialist-phases__zoom-head")?.textContent).toBe("Final polishNov 20 · 1 of 2 doneWhole engagement");
+		const dots = [...block.querySelectorAll<HTMLButtonElement>(".editorialist-phases__mark")];
+		expect(dots.map((dot) => dot.getAttribute("aria-label"))).toEqual(["✓ Revise series outline · done", "○ Final line edits · open"]);
+		expect(block.querySelector<HTMLElement>(".editorialist-phases__segment")!.style.getPropertyValue("--editorialist-phase-fill")).toBe("50%");
+		expect(block.querySelector(".editorialist-phases__legend")?.textContent).toBe("Revise series outlinedoneFinal line editsopen");
+		dots[1]!.click();
+		expect(jump).toHaveBeenCalledWith(expect.objectContaining({ kind: "task", id: "edits" }));
+		block.querySelector<HTMLButtonElement>(".editorialist-phases__zoom-exit")!.click();
+		expect(block.classList.contains("is-zoomed")).toBe(false);
+		expect(block.querySelectorAll(".editorialist-phases__segment")).toHaveLength(3);
+		expect(document.activeElement?.getAttribute("data-mark-day")).toBe("2026-11-20");
 	});
 });
