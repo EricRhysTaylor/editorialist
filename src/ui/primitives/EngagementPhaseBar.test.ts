@@ -28,6 +28,11 @@ describe("Engagement track bar", () => {
 		expect(segments[0]!.classList.contains("is-current")).toBe(true);
 		expect(segments[0]!.style.getPropertyValue("--editorialist-phase-width")).toBe("60%");
 		expect(root.querySelector(".editorialist-phases__row.is-preparation")?.textContent).toBe("Your preparation · 1 of 3 readyuntil Nov 30");
+		const group = root.querySelector<HTMLElement>(".editorialist-phases__bar[role='group']")!;
+		const label = document.getElementById(group.getAttribute("aria-labelledby")!);
+		expect(label?.hidden).toBe(true);
+		expect(label?.textContent).toContain("Your preparation Oct 9 to Nov 30");
+		expect(group.querySelectorAll("button")).toHaveLength(2);
 	});
 	it("marks a passed, unsent target as late and goes to it on click", () => {
 		const { root, jump } = render();

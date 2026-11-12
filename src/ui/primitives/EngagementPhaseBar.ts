@@ -1,6 +1,7 @@
 import { setIcon } from "obsidian";
 import { stageWidths, type EngagementTrack, type TrackMark, type TrackStage, type TrackTarget } from "../../core/planning/EngagementTrack";
 import { planDayLabel } from "../../core/planning/WorkPresentation";
+import { setAccessibleLabel } from "./AccessibleLabel";
 
 const days = (from: string, to: string): number => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000);
 const NAMES: Record<TrackStage["key"], string> = { preparation: "Your preparation", editing: "Editor at work", questions: "Your questions" };
@@ -56,8 +57,8 @@ export function renderEngagementPhaseBar(parent: HTMLElement, track: EngagementT
 function renderWhole(block: HTMLElement, track: EngagementTrack, day: string, jump: (target: TrackTarget) => void, open: (mark: TrackMark) => void): void {
 	const { widths, offsets, position } = layout(track);
 	const summary = track.stages.map((stage) => `${NAMES[stage.key]} ${planDayLabel(stage.from)} to ${planDayLabel(stage.to)}`).join(", ");
-	const bar = block.createDiv({ cls: "editorialist-phases__bar" });
-	bar.createSpan({ cls: "editorialist-phases__summary", text: summary });
+	const bar = block.createDiv({ cls: "editorialist-phases__bar", attr: { role: "group" } });
+	setAccessibleLabel(bar, summary);
 	track.stages.forEach((stage, index) => {
 		const segment = bar.createDiv({ cls: `editorialist-phases__segment is-${stage.key}${stage.key === track.current ? " is-current" : ""}`, attr: { "aria-hidden": "true" } });
 		place(segment, offsets[index]!, widths[index]);

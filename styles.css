@@ -8483,15 +8483,6 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	margin: 14px 1px;
 }
 
-.editorialist-phases__summary {
-	position: absolute;
-	width: 1px;
-	height: 1px;
-	overflow: hidden;
-	clip-path: inset(50%);
-	white-space: nowrap;
-}
-
 .editorialist-phases__segment,
 .editorialist-phases__row {
 	--editorialist-phase-color: var(--editorialist-phase-editing);
