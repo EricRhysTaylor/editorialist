@@ -60,6 +60,7 @@ npm run dev              # watch build
 npm run check            # typecheck + lint + css + qa-audit + compliance
 npm run build            # full check + portable production bundle
 npm run build:dev        # full build + copy to configured local vaults
+npm run deploy           # pull main (fast-forward only), then build:dev — how the Mac receives remote work
 npm run release:check    # check + tests + css-drift + build
 npm run release -- patch # bump, rebuild, commit, tag, PUSH, open a draft GitHub Release
 npm run release -- patch --notes <file> --title "<title>"  # same, with the notes and title on the draft from the start

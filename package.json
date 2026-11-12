@@ -10,6 +10,7 @@
 		"build-only": "node esbuild.config.mjs production && npm run release:i18n",
 		"copy:dev": "node scripts/copy-to-vault.mjs",
 		"build:dev": "npm run build && npm run copy:dev",
+		"deploy": "git pull --ff-only origin main && npm run build:dev",
 		"typecheck": "tsc --noEmit",
 		"typecheck:tests": "tsc -p tsconfig.test.json",
 		"lint": "eslint \"src/**/*.ts\"",
