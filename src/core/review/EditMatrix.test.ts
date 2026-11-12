@@ -10,7 +10,7 @@ function parse(reviewerType: string, body: string) {
 const notWord = () => ({ fromWord: false, importedAt: null });
 
 describe("liveEdits", () => {
-	it("names each edit's source: Word file, copy edit, editorial pass or Editorialist", () => {
+	it("names each edit's kind of work: a person's copy edit or editorial pass, or Editorialist's", () => {
 		const copy = parse("copy-editor", "=== EDIT ===\nOriginal: grey coat\nRevised: gray coat");
 		const editor = parse("editor", "=== CUT ===\nTarget: She waited a long while.");
 		const ai = parse("ai-line-editor", "=== EDIT ===\nOriginal: very tired\nRevised: exhausted");
@@ -20,7 +20,11 @@ describe("liveEdits", () => {
 			["editor", "Cut “She waited a long while.”"],
 			["ai", "“very tired” → “exhausted”"],
 		]);
-		expect(liveEdits("Book/1 Opening.md", "1 Opening", copy, () => ({ fromWord: true, importedAt: 5 }))[0]).toMatchObject({ source: "word", importedAt: 5 });
+		// Word is how an edit arrived, not its kind.
+		expect(liveEdits("Book/1 Opening.md", "1 Opening", copy, () => ({ fromWord: true, importedAt: 5 }))[0]).toMatchObject({ source: "copy", viaWord: true, importedAt: 5 });
+		// A model's edits are Editorialist's, whatever role it was given.
+		const aiCopy = parse("ai-copy-editor", "=== EDIT ===\nOriginal: grey coat\nRevised: gray coat");
+		expect(liveEdits("Book/1 Opening.md", "1 Opening", aiCopy, notWord)[0]!.source).toBe("ai");
 	});
 
 	it("keys an edit by its scene and place, so one id in two scenes stays two edits", () => {

@@ -6,7 +6,7 @@ import { planDayLabel } from "../../core/planning/WorkPresentation";
 import { compareSceneTitles } from "../panels/ReviewPanelIdleSections";
 import { bindMenuAction } from "../util/bindMenuAction";
 
-const SOURCE_NAMES: Record<EditSource, string> = { word: "Word changes", editor: "Editorial pass", copy: "Copy edit", ai: "Editorialist" };
+const SOURCE_NAMES: Record<EditSource, string> = { copy: "Copy edit", editor: "Editorial pass", ai: "Editorialist" };
 const STATE_NAMES: Record<EditState, string> = { open: "to do", done: "done", declined: "declined" };
 const STATUS_NOTES: Partial<Record<EditDot["status"], string>> = { deferred: "deferred", unresolved: "passage not found", rewritten: "you rewrote it" };
 
@@ -34,7 +34,8 @@ function roundLine(round: EditRound): string {
 
 /**
  * The round's edits as one dot each, scene by scene in story order. The
- * colour says where an edit came from; a hollow dot is still to do, a solid
+ * colour says what kind of work an edit is (a person's copy edit or
+ * editorial pass, or Editorialist's); a hollow dot is still to do, a solid
  * one is done, a faint one was declined. Click a dot to open its scene at that
  * edit. The menu starts a new round, which clears the handled dots, or
  * archives this round's totals first.
@@ -74,7 +75,8 @@ export function renderEditMatrix(parent: HTMLElement, round: EditMatrixRound, ac
 		const group = grid.createDiv({ cls: "editorialist-matrix__scene", attr: { role: "listitem", "aria-label": scene.title } });
 		for (const dot of scene.dots) {
 			const note = [STATUS_NOTES[dot.status], dot.live ? null : "scene cleaned"].filter(Boolean).join(", ");
-			const label = [scene.title, `${SOURCE_NAMES[dot.source]} · ${STATE_NAMES[dot.state]}${note ? ` (${note})` : ""}`, dot.summary].join("\n");
+			const kind = [SOURCE_NAMES[dot.source], dot.viaWord ? "from Word" : null, STATE_NAMES[dot.state]].filter(Boolean).join(" · ");
+			const label = [scene.title, `${kind}${note ? ` (${note})` : ""}`, dot.summary].join("\n");
 			const button = group.createEl("button", {
 				cls: `editorialist-matrix__dot is-${dot.source} is-${dot.state}`,
 				attr: { type: "button", "aria-label": label, "data-tooltip-position": "top" },

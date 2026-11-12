@@ -15,6 +15,7 @@ export interface EditLedgerEntry {
 	source: EditSource;
 	status: ReviewStatus;
 	summary: string;
+	viaWord: boolean;
 	order: number;
 	live: boolean;
 	seenAt: number;
@@ -67,12 +68,13 @@ export function recordLiveEdits(book: EditLedgerBook | undefined, live: readonly
 			source: edit.source,
 			status: edit.status,
 			summary: edit.summary,
+			viaWord: edit.viaWord,
 			order: edit.order,
 			live: true,
 			seenAt: known?.seenAt ?? now,
 			updatedAt: now,
 		};
-		const same = known && known.live && (["notePath", "title", "id", "source", "status", "summary", "order"] as const).every((field) => known[field] === next[field]);
+		const same = known && known.live && (["notePath", "title", "id", "source", "status", "summary", "viaWord", "order"] as const).every((field) => known[field] === next[field]);
 		entries[edit.key] = same ? known : next;
 		if (!same) changed = true;
 	}
@@ -110,7 +112,7 @@ export function ledgerScenes(book: EditLedgerBook | undefined): EditMatrixScene[
 		const scene = scenes.get(entry.notePath) ?? { notePath: entry.notePath, title: entry.title, dots: [] as EditMatrixScene["dots"], order: new Map<string, number>() };
 		scene.title = entry.title;
 		scene.order.set(key, entry.order);
-		scene.dots.push({ key, id: entry.id, source: entry.source, state: editState(entry.status), status: entry.status, summary: entry.summary, live: entry.live });
+		scene.dots.push({ key, id: entry.id, source: entry.source, state: editState(entry.status), status: entry.status, summary: entry.summary, viaWord: entry.viaWord, live: entry.live });
 		scenes.set(entry.notePath, scene);
 	}
 	return [...scenes.values()].map(({ order, ...scene }) => ({
@@ -136,16 +138,23 @@ const STATUSES: readonly ReviewStatus[] = ["pending", "accepted", "rejected", "d
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 const count = (value: unknown): number => (typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : 0);
 
+// Records saved before Word became how an edit arrived, rather than its kind,
+// carry "word" as the source. A Word import is always a copy edit.
+const LEGACY_WORD = "word";
+
 function normalizeEntry(raw: unknown): EditLedgerEntry | null {
 	if (!isRecord(raw) || typeof raw.notePath !== "string" || typeof raw.id !== "string") return null;
-	if (!EDIT_SOURCES.includes(raw.source as EditSource) || !STATUSES.includes(raw.status as ReviewStatus)) return null;
+	const legacyWord = raw.source === LEGACY_WORD;
+	const source = legacyWord ? "copy" : raw.source;
+	if (!EDIT_SOURCES.includes(source as EditSource) || !STATUSES.includes(raw.status as ReviewStatus)) return null;
 	return {
 		notePath: raw.notePath,
 		title: typeof raw.title === "string" ? raw.title : raw.notePath,
 		id: raw.id,
-		source: raw.source as EditSource,
+		source: source as EditSource,
 		status: raw.status as ReviewStatus,
 		summary: typeof raw.summary === "string" ? raw.summary : "",
+		viaWord: legacyWord || raw.viaWord === true,
 		order: count(raw.order),
 		live: raw.live === true,
 		seenAt: count(raw.seenAt),
@@ -156,10 +165,9 @@ function normalizeEntry(raw: unknown): EditLedgerEntry | null {
 function normalizeRound(raw: unknown): EditRound | null {
 	if (!isRecord(raw) || !isRecord(raw.counts)) return null;
 	const rawCounts = raw.counts;
-	const counts = Object.fromEntries(EDIT_SOURCES.map((source) => {
-		const states = isRecord(rawCounts[source]) ? rawCounts[source] : {};
-		return [source, Object.fromEntries(EDIT_STATES.map((state) => [state, count(states[state])]))];
-	})) as EditCounts;
+	const tally = (source: string, state: EditState): number => count(isRecord(rawCounts[source]) ? rawCounts[source][state] : 0);
+	const counts = Object.fromEntries(EDIT_SOURCES.map((source) => [source, Object.fromEntries(EDIT_STATES.map((state) =>
+		[state, tally(source, state) + (source === "copy" ? tally(LEGACY_WORD, state) : 0)]))])) as EditCounts;
 	return { startedAt: count(raw.startedAt), endedAt: count(raw.endedAt), scenes: count(raw.scenes), counts };
 }
 

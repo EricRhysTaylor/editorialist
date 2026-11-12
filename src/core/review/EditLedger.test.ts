@@ -3,7 +3,7 @@ import type { LiveEdit } from "./EditMatrix";
 import { ledgerScenes, normalizeEditLedger, recordLiveEdits, renameLedgerNote, roundCounts, startNewRound, type EditLedgerBook } from "./EditLedger";
 
 function edit(key: string, status: LiveEdit["status"], importedAt: number | null = 100, notePath = "Book/1 Opening.md"): LiveEdit {
-	return { key, notePath, title: notePath.split("/").pop()!.replace(".md", ""), id: `review-1-${key}`, source: "copy", status, summary: key, order: Number(key.replace(/\D/g, "")) || 0, batchId: "b1", importedAt };
+	return { key, notePath, title: notePath.split("/").pop()!.replace(".md", ""), id: `review-1-${key}`, source: "copy", status, summary: key, viaWord: false, order: Number(key.replace(/\D/g, "")) || 0, batchId: "b1", importedAt };
 }
 
 const keys = (book: EditLedgerBook) => Object.keys(book.entries).sort();
@@ -63,5 +63,19 @@ describe("edit ledger", () => {
 		saved.books.Book.entries.bad = { notePath: 3 };
 		expect(Object.keys(normalizeEditLedger(saved).books.Book!.entries)).toEqual(["e2"]);
 		expect(normalizeEditLedger({ version: 2 })).toEqual({ version: 1, books: {} });
+	});
+
+	it("reads an earlier record's Word edits as copy edits that came from Word", () => {
+		const legacy = {
+			version: 1,
+			books: { Book: {
+				startedAt: 0,
+				entries: { w: { notePath: "Book/1 Opening.md", title: "1 Opening", id: "review-1-1", source: "word", status: "accepted", summary: "s", order: 1, live: true, seenAt: 1, updatedAt: 1 } },
+				rounds: [{ startedAt: 0, endedAt: 9, scenes: 1, counts: { word: { open: 1, done: 2, declined: 0 }, copy: { open: 0, done: 3, declined: 1 } } }],
+			} },
+		};
+		const book = normalizeEditLedger(legacy).books.Book!;
+		expect(book.entries.w).toMatchObject({ source: "copy", viaWord: true });
+		expect(book.rounds[0]!.counts.copy).toEqual({ open: 1, done: 5, declined: 1 });
 	});
 });

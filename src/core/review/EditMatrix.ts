@@ -1,8 +1,10 @@
 import type { ReviewStatus, ReviewSuggestion } from "../../models/ReviewSuggestion";
 
-// Where an edit came from: the editor's Word file, an editorial pass, a copy
-// edit, or a pass Editorialist ran with a model.
-export type EditSource = "word" | "editor" | "copy" | "ai";
+// The kind of work an edit is: a person's copy edit, a person's editorial
+// pass, or a pass Editorialist ran with a model. Any edit by a model is
+// Editorialist's, whatever role it was given. How the edit arrived, such as
+// the editor's Word file, is kept apart in `viaWord`.
+export type EditSource = "copy" | "editor" | "ai";
 export type EditState = "open" | "done" | "declined";
 
 export interface EditDot {
@@ -12,6 +14,8 @@ export interface EditDot {
 	state: EditState;
 	status: ReviewStatus;
 	summary: string;
+	// The edit came in from the editor's Word file with tracked changes.
+	viaWord: boolean;
 	// False once the scene's review block is gone: the edit is kept in the
 	// round's record, but there is nothing left in the scene to select.
 	live: boolean;
@@ -23,12 +27,11 @@ export interface EditMatrixScene {
 	dots: EditDot[];
 }
 
-export const EDIT_SOURCES: readonly EditSource[] = ["word", "editor", "copy", "ai"];
+export const EDIT_SOURCES: readonly EditSource[] = ["copy", "editor", "ai"];
 export const EDIT_STATES: readonly EditState[] = ["open", "done", "declined"];
 
-export function editSource(suggestion: ReviewSuggestion, fromWord: boolean): EditSource {
+export function editSource(suggestion: ReviewSuggestion): EditSource {
 	if (suggestion.contributor.kind === "ai") return "ai";
-	if (fromWord) return "word";
 	return suggestion.contributor.reviewerType === "copy-editor" ? "copy" : "editor";
 }
 
@@ -66,6 +69,7 @@ export interface LiveEdit {
 	source: EditSource;
 	status: ReviewStatus;
 	summary: string;
+	viaWord: boolean;
 	order: number;
 	batchId: string | null;
 	// When the edit's pass was imported; null for a block never imported.
@@ -92,9 +96,10 @@ export function liveEdits(
 			notePath,
 			title,
 			id: suggestion.id,
-			source: editSource(suggestion, fromWord),
+			source: editSource(suggestion),
 			status: suggestion.status,
 			summary: editSummary(suggestion),
+			viaWord: fromWord,
 			order: suggestion.source.blockIndex * 10000 + suggestion.source.entryIndex,
 			batchId: suggestion.source.batchId ?? null,
 			importedAt,
