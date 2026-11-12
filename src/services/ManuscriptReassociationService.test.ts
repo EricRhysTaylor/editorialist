@@ -67,8 +67,10 @@ describe("folder-based manuscript recovery", () => {
 	it("finds a reconnected Editorialism for subsequent imports at its retained location", async () => {
 		const { service, app } = fixture();
 		const preview = await service.preview(change);
-		// Keep only one matching agenda so the update is unambiguous.
-		preview.documents[1]!.selected = false;
+		// Keep only one matching agenda so the update is unambiguous. The list
+		// is newest first, and the two agendas can be made a millisecond
+		// apart, so pick by path rather than position.
+		preview.documents.find((item) => item.path === "Editorialist/Old/Other.md")!.selected = false;
 		await service.apply(preview);
 		const editorialisms = new EditorialismService(app);
 		const result = await editorialisms.saveEditorialismFile({ title: "Letter", book: "New", content: agenda("New") });
