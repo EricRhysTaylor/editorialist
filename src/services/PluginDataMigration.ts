@@ -1,4 +1,5 @@
 import { createManuscriptTarget, normalizeManuscriptTarget } from "../core/ManuscriptTarget";
+import { normalizeEditLedger } from "../core/review/EditLedger";
 import { normalizeEditorialDeliveries } from "../core/EditorialDeliveries";
 import { normalizeRevisionPlans } from "../core/planning/RevisionPlan";
 // Versioning + migration shim for Editorialist persisted plugin data.
@@ -121,6 +122,7 @@ export function emptyPluginData(): EditorialistPluginData {
 		version: EDITORIALIST_PLUGIN_DATA_VERSION,
 		revisionPlans: normalizeRevisionPlans(undefined),
 	editorialDeliveries: normalizeEditorialDeliveries(undefined),
+		editLedger: normalizeEditLedger(undefined),
 		batchAttributionVersion: BATCH_ATTRIBUTION_VERSION,
 		reviewerProfiles: [],
 		reviewerSignalIndex: {},
@@ -168,6 +170,7 @@ function normalizeIntoCurrent(raw: Record<string, unknown>): EditorialistPluginD
 		version: EDITORIALIST_PLUGIN_DATA_VERSION,
 		revisionPlans: normalizeRevisionPlans(raw.revisionPlans),
 	editorialDeliveries: normalizeEditorialDeliveries(raw.editorialDeliveries),
+		editLedger: normalizeEditLedger(raw.editLedger),
 		batchAttributionVersion: normalizeBatchAttributionVersion(raw.batchAttributionVersion),
 		reviewerProfiles,
 		reviewerSignalIndex: normalizeReviewerSignalIndex(

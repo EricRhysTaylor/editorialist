@@ -1,50 +1,95 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from "vitest";
-import type { EditMatrixScene } from "../../core/review/EditMatrix";
-import { renderEditMatrix } from "./EditMatrix";
+import type { EditDot, EditMatrixScene } from "../../core/review/EditMatrix";
+import { renderEditMatrix, type EditMatrixRound } from "./EditMatrix";
 
-vi.mock("obsidian", async () => await import("../../../tests/mocks/obsidianDom"));
+interface Choice { title: string; disabled: boolean; select: () => void }
+const state = vi.hoisted(() => ({ menus: [] as { choices: Choice[] }[] }));
+vi.mock("obsidian", async () => ({
+	...(await import("../../../tests/mocks/obsidianDom")),
+	Menu: class {
+		choices: Choice[] = [];
+		constructor() { state.menus.push(this); }
+		addItem(build: (item: unknown) => void) {
+			const choice: Choice = { title: "", disabled: false, select: () => {} };
+			const item = {
+				setTitle: (title: string) => { choice.title = title; return item; },
+				setIcon: () => item,
+				setDisabled: (disabled: boolean) => { choice.disabled = disabled; return item; },
+				onClick: (select: () => void) => { choice.select = select; return item; },
+			};
+			build(item); this.choices.push(choice); return this;
+		}
+		addSeparator() { return this; }
+		showAtPosition() {}
+	},
+}));
+
+const dot = (key: string, source: EditDot["source"], state: EditDot["state"], status: EditDot["status"], summary: string, live = true): EditDot =>
+	({ key, id: `review-1-${key}`, source, state, status, summary, live });
 
 const scenes: EditMatrixScene[] = [
-	{ notePath: "Book/12 Harbor.md", title: "12 Harbor", dots: [
-		{ id: "review-1-1", source: "copy", state: "done", status: "accepted", summary: "“teh” → “the”" },
-		{ id: "review-1-2", source: "copy", state: "open", status: "pending", summary: "“its” → “it's”" },
-	] },
-	{ notePath: "Book/3 Arrival.md", title: "3 Arrival", dots: [
-		{ id: "review-1-1", source: "word", state: "declined", status: "rejected", summary: "Delete “very”" },
-		{ id: "review-2-1", source: "ai", state: "open", status: "unresolved", summary: "Condense “The rain…”" },
-	] },
+	{ notePath: "Book/12 Harbor.md", title: "12 Harbor", dots: [dot("1", "copy", "done", "accepted", "“teh” → “the”"), dot("2", "copy", "open", "pending", "“its” → “it's”")] },
+	{ notePath: "Book/3 Arrival.md", title: "3 Arrival", dots: [dot("3", "word", "declined", "rejected", "Delete “very”", false), dot("4", "ai", "open", "unresolved", "Condense “The rain…”")] },
 ];
+
+function render(round: Partial<EditMatrixRound> = {}) {
+	const root = document.createElement("div");
+	const actions = { open: vi.fn(), newRound: vi.fn() };
+	renderEditMatrix(root, { scenes, startedAt: 0, rounds: [], ...round }, actions);
+	return { root, actions };
+}
 
 describe("Edit matrix", () => {
 	it("draws one dot per edit, scenes in story order, coloured by source and filled by state", () => {
-		const root = document.createElement("div");
-		renderEditMatrix(root, scenes, () => {});
-		const groups = [...root.querySelectorAll(".editorialist-matrix__scene")];
-		expect(groups.map((group) => group.getAttribute("aria-label"))).toEqual(["3 Arrival", "12 Harbor"]);
+		const { root } = render();
+		expect([...root.querySelectorAll(".editorialist-matrix__scene")].map((group) => group.getAttribute("aria-label"))).toEqual(["3 Arrival", "12 Harbor"]);
 		const dots = [...root.querySelectorAll<HTMLButtonElement>(".editorialist-matrix__grid .editorialist-matrix__dot")];
-		expect(dots.map((dot) => dot.className)).toEqual([
+		expect(dots.map((item) => item.className)).toEqual([
 			"editorialist-matrix__dot is-word is-declined",
 			"editorialist-matrix__dot is-ai is-open",
 			"editorialist-matrix__dot is-copy is-done",
 			"editorialist-matrix__dot is-copy is-open",
 		]);
+		expect(dots[0]!.getAttribute("aria-label")).toBe("3 Arrival\nWord changes · declined (scene cleaned)\nDelete “very”");
 		expect(dots[1]!.getAttribute("aria-label")).toBe("3 Arrival\nEditorialist · to do (passage not found)\nCondense “The rain…”");
 		expect(root.querySelector(".editorialist-panel__review-state-summary")?.textContent).toBe("2 of 4 handled");
 		expect([...root.querySelectorAll(".editorialist-matrix__key")].map((key) => key.textContent)).toEqual([
 			"Word changesall 1 handled", "Copy edit1 of 2 to do", "Editorialist1 of 1 to do",
 		]);
 	});
+
 	it("opens the scene at the clicked edit", () => {
-		const root = document.createElement("div");
-		const open = vi.fn();
-		renderEditMatrix(root, scenes, open);
+		const { root, actions } = render();
 		root.querySelectorAll<HTMLButtonElement>(".editorialist-matrix__grid .editorialist-matrix__dot")[3]!.click();
-		expect(open).toHaveBeenCalledWith("Book/12 Harbor.md", "review-1-2");
+		expect(actions.open).toHaveBeenCalledWith(expect.objectContaining({ notePath: "Book/12 Harbor.md" }), expect.objectContaining({ id: "review-1-2" }));
 	});
-	it("draws nothing when the book has no edits", () => {
-		const root = document.createElement("div");
-		renderEditMatrix(root, [], () => {});
+
+	it("offers a new round or an archive, and lists earlier rounds", () => {
+		const counts = { word: { open: 0, done: 2, declined: 1 }, editor: { open: 0, done: 0, declined: 0 }, copy: { open: 1, done: 4, declined: 0 }, ai: { open: 0, done: 0, declined: 0 } };
+		const { root, actions } = render({ rounds: [{ startedAt: 0, endedAt: Date.UTC(2026, 10, 2, 12), scenes: 3, counts }] });
+		root.querySelector<HTMLButtonElement>(".editorialist-matrix__menu")!.click();
+		const menu = state.menus[state.menus.length - 1]!;
+		expect(menu.choices.map((item) => [item.title, item.disabled])).toEqual([
+			["Start a new round", false],
+			["Archive this round and start a new one", false],
+			["Earlier rounds", true],
+			["Until Nov 2 · 8 edits, 6 done", true],
+		]);
+		menu.choices[1]!.select();
+		expect(actions.newRound).toHaveBeenCalledWith(true);
+	});
+
+	it("starts a new round empty, saying when it began", () => {
+		const { root } = render({ scenes: [], startedAt: Date.UTC(2026, 10, 11, 12) });
+		expect(root.querySelector(".editorialist-panel__review-state-summary")?.textContent).toBe("None yet");
+		expect(root.querySelector(".editorialist-matrix__since")?.textContent).toBe("This round since Nov 11");
+		expect(root.querySelector(".editorialist-matrix__empty")).not.toBeNull();
+		expect(root.querySelector(".editorialist-matrix__grid")).toBeNull();
+	});
+
+	it("draws nothing for a book that has never had edits", () => {
+		const { root } = render({ scenes: [] });
 		expect(root.childElementCount).toBe(0);
 	});
 });

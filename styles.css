@@ -1174,8 +1174,21 @@
 	cursor: default;
 }
 
-.editorialist-matrix__error {
+.editorialist-matrix__error,
+.editorialist-matrix__empty {
 	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.editorialist-matrix .editorialist-matrix__menu {
+	flex: 0 0 auto;
+	margin: -4px -6px -4px 0;
+	padding: 2px;
+}
+
+.editorialist-matrix__since {
+	margin-top: -4px;
+	color: var(--text-faint);
 	font-size: var(--font-ui-smaller);
 }
 

@@ -1,4 +1,5 @@
 import type { ManuscriptTarget } from "../core/ManuscriptTarget";
+import type { EditLedgerStore } from "../core/review/EditLedger";
 import type { EditorialDeliveryStore } from "../core/EditorialDeliveries";
 import type { RevisionPlanStore } from "../core/planning/RevisionPlan";
 import type { ReviewSweepRegistryEntry } from "./ReviewImport";
@@ -180,6 +181,8 @@ export interface EditorReplyRecord {
 export interface EditorialistPluginData {
 	revisionPlans?: RevisionPlanStore;
 	editorialDeliveries?: EditorialDeliveryStore;
+	// The edit grid's record of each round, per book; see EditLedger.
+	editLedger?: EditLedgerStore;
 	version: number;
 	// Schema marker for per-batch attribution in the reviewer-signal index AND
 	// the review-decision index. 0 (or absent) means those indexes predate

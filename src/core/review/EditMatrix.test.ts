@@ -1,25 +1,34 @@
 import { describe, expect, it } from "vitest";
 import { ContributorDirectory } from "../../state/ContributorDirectory";
 import { SuggestionParser } from "../SuggestionParser";
-import { editMatrixScene, editState } from "./EditMatrix";
+import { editState, liveEdits } from "./EditMatrix";
 
 function parse(reviewerType: string, body: string) {
 	return new SuggestionParser(new ContributorDirectory()).parse(`Reviewer: Morgan Lee\nReviewerType: ${reviewerType}\n\n${body}`).suggestions;
 }
 
-describe("editMatrixScene", () => {
+const notWord = () => ({ fromWord: false, importedAt: null });
+
+describe("liveEdits", () => {
 	it("names each edit's source: Word file, copy edit, editorial pass or Editorialist", () => {
 		const copy = parse("copy-editor", "=== EDIT ===\nOriginal: grey coat\nRevised: gray coat");
 		const editor = parse("editor", "=== CUT ===\nTarget: She waited a long while.");
 		const ai = parse("ai-line-editor", "=== EDIT ===\nOriginal: very tired\nRevised: exhausted");
-		const scene = editMatrixScene("Book/1 Opening.md", "1 Opening", [...copy, ...editor, ...ai], () => false);
-		expect(scene.dots.map((dot) => [dot.source, dot.summary])).toEqual([
+		const edits = liveEdits("Book/1 Opening.md", "1 Opening", [...copy, ...editor, ...ai], notWord);
+		expect(edits.map((edit) => [edit.source, edit.summary])).toEqual([
 			["copy", "“grey coat” → “gray coat”"],
 			["editor", "Cut “She waited a long while.”"],
 			["ai", "“very tired” → “exhausted”"],
 		]);
-		const fromWord = editMatrixScene("Book/1 Opening.md", "1 Opening", copy, () => true);
-		expect(fromWord.dots[0]!.source).toBe("word");
+		expect(liveEdits("Book/1 Opening.md", "1 Opening", copy, () => ({ fromWord: true, importedAt: 5 }))[0]).toMatchObject({ source: "word", importedAt: 5 });
+	});
+
+	it("keys an edit by its scene and place, so one id in two scenes stays two edits", () => {
+		const copy = parse("copy-editor", "=== EDIT ===\nOriginal: grey coat\nRevised: gray coat");
+		const first = liveEdits("Book/1 Opening.md", "1 Opening", copy, notWord)[0]!;
+		const second = liveEdits("Book/2 Harbor.md", "2 Harbor", copy, notWord)[0]!;
+		expect(first.id).toBe(second.id);
+		expect(first.key).not.toBe(second.key);
 	});
 
 	it("counts accepted and rewritten as done, rejected as declined, the rest as to do", () => {

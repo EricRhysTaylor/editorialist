@@ -6,11 +6,15 @@ export type EditSource = "word" | "editor" | "copy" | "ai";
 export type EditState = "open" | "done" | "declined";
 
 export interface EditDot {
+	key: string;
 	id: string;
 	source: EditSource;
 	state: EditState;
 	status: ReviewStatus;
 	summary: string;
+	// False once the scene's review block is gone: the edit is kept in the
+	// round's record, but there is nothing left in the scene to select.
+	live: boolean;
 }
 
 export interface EditMatrixScene {
@@ -20,6 +24,7 @@ export interface EditMatrixScene {
 }
 
 export const EDIT_SOURCES: readonly EditSource[] = ["word", "editor", "copy", "ai"];
+export const EDIT_STATES: readonly EditState[] = ["open", "done", "declined"];
 
 export function editSource(suggestion: ReviewSuggestion, fromWord: boolean): EditSource {
 	if (suggestion.contributor.kind === "ai") return "ai";
@@ -52,18 +57,47 @@ export function editSummary(suggestion: ReviewSuggestion): string {
 	}
 }
 
-export function editMatrixScene(notePath: string, title: string, suggestions: readonly ReviewSuggestion[], fromWord: (batchId: string | undefined) => boolean): EditMatrixScene {
-	const ordered = [...suggestions].sort((left, right) =>
-		left.source.blockIndex - right.source.blockIndex || left.source.entryIndex - right.source.entryIndex);
-	return {
-		notePath,
-		title,
-		dots: ordered.map((suggestion) => ({
+// One edit as it stands in a scene's review block right now.
+export interface LiveEdit {
+	key: string;
+	notePath: string;
+	title: string;
+	id: string;
+	source: EditSource;
+	status: ReviewStatus;
+	summary: string;
+	order: number;
+	batchId: string | null;
+	// When the edit's pass was imported; null for a block never imported.
+	importedAt: number | null;
+}
+
+// An edit's identity across sessions: its pass, its scene and its place in
+// that pass's entries there. The suggestion id alone repeats in every scene.
+export function liveEditKey(notePath: string, suggestion: ReviewSuggestion): string {
+	const { batchId, blockIndex, entryIndex } = suggestion.source;
+	return batchId ? `${batchId}|${notePath}|${entryIndex}` : `raw|${notePath}|${blockIndex}.${entryIndex}`;
+}
+
+export function liveEdits(
+	notePath: string,
+	title: string,
+	suggestions: readonly ReviewSuggestion[],
+	pass: (batchId: string | undefined) => { fromWord: boolean; importedAt: number | null },
+): LiveEdit[] {
+	return suggestions.map((suggestion) => {
+		const { fromWord, importedAt } = pass(suggestion.source.batchId);
+		return {
+			key: liveEditKey(notePath, suggestion),
+			notePath,
+			title,
 			id: suggestion.id,
-			source: editSource(suggestion, fromWord(suggestion.source.batchId)),
-			state: editState(suggestion.status),
+			source: editSource(suggestion, fromWord),
 			status: suggestion.status,
 			summary: editSummary(suggestion),
-		})),
-	};
+			order: suggestion.source.blockIndex * 10000 + suggestion.source.entryIndex,
+			batchId: suggestion.source.batchId ?? null,
+			importedAt,
+		};
+	});
 }

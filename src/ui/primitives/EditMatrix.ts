@@ -1,37 +1,85 @@
+import { Menu, setIcon } from "obsidian";
 import { EDIT_SOURCES, type EditDot, type EditMatrixScene, type EditSource, type EditState } from "../../core/review/EditMatrix";
+import type { EditRound } from "../../core/review/EditLedger";
+import { localDate } from "../../core/planning/RevisionPlan";
+import { planDayLabel } from "../../core/planning/WorkPresentation";
 import { compareSceneTitles } from "../panels/ReviewPanelIdleSections";
+import { bindMenuAction } from "../util/bindMenuAction";
 
 const SOURCE_NAMES: Record<EditSource, string> = { word: "Word changes", editor: "Editorial pass", copy: "Copy edit", ai: "Editorialist" };
 const STATE_NAMES: Record<EditState, string> = { open: "to do", done: "done", declined: "declined" };
 const STATUS_NOTES: Partial<Record<EditDot["status"], string>> = { deferred: "deferred", unresolved: "passage not found", rewritten: "you rewrote it" };
 
+export interface EditMatrixRound {
+	scenes: readonly EditMatrixScene[];
+	// 0 until the author first starts a new round.
+	startedAt: number;
+	rounds: readonly EditRound[];
+}
+
+export interface EditMatrixActions {
+	open: (scene: EditMatrixScene, dot: EditDot) => void;
+	newRound: (archive: boolean) => void;
+}
+
+const day = (at: number): string => planDayLabel(localDate(new Date(at)));
+
+function roundLine(round: EditRound): string {
+	const states = Object.values(round.counts);
+	const total = states.reduce((sum, state) => sum + state.open + state.done + state.declined, 0);
+	const done = states.reduce((sum, state) => sum + state.done, 0);
+	const span = round.startedAt ? `${day(round.startedAt)} – ${day(round.endedAt)}` : `Until ${day(round.endedAt)}`;
+	return `${span} · ${total} ${total === 1 ? "edit" : "edits"}, ${done} done`;
+}
+
 /**
- * Every edit in the book's review blocks as one dot, scene by scene in
- * manuscript order. The colour says where the edit came from; a hollow dot is
- * still to do, a solid one is done, a faint one was declined. Click a dot to
- * open its scene with that edit selected.
+ * The round's edits as one dot each, scene by scene in story order. The
+ * colour says where an edit came from; a hollow dot is still to do, a solid
+ * one is done, a faint one was declined. Click a dot to open its scene at that
+ * edit. The menu starts a new round, which clears the handled dots, or
+ * archives this round's totals first.
  */
-export function renderEditMatrix(parent: HTMLElement, gathered: readonly EditMatrixScene[], open: (notePath: string, id: string) => void): void {
-	const scenes = [...gathered].sort((left, right) => compareSceneTitles(left.title, right.title));
+export function renderEditMatrix(parent: HTMLElement, round: EditMatrixRound, actions: EditMatrixActions): void {
+	const scenes = [...round.scenes].sort((left, right) => compareSceneTitles(left.title, right.title));
 	const dots = scenes.flatMap((scene) => scene.dots);
-	if (!dots.length) return;
+	if (!dots.length && !round.startedAt && !round.rounds.length) return;
 	const card = parent.createDiv({ cls: "editorialist-panel__review-state editorialist-matrix" });
 	const settled = dots.filter((dot) => dot.state !== "open").length;
 	const head = card.createDiv({ cls: "editorialist-panel__review-state-header" });
 	head.createSpan({ cls: "editorialist-panel__review-state-title", text: "All edits" });
-	head.createSpan({ cls: "editorialist-panel__review-state-summary", text: `${settled} of ${dots.length} handled` });
+	head.createSpan({ cls: "editorialist-panel__review-state-summary", text: dots.length ? `${settled} of ${dots.length} handled` : "None yet" });
+	const more = head.createEl("button", { cls: "clickable-icon editorialist-matrix__menu", attr: { type: "button", "aria-label": "Rounds", "aria-haspopup": "menu" } });
+	setIcon(more, "more-horizontal");
+	bindMenuAction(more, () => {
+		const menu = new Menu();
+		menu.addItem((item) => item.setTitle("Start a new round").setIcon("rotate-ccw").setDisabled(!settled).onClick(() => actions.newRound(false)));
+		menu.addItem((item) => item.setTitle("Archive this round and start a new one").setIcon("archive").setDisabled(!dots.length).onClick(() => actions.newRound(true)));
+		if (round.rounds.length) {
+			menu.addSeparator();
+			menu.addItem((item) => item.setTitle("Earlier rounds").setIcon("history").setDisabled(true));
+			for (const earlier of [...round.rounds].reverse()) menu.addItem((item) => item.setTitle(roundLine(earlier)).setDisabled(true));
+		}
+		const rect = more.getBoundingClientRect();
+		menu.showAtPosition({ x: rect.right, y: rect.bottom + 4 }, more.ownerDocument);
+	});
+	if (round.startedAt) card.createDiv({ cls: "editorialist-matrix__since", text: `This round since ${day(round.startedAt)}` });
+
+	if (!dots.length) {
+		card.createDiv({ cls: "editorialist-matrix__empty", text: "No edits yet. Each pass you import adds its dots here." });
+		return;
+	}
 
 	const grid = card.createDiv({ cls: "editorialist-matrix__grid", attr: { role: "list", "aria-label": `${dots.length} edits in ${scenes.length} ${scenes.length === 1 ? "scene" : "scenes"}` } });
 	for (const scene of scenes) {
 		const group = grid.createDiv({ cls: "editorialist-matrix__scene", attr: { role: "listitem", "aria-label": scene.title } });
 		for (const dot of scene.dots) {
-			const note = STATUS_NOTES[dot.status];
+			const note = [STATUS_NOTES[dot.status], dot.live ? null : "scene cleaned"].filter(Boolean).join(", ");
 			const label = [scene.title, `${SOURCE_NAMES[dot.source]} · ${STATE_NAMES[dot.state]}${note ? ` (${note})` : ""}`, dot.summary].join("\n");
 			const button = group.createEl("button", {
 				cls: `editorialist-matrix__dot is-${dot.source} is-${dot.state}`,
 				attr: { type: "button", "aria-label": label, "data-tooltip-position": "top" },
 			});
-			button.addEventListener("click", () => open(scene.notePath, dot.id));
+			button.addEventListener("click", () => actions.open(scene, dot));
 		}
 	}
 

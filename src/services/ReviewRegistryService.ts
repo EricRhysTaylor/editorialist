@@ -61,7 +61,8 @@ import { authorQueryKey } from "../core/AuthorQueryMarker";
 import { SweepRegistryManager } from "./registry/SweepRegistryManager";
 import { SceneInventoryBuilder } from "./registry/SceneInventoryBuilder";
 import { getSceneBatchTally, tallyReviewStatuses } from "../core/review/SweepCompletion";
-import { editMatrixScene, type EditMatrixScene } from "../core/review/EditMatrix";
+import { liveEdits, type EditMatrixScene, type LiveEdit } from "../core/review/EditMatrix";
+import { ledgerScenes, normalizeEditLedger, recordLiveEdits, renameLedgerNote, startNewRound, type EditLedgerStore, type EditRound } from "../core/review/EditLedger";
 import {
 	EDITORIALIST_PLUGIN_DATA_VERSION,
 	BATCH_ATTRIBUTION_VERSION,
@@ -120,6 +121,7 @@ export class ReviewRegistryService {
 	private batchAttributionVersion = 0;
 	private editorialDeliveries = normalizeEditorialDeliveries(undefined);
 	private revisionPlans: RevisionPlanStore = normalizeRevisionPlans(undefined);
+	private editLedger: EditLedgerStore = normalizeEditLedger(undefined);
 	private settings: EditorialistSettings = defaultEditorialistSettings();
 	private readonly statsProjector: ReviewerStatsProjector;
 	private readonly sweepManager: SweepRegistryManager;
@@ -233,6 +235,9 @@ export class ReviewRegistryService {
 		if (this.renameEngagementPaths(oldPath, newPath)) {
 			changed = true;
 		}
+		if (renameLedgerNote(this.editLedger, oldPath, newPath)) {
+			changed = true;
+		}
 
 		if (changed) {
 			this.rebuildReviewerStatsFromSignals();
@@ -278,6 +283,7 @@ export class ReviewRegistryService {
 		this.settings = normalizeEditorialistSettings(savedData?.settings);
 		this.revisionPlans = normalizeRevisionPlans(savedData?.revisionPlans);
 		this.editorialDeliveries = normalizeEditorialDeliveries(savedData?.editorialDeliveries);
+		this.editLedger = normalizeEditLedger(savedData?.editLedger);
 	}
 
 	associationSnapshot(): EditorialistPluginData { return structuredClone(this.buildPluginData([])); }
@@ -397,6 +403,7 @@ export class ReviewRegistryService {
 			version: EDITORIALIST_PLUGIN_DATA_VERSION,
 			revisionPlans: structuredClone(this.revisionPlans),
 			editorialDeliveries: structuredClone(this.editorialDeliveries),
+			editLedger: structuredClone(this.editLedger),
 			batchAttributionVersion: this.batchAttributionVersion,
 			reviewerProfiles,
 			reviewerSignalIndex: this.reviewerSignalIndex,
@@ -437,21 +444,47 @@ export class ReviewRegistryService {
 		return this.sweepManager.getEntry(this.sweepRegistry, batchId);
 	}
 
-	// Every edit still in the active book's review blocks, one entry per scene,
-	// with its decision and where it came from. Cleaned scenes hold no blocks,
-	// so their edits are no longer here to show.
-	async collectEditMatrix(): Promise<EditMatrixScene[]> {
-		const scenes: EditMatrixScene[] = [];
-		const fromWord = (batchId: string | undefined) => Boolean(batchId && this.sweepManager.getEntry(this.sweepRegistry, batchId)?.wordSource);
+	// The active book's record of edits for the current round: whatever is in
+	// the review blocks now, plus the last known state of edits whose scene
+	// has since been cleaned. Reading it brings the record up to date.
+	async collectEditMatrix(): Promise<{ scenes: EditMatrixScene[]; startedAt: number; rounds: EditRound[] }> {
+		const live: LiveEdit[] = [];
+		const pass = (batchId: string | undefined) => {
+			const entry = batchId ? this.sweepManager.getEntry(this.sweepRegistry, batchId) : undefined;
+			return { fromWord: Boolean(entry?.wordSource), importedAt: entry?.importedAt ?? null };
+		};
 		for (const record of this.getSceneReviewRecords({ activeBookOnly: true })) {
 			if (record.batchCount === 0) continue;
 			const file = this.app.vault.getAbstractFileByPath(record.notePath);
 			if (!(file instanceof TFile)) continue;
 			const noteText = this.openNoteTextResolver(record.notePath) ?? (await this.app.vault.cachedRead(file));
 			const session = this.applyPersistedReviewState(this.reviewEngine.buildSession(record.notePath, noteText, null));
-			if (session.suggestions.length) scenes.push(editMatrixScene(record.notePath, record.noteTitle, session.suggestions, fromWord));
+			live.push(...liveEdits(record.notePath, record.noteTitle, session.suggestions, pass));
 		}
-		return scenes;
+		const book = this.editLedgerBookKey();
+		const { book: next, changed } = recordLiveEdits(this.editLedger.books[book], live, Date.now());
+		if (changed) {
+			this.editLedger = { ...this.editLedger, books: { ...this.editLedger.books, [book]: next } };
+			await this.persistData();
+		}
+		return { scenes: ledgerScenes(next), startedAt: next.startedAt, rounds: structuredClone(next.rounds) };
+	}
+
+	// Clears the handled edits from the active book's record so the grid starts
+	// the next round empty; with `archive`, the finished round's totals are kept.
+	async startNewEditRound(archive: boolean): Promise<void> {
+		const book = this.editLedgerBookKey();
+		const current = this.editLedger.books[book];
+		if (!current) return;
+		const previous = this.editLedger;
+		const next = { ...previous, books: { ...previous.books, [book]: startNewRound(current, Date.now(), archive) } };
+		this.editLedger = next;
+		try { await this.persistData(); }
+		catch (error) { if (this.editLedger === next) this.editLedger = previous; throw error; }
+	}
+
+	private editLedgerBookKey(): string {
+		return this.activeBookScope.sourceFolder ?? "";
 	}
 
 	getSceneReviewRecords(options?: { activeBookOnly?: boolean }): SceneReviewRecord[] {

@@ -1,8 +1,8 @@
 import { t } from "../i18n";
 import { setAccessibleLabel } from "./primitives/AccessibleLabel";
 import { formatRelativeTime } from "../core/RelativeTime";
-import { renderEditMatrix } from "./primitives/EditMatrix";
-import type { EditMatrixScene } from "../core/review/EditMatrix";
+import { renderEditMatrix, type EditMatrixActions, type EditMatrixRound } from "./primitives/EditMatrix";
+import { openEditorialistChoiceModal } from "./EditorialistChoiceModal";
 import { renderPanelHeader } from "./primitives/PanelHeader";
 import { ButtonComponent, DropdownComponent, ItemView, Menu, Notice, setIcon, type WorkspaceLeaf } from "obsidian";
 import { formatContributorIdentityLabel } from "../core/ContributorIdentity";
@@ -163,7 +163,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	// resolveFocusedDirectiveIndex.
 	private sceneDirectiveFocus: (SceneDirectiveFocus & { scene: string }) | null = null;
 	// The last book-wide edit grid, drawn at once while a fresh one is gathered.
-	private editMatrix: EditMatrixScene[] = [];
+	private editMatrix: EditMatrixRound = { scenes: [], startedAt: 0, rounds: [] };
 	private editMatrixRun = 0;
 	// null = follow the cold-start default; an explicit boolean once the user
 	// toggles the onboarding disclosure within this view session.
@@ -511,24 +511,48 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		this.renderUpNextPendingScenes(pending, launchTarget?.notePath ?? null, Boolean(launchTarget));
 	}
 
-	// The book's edits as a grid of dots. Gathering them reads every scene with
+	// The round's edits as a grid of dots. Gathering them reads every scene with
 	// review blocks, so the last grid is drawn straight away and replaced when
 	// the fresh one arrives; a newer render supersedes an older gather.
 	private renderEditMatrix(slot: HTMLElement): void {
-		const open = (notePath: string, id: string) => void this.plugin.openReviewSuggestion(notePath, id);
-		renderEditMatrix(slot, this.editMatrix, open);
+		const actions: EditMatrixActions = {
+			// An edit whose scene was cleaned has nothing left to select there.
+			open: (scene, dot) => void (dot.live ? this.plugin.openReviewSuggestion(scene.notePath, dot.id) : this.plugin.openSceneNote(scene.notePath)),
+			newRound: (archive) => void this.confirmNewEditRound(archive),
+		};
+		renderEditMatrix(slot, this.editMatrix, actions);
 		const run = ++this.editMatrixRun;
-		void this.plugin.collectEditMatrix().then((scenes) => {
+		void this.plugin.collectEditMatrix().then((round) => {
 			if (run !== this.editMatrixRun || !slot.isConnected) return;
-			this.editMatrix = scenes;
+			this.editMatrix = round;
 			slot.empty();
-			renderEditMatrix(slot, scenes, open);
+			renderEditMatrix(slot, round, actions);
 		}, (error: unknown) => {
 			if (run !== this.editMatrixRun || !slot.isConnected) return;
 			console.error("Editorialist: could not gather the book's edits", error);
 			slot.empty();
 			slot.createDiv({ cls: "editorialist-matrix__error", text: "Could not gather the book's edits." });
 		});
+	}
+
+	private async confirmNewEditRound(archive: boolean): Promise<void> {
+		const choice = await openEditorialistChoiceModal(this.app, {
+			title: archive ? "Archive this round?" : "Start a new round?",
+			description: archive
+				? "The round's totals are kept under Earlier rounds. Handled edits leave the grid; edits still to do stay. Your scenes and decisions are not changed."
+				: "Handled edits leave the grid; edits still to do stay. Your scenes and decisions are not changed.",
+			choices: [
+				{ label: archive ? "Archive and start new round" : "Start new round", value: "confirm" },
+				{ label: "Cancel", value: "cancel" },
+			],
+		});
+		if (choice !== "confirm") return;
+		try {
+			await this.plugin.startNewEditRound(archive);
+		} catch (error) {
+			console.error("Editorialist: could not start a new round", error);
+			new Notice("Could not start a new round. Nothing was changed.");
+		}
 	}
 
 	// Pending scenes that belong to the "Up next" cluster beneath the Continue

@@ -53,6 +53,7 @@ import {
 	hasLiveActionableSuggestions as hasLiveActionableSuggestionsShared,
 } from "./core/review/SuggestionTraversal";
 import type { EditMatrixScene } from "./core/review/EditMatrix";
+import type { EditRound } from "./core/review/EditLedger";
 import { ReviewStateMachine } from "./core/review/ReviewStateMachine";
 import { runEditorUndo } from "./core/review/EditorUndo";
 import type { ReviewStateMachineHost } from "./core/review/ReviewStateMachineHost";
@@ -2134,8 +2135,13 @@ export default class EditorialistPlugin extends Plugin {
 		return this.registry.getBatchDecisionStats(batchId);
 	}
 
-	collectEditMatrix(): Promise<EditMatrixScene[]> {
+	collectEditMatrix(): Promise<{ scenes: EditMatrixScene[]; startedAt: number; rounds: EditRound[] }> {
 		return this.registry.collectEditMatrix();
+	}
+
+	async startNewEditRound(archive: boolean): Promise<void> {
+		await this.registry.startNewEditRound(archive);
+		this.refreshReviewPanel();
 	}
 
 	getSceneReviewRecords(options?: { activeBookOnly?: boolean }): SceneReviewRecord[] {
