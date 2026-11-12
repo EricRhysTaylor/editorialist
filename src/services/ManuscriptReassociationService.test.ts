@@ -242,6 +242,22 @@ describe("reassociation data safety", () => {
 		expect(() => reassociateManuscript(data, change)).toThrow("review history");
 		expect(data.reviewDecisionIndex["Old/Chapter.md::signature"]?.status).toBe("accepted");
 	});
+	it("moves the edit grid's record, including decided edits and earlier rounds", () => {
+		const data = fixture().registry.associationSnapshot();
+		const entry = (notePath: string, status: "accepted" | "pending", live: boolean) => ({ notePath, title: "Chapter", id: "1", source: "editor" as const, status, summary: "Cut", viaWord: false, ai: false, order: 0, live, seenAt: 1, updatedAt: 1 });
+		const counts = { copy: { open: 0, done: 0, declined: 0 }, editor: { open: 0, done: 1, declined: 0 }, editorialism: { open: 0, done: 0, declined: 0 } };
+		data.editLedger = { version: 1, books: { Old: { startedAt: 5, rounds: [{ startedAt: 0, endedAt: 5, scenes: 1, counts }], entries: { "sug|Old/Chapter.md|1": entry("Old/Chapter.md", "accepted", false), "sug|Old/Other.md|2": entry("Old/Other.md", "pending", true) } } } };
+		// The grid has already started an empty record under the new folder.
+		data.editLedger.books.New = { startedAt: 0, rounds: [], entries: { "sug|New/Other.md|2": entry("New/Other.md", "accepted", true) } };
+		const book = reassociateManuscript(data, change).editLedger!.books;
+		expect(book.Old).toBeUndefined();
+		expect(book.New?.startedAt).toBe(5);
+		expect(book.New?.rounds).toHaveLength(1);
+		expect(book.New?.entries["sug|New/Chapter.md|1"]).toMatchObject({ notePath: "New/Chapter.md", status: "accepted", live: false });
+		expect(book.New?.entries["sug|New/Other.md|2"]?.status).toBe("accepted");
+		expect(Object.keys(book.New?.entries ?? {})).toHaveLength(2);
+		expect(data.editLedger.books.Old?.entries["sug|Old/Chapter.md|1"]?.notePath).toBe("Old/Chapter.md");
+	});
 	it("preserves associations for folder names that match object prototype properties", () => {
 		const data = fixture().registry.associationSnapshot();
 		const after = reassociateManuscript(data, { ...change, newFolder: "__proto__", newName: "Named manuscript" });

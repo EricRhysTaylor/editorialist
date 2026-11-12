@@ -1,4 +1,5 @@
 import type { EditorialistPluginData } from "../models/ContributorProfile";
+import type { EditLedgerBook } from "./review/EditLedger";
 
 export interface ManuscriptReassociation {
 	oldFolder: string;
@@ -109,6 +110,25 @@ export function reassociateManuscript(data: EditorialistPluginData, change: Manu
 				try { const parts: unknown = JSON.parse(work.key); if (Array.isArray(parts) && typeof parts[1] === "string") { parts[1] = move(parts[1]); work.key = JSON.stringify(parts); } } catch { /* Preserve unknown historical key formats. */ }
 			}
 		});
+	}
+	if (next.editLedger) {
+		// The grid's record is keyed by the raw book folder, and each entry by its
+		// scene path. The grid may already have started an empty record under the
+		// new folder before this runs; merge into it, letting its live entries win.
+		const books = Object.create(null) as Record<string, EditLedgerBook>;
+		for (const [folder, book] of Object.entries(next.editLedger.books)) {
+			const entries: EditLedgerBook["entries"] = {};
+			for (const [key, entry] of Object.entries(book.entries)) {
+				const notePath = move(entry.notePath);
+				entries[notePath === entry.notePath ? key : key.split(`|${entry.notePath}|`).join(`|${notePath}|`)] = { ...entry, notePath };
+			}
+			const target = move(folder);
+			const existing = Object.prototype.hasOwnProperty.call(books, target) ? books[target] : undefined;
+			books[target] = existing
+				? { startedAt: Math.max(existing.startedAt, book.startedAt), entries: target === folder ? { ...existing.entries, ...entries } : { ...entries, ...existing.entries }, rounds: [...existing.rounds, ...book.rounds].sort((left, right) => left.startedAt - right.startedAt) }
+				: { ...book, entries };
+		}
+		next.editLedger.books = books;
 	}
 	const settings = next.settings;
 	settings.bookFolderOverride = move(settings.bookFolderOverride);
