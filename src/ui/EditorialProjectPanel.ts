@@ -239,7 +239,7 @@ export class EditorialProjectPanel {
 		const attribute = target.kind === "document" ? "data-material-id" : target.kind === "task" ? "data-task-id" : "data-milestone-id";
 		const row = [...root.querySelectorAll<HTMLElement>(`[${attribute}]`)].find((item) => item.getAttribute(attribute) === target.id);
 		if (!row) { new Notice(`“${target.title}” is not on this page.`); return; }
-		for (let parent = row.parentElement; parent && parent !== root; parent = parent.parentElement) if (parent instanceof HTMLDetailsElement) parent.open = true;
+		for (let parent = row.parentElement; parent && parent !== root; parent = parent.parentElement) if (parent.instanceOf(HTMLDetailsElement)) parent.open = true;
 		row.scrollIntoView({ block: "center", behavior: "smooth" });
 		row.removeClass("is-revealed"); void row.offsetWidth; row.addClass("is-revealed");
 		window.setTimeout(() => { if (row.isConnected) row.removeClass("is-revealed"); }, 1800);

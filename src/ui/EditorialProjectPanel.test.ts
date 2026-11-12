@@ -1,12 +1,36 @@
 // @vitest-environment happy-dom
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { Window } from "happy-dom";
 import { addDays } from "../core/planning/PlanProgress";
 import { createEditorialProject } from "../core/planning/EditorialProject";
 import { emptyRevisionPlan, localDate } from "../core/planning/RevisionPlan";
 import { planDayLabel } from "../core/planning/WorkPresentation";
 import { EditorialProjectPanel, type ProjectPanelHost, type QueueHead } from "./EditorialProjectPanel";
+import type { TrackTarget } from "../core/planning/EngagementTrack";
 
 vi.mock("obsidian", () => import("../../tests/mocks/obsidianDom"));
+afterEach(() => vi.unstubAllGlobals());
+
+it("opens a target's collapsed section in another window", () => {
+	const foreignWindow = new Window();
+	const doc = foreignWindow.document;
+	const root = doc.createElement("div"), details = doc.createElement("details"), row = doc.createElement("div");
+	row.setAttribute("data-task-id", "task-1");
+	details.appendChild(row); root.appendChild(details); doc.body.appendChild(root);
+	Object.defineProperty(details, "instanceOf", { value: () => true });
+	Object.defineProperty(row, "scrollIntoView", { value: vi.fn() });
+	Object.defineProperty(row, "removeClass", { value: (name: string) => row.classList.remove(name) });
+	Object.defineProperty(row, "addClass", { value: (name: string) => row.classList.add(name) });
+	const panel = new EditorialProjectPanel({} as ProjectPanelHost);
+	// Happy DOM shares constructors between windows; model the main window's separate class.
+	vi.stubGlobal("HTMLDetailsElement", class MainWindowDetails {});
+	// SAFE: verify the track's navigation into a target rendered in an Obsidian pop-out.
+	(panel as unknown as { revealTarget(root: HTMLElement, target: TrackTarget): void }).revealTarget(root as unknown as HTMLElement, { kind: "task", id: "task-1", title: "Draft", done: false });
+	expect(details instanceof HTMLDetailsElement).toBe(false);
+	expect(details.open).toBe(true);
+	expect(row.scrollIntoView).toHaveBeenCalledOnce();
+	root.remove();
+});
 
 function nextUp(day: string): HTMLElement {
 	let id = 0;

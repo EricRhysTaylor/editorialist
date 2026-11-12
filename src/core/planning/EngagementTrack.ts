@@ -59,13 +59,13 @@ export function engagementTrack(project: EditorialProject, actualReturn: string 
 	// Preparation runs from when the engagement was set up, or its earliest target if that is sooner.
 	const from = [firstDay(project.history[0]?.at), marks[0]?.day].filter((value): value is string => Boolean(value)).sort()[0];
 	const preparing = from !== undefined && from < start && (preparation.total ? preparation.done < preparation.total : day < start);
-	const stages: TrackStage[] = preparing ? [{ key: "preparation", from: from!, to: start }] : [];
+	const stages: TrackStage[] = preparing ? [{ key: "preparation", from, to: start }] : [];
 	const phases = engagementPhases(project, actualReturn, day);
 	if (phases) stages.push({ key: "editing", from: phases.start, to: phases.returned }, { key: "questions", from: phases.returned, to: phases.questionsEnd });
 	const current = stages.find((stage) => day <= stage.to)?.key ?? "done";
 	// With preparation dropped, its delivered targets drop with it.
 	const end = stages[stages.length - 1]?.to;
-	const shown = (mark: TrackMark) => end !== undefined && mark.day <= end && (preparing ? mark.day >= from! : mark.day > start);
+	const shown = (mark: TrackMark) => end !== undefined && mark.day <= end && (preparing ? mark.day >= from : mark.day > start);
 	return { stages, current, marks: marks.filter(shown), preparation, returnRecorded: phases?.returnRecorded ?? false };
 }
 

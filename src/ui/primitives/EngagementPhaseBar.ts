@@ -60,7 +60,7 @@ function renderWhole(block: HTMLElement, track: EngagementTrack, day: string, ju
 	bar.createSpan({ cls: "editorialist-phases__summary", text: summary });
 	track.stages.forEach((stage, index) => {
 		const segment = bar.createDiv({ cls: `editorialist-phases__segment is-${stage.key}${stage.key === track.current ? " is-current" : ""}`, attr: { "aria-hidden": "true" } });
-		place(segment, offsets[index]!, widths[index]!);
+		place(segment, offsets[index]!, widths[index]);
 		segment.style.setProperty("--editorialist-phase-fill", `${Math.min(100, Math.max(0, (days(stage.from, day) / Math.max(1, days(stage.from, stage.to))) * 100))}%`);
 		segment.createDiv({ cls: "editorialist-phases__fill" });
 		place(bar.createDiv({ cls: "editorialist-phases__tick", attr: { "aria-hidden": "true" } }), offsets[index]!);
@@ -127,7 +127,7 @@ function zoom(block: HTMLElement, track: EngagementTrack, mark: TrackMark, day: 
 	const segment = bar.createDiv({ cls: `editorialist-phases__segment is-${stage.key} is-current`, attr: { "aria-hidden": "true" } });
 	segment.style.setProperty("--editorialist-phase-fill", `${(done / targets.length) * 100}%`);
 	segment.createDiv({ cls: "editorialist-phases__fill" });
-	place(segment, offsets[index]!, widths[index]!);
+	place(segment, offsets[index]!, widths[index]);
 	const dots = targets.map((target) => {
 		const dot = bar.createEl("button", {
 			cls: `editorialist-phases__mark ${markState(target.done, late)}`,
