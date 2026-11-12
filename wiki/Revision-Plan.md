@@ -16,24 +16,30 @@ The plan refreshes itself a few seconds after your sources change, waits while y
 
 ## Build a plan
 
-1. Set your schedule deadline, working minutes for each weekday, and reserve time in **Deadline & capacity**. Zero minutes means a day off.
+1. Set your schedule deadline, working minutes for each weekday, and **Finish early by (days)** in **Deadline & capacity**. Zero minutes means a day off. **Finish early by** starts at 14 days: work due to your editor is planned to be ready that many days before its deadline, so a slow week or a sick day doesn't make you late.
 2. Bring in work. To take in every open item at once, use [Auto-plan](#auto-plan-the-whole-book). To choose by hand, find work in **Available work**: search by scene or instruction, and filter by Notes, Line edits, Editorialisms, Responses, or delivery. Add items one at a time with **+**, or choose **Add all N to the plan** to add everything the current filter shows, with suggested estimates.
 3. Drag to prioritize, or use **Move up** and **Move down** in **Schedule & options**.
 4. Set a day and a low/high effort range. Switch between **Queue** and **Days** to review the order or daily workload; tasks can also be dragged onto a day.
 
 A session still open past its day shows a red edge and an **Overdue** date chip wherever it sits in the queue, so a reordered queue keeps every missed day in view.
 
-The forecast uses the high end of estimates and includes scheduled optional work in capacity. Unknown effort is never counted as zero. Missing sources, past dates, prerequisites, overloaded days, and delivery deadlines can all require attention. A forecast describes the selected work in your plan, not every unresolved note in the book; the progress card covers the whole book.
+The forecast uses the high end of estimates and includes scheduled optional work in capacity. Unknown effort is never counted as zero. Missing sources, past dates, prerequisites, overloaded days, and delivery deadlines can all require attention, and so can sessions that fall inside your cushion. A forecast describes the selected work in your plan, not every unresolved note in the book; the progress card covers the whole book.
+
+## Deadlines and your cushion
+
+Work is due on its own date: an editor's return deadline, the day your engagement starts, a milestone, or a date you gave a task. Required work with no date of its own falls under your schedule deadline, and its card says so: **Schedule deadline Oct 31**.
+
+A date your editor is waiting on, the engagement start or a return deadline, gets an aim date your cushion of days before it, and its card reads **Aim Nov 20 · Due Dec 4**. Your own dates, milestones and the tasks due on them have no cushion: they are aimed at as set. A session's date line turns amber when its day falls inside the cushion, and red when it falls after the deadline. Once today passes the aim, the card shows a bar across the cushion instead, from the aim to the due date. It fills as the days go and turns red for the last fifth. Today and the engagement overview show the same bar.
 
 ## Work a session
 
-Each card in the queue shows its kind, title, context, and its date and estimate (dashed when not yet set). Click the circle at the left and choose **Done** to finish the session, or **Open** to reopen it; opening the menu changes nothing until you choose. At the right, **Schedule & options** opens the card's scheduling controls; clicking the date or estimate opens them too. Batches, Editorialism directives, and pending edits also get **Open source**, which takes you to the underlying feedback. An engagement task that works on a document gets **Open document**, which opens that document.
+Each card in the queue shows its kind, title, context, and its date and estimate (dashed when not yet set). Click the circle beside its kind and choose **Done** to finish the session, or **Open** to reopen it; opening the menu changes nothing until you choose. At the right, **Schedule & options** opens the card's scheduling controls; clicking the date or estimate opens them too. Batches, Editorialism directives, and pending edits also get **Open source**, which takes you to the underlying feedback. An engagement task that works on a document gets **Open document**, which opens that document.
 
 <p align="center"><img src="images/plan-queue-cards.png" alt="Work queue with three engagement-task cards: a status circle, the kind and session, title and context, date and estimate chips, and Open document and Schedule &amp; options icons at the right; the first card is overdue, with a red edge and an Overdue date chip" width="460"></p>
 
 Marking a session **Done** completes only the planning session: it does not accept a batch suggestion, check off an Editorialism, or remove a Pending edit. Resolve those in their source workflow. Source completion can also make its planned work complete. A batch is complete once every suggestion in it is decided; its memos ride along. A batch holding only memos has nothing to decide, so it stays open until you finish its session.
 
-The options hold the date, effort range, required-for-deadline flag, lock, prerequisite, and removal controls. **Remove from plan** preserves the source feedback. **Keep this date** protects the session during regeneration; manual editing remains available.
+The options hold the date, effort range, required flag, lock, prerequisite, and removal controls. For work with no date of its own the flag reads **Required by the schedule deadline**. An engagement task's session says that its target date and document are set on the task, with **Edit task** to change them. **Remove from plan** preserves the source feedback, and the session that waited on the removed one takes its place in the order. **Keep this date** protects the session during regeneration; manual editing remains available.
 
 If an instruction changes or goes missing, its task asks to be relinked. Once the plan has refreshed, choose the replacement and click **Relink**. Its date and estimate are preserved. Keep unchanged agenda wording, scope, and section headings stable to avoid unnecessary relinking. A planned batch whose review blocks are cleaned away while progress is being tracked counts as complete rather than asking to be relinked.
 
@@ -49,7 +55,7 @@ The planner's first screen asks for your start date, finish date, and availabili
 
 Phase suggestions use words in the instruction, not an AI assessment of your manuscript. **Ordering & estimates → Review ordering & estimates** lets you change phases, enter effort ranges, or leave individual items out. Unknown phases or effort appear under **Needs attention** with a shortcut to adjust the item.
 
-Set your planning window, session length, working minutes for each weekday, and reserve time. **Preview plan** previews the proposed sessions without saving. Scheduling uses the upper estimate, subtracts existing commitments, leaves reserve time at the end, and never schedules past the earliest of the finish date, the schedule deadline, and the item’s applicable deadline, such as a delivery return date or engagement milestone. Existing dated work without an estimate reserves its entire day. Work that cannot fit stays unscheduled; work lacking a phase or valid estimate stays in Available work.
+Set your planning window, session length, working minutes for each weekday, and **Finish early by (days)**. **Preview plan** previews the proposed sessions without saving. Scheduling uses the upper estimate, subtracts existing commitments, and never schedules past the finish date or the item’s own deadline, such as a delivery's return date, the engagement start, or a milestone. Your schedule deadline applies only to required work with no date of its own. Work due to your editor is fitted by its aim date first and uses the days of your cushion only when it will not fit otherwise; the preview lists those sessions under **Inside your cushion**, so you can add working time or start sooner. Existing dated work without an estimate reserves its entire day. Work that cannot fit stays unscheduled; work lacking a phase or valid estimate stays in Available work.
 
 Suggested effort is a starting assumption: existing Editorialism heuristics, or five minutes per remaining batch suggestion and fifteen per memo, with a ±25% range. Replace these with your own ranges when known. Large tasks split into numbered sessions that keep their original source link. Marking a session **Done** completes only that planning session; it does not check off an Editorialism or accept suggestions.
 

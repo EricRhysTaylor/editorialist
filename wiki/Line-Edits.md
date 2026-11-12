@@ -10,6 +10,7 @@ Between sessions the panel shows:
 
 - **Active book** — which book Editorialist is currently scoped to (via [Radial Timeline](Radial-Timeline-Integration) when installed).
 - **Continue review / Next in this pass** — the scene to pick up next, with **Resume review** or **Start scene**. Pending edits has its own mode.
+- **All edits** — one dot for every edit in scenes that still hold review blocks, grouped by scene in story order, with how many are handled. A dot's colour says where the edit came from: your editor's Word file, an editorial pass, a copy edit, or Editorialist. A hollow dot is still to do, a solid one is done (accepted or rewritten), and a faint one was declined. Hover a dot to see its scene and the change; click it to open that scene's review with the edit selected. The legend counts what is left from each source. A scene you clean drops out of the grid.
 - **Up next** — the other scenes with suggestions still to review, in story order. Click a row to open that scene's review.
 - **Reviewed** — every scene you have finished, in the same rows and story order as Up next, directly beneath it. Click a row to reopen that scene's review and step back through what you decided. A scene you have already cleaned has no review block left, so its row simply opens the scene and shows when it was cleaned; rows whose review block is still in the note keep a **Clean** button.
 - **Recent review rounds** — a disclosure with your recent import rounds and each round's accepted, rejected, and rewritten counts.

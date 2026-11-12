@@ -71,7 +71,7 @@ Under **Scene complete** and **Batch complete**, a card lists the changes you ke
 
 When every scene is decided, the completion card leads with **Write your response to** *(your editor)*. You can also run **Write your response to the editor** from the command palette at any point in the pass.
 
-The response window lists every comment and every change you kept or rewrote, scene by scene, each with a box for your reply. It opens with a tally: how many changes you accepted, kept as written, rewrote or haven't decided yet, and how many comments you replied to. Replies save as you type, so you can close the window with **Done** and come back.
+The response window lists every comment and every change you kept or rewrote, scene by scene. Each is a card that reads like a review thread: your passage, then your editor's words, then a box for your reply. Counts at the top show how many changes you accepted, kept as written, rewrote or haven't decided yet, and how many comments you replied to. Replies save as you type, so you can close the window with **Done** and come back.
 
 <p align="center"><img src="images/response-window.png" alt="Response to Morgan Lee window with a reply to a comment, a reason for a change kept as written, the author's name, and Save in their file" width="560"></p>
 

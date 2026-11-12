@@ -245,12 +245,11 @@ Italics and bold your editor added or took off come in too. A word they put in i
 
 **Send a file that keeps scene IDs.** Export the manuscript with Radial Timeline's **Editor round** option, which puts each scene's ID in its heading. Editorialist then knows which scene every change belongs to. Without scene IDs, each change is placed by finding its sentence in your book, and a comment that is not on a changed sentence cannot be placed at all.
 
-The launcher lists anything it leaves out:
+The launcher tells you what it leaves out, most important first. Your editor's words that could not come in, a change it could not read or a comment that cannot be tied to a scene, sit in a warning headed **Read these in Word**. Layout that stays in Word folds under **What stays in Word**:
 
 - **Formatting changes other than italics and bold**, such as a font or size. Make these by hand.
 - **Changes to headings.**
 - **Paragraphs split or joined.** The wording comes in; the paragraph break does not.
-- **Comments** that cannot be tied to a scene.
 
 ## Responding to your editor
 
@@ -260,7 +259,7 @@ At the end of a copy edit, your editor expects an answer: a reply to their comme
 - **Say why you kept a change.** When you reject one of your editor's changes, or mark it as rewritten, choose **Say why you kept it** on its card. A reason is optional.
 - **Save the file.** When a person's pass is finished, the completion card leads with **Write your response to** *(your editor)*. You can also run **Write your response to the editor** from the command palette at any point.
 
-The response window lists every comment and every change you kept or rewrote, scene by scene, each with a box for your reply. A comment that came in on several scenes is listed once, under **General comments**. Replies are saved as you type, so you can close the window and come back. **Save Word file** writes the response to the **Editorialist/Responses** folder in your vault. Then **Open file** opens it in Word so you can read it over, and **Show in Finder** (**Show in File Explorer** on Windows) opens the folder with the file selected, ready to attach to an email. On a phone or tablet those two buttons aren't there; send the file from your computer instead. The response opens with a tally: how many changes you accepted, kept, rewrote or haven't decided yet, and how many comments you replied to. Each kept change shows your editor's wording with their deleted words struck through and added words underlined, then your reason.
+The response window lists every comment and every change you kept or rewrote, scene by scene. Each is a card that reads like a review thread: your passage, then your editor's words under their name, then a box for your reply. A comment that came in on several scenes is listed once, under **General comments**. Replies are saved as you type, so you can close the window and come back. **Save Word file** writes the response to the **Editorialist/Responses** folder in your vault. Then **Open file** opens it in Word so you can read it over, and **Show in Finder** (**Show in File Explorer** on Windows) opens the folder with the file selected, ready to attach to an email. On a phone or tablet those two buttons aren't there; send the file from your computer instead. Counts at the top show how many changes you accepted, kept, rewrote or haven't decided yet, and how many comments you replied to, with the unanswered and undecided ones marked. The save buttons sit in a bar at the bottom of the window, so saving never needs a scroll. Each kept change shows your editor's wording with their deleted words struck through and added words underlined, then your reason.
 
 ### Replying inside your editor's Word file
 
@@ -272,7 +271,7 @@ When your editor's changes came in from their Word file, Editorialist keeps a co
 
 <p align="center"><img src="images/response-window.png" alt="Response to Morgan Lee window with a reply to a comment, a reason for a change kept as written, the author's name, and Save in their file" width="560"></p>
 
-The first time, add your name under **Name on your comments**, above the buttons. Word shows it on each of your comments. **Save as a letter** still makes the separate response described above, if your editor prefers that.
+The first time, add your name under **Name on your comments**, in the bar beside the buttons. Word shows it on each of your comments. **Save as a letter** still makes the separate response described above, if your editor prefers that.
 
 Write the response before you clean the review blocks out of your scenes. It is built from those blocks, so once they are cleaned it can no longer be made. Passes from an AI get no response.
 

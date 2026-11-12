@@ -27,7 +27,7 @@ The count is the folder’s total, so cutting words lowers it, and moving a note
 
 ## Schedule your goals
 
-Choose **Schedule work** to open the planning dialog. Set a planning window, session length, weekday capacity, and reserve time, then review **Preview plan** before **Use this plan** saves the sessions. Estimates are editable assumptions; use your own effort ranges when known.
+Choose **Schedule work** to open the planning dialog. Set a planning window, session length, and weekday capacity, then review **Preview plan** before **Use this plan** saves the sessions. Estimates are editable assumptions; use your own effort ranges when known. Goals are planned to their own dates; the cushion that the editor engagement keeps before an editor's deadline does not apply to them.
 
 The **Schedule** tab shows **Queue** and **Days**, along with the forecast and available work. Target dates influence ordering; hard deadlines constrain placement. Sessions for the same goal stay ordered, while unrelated goals can still be scheduled if another goal cannot fit. Work that does not fit remains visible as unscheduled.
 

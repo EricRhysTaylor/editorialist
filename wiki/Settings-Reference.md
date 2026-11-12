@@ -1,5 +1,7 @@
 Editorialist's settings are organized into three tabs: **Core**, **Contributors**, and **Configuration**. Core is the dashboard; Configuration holds your manuscript, your name and Editorialist's folders, tracking, cut files, notes an AI writes into scenes, effort estimates, and maintenance.
 
+On Obsidian 1.13 or later, the search box in Obsidian's settings finds Editorialist's main settings, such as the manuscript target, the name on your comments, the cut folder, contributors, and backups. Choosing one opens Editorialist's settings at that section.
+
 ---
 
 ## Core tab
