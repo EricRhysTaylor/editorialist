@@ -266,3 +266,31 @@ recorded the opening total). No Author-vault content was used.
   now showing the Moved or renamed manuscript row below Include subfolders;
   640 × 796 CSS px, rounded at 44 to match the modal's corners. Focus was
   cleared before capture.
+
+## 3.3.0 refresh — November 11, 2026
+
+Captured from main at `845913e` in an isolated desktop Obsidian, dark theme,
+2x device scale, in a new synthetic vault (`scratchpad/capture/vault-wiki`):
+made-up scenes, Morgan Lee's developmental edit starting Nov 17 with documents
+due Nov 1, Nov 13 and Nov 17, author name Alex Rivera, and the "Draft Book 2"
+word goal with today's words written through the vault after the plugin
+recorded the opening total. Morgan Lee's copy edit was a synthetic .docx
+brought in through Your editor's Word file. No Author-vault content was used.
+
+- `panel-editor-engagement.png` — 460 CSS px sidebar, through Next up: the
+  placard with the engagement bar (preparation under way, a combined mark),
+  the notes icon lit, and the cushion bar with six days left.
+- `engagement-documents.png` (new) — the Documents section on its own, cropped
+  from a 435 CSS px sidebar capture: one sent card, three not sent, the
+  Manuscript card's amber Aim · Due line. 450 × 750 CSS px.
+- `panel-today.png` — the Now card inside its cushion, with Open engagement;
+  Up next; Your goal.
+- `plan-queue-cards.png` — three engagement-task cards with the circle in the
+  kind line. Finish early by was set to 4 days for this capture so the plain
+  Aim · Due label shows; at 14 the card shows the cushion bar instead.
+- `response-window.png` — the thread-card layout with chips and the pinned
+  bar; the window is now 720 CSS px wide (shown at 560), rounded at 48.
+
+Seen in another capture, not published: at a 435 CSS px sidebar the
+engagement bar's combined mark at the start date and the bare milestone just
+after it overlapped.

@@ -269,7 +269,7 @@ When your editor's changes came in from their Word file, Editorialist keeps a co
 - A change you kept as written gets a comment saying **Stet**, with your reason. One you rewrote says **Rewritten another way**. If your editor had explained the change in a comment, this appears as your reply to it.
 - Your editor's tracked changes are left exactly as they were. Most publishers ask authors not to accept or reject a copy editor's changes themselves; a comment saying *stet* is how you mark one you don't want.
 
-<p align="center"><img src="images/response-window.png" alt="Response to Morgan Lee window with a reply to a comment, a reason for a change kept as written, the author's name, and Save in their file" width="560"></p>
+<p align="center"><img src="images/response-window.png" alt="Response to Morgan Lee window: count chips, a change kept as written with the author's reason, a comment with the author's reply, an unanswered comment, and the bar at the bottom with the author's name, Done, Save as a letter and Save in their file" width="560"></p>
 
 The first time, add your name under **Name on your comments**, in the bar beside the buttons. Word shows it on each of your comments. **Save as a letter** still makes the separate response described above, if your editor prefers that.
 

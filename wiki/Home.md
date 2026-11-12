@@ -41,7 +41,7 @@ Line edits supports a full set of scene-level editorial moves:
 
 Use the view name beside the Ed logo to switch modes. Book-scoped modes use the active-book header and **Import**. Author planner shows **Across your vault** and **Add goal**. Today covers all your books and your writing goals together.
 
-<p align="center"><img src="images/panel-today.png" alt="Today view of your books and goals: the session to do now marked overdue in red with its book and its document's word limit, the next session today, and a word-count goal showing words written today and the daily pace to finish on time" width="460"></p>
+<p align="center"><img src="images/panel-today.png" alt="Today view of your books and goals: the session to do now inside its cushion with six days left, with Start, Done and Open engagement, the next session today with its due date, and a word-count goal showing words written today and the daily pace to finish on time" width="460"></p>
 
 | Mode | Use it for |
 |---|---|

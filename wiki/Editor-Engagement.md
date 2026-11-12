@@ -1,6 +1,6 @@
 Keep an editor’s agreed dates, the documents you send, your tasks, shared milestones, and activity history together for the active book. Run **Open editor engagement**, or choose **Editor engagement** from the panel’s mode selector. **Open editorial project in workspace** opens the same plan in a full workspace tab.
 
-<p align="center"><img src="images/panel-editor-engagement.png" alt="Editor engagement overview with the editor, a countdown to the agreed start date, and Next up showing an overdue session in red, its document's word limit and the next milestone" width="460"></p>
+<p align="center"><img src="images/panel-editor-engagement.png" alt="Editor engagement overview for Morgan Lee: the start date six days away, the engagement bar with your preparation, the editor's stretch and your questions, a cushion bar with six days left, and Next up with the next session and the next date due" width="460"></p>
 
 ## Create an engagement
 
@@ -40,6 +40,8 @@ Use **Add document** for what you prepare for your editor: a query letter, a syn
 A word limit caps the working document, a query letter at 500 words, say. Wherever that document appears, a bar shows its current prose words against the limit and turns red once over; the count leaves out properties, headings, and hidden comments. **Open working document** on the document's row, **Open document** in the schedule, or **Start** on Today opens it.
 
 A document's tasks sit in its card, under its title. Add one with the list icon on the document's row, or choose the document in a task's **Document** field. Tasks with no document are listed under **Other tasks**. Click a task's circle and choose **Done** or **Open**; opening the menu changes nothing until you choose, and finished tasks are struck through.
+
+<p align="center"><img src="images/engagement-documents.png" alt="Documents section with four cards: a query letter sent to Morgan Lee as a Word file with a copy kept, and three documents not sent yet, each with its due date, word count, tasks and Record sending link" width="450"></p>
 
 ### Record sending a document
 

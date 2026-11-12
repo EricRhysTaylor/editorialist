@@ -73,7 +73,7 @@ When every scene is decided, the completion card leads with **Write your respons
 
 The response window lists every comment and every change you kept or rewrote, scene by scene. Each is a card that reads like a review thread: your passage, then your editor's words, then a box for your reply. Counts at the top show how many changes you accepted, kept as written, rewrote or haven't decided yet, and how many comments you replied to. Replies save as you type, so you can close the window with **Done** and come back.
 
-<p align="center"><img src="images/response-window.png" alt="Response to Morgan Lee window with a reply to a comment, a reason for a change kept as written, the author's name, and Save in their file" width="560"></p>
+<p align="center"><img src="images/response-window.png" alt="Response to Morgan Lee window: count chips, a change kept as written with the author's reason, a comment with the author's reply, an unanswered comment, and the bar at the bottom with the author's name, Done, Save as a letter and Save in their file" width="560"></p>
 
 1. The first time, enter your name under **Name on your comments**. Word shows it on each of your comments. (It is also in **Settings → Configuration → You and your files**.)
 2. Choose **Save in their file**.
