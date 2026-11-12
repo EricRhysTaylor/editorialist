@@ -10,7 +10,7 @@
 
 import { createReviewBlock } from "../ReviewBlockFormat";
 import { REVIEW_FIELD_PATTERN, REVIEW_SECTION_HEADER_PATTERN } from "../ReviewBlockGrammar";
-import { NotAZipError, readZipEntries } from "./Zip";
+import { NotAZipError, readZipEntries, ZipLimitError } from "./Zip";
 import { attribute, childElements, firstChild, localName, parseXml, type XmlElement } from "./Xml";
 
 export interface WordComment {
@@ -77,12 +77,15 @@ const SENTENCE_END = /[.!?…]["'”’)\]]*$/;
 const ABBREVIATION = /\b(?:Mr|Mrs|Ms|Dr|St|Jr|Sr|Mt|vs)\.$/;
 const QUOTE_LENGTH = 80;
 
+export const WORD_FILE_TOO_LARGE = "This Word file looks damaged or unusually large and can't be imported.";
+
 export async function readWordDocument(bytes: Uint8Array): Promise<WordDocument> {
 	let parts: Map<string, Uint8Array>;
 	try {
 		parts = await readZipEntries(bytes, [DOCUMENT_PART, COMMENTS_PART]);
 	} catch (error) {
 		if (error instanceof NotAZipError) throw new Error("This isn't a Word document. Choose a .docx file.");
+		if (error instanceof ZipLimitError) throw new Error(WORD_FILE_TOO_LARGE);
 		throw error;
 	}
 	const decoder = new TextDecoder();
