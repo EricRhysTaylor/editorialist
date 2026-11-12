@@ -35,7 +35,7 @@ const scenes: EditMatrixScene[] = [
 
 function render(round: Partial<EditMatrixRound> = {}) {
 	const root = document.createElement("div");
-	const actions = { open: vi.fn(), newRound: vi.fn(), bringIn: vi.fn(), openAgendas: vi.fn() };
+	const actions = { open: vi.fn(), newRound: vi.fn(), bringIn: vi.fn(), openAgendas: vi.fn(), spotlight: vi.fn() };
 	renderEditMatrix(root, { scenes, startedAt: 0, rounds: [], ...round }, actions);
 	return { root, actions };
 }
@@ -63,6 +63,25 @@ describe("Edit matrix", () => {
 		const { root, actions } = render();
 		root.querySelectorAll<HTMLButtonElement>(".editorialist-matrix__grid .editorialist-matrix__dot")[3]!.click();
 		expect(actions.open).toHaveBeenCalledWith(expect.objectContaining({ notePath: "Book/12 Harbor.md" }), expect.objectContaining({ id: "review-1-2" }));
+	});
+
+	it("lights a dot's scene up only while Shift is held over it", () => {
+		const { root, actions } = render();
+		const dot = root.querySelectorAll<HTMLButtonElement>(".editorialist-matrix__grid .editorialist-matrix__dot")[3]!;
+		document.body.appendChild(root);
+		dot.dispatchEvent(new PointerEvent("pointerenter"));
+		expect(actions.spotlight).not.toHaveBeenCalled();
+		document.dispatchEvent(new KeyboardEvent("keydown", { key: "Shift", shiftKey: true }));
+		expect(actions.spotlight).toHaveBeenLastCalledWith({ scene: expect.objectContaining({ notePath: "Book/12 Harbor.md" }), dot: expect.objectContaining({ id: "review-1-2" }) });
+		document.dispatchEvent(new KeyboardEvent("keyup", { key: "Shift", shiftKey: false }));
+		expect(actions.spotlight).toHaveBeenLastCalledWith(null);
+		dot.dispatchEvent(new PointerEvent("pointerenter", { shiftKey: true }));
+		dot.dispatchEvent(new PointerEvent("pointerleave"));
+		expect(actions.spotlight).toHaveBeenLastCalledWith(null);
+		// Once the pointer has left, Shift lights nothing.
+		document.dispatchEvent(new KeyboardEvent("keydown", { key: "Shift", shiftKey: true }));
+		expect(actions.spotlight).toHaveBeenCalledTimes(4);
+		root.remove();
 	});
 
 	it("offers a new round or an archive, and lists earlier rounds", () => {

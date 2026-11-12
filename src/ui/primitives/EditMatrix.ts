@@ -24,6 +24,38 @@ export interface EditMatrixActions {
 	bringIn: () => void;
 	/** Opens the Editorialism panel, where an agenda is started. */
 	openAgendas: () => void;
+	/** Lights a dot's scene up elsewhere while Shift is held over it; null puts it out. */
+	spotlight: (edit: { scene: EditMatrixScene; dot: EditDot } | null) => void;
+}
+
+// Holding Shift over a dot lights its scene up wherever the scene is shown,
+// without opening it. Shift can go down before or after the pointer arrives,
+// so keys are heard only while the pointer is over the dot. Nothing is
+// prevented, so Shift still reaches everything else.
+function bindSpotlight(button: HTMLElement, scene: EditMatrixScene, dot: EditDot, actions: EditMatrixActions): void {
+	let lit = false;
+	let doc: Document | null = null;
+	const set = (on: boolean) => {
+		if (on === lit) return;
+		lit = on;
+		actions.spotlight(on ? { scene, dot } : null);
+	};
+	const leave = () => {
+		doc?.removeEventListener("keydown", onKey);
+		doc?.removeEventListener("keyup", onKey);
+		doc = null;
+		set(false);
+	};
+	// A grid redrawn under the pointer takes the dot away without a leave.
+	const onKey = (event: KeyboardEvent) => (button.isConnected ? set(event.shiftKey) : leave());
+	button.addEventListener("pointerenter", (event) => {
+		doc = button.ownerDocument;
+		doc.addEventListener("keydown", onKey);
+		doc.addEventListener("keyup", onKey);
+		set(event.shiftKey);
+	});
+	button.addEventListener("pointermove", (event) => set(event.shiftKey));
+	button.addEventListener("pointerleave", leave);
 }
 
 const day = (at: number): string => planDayLabel(localDate(new Date(at)));
@@ -42,8 +74,9 @@ function roundLine(round: EditRound): string {
  * edit, or an Editorialism directive), and a centre mark says a model made
  * it rather than a person; a hollow dot is still to do, a solid
  * one is done, a faint one was declined. Click a dot to open its scene at that
- * edit. The menu starts a new round, which clears the handled dots, or
- * archives this round's totals first.
+ * edit; hold Shift over it to light the scene up elsewhere. The menu starts
+ * a new round, which clears the handled dots, or archives this round's totals
+ * first.
  */
 export function renderEditMatrix(parent: HTMLElement, round: EditMatrixRound, actions: EditMatrixActions): void {
 	const scenes = [...round.scenes].sort((left, right) => compareSceneTitles(left.title, right.title));
@@ -72,6 +105,7 @@ export function renderEditMatrix(parent: HTMLElement, round: EditMatrixRound, ac
 				attr: { type: "button", "aria-label": label, "data-tooltip-position": "top" },
 			});
 			button.addEventListener("click", () => actions.open(scene, dot));
+			bindSpotlight(button, scene, dot, actions);
 		}
 	}
 

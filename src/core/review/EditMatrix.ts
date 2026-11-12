@@ -1,4 +1,4 @@
-import type { Editorialism, EditorialismItemStatus } from "../../models/Editorialism";
+import type { Editorialism, EditorialismItem, EditorialismItemStatus } from "../../models/Editorialism";
 import type { ReviewStatus, ReviewSuggestion } from "../../models/ReviewSuggestion";
 
 // The kind of work an edit is: a copy edit, an editorial pass's edit, or a
@@ -122,9 +122,18 @@ export function directivePlace(sectionIndex: number, itemIndex: number): string 
  */
 export function directiveLine(editorialism: Editorialism, id: string): number | null {
 	if (/^\d+$/.test(id)) return Number(id);
+	return directiveItem(editorialism, id)?.lineIndex ?? null;
+}
+
+/** The directive a grid dot stands for, or null when it is gone. */
+export function directiveItem(editorialism: Editorialism, id: string): EditorialismItem | null {
+	if (/^\d+$/.test(id)) {
+		const line = Number(id);
+		return editorialism.sections.flatMap((section) => section.items).find((item) => item.lineIndex === line) ?? null;
+	}
 	const match = /^(\d+)\.(\d+)$/.exec(id);
 	if (!match) return null;
-	return editorialism.sections[Number(match[1])]?.items[Number(match[2])]?.lineIndex ?? null;
+	return editorialism.sections[Number(match[1])]?.items[Number(match[2])] ?? null;
 }
 
 // A directive's state on the grid. Deferred is the author choosing to skip

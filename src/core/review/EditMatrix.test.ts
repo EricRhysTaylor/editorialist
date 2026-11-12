@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ContributorDirectory } from "../../state/ContributorDirectory";
 import { SuggestionParser } from "../SuggestionParser";
-import { directiveEdits, directiveLine, editState, liveEdits } from "./EditMatrix";
+import { directiveEdits, directiveItem, directiveLine, editState, liveEdits } from "./EditMatrix";
 
 function parse(reviewerType: string, body: string) {
 	return new SuggestionParser(new ContributorDirectory()).parse(`Reviewer: Morgan Lee\nReviewerType: ${reviewerType}\n\n${body}`).suggestions;
@@ -54,6 +54,10 @@ describe("liveEdits", () => {
 		expect(directiveLine(shifted, "0.1")).toBe(6);
 		expect(directiveLine(shifted, "5")).toBe(5);
 		expect(directiveLine(shifted, "0.9")).toBeNull();
+		// A dot finds its directive by place, or by line in older records.
+		expect(directiveItem(shifted, "0.1")?.text).toBe("Cut the prologue.");
+		expect(directiveItem(shifted, "7")?.text).toBe("Raspberries or blueberries?");
+		expect(directiveItem(shifted, "5")).toBeNull();
 		expect(directiveEdits({ ...agenda, reviewerType: "editor" }, 42)[0]!.ai).toBe(false);
 	});
 

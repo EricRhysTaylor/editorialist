@@ -4,7 +4,7 @@ import { openEditorialistChoiceModal } from "./EditorialistChoiceModal";
 import { renderEditMatrix, type EditMatrixActions, type EditMatrixRound } from "./primitives/EditMatrix";
 
 type EditMatrixHost = Pick<EditorialistPlugin,
-	"app" | "collectEditMatrix" | "openEditorialismItem" | "openReviewSuggestion" | "openSceneNote" | "startNewEditRound" | "openEditorialistModal" | "openEditorialismPanel">;
+	"app" | "collectEditMatrix" | "openEditorialismItem" | "openReviewSuggestion" | "openSceneNote" | "startNewEditRound" | "openEditorialistModal" | "openEditorialismPanel" | "spotlightEdit">;
 
 // The active book's edit grid, as the review panel and Today both show it.
 // Gathering reads every scene with review blocks and every active agenda, so
@@ -18,6 +18,8 @@ export class EditMatrixSlot {
 	private slot: HTMLElement | null = null;
 	private shown: string | null = null;
 	private drawn: ((filled: boolean) => void) | null = null;
+	// A dot of this grid has a scene lit up.
+	private lit = false;
 	private readonly actions: EditMatrixActions;
 
 	constructor(private readonly plugin: EditMatrixHost) {
@@ -30,6 +32,10 @@ export class EditMatrixSlot {
 			newRound: (archive) => void this.confirmNewRound(archive),
 			bringIn: () => void plugin.openEditorialistModal(),
 			openAgendas: () => void plugin.openEditorialismPanel(),
+			spotlight: (edit) => {
+				this.lit = edit !== null;
+				void plugin.spotlightEdit(edit && { notePath: edit.scene.notePath, source: edit.dot.source, id: edit.dot.id });
+			},
 		};
 	}
 
@@ -70,6 +76,8 @@ export class EditMatrixSlot {
 		const shown = JSON.stringify(round);
 		if (shown === this.shown && slot.hasChildNodes()) return;
 		this.shown = shown;
+		// A lit dot may be going, and with it the pointer's leave that puts it out.
+		if (this.lit) this.actions.spotlight(null);
 		slot.empty();
 		renderEditMatrix(slot, round, this.actions);
 		this.drawn?.(slot.hasChildNodes());

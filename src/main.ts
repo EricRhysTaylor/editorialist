@@ -52,7 +52,8 @@ import {
 	getAdjacentRevealableSuggestionId as getAdjacentRevealableSuggestionIdShared,
 	hasLiveActionableSuggestions as hasLiveActionableSuggestionsShared,
 } from "./core/review/SuggestionTraversal";
-import { directiveEdits, directiveLine, type EditMatrixScene, type LiveEdit } from "./core/review/EditMatrix";
+import { directiveEdits, directiveItem, directiveLine, type EditMatrixScene, type EditSource, type LiveEdit } from "./core/review/EditMatrix";
+import { SceneSpotlight } from "./ui/SceneSpotlight";
 import type { EditRound } from "./core/review/EditLedger";
 import { ReviewStateMachine } from "./core/review/ReviewStateMachine";
 import { runEditorUndo } from "./core/review/EditorUndo";
@@ -698,6 +699,7 @@ export default class EditorialistPlugin extends Plugin {
 		// Obsidian restores workspace state on reload, and registerView() already handles cleanup.
 		this.toolbarOverlay.destroy();
 		this.toolbarKeyTracker.dispose();
+		this.sceneSpotlight?.clear();
 		this.editorChangeResyncDebouncer.cancel();
 		this.inventoryRescanDebouncer.cancel();
 		this.pendingEdits.clearInquiryMaps();
@@ -2158,6 +2160,42 @@ export default class EditorialistPlugin extends Plugin {
 		// The directive's line is found now, since lines move as the agenda changes.
 		const editorialism = await this.loadEditorialism(filePath);
 		await leaf.view.showItem(filePath, editorialism ? directiveLine(editorialism, id) ?? -1 : -1);
+	}
+
+	private sceneSpotlight: SceneSpotlight | null = null;
+	private spotlightRun = 0;
+
+	/**
+	 * Lights an edit's scene up wherever it is shown; null puts it out. A
+	 * directive's scene is its first anchored scene, else the scene or the
+	 * first scene of the range it is scoped to. A directive with none of those
+	 * lights nothing, rather than a guess.
+	 */
+	async spotlightEdit(edit: { notePath: string; source: EditSource; id: string } | null): Promise<void> {
+		const run = ++this.spotlightRun;
+		this.sceneSpotlight ??= new SceneSpotlight(this.app);
+		if (!edit) {
+			this.sceneSpotlight.show(null);
+			return;
+		}
+		let path: string | null = edit.notePath;
+		if (edit.source === "editorialism") {
+			const editorialism = await this.loadEditorialism(edit.notePath);
+			if (run !== this.spotlightRun) return;
+			const item = editorialism ? directiveItem(editorialism, edit.id) : null;
+			path = item ? this.directiveScenePath(item) : null;
+		}
+		this.sceneSpotlight.show(path);
+	}
+
+	private directiveScenePath(item: EditorialismItem): string | null {
+		for (const anchor of item.anchors) {
+			const file = this.anchors.resolveAnchorSceneFile(anchor, item);
+			if (file) return file.path;
+		}
+		const scene = item.scope?.kind === "scene" ? item.scope.scene : item.scope?.kind === "range" ? item.scope.start : undefined;
+		const number = scene ? Number.parseInt(scene, 10) : Number.NaN;
+		return Number.isFinite(number) ? this.anchors.resolveSceneFileByNumber(number)?.path ?? null : null;
 	}
 
 	async startNewEditRound(archive: boolean): Promise<void> {

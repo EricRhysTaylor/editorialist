@@ -1204,6 +1204,29 @@
 	font-size: var(--font-ui-smaller);
 }
 
+/* A scene lit from the edit grid while Shift is held over its dot, in the
+   accent: a file list entry is tinted, a base row is tinted with a bar at its
+   start, a base card is ringed, and a canvas card is ringed outside its own
+   border. */
+.editorialist-spotlight.editorialist-spotlight--item {
+	background-color: color-mix(in srgb, var(--interactive-accent) 22%, transparent);
+}
+
+.editorialist-spotlight.editorialist-spotlight--row {
+	background-color: color-mix(in srgb, var(--interactive-accent) 22%, transparent);
+	box-shadow: inset 3px 0 0 var(--interactive-accent);
+}
+
+.editorialist-spotlight.editorialist-spotlight--card {
+	box-shadow: 0 0 0 2px var(--interactive-accent);
+}
+
+.editorialist-spotlight.editorialist-spotlight--canvas {
+	border-radius: var(--radius-m);
+	outline: 3px solid var(--interactive-accent);
+	outline-offset: 4px;
+}
+
 .editorialist-matrix .editorialist-matrix__menu {
 	flex: 0 0 auto;
 	margin: -4px -6px -4px 0;
