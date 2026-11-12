@@ -1049,6 +1049,11 @@
 	display: none;
 }
 
+/* Today's heading for the grid goes with it when the book has no edits. */
+.editorialist-today__edits.is-empty {
+	display: none;
+}
+
 .editorialist-matrix__grid {
 	display: flex;
 	flex-wrap: wrap;
@@ -1190,8 +1195,7 @@
 	--editorialist-matrix-color: var(--text-muted);
 }
 
-.editorialist-matrix__error,
-.editorialist-matrix__empty {
+.editorialist-matrix__error {
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
 }
@@ -1208,9 +1212,101 @@
 	font-size: var(--font-ui-smaller);
 }
 
+/* No edits this round: a recessed tray of faint dots in the three kinds'
+   colours, with a slow wave passing through, above a call to bring in the
+   next pass. */
+.editorialist-matrix--tray .editorialist-matrix__menu {
+	margin-inline-start: auto;
+}
+
+.editorialist-matrix__tray-field {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 7px 9px;
+	padding: 14px 12px;
+	border-radius: var(--editorialist-radius-card);
+	background: color-mix(in srgb, var(--background-secondary) 70%, transparent);
+	box-shadow: inset 0 1px 3px color-mix(in srgb, var(--background-modifier-border) 90%, transparent);
+}
+
+.editorialist-matrix__tray-dot {
+	--editorialist-matrix-color: var(--text-faint);
+
+	width: 10px;
+	height: 10px;
+	border: 2px solid color-mix(in srgb, var(--editorialist-matrix-color) 45%, transparent);
+	border-radius: 50%;
+	animation: editorialist-tray-wave 4.2s ease-in-out infinite;
+	animation-delay: calc(var(--editorialist-tray-index, 0) * 110ms);
+}
+
+.editorialist-matrix__tray-dot.is-copy {
+	--editorialist-matrix-color: var(--editorialist-matrix-copy);
+}
+
+.editorialist-matrix__tray-dot.is-editor {
+	--editorialist-matrix-color: var(--editorialist-matrix-editor);
+}
+
+.editorialist-matrix__tray-dot.is-editorialism {
+	--editorialist-matrix-color: var(--editorialist-matrix-editorialism);
+}
+
+@keyframes editorialist-tray-wave {
+	0%,
+	70%,
+	100% {
+		background: transparent;
+		transform: scale(1);
+	}
+
+	35% {
+		background: color-mix(in srgb, var(--editorialist-matrix-color) 70%, transparent);
+		transform: scale(1.15);
+	}
+}
+
+.editorialist-matrix__tray-title {
+	margin-top: 2px;
+	color: var(--text-normal);
+	font-size: var(--font-ui-medium);
+	font-weight: 600;
+	text-align: center;
+	text-wrap: balance;
+}
+
+.editorialist-matrix .editorialist-matrix__tray-text {
+	margin: -4px 0 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	line-height: 1.45;
+	text-align: center;
+	text-wrap: pretty;
+}
+
+.editorialist-matrix__tray-last {
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+	font-variant-numeric: tabular-nums;
+	text-align: center;
+}
+
+.editorialist-matrix__tray-actions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 8px;
+	margin-top: 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
 	.editorialist-matrix .editorialist-matrix__grid .editorialist-matrix__scene button.editorialist-matrix__dot {
 		transition: none;
+	}
+
+	.editorialist-matrix__tray-dot {
+		animation: none;
 	}
 }
 

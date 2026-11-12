@@ -1,8 +1,7 @@
 import { t } from "../i18n";
 import { setAccessibleLabel } from "./primitives/AccessibleLabel";
 import { formatRelativeTime } from "../core/RelativeTime";
-import { renderEditMatrix, type EditMatrixActions, type EditMatrixRound } from "./primitives/EditMatrix";
-import { openEditorialistChoiceModal } from "./EditorialistChoiceModal";
+import { EditMatrixSlot } from "./EditMatrixSlot";
 import { renderPanelHeader } from "./primitives/PanelHeader";
 import { ButtonComponent, DropdownComponent, ItemView, Menu, Notice, setIcon, type WorkspaceLeaf } from "obsidian";
 import { formatContributorIdentityLabel } from "../core/ContributorIdentity";
@@ -162,9 +161,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 	// Which directive the one-at-a-time view is on, per scene; see
 	// resolveFocusedDirectiveIndex.
 	private sceneDirectiveFocus: (SceneDirectiveFocus & { scene: string }) | null = null;
-	// The last book-wide edit grid, drawn at once while a fresh one is gathered.
-	private editMatrix: EditMatrixRound = { scenes: [], startedAt: 0, rounds: [] };
-	private editMatrixRun = 0;
+	private readonly editMatrix: EditMatrixSlot;
 	// null = follow the cold-start default; an explicit boolean once the user
 	// toggles the onboarding disclosure within this view session.
 	private onboardingExpanded: boolean | null = null;
@@ -173,6 +170,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 		private readonly plugin: EditorialistPlugin,
 	) {
 		super(leaf);
+		this.editMatrix = new EditMatrixSlot(plugin);
 	}
 
 	getViewType(): string {
@@ -352,7 +350,7 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 				renderReviewWelcomeCard(this.plugin, this.contentEl);
 			}
 			// Every edit in the book as a dot: what is left and what is done.
-			this.renderEditMatrix(this.contentEl.createDiv({ cls: "editorialist-matrix-slot" }));
+			this.editMatrix.mount(this.contentEl.createDiv({ cls: "editorialist-matrix-slot" }));
 			if (overview) {
 				this.renderUpNextPendingScenes(overview.pending, launchTarget?.notePath ?? null, Boolean(launchTarget));
 			}
@@ -509,53 +507,6 @@ export class ReviewPanel extends ItemView implements IdleSectionsHost {
 			renderContinueReviewCard(this, this.plugin, this.contentEl, launchTarget, overview);
 		}
 		this.renderUpNextPendingScenes(pending, launchTarget?.notePath ?? null, Boolean(launchTarget));
-	}
-
-	// The round's edits as a grid of dots. Gathering them reads every scene with
-	// review blocks, so the last grid is drawn straight away and replaced when
-	// the fresh one arrives; a newer render supersedes an older gather.
-	private renderEditMatrix(slot: HTMLElement): void {
-		const actions: EditMatrixActions = {
-			// A directive opens in its agenda; an edit whose scene was cleaned has
-			// nothing left to select there, so it opens the scene.
-			open: (scene, dot) => void (dot.source === "editorialism"
-				? this.plugin.openEditorialismItem(scene.notePath, Number(dot.id))
-				: dot.live ? this.plugin.openReviewSuggestion(scene.notePath, dot.id) : this.plugin.openSceneNote(scene.notePath)),
-			newRound: (archive) => void this.confirmNewEditRound(archive),
-		};
-		renderEditMatrix(slot, this.editMatrix, actions);
-		const run = ++this.editMatrixRun;
-		void this.plugin.collectEditMatrix().then((round) => {
-			if (run !== this.editMatrixRun || !slot.isConnected) return;
-			this.editMatrix = round;
-			slot.empty();
-			renderEditMatrix(slot, round, actions);
-		}, (error: unknown) => {
-			if (run !== this.editMatrixRun || !slot.isConnected) return;
-			console.error("Editorialist: could not gather the book's edits", error);
-			slot.empty();
-			slot.createDiv({ cls: "editorialist-matrix__error", text: "Could not gather the book's edits." });
-		});
-	}
-
-	private async confirmNewEditRound(archive: boolean): Promise<void> {
-		const choice = await openEditorialistChoiceModal(this.app, {
-			title: archive ? "Archive this round?" : "Start a new round?",
-			description: archive
-				? "The round's totals are kept under Earlier rounds. Handled edits leave the grid; edits still to do stay. Your scenes and decisions are not changed."
-				: "Handled edits leave the grid; edits still to do stay. Your scenes and decisions are not changed.",
-			choices: [
-				{ label: archive ? "Archive and start new round" : "Start new round", value: "confirm" },
-				{ label: "Cancel", value: "cancel" },
-			],
-		});
-		if (choice !== "confirm") return;
-		try {
-			await this.plugin.startNewEditRound(archive);
-		} catch (error) {
-			console.error("Editorialist: could not start a new round", error);
-			new Notice("Could not start a new round. Nothing was changed.");
-		}
 	}
 
 	// Pending scenes that belong to the "Up next" cluster beneath the Continue

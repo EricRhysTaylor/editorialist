@@ -2161,6 +2161,7 @@ export default class EditorialistPlugin extends Plugin {
 	async startNewEditRound(archive: boolean): Promise<void> {
 		await this.registry.startNewEditRound(archive);
 		this.refreshReviewPanel();
+		for (const leaf of this.app.workspace.getLeavesOfType(TODAY_VIEW_TYPE)) if (leaf.view instanceof TodayPanel) leaf.view.reloadEdits();
 	}
 
 	getSceneReviewRecords(options?: { activeBookOnly?: boolean }): SceneReviewRecord[] {

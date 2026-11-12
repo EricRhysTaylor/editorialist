@@ -35,7 +35,7 @@ const scenes: EditMatrixScene[] = [
 
 function render(round: Partial<EditMatrixRound> = {}) {
 	const root = document.createElement("div");
-	const actions = { open: vi.fn(), newRound: vi.fn() };
+	const actions = { open: vi.fn(), newRound: vi.fn(), bringIn: vi.fn(), openAgendas: vi.fn() };
 	renderEditMatrix(root, { scenes, startedAt: 0, rounds: [], ...round }, actions);
 	return { root, actions };
 }
@@ -80,16 +80,28 @@ describe("Edit matrix", () => {
 		expect(actions.newRound).toHaveBeenCalledWith(true);
 	});
 
-	it("starts a new round empty, saying when it began", () => {
-		const { root } = render({ scenes: [], startedAt: Date.UTC(2026, 10, 11, 12) });
-		expect(root.querySelector(".editorialist-panel__review-state-summary")?.textContent).toBe("None yet");
-		expect(root.querySelector(".editorialist-matrix__since")?.textContent).toBe("This round since Nov 11");
-		expect(root.querySelector(".editorialist-matrix__empty")).not.toBeNull();
+	it("starts a new round as an empty tray that reports the last round and asks for the next pass", () => {
+		const counts = { copy: { open: 0, done: 50, declined: 4 }, editor: { open: 0, done: 4, declined: 2 }, editorialism: { open: 0, done: 0, declined: 0 } };
+		const { root, actions } = render({ scenes: [], startedAt: Date.UTC(2026, 10, 11, 12), rounds: [{ startedAt: Date.UTC(2026, 9, 2, 12), endedAt: Date.UTC(2026, 10, 11, 12), scenes: 9, counts }] });
 		expect(root.querySelector(".editorialist-matrix__grid")).toBeNull();
+		expect(root.querySelectorAll(".editorialist-matrix__tray-dot").length).toBeGreaterThan(0);
+		expect(root.querySelector(".editorialist-matrix__tray-title")?.textContent).toBe("Ready for the next round");
+		expect(root.querySelector(".editorialist-matrix__tray-last")?.textContent).toBe("Last round · Oct 2 – Nov 11 · 60 edits, 54 done");
+		const buttons = [...root.querySelectorAll<HTMLButtonElement>(".editorialist-matrix__tray-actions button")];
+		expect(buttons.map((button) => button.textContent)).toEqual(["Bring in edits", "Start an agenda"]);
+		buttons[0]!.click();
+		buttons[1]!.click();
+		expect(actions.bringIn).toHaveBeenCalledTimes(1);
+		expect(actions.openAgendas).toHaveBeenCalledTimes(1);
+		// With nothing to clear, the menu only lists the earlier rounds.
+		root.querySelector<HTMLButtonElement>(".editorialist-matrix__menu")!.click();
+		expect(state.menus[state.menus.length - 1]!.choices.map((item) => item.title)).toEqual(["Earlier rounds", "Oct 2 – Nov 11 · 60 edits, 54 done"]);
 	});
 
-	it("draws nothing for a book that has never had edits", () => {
+	it("invites a first round for a book that has never had edits", () => {
 		const { root } = render({ scenes: [] });
-		expect(root.childElementCount).toBe(0);
+		expect(root.querySelector(".editorialist-matrix__tray-title")?.textContent).toBe("Your first round starts here");
+		expect(root.querySelector(".editorialist-matrix__tray-last")).toBeNull();
+		expect(root.querySelector(".editorialist-matrix__menu")).toBeNull();
 	});
 });

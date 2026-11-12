@@ -20,6 +20,10 @@ export interface EditMatrixRound {
 export interface EditMatrixActions {
 	open: (scene: EditMatrixScene, dot: EditDot) => void;
 	newRound: (archive: boolean) => void;
+	/** Opens the review launcher, where an editor's pass is brought in. */
+	bringIn: () => void;
+	/** Opens the Editorialism panel, where an agenda is started. */
+	openAgendas: () => void;
 }
 
 const day = (at: number): string => planDayLabel(localDate(new Date(at)));
@@ -44,32 +48,17 @@ function roundLine(round: EditRound): string {
 export function renderEditMatrix(parent: HTMLElement, round: EditMatrixRound, actions: EditMatrixActions): void {
 	const scenes = [...round.scenes].sort((left, right) => compareSceneTitles(left.title, right.title));
 	const dots = scenes.flatMap((scene) => scene.dots);
-	if (!dots.length && !round.startedAt && !round.rounds.length) return;
+	if (!dots.length) {
+		renderTray(parent, round, actions);
+		return;
+	}
 	const card = parent.createDiv({ cls: "editorialist-panel__review-state editorialist-matrix" });
 	const settled = dots.filter((dot) => dot.state !== "open").length;
 	const head = card.createDiv({ cls: "editorialist-panel__review-state-header" });
 	head.createSpan({ cls: "editorialist-panel__review-state-title", text: "All edits" });
-	head.createSpan({ cls: "editorialist-panel__review-state-summary", text: dots.length ? `${settled} of ${dots.length} handled` : "None yet" });
-	const more = head.createEl("button", { cls: "clickable-icon editorialist-matrix__menu", attr: { type: "button", "aria-label": "Rounds", "aria-haspopup": "menu" } });
-	setIcon(more, "more-horizontal");
-	bindMenuAction(more, () => {
-		const menu = new Menu();
-		menu.addItem((item) => item.setTitle("Start a new round").setIcon("rotate-ccw").setDisabled(!settled).onClick(() => actions.newRound(false)));
-		menu.addItem((item) => item.setTitle("Archive this round and start a new one").setIcon("archive").setDisabled(!dots.length).onClick(() => actions.newRound(true)));
-		if (round.rounds.length) {
-			menu.addSeparator();
-			menu.addItem((item) => item.setTitle("Earlier rounds").setIcon("history").setDisabled(true));
-			for (const earlier of [...round.rounds].reverse()) menu.addItem((item) => item.setTitle(roundLine(earlier)).setDisabled(true));
-		}
-		const rect = more.getBoundingClientRect();
-		menu.showAtPosition({ x: rect.right, y: rect.bottom + 4 }, more.ownerDocument);
-	});
+	head.createSpan({ cls: "editorialist-panel__review-state-summary", text: `${settled} of ${dots.length} handled` });
+	renderRoundsMenu(head, round, dots.length, settled, actions);
 	if (round.startedAt) card.createDiv({ cls: "editorialist-matrix__since", text: `This round since ${day(round.startedAt)}` });
-
-	if (!dots.length) {
-		card.createDiv({ cls: "editorialist-matrix__empty", text: "No edits yet. Each pass you import adds its dots here." });
-		return;
-	}
 
 	const grid = card.createDiv({ cls: "editorialist-matrix__grid", attr: { role: "list", "aria-label": `${dots.length} edits in ${scenes.length} ${scenes.length === 1 ? "scene" : "scenes"}` } });
 	for (const scene of scenes) {
@@ -109,4 +98,66 @@ export function renderEditMatrix(parent: HTMLElement, round: EditMatrixRound, ac
 		item.createSpan({ cls: "editorialist-matrix__dot is-sample is-open is-ai" });
 		item.createSpan({ text: "AI" });
 	}
+}
+
+function renderRoundsMenu(head: HTMLElement, round: EditMatrixRound, total: number, settled: number, actions: EditMatrixActions): void {
+	const more = head.createEl("button", { cls: "clickable-icon editorialist-matrix__menu", attr: { type: "button", "aria-label": "Rounds", "aria-haspopup": "menu" } });
+	setIcon(more, "more-horizontal");
+	bindMenuAction(more, () => {
+		const menu = new Menu();
+		if (total) {
+			menu.addItem((item) => item.setTitle("Start a new round").setIcon("rotate-ccw").setDisabled(!settled).onClick(() => actions.newRound(false)));
+			menu.addItem((item) => item.setTitle("Archive this round and start a new one").setIcon("archive").onClick(() => actions.newRound(true)));
+		}
+		if (round.rounds.length) {
+			if (total) menu.addSeparator();
+			menu.addItem((item) => item.setTitle("Earlier rounds").setIcon("history").setDisabled(true));
+			for (const earlier of [...round.rounds].reverse()) menu.addItem((item) => item.setTitle(roundLine(earlier)).setDisabled(true));
+		}
+		const rect = more.getBoundingClientRect();
+		menu.showAtPosition({ x: rect.right, y: rect.bottom + 4 }, more.ownerDocument);
+	});
+}
+
+// Faint dots in the three kinds' colours, standing in for the edits to come.
+const TRAY_DOTS = 27;
+
+/**
+ * No edits in this round: a tray of dots waiting to be filled, which asks for
+ * the next pass instead of showing an empty grid. After a finished round it
+ * says how that round went, so the next one starts from a result.
+ */
+function renderTray(parent: HTMLElement, round: EditMatrixRound, actions: EditMatrixActions): void {
+	const card = parent.createDiv({ cls: "editorialist-panel__review-state editorialist-matrix editorialist-matrix--tray" });
+	const head = card.createDiv({ cls: "editorialist-panel__review-state-header" });
+	head.createSpan({ cls: "editorialist-panel__review-state-title", text: "All edits" });
+	if (round.rounds.length) renderRoundsMenu(head, round, 0, 0, actions);
+
+	const field = card.createDiv({ cls: "editorialist-matrix__tray-field", attr: { "aria-hidden": "true" } });
+	for (let index = 0; index < TRAY_DOTS; index++) {
+		// A fixed, uneven mix of the kinds, so the tray reads as a pass to come
+		// rather than as stripes.
+		const kind = EDIT_SOURCES[(index * 7 + Math.floor(index / 4)) % EDIT_SOURCES.length];
+		const ghost = field.createSpan({ cls: `editorialist-matrix__tray-dot is-${kind}` });
+		// Staggers the slow wave that passes through the tray.
+		ghost.style.setProperty("--editorialist-tray-index", String(index));
+	}
+
+	const last = round.rounds[round.rounds.length - 1];
+	const again = Boolean(last || round.startedAt);
+	card.createDiv({ cls: "editorialist-matrix__tray-title", text: again ? "Ready for the next round" : "Your first round starts here" });
+	card.createEl("p", {
+		cls: "editorialist-matrix__tray-text",
+		text: again
+			? "Bring in the next pass. Each edit lands here as a dot to work through."
+			: "Bring in an editor's Word file or a copy edit, or start an Editorialism agenda. Each edit lands here as a dot.",
+	});
+	if (last) card.createDiv({ cls: "editorialist-matrix__tray-last", text: `Last round · ${roundLine(last)}` });
+	else if (round.startedAt) card.createDiv({ cls: "editorialist-matrix__tray-last", text: `This round since ${day(round.startedAt)}` });
+
+	const buttons = card.createDiv({ cls: "editorialist-matrix__tray-actions" });
+	const bring = buttons.createEl("button", { cls: "mod-cta", text: "Bring in edits", attr: { type: "button" } });
+	bring.addEventListener("click", () => actions.bringIn());
+	const agendas = buttons.createEl("button", { text: "Start an agenda", attr: { type: "button" } });
+	agendas.addEventListener("click", () => actions.openAgendas());
 }

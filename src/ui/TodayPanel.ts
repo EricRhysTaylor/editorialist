@@ -6,6 +6,7 @@ import { localDate, resolvePlanSource, type PlanEntry, type RevisionPlan, type W
 import { activeGoals, todayAgenda, type AgendaItem, type AgendaPlan, type TodayAgenda } from "../core/planning/TodayAgenda";
 import { deadlineLabel, kindIcons, kindLabels, pendingWorkTitle, planDayLabel } from "../core/planning/WorkPresentation";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
+import { EditMatrixSlot } from "./EditMatrixSlot";
 import { renderPanelHeader } from "./primitives/PanelHeader";
 import { renderWordLimit } from "./primitives/WordLimitBar";
 import { renderCushionBar } from "./primitives/CushionBar";
@@ -38,8 +39,12 @@ export class TodayPanel extends ItemView {
 	// What the view last drew; see show.
 	private shownSignature: string | null = null;
 	private refreshDebounced: Debouncer<[], void> | null = null;
+	private readonly editMatrix: EditMatrixSlot;
 
-	constructor(leaf: WorkspaceLeaf, private readonly plugin: EditorialistPlugin) { super(leaf); }
+	constructor(leaf: WorkspaceLeaf, private readonly plugin: EditorialistPlugin) {
+		super(leaf);
+		this.editMatrix = new EditMatrixSlot(plugin);
+	}
 	getViewType(): string { return TODAY_VIEW_TYPE; }
 	getDisplayText(): string { return "Today"; }
 	getIcon(): string { return EDITORIALIST_ICON_ID; }
@@ -59,6 +64,9 @@ export class TodayPanel extends ItemView {
 	}
 
 	async onClose(): Promise<void> { this.refreshDebounced?.cancel(); }
+
+	/** The book's edits changed (a new round); redraw the grid now. */
+	reloadEdits(): void { this.editMatrix.reload(); }
 
 	/** Plans change elsewhere (planner, scheduler, review); follow after a pause. */
 	scheduleRefresh(): void { this.refreshDebounced?.(); }
@@ -99,7 +107,9 @@ export class TodayPanel extends ItemView {
 		} finally {
 			this.busy = false;
 			this.contentEl.setAttribute("aria-busy", "false");
-			this.show();
+			// A redraw gathers the edit grid afresh; without one, the grid still
+			// follows the edits a note change or a new round may have moved.
+			if (!this.show()) this.editMatrix.reload();
 		}
 	}
 
@@ -107,11 +117,12 @@ export class TodayPanel extends ItemView {
 	// pause. Redrawing unchanged content then replaced the button under the
 	// pointer, so a click landing at that moment was lost; it redraws only when
 	// what it shows has changed.
-	private show(): void {
+	private show(): boolean {
 		const signature = JSON.stringify({ busy: this.busy, day: this.day, bookLabel: this.bookLabel, agenda: this.agenda, goals: this.goals, goalWords: this.goalWords, wordCounts: this.wordCounts, notices: this.notices, plans: this.plans });
-		if (signature === this.shownSignature) return;
+		if (signature === this.shownSignature) return false;
 		this.shownSignature = signature;
 		this.render();
+		return true;
 	}
 
 	private render(): void {
@@ -176,6 +187,11 @@ export class TodayPanel extends ItemView {
 				later.createSpan({ text: `${more} more scheduled later` });
 			}
 		}
+		// The active book's edits, as the review panel shows them. The heading
+		// names the book, since Today also lists other books' sessions.
+		const edits = root.createDiv({ cls: "editorialist-today__edits is-empty" });
+		edits.createEl("h3", { cls: "editorialist-today__heading", text: this.bookLabel ? `Edits in ${this.bookLabel}` : "Edits" });
+		this.editMatrix.mount(edits.createDiv({ cls: "editorialist-matrix-slot" }), (filled) => edits.toggleClass("is-empty", !filled));
 		container.scrollTop = scrollTop;
 	}
 

@@ -20,6 +20,7 @@ function mount() {
 		getAuthorPlanningPlan: () => emptyRevisionPlan(),
 		recordAuthorWordGoals: vi.fn(async () => ({ counts: {} })),
 		openAuthorPlanner: vi.fn(async () => {}),
+		collectEditMatrix: vi.fn(async () => ({ scenes: [], startedAt: 0, rounds: [] })),
 	};
 	const app = { vault: { on: () => ({}) }, workspace: { on: () => ({}) }, saveLocalStorage: () => {} };
 	// SAFE: the view reaches the plugin and app only through the members stubbed above.
@@ -58,5 +59,22 @@ describe("Today refreshing after a leaf change", () => {
 
 		expect(button?.isConnected).toBe(false);
 		expect(panel.contentEl.textContent).toContain("The goal's folder is missing.");
+	});
+
+	it("shows the book's edit grid, and leaves its dots in place when the edits are unchanged", async () => {
+		const { panel, plugin } = mount();
+		const dot = { key: "1", id: "review-1-1", source: "copy", state: "open", status: "pending", summary: "“teh” → “the”", viaWord: true, ai: false, live: true };
+		plugin.collectEditMatrix.mockResolvedValue({ scenes: [{ notePath: "Book/1 Opening.md", title: "1 Opening", dots: [dot] }], startedAt: 0, rounds: [] } as never);
+		await panel.onOpen();
+		await vi.waitFor(() => expect(panel.contentEl.querySelector(".editorialist-matrix__grid .editorialist-matrix__dot")).not.toBeNull());
+		const shown = panel.contentEl.querySelector(".editorialist-matrix__grid .editorialist-matrix__dot");
+		expect(panel.contentEl.querySelector(".editorialist-today__edits h3")?.textContent).toBe("Edits");
+		expect(panel.contentEl.querySelector(".editorialist-today__edits")?.classList.contains("is-empty")).toBe(false);
+
+		await panel.refresh();
+		await vi.waitFor(() => expect(plugin.collectEditMatrix).toHaveBeenCalledTimes(2));
+		await Promise.resolve();
+
+		expect(panel.contentEl.querySelector(".editorialist-matrix__grid .editorialist-matrix__dot")).toBe(shown);
 	});
 });
