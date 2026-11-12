@@ -189,11 +189,17 @@ export function renderEditMatrix(parent: HTMLElement, round: EditMatrixRound, ac
 		return;
 	}
 	const card = parent.createDiv({ cls: "editorialist-panel__review-state editorialist-matrix" });
+	// Pending edits are drawn but not counted: they are never handled within
+	// a round, only gone, so the round's count is of its own edits.
+	const pending = dots.filter((dot) => dot.source === "pending").length;
+	const counted = dots.length - pending;
 	const settled = dots.filter((dot) => dot.state !== "open").length;
+	const tally = !counted ? `${pending} to do`
+		: `${settled ? `${settled} of ${counted} handled` : `${counted} to do`}${pending ? ` · ${pending} pending` : ""}`;
 	const head = card.createDiv({ cls: "editorialist-panel__review-state-header" });
 	head.createSpan({ cls: "editorialist-panel__review-state-title", text: subset?.title ?? "All edits" });
-	head.createSpan({ cls: "editorialist-panel__review-state-summary", text: settled ? `${settled} of ${dots.length} handled` : `${dots.length} to do` });
-	if (!subset) renderRoundsMenu(head, round, dots.length, settled, actions);
+	head.createSpan({ cls: "editorialist-panel__review-state-summary", text: tally });
+	if (!subset) renderRoundsMenu(head, round, counted, settled, actions);
 	if (round.startedAt) card.createDiv({ cls: "editorialist-matrix__since", text: `This round since ${day(round.startedAt)}` });
 
 	const grid = card.createDiv({ cls: "editorialist-matrix__grid", attr: { role: "list", "aria-label": `${dots.length} edits in ${scenes.length} ${scenes.length === 1 ? "scene" : "scenes"}` } });

@@ -7,6 +7,7 @@ import { activeGoals, todayAgenda, type AgendaItem, type AgendaPlan, type TodayA
 import { deadlineLabel, kindIcons, kindLabels, pendingWorkTitle, planDayLabel } from "../core/planning/WorkPresentation";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
 import { EditMatrixSlot } from "./EditMatrixSlot";
+import { withPendingEdits } from "./PendingEditDots";
 import { renderPanelHeader } from "./primitives/PanelHeader";
 import { renderWordLimit } from "./primitives/WordLimitBar";
 import { renderCushionBar } from "./primitives/CushionBar";
@@ -43,7 +44,7 @@ export class TodayPanel extends ItemView {
 
 	constructor(leaf: WorkspaceLeaf, private readonly plugin: EditorialistPlugin) {
 		super(leaf);
-		this.editMatrix = new EditMatrixSlot(plugin);
+		this.editMatrix = new EditMatrixSlot(plugin, () => this.collectEdits());
 	}
 	getViewType(): string { return TODAY_VIEW_TYPE; }
 	getDisplayText(): string { return "Today"; }
@@ -67,6 +68,14 @@ export class TodayPanel extends ItemView {
 
 	/** The book's edits changed (a new round); redraw the grid now. */
 	reloadEdits(): void { this.editMatrix.reload(); }
+
+	// The round's edits with the pending edits in the book's scenes. Pending
+	// edits live in the scenes' properties and come and go with them, so they
+	// are read fresh each time and never join the round's record.
+	private async collectEdits() {
+		const [round] = await Promise.all([this.plugin.collectEditMatrix(), this.plugin.pendingEdits.refreshPendingEditsSummary()]);
+		return withPendingEdits(round, this.plugin.pendingEdits.getPendingEditsSummary());
+	}
 
 	/** Plans change elsewhere (planner, scheduler, review); follow after a pause. */
 	scheduleRefresh(): void { this.refreshDebounced?.(); }

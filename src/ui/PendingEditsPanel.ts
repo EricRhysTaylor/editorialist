@@ -4,36 +4,13 @@ import { ItemView, TFile, debounce, setIcon, type Debouncer, type WorkspaceLeaf 
 import type EditorialistPlugin from "../main";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
 import type { PendingEditsSummary } from "../orchestrators/PendingEditsCoordinator";
-import type { EditMatrixScene } from "../core/review/EditMatrix";
 import { EditMatrixSlot } from "./EditMatrixSlot";
-import type { EditMatrixRound, EditMatrixSubset } from "./primitives/EditMatrix";
+import { pendingEditScenes } from "./PendingEditDots";
+import type { EditMatrixSubset } from "./primitives/EditMatrix";
 
 export const PENDING_EDITS_PANEL_VIEW_TYPE = "editorialist-pending-edits-panel";
 
 const PENDING_EDITS: EditMatrixSubset = { title: "Pending edits", keep: () => true };
-
-/**
- * The queue as grid dots, one per pending edit, all to do: an author's
- * revision note, or an Inquiry follow-up, which a model wrote.
- */
-export function pendingEditGrid(summary: PendingEditsSummary | null): EditMatrixRound {
-	const scenes: EditMatrixScene[] = (summary?.scenes ?? []).map((scene) => ({
-		notePath: scene.scenePath,
-		title: scene.title,
-		dots: scene.segments.map((segment) => ({
-			key: `pending|${scene.scenePath}|${segment.id}`,
-			id: segment.id,
-			source: "pending",
-			state: "open",
-			status: "pending",
-			summary: segment.excerpt,
-			viaWord: false,
-			ai: segment.inquiry,
-			live: true,
-		})),
-	}));
-	return { scenes, startedAt: 0, rounds: [] };
-}
 
 // Standalone hub for the cross-book pending-edits queue: an aggregate summary,
 // a browsable per-scene list, and launchers into the review sweep. A peer mode
@@ -47,7 +24,7 @@ export class PendingEditsPanel extends ItemView {
 
 	constructor(leaf: WorkspaceLeaf, private readonly plugin: EditorialistPlugin) {
 		super(leaf);
-		this.editMatrix = new EditMatrixSlot(plugin, () => Promise.resolve(pendingEditGrid(this.summary)));
+		this.editMatrix = new EditMatrixSlot(plugin, () => Promise.resolve({ scenes: pendingEditScenes(this.summary), startedAt: 0, rounds: [] }));
 	}
 
 	getViewType(): string {

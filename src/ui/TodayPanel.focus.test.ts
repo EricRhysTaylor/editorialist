@@ -21,6 +21,16 @@ function mount() {
 		recordAuthorWordGoals: vi.fn(async () => ({ counts: {} })),
 		openAuthorPlanner: vi.fn(async () => {}),
 		collectEditMatrix: vi.fn(async () => ({ scenes: [], startedAt: 0, rounds: [] })),
+		// A revision note in the edited scene, and an Inquiry follow-up in another.
+		pendingEdits: {
+			refreshPendingEditsSummary: vi.fn(async () => {}),
+			getPendingEditsSummary: () => ({
+				scenes: [
+					{ scenePath: "Book/1 Opening.md", title: "1 Opening", segments: [{ id: "h", inquiry: false, excerpt: "Open on the rain." }] },
+					{ scenePath: "Book/4 Harbor.md", title: "4 Harbor", segments: [{ id: "i", inquiry: true, excerpt: "Why does she stay?" }] },
+				],
+			}),
+		},
 	};
 	const app = { vault: { on: () => ({}) }, workspace: { on: () => ({}) }, saveLocalStorage: () => {} };
 	// SAFE: the view reaches the plugin and app only through the members stubbed above.
@@ -70,6 +80,14 @@ describe("Today refreshing after a leaf change", () => {
 		const shown = panel.contentEl.querySelector(".editorialist-matrix__grid .editorialist-matrix__dot");
 		expect(panel.contentEl.querySelector(".editorialist-today__edits h3")?.textContent).toBe("Edits");
 		expect(panel.contentEl.querySelector(".editorialist-today__edits")?.classList.contains("is-empty")).toBe(false);
+		// Pending edits join their scenes, after the scene's edits, and are
+		// counted apart from the round.
+		expect([...panel.contentEl.querySelectorAll(".editorialist-matrix__scene")].map((scene) =>
+			[scene.getAttribute("aria-label"), [...scene.querySelectorAll(".editorialist-matrix__dot")].map((item) => item.classList[1])])).toEqual([
+			["1 Opening", ["is-copy", "is-pending"]],
+			["4 Harbor", ["is-pending"]],
+		]);
+		expect(panel.contentEl.querySelector(".editorialist-panel__review-state-summary")?.textContent).toBe("1 to do · 2 pending");
 
 		await panel.refresh();
 		await vi.waitFor(() => expect(plugin.collectEditMatrix).toHaveBeenCalledTimes(2));
