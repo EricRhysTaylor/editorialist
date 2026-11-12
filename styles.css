@@ -1132,6 +1132,10 @@
 .editorialist-matrix .editorialist-matrix__grid .editorialist-matrix__scene button.editorialist-matrix__dot.is-ai,
 .editorialist-matrix .editorialist-matrix__states .editorialist-matrix__dot.is-sample.is-ai {
 	background-image: radial-gradient(circle, var(--editorialist-matrix-color) 0 1.5px, transparent 2px);
+
+	/* One mark, centred: repeated, it shows at the edges of a borderless dot. */
+	background-repeat: no-repeat;
+	background-position: center;
 }
 
 .editorialist-matrix .editorialist-matrix__grid .editorialist-matrix__scene button.editorialist-matrix__dot.is-done.is-ai {
