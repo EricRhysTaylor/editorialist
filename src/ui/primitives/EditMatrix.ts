@@ -119,7 +119,7 @@ function renderRoundsMenu(head: HTMLElement, round: EditMatrixRound, total: numb
 	});
 }
 
-// Faint dots in the three kinds' colours, standing in for the edits to come.
+// Unlit grey dots, standing in for the edits to come.
 const TRAY_DOTS = 27;
 
 /**
@@ -134,14 +134,7 @@ function renderTray(parent: HTMLElement, round: EditMatrixRound, actions: EditMa
 	if (round.rounds.length) renderRoundsMenu(head, round, 0, 0, actions);
 
 	const field = card.createDiv({ cls: "editorialist-matrix__tray-field", attr: { "aria-hidden": "true" } });
-	for (let index = 0; index < TRAY_DOTS; index++) {
-		// A fixed, uneven mix of the kinds, so the tray reads as a pass to come
-		// rather than as stripes.
-		const kind = EDIT_SOURCES[(index * 7 + Math.floor(index / 4)) % EDIT_SOURCES.length];
-		const ghost = field.createSpan({ cls: `editorialist-matrix__tray-dot is-${kind}` });
-		// Staggers the slow wave that passes through the tray.
-		ghost.style.setProperty("--editorialist-tray-index", String(index));
-	}
+	for (let index = 0; index < TRAY_DOTS; index++) field.createSpan({ cls: "editorialist-matrix__tray-dot" });
 
 	const last = round.rounds[round.rounds.length - 1];
 	const again = Boolean(last || round.startedAt);

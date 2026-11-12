@@ -1212,9 +1212,8 @@
 	font-size: var(--font-ui-smaller);
 }
 
-/* No edits this round: a recessed tray of faint dots in the three kinds'
-   colours, with a slow wave passing through, above a call to bring in the
-   next pass. */
+/* No edits this round: a recessed tray of unlit grey dots above a call to
+   bring in the next pass. */
 .editorialist-matrix--tray .editorialist-matrix__menu {
 	margin-inline-start: auto;
 }
@@ -1231,40 +1230,10 @@
 }
 
 .editorialist-matrix__tray-dot {
-	--editorialist-matrix-color: var(--text-faint);
-
 	width: 10px;
 	height: 10px;
-	border: 2px solid color-mix(in srgb, var(--editorialist-matrix-color) 45%, transparent);
+	border: 2px solid color-mix(in srgb, var(--text-faint) 55%, transparent);
 	border-radius: 50%;
-	animation: editorialist-tray-wave 4.2s ease-in-out infinite;
-	animation-delay: calc(var(--editorialist-tray-index, 0) * 110ms);
-}
-
-.editorialist-matrix__tray-dot.is-copy {
-	--editorialist-matrix-color: var(--editorialist-matrix-copy);
-}
-
-.editorialist-matrix__tray-dot.is-editor {
-	--editorialist-matrix-color: var(--editorialist-matrix-editor);
-}
-
-.editorialist-matrix__tray-dot.is-editorialism {
-	--editorialist-matrix-color: var(--editorialist-matrix-editorialism);
-}
-
-@keyframes editorialist-tray-wave {
-	0%,
-	70%,
-	100% {
-		background: transparent;
-		transform: scale(1);
-	}
-
-	35% {
-		background: color-mix(in srgb, var(--editorialist-matrix-color) 70%, transparent);
-		transform: scale(1.15);
-	}
 }
 
 .editorialist-matrix__tray-title {
@@ -1303,10 +1272,6 @@
 @media (prefers-reduced-motion: reduce) {
 	.editorialist-matrix .editorialist-matrix__grid .editorialist-matrix__scene button.editorialist-matrix__dot {
 		transition: none;
-	}
-
-	.editorialist-matrix__tray-dot {
-		animation: none;
 	}
 }
 
