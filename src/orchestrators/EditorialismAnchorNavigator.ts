@@ -148,6 +148,11 @@ export class EditorialismAnchorNavigator {
 
 	// The scene note for a scene number in the active book, or null.
 	resolveSceneFileByNumber(sceneNumber: number): TFile | null {
+		const matches = this.sceneFilesByNumber(sceneNumber);
+		return matches.length === 1 ? matches[0]! : null;
+	}
+
+	private sceneFilesByNumber(sceneNumber: number): TFile[] {
 		const scope = this.host.getActiveBookScopeInfo();
 		const cutFolderOverride = this.host.getCutFolderOverride();
 		// A cut archive carries the SAME basename as its scene and lives inside
@@ -155,7 +160,7 @@ export class EditorialismAnchorNavigator {
 		// readily as the scene — and its contents are the removed prose, so every
 		// anchor then reports "passage not found". Scene class is the positive
 		// signal; the cut checks are the guard for vaults where it is absent.
-		let unclassified: TFile | null = null;
+		const classified: TFile[] = [], unclassified: TFile[] = [];
 		for (const file of this.host.app.vault.getMarkdownFiles()) {
 			if (sceneNumberFromName(file.basename) !== sceneNumber) {
 				continue;
@@ -168,17 +173,13 @@ export class EditorialismAnchorNavigator {
 				continue;
 			}
 			if (isSceneClassFile(this.host.app, file)) {
-				return file;
-			}
-			if (unclassified === null) {
-				unclassified = file;
-			}
+				classified.push(file);
+			} else unclassified.push(file);
 		}
 
-		// A structured scope guarantees Class: Scene, so no scene-class match
-		// means the scene genuinely is not there — say so rather than navigating
-		// to whatever else happened to share the number.
-		return scope.structured ? null : unclassified;
+		// Prefer explicitly classified scenes; a plain folder can also have
+		// unclassified chapters. The caller refuses either kind of ambiguity.
+		return classified.length > 0 ? classified : scope.structured ? [] : unclassified;
 	}
 
 	async openEditorialismAnchor(
@@ -190,7 +191,11 @@ export class EditorialismAnchorNavigator {
 		const file = this.resolveAnchorSceneFile(anchor, item);
 		if (!file) {
 			const label = anchor.scene ? `Scene ${anchor.scene}` : "This anchor's scene";
-			const reason = `${label} was not found in the active book.`;
+			const token = anchor.scene ?? (item.scope?.kind === "scene" ? item.scope.scene : null);
+			const number = token ? Number.parseInt(token, 10) : Number.NaN;
+			const reason = Number.isFinite(number) && this.sceneFilesByNumber(number).length > 1
+				? `${label} matches more than one note in the active book. Give those scenes distinct numbers before opening this anchor.`
+				: `${label} was not found in the active book.`;
 			this.unlocatedAnchorReasons.set(anchorKey, reason);
 			new Notice(reason);
 			return false;
