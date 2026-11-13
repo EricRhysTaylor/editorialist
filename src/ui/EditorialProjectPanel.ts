@@ -630,7 +630,7 @@ export class EditorialProjectPanel {
 				if (!description.value.trim()) throw new Error("Describe the activity for your history.");
 				const files = await file.save(snapshot.id);
 				const next = structuredClone(expected), draft = next.project!;
-				const item: EngagementRecord = { id, day: day.value, kind: kind.value as EngagementRecord["kind"], description: description.value.trim(), ...files, ...(filenames ? { filenames: filenames.value.trim() } : {}), ...(linked.value ? { materialId: linked.value } : {}) };
+				const item: EngagementRecord = { id, day: day.value, kind: kind.value as EngagementRecord["kind"], description: description.value.trim(), ...files, ...(filenames && !file.changed() ? { filenames: filenames.value.trim() } : {}), ...(linked.value ? { materialId: linked.value } : {}) };
 				const index = draft.records.findIndex((value) => value.id === id);
 				if (index >= 0) draft.records[index] = item; else draft.records.push(item);
 				const about = draft.materials.find((value) => value.id === item.materialId)?.title;
