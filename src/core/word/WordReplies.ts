@@ -9,7 +9,7 @@
 
 import { convertWordTrackedChanges, readWordComments, type WordPlacement } from "./WordTrackedChanges";
 import { attribute, childElements, localName, parseXml, serializeXml, xmlElement, type XmlElement, type XmlNode } from "./Xml";
-import { readZipEntries, writeZipEntries } from "./Zip";
+import { readZipEntries, writeZipEntries, ZipLimitError } from "./Zip";
 
 export interface WordReplyAuthor {
 	name: string;
@@ -44,7 +44,13 @@ export async function writeWordReplies(
 	bytes: Uint8Array,
 	options: { editor: string; author: WordReplyAuthor; date: Date; replyFor: (placement: WordPlacement) => string | null },
 ): Promise<WordRepliesResult> {
-	const parts = await readZipEntries(bytes);
+	let parts: Map<string, Uint8Array>;
+	try {
+		parts = await readZipEntries(bytes);
+	} catch (error) {
+		if (error instanceof ZipLimitError) throw new Error("This Word file looks damaged or unusually large, so your replies can't be written into it.");
+		throw error;
+	}
 	const decoder = new TextDecoder();
 	const read = (name: string): XmlElement | null => {
 		const data = parts.get(name);
