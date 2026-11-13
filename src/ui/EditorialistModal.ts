@@ -67,7 +67,7 @@ export interface EditorialistModalOptions {
 	// The clipboard as text, whatever it holds: an editorialism on its own is
 	// not a review batch, so onLoadClipboardBatch does not return it.
 	onReadClipboardText: () => Promise<string | null>;
-	onImportBatch: (batch: ReviewImportBatch, startReview: boolean) => Promise<void>;
+	onImportBatch: (batch: ReviewImportBatch, startReview: boolean, afterImport?: () => Promise<void>) => Promise<boolean>;
 	// Keep the editor's Word file a batch was imported from, for the reply.
 	onKeepWordFile: (batchId: string, fileName: string, editor: string, bytes: Uint8Array) => Promise<void>;
 	onImportRawToActiveNote: (rawText: string, startReview: boolean) => Promise<void>;
@@ -148,6 +148,7 @@ export class EditorialistModal extends Modal {
 	private showExample = false;
 	private showManualPaste = false;
 	private wordImport: WordImport | null = null;
+	private pendingWordRetention: { batchId: string; word: WordImport } | null = null;
 
 	constructor(app: App, private readonly options: EditorialistModalOptions) {
 		super(app);
@@ -221,10 +222,25 @@ export class EditorialistModal extends Modal {
 	// editorialism that is not in the library yet. Then stay open on it.
 	// A batch converted from a Word file keeps that file, so the author's
 	// replies can later be written into a copy of it.
-	private async importManualBatch(batch: ReviewImportBatch): Promise<void> {
+	private async importManualBatch(batch: ReviewImportBatch): Promise<boolean> {
+		if (this.pendingWordRetention && this.activeWordImport() === this.pendingWordRetention.word) {
+			return this.keepImportedWord(this.pendingWordRetention.batchId, this.pendingWordRetention.word);
+		}
 		const word = this.activeWordImport();
-		await this.options.onImportBatch(batch, true);
-		if (word) await this.options.onKeepWordFile(batch.batchId, word.fileName, word.author, word.bytes);
+		const imported = await this.options.onImportBatch(batch, true, word ? async () => { await this.keepImportedWord(batch.batchId, word); } : undefined);
+		return imported && this.pendingWordRetention?.batchId !== batch.batchId;
+	}
+
+	private async keepImportedWord(batchId: string, word: WordImport): Promise<boolean> {
+		try {
+			await this.options.onKeepWordFile(batchId, word.fileName, word.author, word.bytes);
+			this.pendingWordRetention = null;
+			return true;
+		} catch (error) {
+			this.pendingWordRetention = { batchId, word };
+			new Notice(`The review was imported, but its Word file could not be kept. Keep the original file and select Import again to retry. ${error instanceof Error ? error.message : ""}`, 0);
+			return false;
+		}
 	}
 
 	private async finishBatchImport(): Promise<void> {
@@ -704,8 +720,7 @@ export class EditorialistModal extends Modal {
 						return;
 					}
 
-					await this.importManualBatch(batch);
-					await this.finishBatchImport();
+					if (await this.importManualBatch(batch)) await this.finishBatchImport();
 				},
 			}),
 			this.makeActionButtonSpec({
@@ -881,8 +896,7 @@ export class EditorialistModal extends Modal {
 							this.setManualImportError(diagnostic);
 							return;
 						}
-						await this.importManualBatch(corrected);
-						await this.finishBatchImport();
+						if (await this.importManualBatch(corrected)) await this.finishBatchImport();
 					},
 				}),
 				this.makeActionButtonSpec({
@@ -995,8 +1009,7 @@ export class EditorialistModal extends Modal {
 					disabled: !action.importable,
 					icon: "download",
 					onClick: async () => {
-						await this.options.onImportBatch(batch, true);
-						await this.finishBatchImport();
+						if (await this.importManualBatch(batch)) await this.finishBatchImport();
 					},
 				}),
 			);
@@ -1566,8 +1579,7 @@ export class EditorialistModal extends Modal {
 					this.openManualPasteWithBatch(rawText, batch);
 					return;
 				case "import":
-					await this.options.onImportBatch(batch, true);
-					await this.finishBatchImport();
+					if (await this.options.onImportBatch(batch, true)) await this.finishBatchImport();
 					return;
 			}
 		}

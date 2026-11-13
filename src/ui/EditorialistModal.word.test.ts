@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { EditorialistModal } from "./EditorialistModal";
+import type { ReviewImportBatch } from "../models/ReviewImport";
 
 vi.mock("obsidian", () => import("../../tests/mocks/obsidianDom"));
 
@@ -24,6 +25,48 @@ function preview(options: { skipped?: Partial<typeof NONE>; hasSceneIds?: boolea
 beforeEach(() => document.body.replaceChildren());
 
 describe("Word import preview", () => {
+	it.each([false, true])("keeps the Word file only if the batch was imported (%s)", async (imported) => {
+		const onImportBatch = vi.fn(async (_batch: ReviewImportBatch, _start: boolean, afterImport?: () => Promise<void>) => { if (imported) await afterImport?.(); return imported; });
+		const onKeepWordFile = vi.fn().mockResolvedValue(undefined);
+		const modal = new EditorialistModal({} as never, { onImportBatch, onKeepWordFile } as never);
+		const bytes = new Uint8Array([1, 2]);
+		Object.assign(modal, { manualText: "word conversion", wordImport: { fileName: "Review.docx", author: "Morgan", bytes, conversion: { text: "word conversion" } } });
+		const batch = { batchId: "batch-1" } as ReviewImportBatch;
+		const result = await (Reflect.get(modal, "importManualBatch") as (batch: ReviewImportBatch) => Promise<boolean>).call(modal, batch);
+		expect(result).toBe(imported);
+		if (imported) expect(onKeepWordFile).toHaveBeenCalledWith("batch-1", "Review.docx", "Morgan", bytes);
+		else expect(onKeepWordFile).not.toHaveBeenCalled();
+	});
+
+	it("keeps the Word file when placed entries are imported from the destinations preview", async () => {
+		const onImportBatch = vi.fn(async (_batch: ReviewImportBatch, _start: boolean, afterImport?: () => Promise<void>) => { await afterImport?.(); return true; });
+		const onKeepWordFile = vi.fn().mockResolvedValue(undefined);
+		const modal = new EditorialistModal({} as never, { onImportBatch, onKeepWordFile } as never);
+		const bytes = new Uint8Array([1, 2]);
+		Object.assign(modal, { manualText: "word conversion", wordImport: { fileName: "Review.docx", author: "Morgan", bytes, conversion: { text: "word conversion" } } });
+		vi.spyOn(modal as unknown as { render(): void }, "render").mockImplementation(() => {});
+		vi.spyOn(modal as unknown as { finishBatchImport(): Promise<void> }, "finishBatchImport").mockResolvedValue(undefined);
+		const batch = { batchId: "batch-1", results: [], unroutedMemos: [{}], groups: [{ isReady: true }] } as unknown as ReviewImportBatch;
+		const root = document.createElement("div");
+		(Reflect.get(modal, "renderAssignmentsActions") as (parent: HTMLElement, batch: ReviewImportBatch) => void).call(modal, root, batch);
+		root.querySelector<HTMLButtonElement>("button")!.click();
+		await vi.waitFor(() => expect(onKeepWordFile).toHaveBeenCalledWith("batch-1", "Review.docx", "Morgan", bytes));
+	});
+
+	it("retries a failed Word-file save without importing the review a second time", async () => {
+		const onImportBatch = vi.fn(async (_batch: ReviewImportBatch, _start: boolean, afterImport?: () => Promise<void>) => { await afterImport?.(); return true; });
+		const onKeepWordFile = vi.fn().mockRejectedValueOnce(new Error("disk full")).mockResolvedValueOnce(undefined);
+		const modal = new EditorialistModal({} as never, { onImportBatch, onKeepWordFile } as never);
+		Object.assign(modal, { manualText: "word conversion", wordImport: { fileName: "Review.docx", author: "Morgan", bytes: new Uint8Array([1]), conversion: { text: "word conversion" } } });
+		const batch = { batchId: "batch-1" } as ReviewImportBatch;
+		const importBatch = (Reflect.get(modal, "importManualBatch") as (batch: ReviewImportBatch) => Promise<boolean>).bind(modal);
+		expect(await importBatch(batch)).toBe(false);
+		// Re-inspecting the same Word text may produce a different batch ID.
+		expect(await importBatch({ batchId: "batch-2" } as ReviewImportBatch)).toBe(true);
+		expect(onImportBatch).toHaveBeenCalledOnce();
+		expect(onKeepWordFile).toHaveBeenCalledTimes(2);
+		expect(onKeepWordFile).toHaveBeenLastCalledWith("batch-1", "Review.docx", "Morgan", expect.any(Uint8Array));
+	});
 	it("names the editor, shows the file, and counts only what came in", () => {
 		const el = preview();
 		expect(el.querySelector(".editorialist-control-modal__description")?.textContent).toBe("Check what comes in from the Word file, then start the review.");

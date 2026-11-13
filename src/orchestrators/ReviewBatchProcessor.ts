@@ -160,18 +160,19 @@ export class ReviewBatchProcessor {
 		}
 	}
 
-	async importReviewBatch(batch: ReviewImportBatch, startReview: boolean): Promise<void> {
+	async importReviewBatch(batch: ReviewImportBatch, startReview: boolean, afterImport?: () => Promise<void>): Promise<boolean> {
 		if (!(await this.confirmDuplicateImport(batch))) {
-			return;
+			return false;
 		}
 
 		const importedGroups = await this.host.getImportEngine().importBatch(batch);
 		if (importedGroups.length === 0) {
 			new Notice("No review blocks were imported.");
-			return;
+			return false;
 		}
 
 		await this.host.recordImportedBatch(batch, importedGroups, "in_progress");
+		await afterImport?.();
 
 		if (!startReview) {
 			new Notice(
@@ -180,7 +181,7 @@ export class ReviewBatchProcessor {
 		}
 
 		if (!startReview) {
-			return;
+			return true;
 		}
 
 		await this.host.startGuidedSweep(
@@ -188,6 +189,7 @@ export class ReviewBatchProcessor {
 			batch.createdAt,
 			importedGroups.map((group) => group.filePath),
 		);
+		return true;
 	}
 
 	async importReviewBatchToActiveNote(rawText: string, startReview: boolean): Promise<void> {

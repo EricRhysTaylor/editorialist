@@ -100,7 +100,7 @@ describe("ReviewBatchProcessor.importReviewBatch", () => {
 			}),
 			openChoiceModal: async (options) => options.choices.find(option => option.value === choice)?.value ?? null,
 		});
-		await new ReviewBatchProcessor(host).importReviewBatch(batch, true);
+		expect(await new ReviewBatchProcessor(host).importReviewBatch(batch, true)).toBe(false);
 		expect(importEngine.importBatch).not.toHaveBeenCalled();
 		expect(calls).not.toContain("recordImportedBatch");
 		if (choice === "open") expect(calls).toContain("openExistingSweep");
@@ -109,7 +109,7 @@ describe("ReviewBatchProcessor.importReviewBatch", () => {
 	it("notifies and stops when nothing was imported", async () => {
 		const { host, calls, importEngine } = makeHost();
 		importEngine.importBatch.mockResolvedValue([]);
-		await new ReviewBatchProcessor(host).importReviewBatch(batch, true);
+		expect(await new ReviewBatchProcessor(host).importReviewBatch(batch, true)).toBe(false);
 		expect(calls).not.toContain("recordImportedBatch");
 		expect(calls).not.toContain("startGuidedSweep");
 	});
@@ -120,8 +120,15 @@ describe("ReviewBatchProcessor.importReviewBatch", () => {
 			{ filePath: "a.md", suggestions: [{}, {}], memos: [] },
 		] as unknown as ReviewImportNoteGroup[];
 		importEngine.importBatch.mockResolvedValue(groups);
-		await new ReviewBatchProcessor(host).importReviewBatch(batch, true);
+		expect(await new ReviewBatchProcessor(host).importReviewBatch(batch, true)).toBe(true);
 		expect(calls).toEqual(["recordImportedBatch", "startGuidedSweep"]);
+	});
+
+	it("keeps the source after the batch is recorded and before starting the review", async () => {
+		const { host, calls, importEngine } = makeHost();
+		importEngine.importBatch.mockResolvedValue([{ filePath: "a.md", suggestions: [{}], memos: [] }]);
+		expect(await new ReviewBatchProcessor(host).importReviewBatch(batch, true, async () => { calls.push("keepWord"); })).toBe(true);
+		expect(calls).toEqual(["recordImportedBatch", "keepWord", "startGuidedSweep"]);
 	});
 
 	it("records the batch but does NOT start a sweep when startReview is false", async () => {
