@@ -1,7 +1,7 @@
 import { TFolder } from "obsidian";
 import { describe, expect, it, vi } from "vitest";
 import { AUTHOR_PLAN_SCOPE } from "../core/planning/AuthorPlan";
-import { emptyRevisionPlan, type PlanEntry, type RevisionPlan } from "../core/planning/RevisionPlan";
+import { emptyRevisionPlan, sourceKey, type PlanEntry, type RevisionPlan } from "../core/planning/RevisionPlan";
 import { scheduledBookFolders } from "../core/planning/TodayAgenda";
 import EditorialistPlugin from "../main";
 import { TodayPanel } from "./TodayPanel";
@@ -20,6 +20,26 @@ const entry = (id: string, extra: Partial<PlanEntry> = {}): PlanEntry => ({
 	lowMinutes: 30, highMinutes: 60, day: "2026-10-16", required: true, done: false, afterId: null, ...extra,
 });
 const withEntries = (...entries: PlanEntry[]): RevisionPlan => ({ ...emptyRevisionPlan(), entries });
+
+describe("response progress", () => {
+	it("does not mark a missing response done without evidence that it was saved", async () => {
+		const response = { kind: "response" as const, path: "Editorialist/Responses", locator: "batch-1" };
+		const plan: RevisionPlan = { ...emptyRevisionPlan(), progress: { since: "2026-11-01", open: [{ key: sourceKey(response), kind: "response" }], done: [] } };
+		const host = { getRevisionPlan: () => plan, getSweepRegistryEntries: () => [{ batchId: "batch-1", status: "cleaned" }], saveRevisionPlan: vi.fn(async () => {}) };
+		await EditorialistPlugin.prototype.recordRevisionProgress.call(host as never, key("Book 1"), { candidates: [], warnings: [], held: [] });
+		expect(plan.progress?.open).toEqual([{ key: sourceKey(response), kind: "response" }]);
+		expect(plan.progress?.done).toEqual([]);
+	});
+
+	it("records a saved response even if its pass was cleaned before the next refresh", async () => {
+		const response = { kind: "response" as const, path: "Editorialist/Responses", locator: "batch-1" };
+		const plan: RevisionPlan = { ...emptyRevisionPlan(), progress: { since: "2026-11-01", open: [{ key: sourceKey(response), kind: "response" }], done: [] } };
+		const host = { getRevisionPlan: () => plan, getSweepRegistryEntries: () => [{ batchId: "batch-1", status: "cleaned", responseSavedAt: 1 }], saveRevisionPlan: vi.fn(async () => {}) };
+		await EditorialistPlugin.prototype.recordRevisionProgress.call(host as never, key("Book 1"), { candidates: [], warnings: [], held: [] });
+		expect(plan.progress?.open).toEqual([]);
+		expect(plan.progress?.done).toEqual([expect.objectContaining({ key: sourceKey(response), kind: "response" })]);
+	});
+});
 
 describe("scheduledBookFolders", () => {
 	it("keeps books with an unfinished session on the calendar", () => {
