@@ -1224,9 +1224,10 @@ export default class EditorialistPlugin extends Plugin {
 		const present = new Set(inputs.map((item) => item.key));
 		const previouslyOpen = new Set(plan.progress?.open.map((item) => item.key));
 		for (const batch of this.getSweepRegistryEntries()) {
-			if (!batch.responseSavedAt) continue;
 			const key = sourceKey({ kind: "response", path: RESPONSES_FOLDER, locator: batch.batchId });
-			if (previouslyOpen.has(key) && !present.has(key)) inputs.push({ key, kind: "response", state: "complete" });
+			if (!previouslyOpen.has(key) || present.has(key)) continue;
+			if (batch.responseSavedAt) inputs.push({ key, kind: "response", state: "complete" });
+			else if (batch.status === "cleaned" || batch.status === "ended_early") inputs.push({ key, kind: "response", state: "inactive" });
 		}
 		const progress = advancePlanProgress(plan.progress, inputs, localDate(new Date()), (item) => item.kind === "response" || work.held.some((source) => {
 			if (source.kind !== item.kind) return false;
