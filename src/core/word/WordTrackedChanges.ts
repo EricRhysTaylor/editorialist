@@ -168,6 +168,7 @@ interface Entry {
 }
 
 interface Window {
+	end: number;
 	original: string;
 	revised: string;
 	comments: Set<string>;
@@ -185,7 +186,7 @@ export function convertWordTrackedChanges(document: WordDocument, options: { aut
 	let hasSceneIds = false;
 	// The paragraph above, for anchoring a paragraph the editor added after it,
 	// and the entry already covering its last sentence, if any.
-	let previous: { original: string; sceneId?: string; tail?: Entry } | null = null;
+	let previous: { original: string; sceneId?: string; tail?: Entry; segments?: Segment[]; windows?: Window[]; entryStart?: number } | null = null;
 	let addedParagraphs: Entry | null = null;
 
 	for (const [index, paragraph] of paragraphs.entries()) {
@@ -232,7 +233,22 @@ export function convertWordTrackedChanges(document: WordDocument, options: { aut
 				addedParagraphs = target;
 			} else if (previous && previous.sceneId === sceneId) {
 				const anchor = lastSentences(previous.original);
-				const entry: Entry = { operation: "edit", sceneId, original: anchor, revised: `${anchor}\n\n${addedText}`, comments: paragraphComments, changes: paragraphChanges };
+				const anchorStart = previous.original.trimEnd().length - anchor.length;
+				const overlaps = previous.windows?.some((window) => window.end > anchorStart) ?? false;
+				let entry: Entry;
+				if (overlaps && previous.segments && previous.entryStart !== undefined) {
+					// The added paragraph's widened anchor overlaps an earlier edit.
+					// Keep them together so accepting either cannot invalidate the other.
+					const earlier = entries.splice(previous.entryStart);
+					for (const item of earlier) {
+						item.comments.forEach((id) => paragraphComments.add(id));
+						item.changes.forEach((change) => paragraphChanges.add(change));
+					}
+					const marked = emphasisTouched(previous.segments);
+					entry = { operation: "edit", sceneId, original: marked ? renderVersion(previous.segments, "before") : previous.original.trim(), revised: `${marked ? renderVersion(previous.segments, "after") : joinText(previous.segments, "del").trim()}\n\n${addedText}`, comments: paragraphComments, changes: paragraphChanges };
+				} else {
+					entry = { operation: "edit", sceneId, original: anchor, revised: `${anchor}\n\n${addedText}`, comments: paragraphComments, changes: paragraphChanges };
+				}
 				entries.push(entry);
 				addedParagraphs = entry;
 			} else {
@@ -255,8 +271,10 @@ export function convertWordTrackedChanges(document: WordDocument, options: { aut
 		const breakBeforeAdded = next !== undefined && !joinText(next.segments, "ins").trim() && Boolean(joinText(next.segments, "del").trim());
 		if (paragraph.markChanged && !breakBeforeAdded) skipped.paragraphBreaks++;
 		let tail: Entry | undefined;
+		const entryStart = entries.length;
+		const windows = changed ? changeWindows(paragraph.segments) : [];
 		if (changed) {
-			for (const window of changeWindows(paragraph.segments)) {
+			for (const window of windows) {
 				if (window.original === window.revised) continue;
 				const entry: Entry = window.revised
 					? { operation: "edit", sceneId, original: window.original, revised: window.revised, comments: window.comments, changes: window.changes }
@@ -265,7 +283,7 @@ export function convertWordTrackedChanges(document: WordDocument, options: { aut
 				tail = window.reachesEnd ? entry : undefined;
 			}
 		}
-		previous = { original, sceneId, tail };
+		previous = { original, sceneId, tail, segments: paragraph.segments, windows, entryStart };
 	}
 
 	const authored = (id: string): boolean => document.comments.get(id)?.author === options.author;
@@ -501,6 +519,7 @@ function changeWindows(segments: readonly Segment[]): Window[] {
 		// bold; elsewhere the author's own formatting is carried when applying.
 		const marked = emphasisTouched(inRange);
 		return {
+		end: range.end,
 		original: marked ? withMarkers(original.slice(range.start, range.end), originalMarks.slice(range.start, range.end)) : original.slice(range.start, range.end).trim(),
 		revised: marked ? withMarkers(revised.slice(from, to), revisedMarks.slice(from, to)) : revised.slice(from, to).trim(),
 		comments: new Set(

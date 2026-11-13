@@ -141,6 +141,45 @@ describe("convertWordTrackedChanges", () => {
 		expect(edit?.operation === "edit" && edit.payload).toEqual({ original: LONG, revised: `${LONG}\n\nThen the lights went out.` });
 	});
 
+	it("keeps an added paragraph and an overlapping earlier edit in one applicable suggestion", () => {
+		const document = documentOf(body(
+			para(run("The ferry "), del("horn"), ins("whistle"), run(" sounded across the harbour. She waited.")),
+			para(ins("Then the lights went out.")),
+		));
+		const suggestions = parse(convert(document).text).suggestions;
+		expect(suggestions).toHaveLength(1);
+		expect(suggestions[0]).toMatchObject({ operation: "edit", payload: {
+			original: "The ferry horn sounded across the harbour. She waited.",
+			revised: "The ferry whistle sounded across the harbour. She waited.\n\nThen the lights went out.",
+		} });
+		const before = "The ferry horn sounded across the harbour. She waited.";
+		const matched = new MatchEngine().matchSuggestion(before, suggestions[0]!);
+		const plan = createSuggestionApplyPlan(before, matched);
+		expect(plan).not.toBeNull();
+		if (plan) expect(before.slice(0, plan.from) + plan.text + before.slice(plan.to)).toBe("The ferry whistle sounded across the harbour. She waited.\n\nThen the lights went out.");
+	});
+
+	it("leaves an added paragraph separate when its anchor does not overlap an earlier edit", () => {
+		const document = documentOf(body(
+			para(run("The ferry "), del("horn"), ins("whistle"), run(` sounded across the harbour. ${LONG}`)),
+			para(ins("Then the lights went out.")),
+		));
+		expect(parse(convert(document).text).suggestions).toHaveLength(2);
+	});
+
+	it("keeps both sets of Word changes and comments when overlapping suggestions are combined", () => {
+		const document = documentOf(body(
+			para(`<w:commentRangeStart w:id="c1"/>`, run("The ferry "), del("horn"), ins("whistle"), `<w:commentRangeEnd w:id="c1"/>`, run(" sounded across the harbour. She waited.")),
+			para(`<w:commentRangeStart w:id="c2"/>`, ins("Then the lights went out.", ED, "3"), `<w:commentRangeEnd w:id="c2"/>`),
+		), [{ id: "c1", author: ED, text: "Use whistle." }, { id: "c2", author: ED, text: "Add the lights." }]);
+		const result = convert(document);
+		expect(result.placements).toHaveLength(1);
+		expect(result.placements[0]?.changes).toHaveLength(3);
+		expect(result.placements[0]?.commentIds).toEqual(expect.arrayContaining(["c1", "c2"]));
+		expect(parse(result.text).suggestions[0]?.why).toContain("Use whistle.");
+		expect(parse(result.text).suggestions[0]?.why).toContain("Add the lights.");
+	});
+
 	it("puts a comment on a change into its Why and a comment elsewhere into a memo on the scene", () => {
 		const document = documentOf(
 			body(
