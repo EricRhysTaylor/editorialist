@@ -700,6 +700,8 @@ export default class EditorialistPlugin extends Plugin {
 		// Obsidian restores workspace state on reload, and registerView() already handles cleanup.
 		this.toolbarOverlay.destroy();
 		this.toolbarKeyTracker.dispose();
+		// Invalidate any in-flight spotlight so its await cannot light rows after unload.
+		this.spotlightRun++;
 		this.sceneSpotlight?.clear();
 		closeDotPopover();
 		this.editorChangeResyncDebouncer.cancel();
