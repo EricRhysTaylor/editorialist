@@ -160,18 +160,26 @@ const CATEGORIES = [
 	{ title: "Maintenance", keywords: [/chore/i, /build/i, /\bci\b/i, /bump/i, /upgrade/i, /script/i] },
 ];
 
-// Automated backup commits ("backup: auto 2026-06-11 16:44:32") carry no
-// release-note information — drop them entirely.
+const OTHER_CHANGES = "Other Changes";
+
+// Automated backup commits ("backup: auto 2026-06-11 16:44:32") and the
+// version bump itself ("release: 3.4.1") carry no release-note information —
+// drop them entirely.
 function isNoiseCommit(message) {
-	return /^backup: auto \d{4}-/.test(message);
+	return /^backup: auto \d{4}-/.test(message) || /^release: \d+\.\d+\.\d+$/.test(message);
 }
 
+// Every commit since the last release, sorted into the first category whose
+// keywords its subject matches, as Radial Timeline's release script does.
+// A subject that matches none still appears, under Other Changes: this
+// repo's subjects say what now happens ("Keep…", "Stop…"), so most land
+// there, and none may be hidden.
 function collectChanges(fromTag, toRef = "HEAD") {
-	const buckets = { features: [], fixes: [], other: [] };
+	const sections = Object.fromEntries([...CATEGORIES.map((c) => c.title), OTHER_CHANGES].map((title) => [title, []]));
 	try {
 		const range = fromTag ? `${fromTag}..${toRef}` : toRef;
 		const logs = capture(`git log ${range} --pretty=format:"%h|%H|%s" --no-merges`);
-		if (!logs) return buckets;
+		if (!logs) return sections;
 
 		for (const line of logs.split("\n")) {
 			const [shortHash, fullHash, ...rest] = line.split("|");
@@ -183,41 +191,31 @@ function collectChanges(fromTag, toRef = "HEAD") {
 			const entry = `- ${message} ([${shortHash}](${REPO_URL}/commit/${fullHash}))`;
 
 			const category = CATEGORIES.find((c) => c.keywords.some((re) => re.test(message)));
-			if (category?.title === "New Features") buckets.features.push(entry);
-			else if (category?.title === "Bug Fixes") buckets.fixes.push(entry);
-			else buckets.other.push(entry);
+			sections[category?.title ?? OTHER_CHANGES].push(entry);
 		}
 	} catch (error) {
 		console.error(error);
 	}
-	return buckets;
+	return sections;
 }
 
-// Draft release notes in the house style: short summary up top, new features,
-// major bugs fixed, screenshots at the bottom. The draft is reviewed and
-// finalized by hand on GitHub before `npm run release` publishes it.
+// Draft release notes in the house style: short summary up top, then every
+// change since the last release by category, screenshots at the bottom. The
+// draft is reviewed and finalized by hand on GitHub before `npm run release`
+// publishes it.
 function buildReleaseNotes(fromTag) {
-	const { features, fixes, other } = collectChanges(fromTag);
-	const list = (items) => (items.length > 0 ? items.join("\n") : "- (none this release)");
+	const filled = Object.entries(collectChanges(fromTag)).filter(([, items]) => items.length > 0);
+	const changes = filled.length > 0
+		? filled.flatMap(([title, items]) => [`### ${title}`, "", ...items, ""])
+		: ["No changes since the last release.", ""];
 	return [
 		"## Summary",
 		"",
 		"<!-- EDIT ME: one short paragraph on what this release is about. -->",
 		"",
-		"## New features",
+		"## What's Changed",
 		"",
-		list(features),
-		"",
-		"## Major bugs fixed",
-		"",
-		list(fixes),
-		"",
-		"<details><summary>Other changes</summary>",
-		"",
-		list(other),
-		"",
-		"</details>",
-		"",
+		...changes,
 		"## Screenshots",
 		"",
 		"<!-- Drag images here while reviewing on GitHub, or delete this section. -->",
