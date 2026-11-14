@@ -9973,8 +9973,435 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	color: var(--text-accent);
 }
 
-.editorialist-author__tabs {
-	grid-template-columns: repeat(2, minmax(0, 1fr));
+/* The author planner on one page: what lies ahead, the days, the goals, then
+   the sessions and setup folded below. */
+.editorialist-author__panel {
+	margin: 0 0 12px;
+	padding: 12px 12px 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 10px;
+	background: var(--background-primary);
+}
+
+.editorialist-author__panel-head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.editorialist-author__panel-range {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-semibold);
+	white-space: nowrap;
+}
+
+.editorialist-author__panel-foot {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-top: 10px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.editorialist-author__panel-foot button.editorialist-plan__autoplan {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	white-space: nowrap;
+}
+
+.editorialist-author__panel-foot button.editorialist-plan__autoplan svg {
+	width: 14px;
+	height: 14px;
+}
+
+.editorialist-author__goals-head {
+	margin-top: 16px;
+}
+
+.editorialist-author__fold {
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.editorialist-author__fold:last-child {
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.editorialist-author__fold > summary {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 11px 2px;
+	cursor: pointer;
+	list-style: none;
+}
+
+.editorialist-author__fold > summary::-webkit-details-marker {
+	display: none;
+}
+
+.editorialist-author__fold-icon {
+	display: inline-flex;
+	color: var(--text-muted);
+}
+
+.editorialist-author__fold-icon svg {
+	width: 16px;
+	height: 16px;
+}
+
+.editorialist-author__fold-title {
+	font-weight: var(--font-semibold);
+}
+
+.editorialist-author__fold-value {
+	margin-inline-start: auto;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.editorialist-author__fold-body {
+	padding: 0 0 12px;
+}
+
+/* One lane per commitment on a shared run of dates. */
+.editorialist-runway {
+	position: relative;
+	margin-top: 4px;
+}
+
+.editorialist-runway__axis {
+	position: relative;
+	height: 16px;
+	color: var(--text-faint);
+	font-size: var(--font-smallest);
+}
+
+.editorialist-runway__month {
+	position: absolute;
+	top: 2px;
+	left: var(--editorialist-runway-left);
+	padding-inline-start: 3px;
+	border-inline-start: 1px solid var(--background-modifier-border);
+}
+
+.editorialist-runway__lane {
+	margin: 4px 0 10px;
+}
+
+.editorialist-runway__head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 8px;
+	margin-bottom: 5px;
+	font-size: var(--font-ui-smaller);
+}
+
+.editorialist-runway__title {
+	overflow: hidden;
+	color: var(--text-normal);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.editorialist-runway__detail {
+	flex-shrink: 0;
+	color: var(--text-muted);
+}
+
+.editorialist-runway__lane.is-late .editorialist-runway__detail {
+	color: var(--text-error);
+}
+
+.editorialist-runway__track {
+	position: relative;
+	height: 8px;
+	border-radius: 4px;
+	background: var(--background-modifier-border);
+}
+
+.editorialist-runway__segment {
+	--editorialist-runway-color: var(--color-green);
+
+	position: absolute;
+	top: 0;
+	left: var(--editorialist-runway-left);
+	width: var(--editorialist-runway-width);
+	height: 100%;
+	border-radius: 4px;
+	overflow: hidden;
+	background: color-mix(in srgb, var(--editorialist-runway-color) 25%, var(--background-modifier-border));
+}
+
+.editorialist-runway__segment.is-preparation {
+	--editorialist-runway-color: var(--color-orange);
+}
+
+.editorialist-runway__segment.is-editing {
+	--editorialist-runway-color: var(--color-purple);
+}
+
+.editorialist-runway__segment.is-questions {
+	--editorialist-runway-color: var(--color-cyan);
+}
+
+.editorialist-runway__fill {
+	width: var(--editorialist-runway-fill);
+	height: 100%;
+	background: var(--editorialist-runway-color);
+}
+
+.editorialist-runway__tick {
+	position: absolute;
+	top: -4px;
+	left: var(--editorialist-runway-left);
+	width: 2px;
+	height: 16px;
+	margin-left: -1px;
+	border-radius: 1px;
+	background: var(--text-muted);
+}
+
+.editorialist-runway__lane.is-late .editorialist-runway__tick {
+	background: var(--color-red);
+}
+
+.editorialist-runway__today {
+	position: absolute;
+	top: 14px;
+	bottom: 0;
+	left: var(--editorialist-runway-left);
+	border-inline-start: 1.5px dashed var(--color-red);
+	pointer-events: none;
+}
+
+.editorialist-runway__today span {
+	position: absolute;
+	top: -15px;
+	left: 4px;
+	color: var(--color-red);
+	font-size: var(--font-smallest);
+	white-space: nowrap;
+}
+
+/* Days as squares, a week to a row. Fill is the day's planned time against
+   the time set aside; a ring marks something due, red for a hard date. */
+.editorialist-days {
+	--editorialist-day-size: 24px;
+
+	display: grid;
+	grid-template-columns: max-content repeat(7, minmax(0, var(--editorialist-day-size)));
+	gap: 5px;
+	align-items: center;
+	margin-top: 10px;
+}
+
+.editorialist-days,
+.editorialist-days__day {
+	--no-tooltip: true;
+}
+
+.editorialist-days__weekday {
+	color: var(--text-faint);
+	font-size: var(--font-smallest);
+	text-align: center;
+}
+
+.editorialist-days__week {
+	padding-inline-end: 4px;
+	color: var(--text-faint);
+	font-size: var(--font-smallest);
+	white-space: nowrap;
+}
+
+.editorialist-days__day {
+	--editorialist-day-planned: var(--color-green);
+	--editorialist-day-fill: var(--background-modifier-border);
+}
+
+.editorialist-days button.editorialist-days__day,
+.editorialist-days button.editorialist-days__day:hover,
+.editorialist-days__day.is-sample {
+	position: relative;
+	width: 100%;
+	max-width: var(--editorialist-day-size);
+	height: auto;
+	aspect-ratio: 1;
+	min-height: 0;
+	margin: 0;
+	padding: 0;
+	border: 1px solid transparent;
+	border-radius: 5px;
+	background: var(--editorialist-day-fill);
+	box-shadow: none;
+	cursor: pointer;
+}
+
+.editorialist-days button.editorialist-days__day:hover,
+.editorialist-days button.editorialist-days__day:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.editorialist-days__day.is-paced {
+	--editorialist-day-fill: color-mix(in srgb, var(--editorialist-day-planned) 12%, transparent);
+}
+
+.editorialist-days button.editorialist-days__day.is-paced,
+.editorialist-days__day.is-sample.is-paced {
+	border: 1px dashed color-mix(in srgb, var(--editorialist-day-planned) 55%, transparent);
+}
+
+.editorialist-days__day.is-light {
+	--editorialist-day-fill: color-mix(in srgb, var(--editorialist-day-planned) 45%, var(--background-modifier-border));
+}
+
+.editorialist-days__day.is-full {
+	--editorialist-day-fill: var(--editorialist-day-planned);
+}
+
+.editorialist-days__day.is-over {
+	--editorialist-day-fill: var(--color-red);
+}
+
+.editorialist-days__day.is-off {
+	--editorialist-day-fill: transparent;
+}
+
+.editorialist-days button.editorialist-days__day.is-off,
+.editorialist-days__day.is-sample.is-off {
+	border: 1px dashed var(--background-modifier-border);
+}
+
+.editorialist-days__day.is-editor {
+	--editorialist-day-fill: color-mix(in srgb, var(--color-purple) 24%, transparent);
+}
+
+.editorialist-days button.editorialist-days__day.is-past {
+	opacity: 0.35;
+}
+
+.editorialist-days button.editorialist-days__day.is-today {
+	outline: 2px solid var(--text-normal);
+	outline-offset: 1px;
+}
+
+.editorialist-days__day.has-mark::after {
+	position: absolute;
+	inset: -4px;
+	border: 2px solid var(--color-orange);
+	border-radius: 7px;
+	content: "";
+}
+
+.editorialist-days__day.is-hard::after {
+	border-color: var(--color-red);
+}
+
+.editorialist-days__legend {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 12px;
+	margin-top: 12px;
+	color: var(--text-muted);
+	font-size: var(--font-smallest);
+}
+
+.editorialist-days__key {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+}
+
+.editorialist-days__key .editorialist-days__day.is-sample {
+	--editorialist-day-size: 10px;
+
+	width: 10px;
+	display: inline-block;
+	border-radius: 3px;
+	cursor: default;
+}
+
+.editorialist-days__key .editorialist-days__day.has-mark::after {
+	inset: -2px;
+	border-width: 1.5px;
+	border-radius: 4px;
+}
+
+/* Today's week: a day to a column, each named over its square. */
+.editorialist-days--strip {
+	--editorialist-day-size: 30px;
+
+	display: grid;
+	grid-template-columns: repeat(7, minmax(0, 1fr));
+	gap: 6px;
+	margin-top: 12px;
+}
+
+.editorialist-days__cell {
+	display: grid;
+	justify-items: center;
+	gap: 4px;
+}
+
+.editorialist-days__label {
+	display: grid;
+	justify-items: center;
+	color: var(--text-faint);
+	font-size: var(--font-smallest);
+	line-height: 1.2;
+}
+
+.editorialist-days__label.is-today {
+	color: var(--text-normal);
+	font-weight: var(--font-semibold);
+}
+
+.editorialist-today__week-foot {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-top: 10px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.editorialist-today__week-foot button.editorialist-today__planner-link,
+.editorialist-today__week-foot button.editorialist-today__planner-link:hover {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	height: auto;
+	padding: 0;
+	border: none;
+	background: none;
+	box-shadow: none;
+	color: var(--text-accent);
+	font-size: var(--font-ui-smaller);
+	cursor: pointer;
+}
+
+.editorialist-today__planner-link svg {
+	width: 13px;
+	height: 13px;
+}
+
+/* A day's popover in the colour of its fill. */
+.editorialist-dot-popover.is-day-light,
+.editorialist-dot-popover.is-day-full,
+.editorialist-dot-popover.is-day-paced {
+	--editorialist-dot-color: var(--color-green);
+}
+
+.editorialist-dot-popover.is-day-over {
+	--editorialist-dot-color: var(--color-red);
 }
 
 .editorialist-author__hero h2 {

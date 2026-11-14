@@ -26,7 +26,6 @@ export interface AuthorTargetHost {
 	countFolder(folder: string): Promise<number | null>;
 	save(expected: RevisionPlan, next: RevisionPlan, edit?: RTDateEdit): Promise<void>;
 	openSource(path: string): Promise<void>;
-	openSchedule(): void;
 }
 /** Personal commitments reuse the editor's plan store, dialogs and scheduler. */
 export class AuthorTargetPanel {
@@ -37,14 +36,19 @@ export class AuthorTargetPanel {
 	}
 	render(root: HTMLElement): void {
 		const targets = this.host.plan.targets ?? [];
-		const hero = root.createDiv({ cls: "editorialist-project__hero editorialist-author__hero" });
-		hero.createDiv({ cls: "editorialist-project__eyebrow", text: "Your goals" });
-		hero.createEl("h2", { text: targets.length ? "Your writing commitments" : "Make room for what matters." });
-		hero.createEl("p", { text: "Give a writing goal a finish date. Link a document when useful, and decide what complete means for you." });
-		if (targets.length) hero.createEl("strong", { cls: "editorialist-project__readiness", text: `${targets.filter((target) => target.done).length} of ${targets.length} goals complete` });
-		const actions = hero.createDiv({ cls: "editorialist-project__actions" });
-		this.button(actions, "Add goal", () => this.edit());
-		if (targets.some((target) => !target.done)) this.button(actions, "Schedule work", () => this.host.openSchedule());
+		if (!targets.length) {
+			// The calendar above stays empty until there is something to plan for.
+			const hero = root.createDiv({ cls: "editorialist-project__hero editorialist-author__hero" });
+			hero.createDiv({ cls: "editorialist-project__eyebrow", text: "Your goals" });
+			hero.createEl("h2", { text: "Make room for what matters." });
+			hero.createEl("p", { text: "Give a writing goal a finish date. Link a document when useful, and decide what complete means for you." });
+			this.button(hero.createDiv({ cls: "editorialist-project__actions" }), "Add goal", () => this.edit());
+			return;
+		}
+		const done = targets.filter((target) => target.done).length;
+		const heading = root.createDiv({ cls: "editorialist-plan__section-heading editorialist-author__goals-head" });
+		heading.createEl("h3", { text: "Your goals" });
+		heading.createSpan({ text: [`${targets.length - done} open`, ...(done ? [`${done} complete`] : [])].join(" · ") });
 		const open = targets.filter((target) => !target.done).sort((a, b) => a.due.localeCompare(b.due));
 		for (const target of open) this.card(root, target);
 		const completed = targets.filter((target) => target.done);

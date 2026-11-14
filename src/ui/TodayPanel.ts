@@ -1,9 +1,8 @@
 import { ItemView, Notice, TFile, debounce, setIcon, type Debouncer, type WorkspaceLeaf } from "obsidian";
 import type EditorialistPlugin from "../main";
-import { folderPlanKey } from "../core/ManuscriptReassociation";
 import { AUTHOR_PLAN_SCOPE, goalTimeline, wordProgress, type AuthorTarget } from "../core/planning/AuthorPlan";
 import { localDate, resolvePlanSource, type PlanEntry, type RevisionPlan, type WorkCandidate } from "../core/planning/RevisionPlan";
-import { activeGoals, todayAgenda, type AgendaItem, type AgendaPlan, type TodayAgenda } from "../core/planning/TodayAgenda";
+import { activeGoals, todayAgenda, type AgendaItem, type TodayAgenda, type VaultPlan } from "../core/planning/TodayAgenda";
 import { deadlineLabel, kindIcons, kindLabels, pendingWorkTitle, planDayLabel } from "../core/planning/WorkPresentation";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
 import { EditMatrixSlot } from "./EditMatrixSlot";
@@ -12,8 +11,9 @@ import { renderPanelHeader } from "./primitives/PanelHeader";
 import { renderWordLimit } from "./primitives/WordLimitBar";
 import { renderCushionBar } from "./primitives/CushionBar";
 import { setIconLabel } from "./primitives/AccessibleLabel";
-import { cushionProgress, deadlineState, engagementReturned, entryWorkDeadline, projectEditor, type EditorialProject, type ProjectMaterial, type WorkDeadline } from "../core/planning/EditorialProject";
-import { engagementTrack } from "../core/planning/EngagementTrack";
+import { cushionProgress, deadlineState, entryWorkDeadline, type ProjectMaterial, type WorkDeadline } from "../core/planning/EditorialProject";
+import { vaultDays, vaultEngagements, type VaultEngagement } from "./VaultCalendar";
+import { renderDayGrid } from "./primitives/DayGrid";
 import { renderEngagementPhaseBar } from "./primitives/EngagementPhaseBar";
 
 export const TODAY_VIEW_TYPE = "editorialist-today";
@@ -21,8 +21,7 @@ export const TODAY_VIEW_TYPE = "editorialist-today";
 export const TODAY_SHOWN_KEY = "editorialist-today-shown";
 const UPCOMING_SHOWN = 3;
 
-/** `folder` and `label` name the book; both are null for the author's goals. */
-interface LoadedPlan extends AgendaPlan { warnings: string[]; folder: string | null; label: string | null }
+type LoadedPlan = VaultPlan;
 
 // The daily view: the scheduled session to do now, the rest of today, the
 // goals under way, and what comes next. It reads every book with a session on
@@ -88,25 +87,13 @@ export class TodayPanel extends ItemView {
 		this.contentEl.setAttribute("aria-busy", "true");
 		if (!this.agenda) this.show();
 		try {
-			await this.plugin.synchronizeAuthorTargets();
-			const books = await this.plugin.collectBooksWork();
-			const plans: LoadedPlan[] = [], notices: string[] = [], wordCounts: Record<string, number> = {};
-			for (const { folder, label, work } of books) {
-				if (work.held.some((source) => source.kind === "all")) { notices.push(...work.warnings); continue; }
-				const book = folderPlanKey(folder);
-				// Today keeps book progress current too, so a pass cleaned without
-				// opening the planner no longer shows here as overdue.
-				await this.plugin.recordRevisionProgress(book, work);
-				const plan = this.plugin.getRevisionPlan(book);
-				plans.push({ scope: book, plan, candidates: work.candidates, warnings: work.warnings, folder, label });
-				Object.assign(wordCounts, await this.plugin.materialWordCounts(plan.project));
-			}
-			const goals = this.plugin.collectAuthorWork();
-			plans.push({ scope: AUTHOR_PLAN_SCOPE, plan: this.plugin.getAuthorPlanningPlan(), candidates: goals.candidates, warnings: goals.warnings, folder: null, label: null });
+			const { plans, notices, activeLabel } = await this.plugin.collectVaultPlans();
+			const wordCounts: Record<string, number> = {};
+			for (const { plan, folder } of plans) if (folder) Object.assign(wordCounts, await this.plugin.materialWordCounts(plan.project));
 			this.plans = plans;
 			this.notices = notices;
 			this.wordCounts = wordCounts;
-			this.bookLabel = books.find((book) => book.active)?.label ?? null;
+			this.bookLabel = activeLabel;
 			this.goalWords = (await this.plugin.recordAuthorWordGoals()).counts;
 			this.day = localDate(new Date());
 			this.goals = activeGoals(this.plugin.getAuthorPlanningPlan().targets ?? [], this.day);
@@ -172,15 +159,16 @@ export class TodayPanel extends ItemView {
 			if (this.bookLabel) this.button(actions, "Plan the book", () => { void this.plugin.openRevisionPlanPanel(); });
 			this.button(actions, "Plan your goals", () => { void this.plugin.openAuthorPlanner(); });
 		}
+		const engagements = vaultEngagements(this.plugin, this.plans, this.day);
+		if (engagements.length || this.plans.some(({ plan }) => plan.entries.length || plan.targets?.length)) this.renderWeek(hero);
 		// One unreadable source can warn for several books; say it once.
 		for (const warning of new Set([...this.notices, ...this.plans.flatMap((plan) => plan.warnings)])) root.createEl("p", { cls: "editorialist-plan__warning", text: warning });
 		// An editor engagement under way is the biggest thing on the calendar,
 		// so its track stays in view every day until the questions are done.
-		const engagements = this.engagements();
 		if (engagements.length) {
 			root.createEl("h3", { cls: "editorialist-today__heading", text: engagements.length === 1 ? "Your editor engagement" : "Your editor engagements" });
 			const list = root.createDiv({ cls: "editorialist-today__list" });
-			for (const { plan, project } of engagements) this.renderEngagement(list, plan, project);
+			for (const engagement of engagements) this.renderEngagement(list, engagement);
 		}
 		if (now) this.renderNow(root, now);
 		if (rest.length) {
@@ -300,23 +288,10 @@ export class TodayPanel extends ItemView {
 		setIcon(open, "arrow-up-right");
 	}
 
-	private engagements(): { plan: LoadedPlan; project: EditorialProject }[] {
-		return this.plans.flatMap((plan) => {
-			const project = plan.plan.project;
-			if (!project || !plan.folder) return [];
-			const track = engagementTrack(project, this.returned(plan, project), this.day);
-			return track.stages.length && track.current !== "done" ? [{ plan, project }] : [];
-		});
-	}
-
-	private returned(plan: LoadedPlan, project: EditorialProject): string | null {
-		return engagementReturned(project, this.plugin.getEditorialDeliveries(plan.folder ?? undefined)).date ?? null;
-	}
-
 	// The engagement's track as its overview draws it: the author's
 	// preparation, the editor at work, then the questions, with the author's
 	// targets on it. A target opens the engagement, where it is listed.
-	private renderEngagement(parent: HTMLElement, plan: LoadedPlan, project: EditorialProject): void {
+	private renderEngagement(parent: HTMLElement, { plan, project, track, editor }: VaultEngagement): void {
 		const open = async (): Promise<void> => { if (await this.switchToBook(plan.folder)) await this.plugin.openPlanSection(false, "overview"); };
 		const row = parent.createDiv({ cls: "editorialist-today__row editorialist-today__engagement", attr: { "data-work-kind": "engagement" } });
 		const head = row.createDiv({ cls: "editorialist-today__head" });
@@ -327,9 +302,24 @@ export class TodayPanel extends ItemView {
 		const away = Math.round((Date.parse(`${start}T00:00:00Z`) - Date.parse(`${this.day}T00:00:00Z`)) / 86400000);
 		head.createSpan({ cls: "editorialist-today__day", text: !away ? "Starts today" : away < 0 ? `Started ${planDayLabel(start)}` : `Starts in ${away} ${away === 1 ? "day" : "days"}` });
 		const title = row.createDiv({ cls: "editorialist-today__engagement-title" });
-		title.createDiv({ cls: "editorialist-today__row-title", text: `${projectEditor(project, this.plugin.getReviewerProfiles()).name} · ${project.title}` });
+		title.createDiv({ cls: "editorialist-today__row-title", text: `${editor} · ${project.title}` });
 		this.homeButton(title.createDiv({ cls: "editorialist-today__row-actions" }), { label: "Open engagement", icon: "arrow-up-right", open });
-		renderEngagementPhaseBar(row, engagementTrack(project, this.returned(plan, project), this.day), this.day, () => { void open(); }, "Click to open the engagement");
+		renderEngagementPhaseBar(row, track, this.day, () => { void open(); }, "Click to open the engagement");
+	}
+
+	// This week as the author planner draws its days: a square each, filled by
+	// what is planned against the time set aside. A day opens in the planner.
+	private renderWeek(hero: HTMLElement): void {
+		const [week = []] = vaultDays(this.plugin, this.plans, this.day, 1);
+		renderDayGrid(hero, [week], { strip: true, hint: "Click to plan this day in the author planner", open: (day) => { void this.plugin.openPlanSection(true, "schedule", null, day.day); } });
+		const planned = week.reduce((sum, day) => sum + day.minutes, 0);
+		const room = week.reduce((sum, day) => sum + day.capacity, 0);
+		const foot = hero.createDiv({ cls: "editorialist-today__week-foot" });
+		const hours = (minutes: number): string => `${Math.round(minutes / 6) / 10}`;
+		foot.createSpan({ text: room ? `This week · ${hours(planned)} of ${hours(room)} h planned` : planned ? `This week · ${hours(planned)} h planned` : "This week" });
+		const planner = foot.createEl("button", { cls: "editorialist-today__planner-link", text: "Author planner", attr: { type: "button" } });
+		setIcon(planner.createSpan(), "arrow-right");
+		planner.addEventListener("click", () => { void this.plugin.openAuthorPlanner(); });
 	}
 
 	private async openGoal(goal: AuthorTarget): Promise<void> {

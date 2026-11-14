@@ -2,7 +2,7 @@ import { TFolder } from "obsidian";
 import { describe, expect, it, vi } from "vitest";
 import { AUTHOR_PLAN_SCOPE } from "../core/planning/AuthorPlan";
 import { emptyRevisionPlan, sourceKey, type PlanEntry, type RevisionPlan } from "../core/planning/RevisionPlan";
-import { scheduledBookFolders } from "../core/planning/TodayAgenda";
+import { readVaultPlans, scheduledBookFolders, type VaultPlanHost } from "../core/planning/TodayAgenda";
 import EditorialistPlugin from "../main";
 import { TodayPanel } from "./TodayPanel";
 
@@ -167,6 +167,7 @@ describe("Today across books", () => {
 		collectAuthorWork: () => ({ candidates: [], warnings: [] }),
 		getAuthorPlanningPlan: () => emptyRevisionPlan(),
 		recordAuthorWordGoals: async () => ({ counts: {} }),
+		collectVaultPlans() { return readVaultPlans(this as unknown as VaultPlanHost); },
 	});
 	const work = { candidates: [], warnings: [], held: [] };
 

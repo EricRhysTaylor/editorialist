@@ -4,6 +4,7 @@ import { emptyRevisionPlan, localDate } from "../core/planning/RevisionPlan";
 import { createEditorialProject } from "../core/planning/EditorialProject";
 import type EditorialistPlugin from "../main";
 import { TodayPanel } from "./TodayPanel";
+import { readVaultPlans, type VaultPlanHost } from "../core/planning/TodayAgenda";
 
 // Every leaf change, Today's own focus included, refreshes the view after a
 // pause. A redraw of unchanged content replaced the button under the pointer,
@@ -25,6 +26,7 @@ function mount() {
 		getReviewerProfiles: () => [],
 		openPlanSection: vi.fn(async () => {}),
 		getActiveBookScopeInfo: () => ({ sourceFolder: "Book" }),
+		collectVaultPlans() { return readVaultPlans(this as unknown as VaultPlanHost); },
 		collectAuthorWork: () => ({ candidates: [], warnings: goalWarnings }),
 		getAuthorPlanningPlan: () => emptyRevisionPlan(),
 		recordAuthorWordGoals: vi.fn(async () => ({ counts: {} })),

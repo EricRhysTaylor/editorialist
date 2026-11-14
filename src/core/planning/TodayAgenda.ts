@@ -1,5 +1,5 @@
-import { planKeyFolder } from "../ManuscriptReassociation";
-import { goalTimeline, type AuthorTarget } from "./AuthorPlan";
+import { folderPlanKey, planKeyFolder } from "../ManuscriptReassociation";
+import { AUTHOR_PLAN_SCOPE, goalTimeline, type AuthorTarget } from "./AuthorPlan";
 import { isPlanEntryComplete, progressDoneKeys, type PlanEntry, type RevisionPlan, type WorkCandidate } from "./RevisionPlan";
 
 // What to work on today, across every book's plan and the author's goals.
@@ -13,6 +13,42 @@ export interface AgendaPlan {
 	scope: string;
 	plan: RevisionPlan;
 	candidates: readonly WorkCandidate[];
+}
+
+/** A plan as Today and the author planner read it. `folder` and `label` name the book; both are null for the author's goals. */
+export interface VaultPlan extends AgendaPlan { warnings: string[]; folder: string | null; label: string | null }
+export interface VaultPlans { plans: VaultPlan[]; notices: string[]; activeLabel: string | null }
+
+/** What reading every plan needs from the plugin. */
+export interface VaultPlanHost {
+	synchronizeAuthorTargets(): Promise<void>;
+	collectBooksWork(): Promise<{ folder: string; label: string; active: boolean; work: { candidates: WorkCandidate[]; warnings: string[]; held: { kind: string }[] } }[]>;
+	recordRevisionProgress(book: string, work: { candidates: WorkCandidate[]; warnings: string[]; held: { kind: string }[] }): Promise<void>;
+	getRevisionPlan(book: string): RevisionPlan;
+	collectAuthorWork(): { candidates: WorkCandidate[]; warnings: string[] };
+	getAuthorPlanningPlan(): RevisionPlan;
+}
+
+/**
+ * Every book with sessions on the calendar, then the author's goals: the
+ * plans Today and the author planner both read. A book whose sources could
+ * not all be read is left out with its warnings, and the progress of the
+ * rest is kept current, so a pass cleaned without opening its planner no
+ * longer shows as open.
+ */
+export async function readVaultPlans(host: VaultPlanHost): Promise<VaultPlans> {
+	await host.synchronizeAuthorTargets();
+	const books = await host.collectBooksWork();
+	const plans: VaultPlan[] = [], notices: string[] = [];
+	for (const { folder, label, work } of books) {
+		if (work.held.some((source) => source.kind === "all")) { notices.push(...work.warnings); continue; }
+		const book = folderPlanKey(folder);
+		await host.recordRevisionProgress(book, work);
+		plans.push({ scope: book, plan: host.getRevisionPlan(book), candidates: work.candidates, warnings: work.warnings, folder, label });
+	}
+	const goals = host.collectAuthorWork();
+	plans.push({ scope: AUTHOR_PLAN_SCOPE, plan: host.getAuthorPlanningPlan(), candidates: goals.candidates, warnings: goals.warnings, folder: null, label: null });
+	return { plans, notices, activeLabel: books.find((book) => book.active)?.label ?? null };
 }
 
 export interface AgendaItem {

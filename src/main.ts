@@ -24,7 +24,7 @@ import { batchWork, directiveWork, pendingWork } from "./core/planning/RevisionW
 import { isEngagementDelivery, preparationWork, projectEditor, recordProjectEvent, type EditorialProject } from "./core/planning/EditorialProject";
 import { countProseWords } from "./core/WordCount";
 import { collectPendingEdits, describeCollectFailure, type RadialTimelineBookLike } from "./core/PendingEditsCollector";
-import { scheduledBookFolders } from "./core/planning/TodayAgenda";
+import { readVaultPlans, scheduledBookFolders, type VaultPlans } from "./core/planning/TodayAgenda";
 import { endReviewRound, getEndableRoundBatches } from "./orchestrators/EndReviewRound";
 import type { EditorView } from "@codemirror/view";
 import { MarkdownView, Menu, normalizePath, Notice, Plugin, TFile, TFolder, type App, type WorkspaceLeaf } from "obsidian";
@@ -945,9 +945,9 @@ export default class EditorialistPlugin extends Plugin {
 
 	async openAuthorPlanner(): Promise<void> { await this.openEditorialistPanel(AUTHOR_PLAN_VIEW_TYPE); }
 	/** Opens the book's engagement or schedule, or a writing goal's editor, from Today. */
-	async openPlanSection(author: boolean, section: "overview" | "schedule", goalId: string | null = null): Promise<void> {
+	async openPlanSection(author: boolean, section: "overview" | "schedule", goalId: string | null = null, day: string | null = null): Promise<void> {
 		const leaf = await this.openEditorialistPanel(author ? AUTHOR_PLAN_VIEW_TYPE : REVISION_PLAN_VIEW_TYPE);
-		if (leaf?.view instanceof RevisionPlanPanel) leaf.view.focusSection(section, goalId);
+		if (leaf?.view instanceof RevisionPlanPanel) leaf.view.focusSection(section, goalId, day);
 	}
 	openAuthorScheduler(): void { new AutoScheduleModal(this, null, false, AUTHOR_PLAN_SCOPE).open(); }
 	readonly radialBookGoals = new RadialBookGoals(() => {
@@ -1122,6 +1122,9 @@ export default class EditorialistPlugin extends Plugin {
 		}
 		return books;
 	}
+
+	/** The plans Today and the author planner both read; see readVaultPlans. */
+	collectVaultPlans(): Promise<VaultPlans> { return readVaultPlans(this); }
 
 	/** Moves the manuscript target to a book, through Radial Timeline when it tracks that book. */
 	async openBook(folder: string): Promise<void> {

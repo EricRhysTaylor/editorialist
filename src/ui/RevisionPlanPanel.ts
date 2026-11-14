@@ -4,7 +4,10 @@ import { AUTHOR_PLAN_SCOPE } from "../core/planning/AuthorPlan";
 import { AuthorTargetPanel } from "./AuthorTargetPanel";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
 import { deadlineLabel, kindIcons, kindLabels, pendingWorkTitle, planDayLabel } from "../core/planning/WorkPresentation";
-import { nextSession } from "../core/planning/TodayAgenda";
+import { nextSession, type VaultPlans } from "../core/planning/TodayAgenda";
+import { runwayLanes, vaultDays, vaultEngagements } from "./VaultCalendar";
+import { renderDayGrid } from "./primitives/DayGrid";
+import { renderRunway } from "./primitives/Runway";
 import { ItemView, Notice, TFile, TFolder, setIcon, type TAbstractFile, type WorkspaceLeaf } from "obsidian";
 import type EditorialistPlugin from "../main";
 import { renderPanelHeader } from "./primitives/PanelHeader";
@@ -48,9 +51,14 @@ export class RevisionPlanPanel extends ItemView {
 	private deliveryFilter = "all";
 	private backlogLimit = 12;
 	private refreshTimer: number | null = null;
+	// The author planner's calendar reads every plan, not only its own.
+	private vault: VaultPlans | null = null;
+	// A day opened from the calendar, shown in the sessions by day and scrolled to once.
+	private focusDay: string | null = null;
+	private revealPending = false;
 	constructor(leaf: WorkspaceLeaf, private readonly plugin: EditorialistPlugin, private readonly author = false) { super(leaf); }
 	private authorPanel(): AuthorTargetPanel {
-		return new AuthorTargetPanel({ app: this.app, plan: this.plan, busy: this.busy, rt: this.plugin.radialBookGoals, words: this.goalWords, countFolder: (folder) => this.plugin.folderWords.count(folder), save: async (expected, next, edit) => { await this.plugin.saveAuthorGoalPlan(expected, next, edit); }, openSource: async (path) => { await this.app.workspace.openLinkText(path, "", false); }, openSchedule: () => this.plugin.openAuthorScheduler() });
+		return new AuthorTargetPanel({ app: this.app, plan: this.plan, busy: this.busy, rt: this.plugin.radialBookGoals, words: this.goalWords, countFolder: (folder) => this.plugin.folderWords.count(folder), save: async (expected, next, edit) => { await this.plugin.saveAuthorGoalPlan(expected, next, edit); }, openSource: async (path) => { await this.app.workspace.openLinkText(path, "", false); } });
 	}
 	private projectService(): EditorialProjectService { return new EditorialProjectService(this.app); }
 	// The book's next session, by the same rule Today uses (see nextSession).
@@ -105,10 +113,97 @@ export class RevisionPlanPanel extends ItemView {
 	/** Native contributor changes share the existing refresh path and preserve input focus. */
 	refreshContributorIdentity(): void { this.scheduleRefresh(); }
 	/** Shows a section, and in the author planner opens a goal's editor once the goals have loaded. */
-	focusSection(section: "overview" | "schedule", goalId: string | null = null): void {
+	focusSection(section: "overview" | "schedule", goalId: string | null = null, day: string | null = null): void {
 		this.section = section;
 		this.pendingGoal = goalId;
+		if (this.author && (section === "schedule" || day)) { this.openDay(day); return; }
 		this.render();
+	}
+	/** Opens the author planner's sessions, by day at `day` when one is given. */
+	private openDay(day: string | null): void {
+		this.sectionOpen.set("author-sessions", true);
+		if (day) { this.view = "days"; this.focusDay = day; }
+		this.revealPending = true;
+		this.render();
+	}
+	private revealDay(root: HTMLElement): void {
+		if (!this.revealPending || !this.loaded) return;
+		this.revealPending = false;
+		const target = this.focusDay ? root.querySelector<HTMLElement>(`[data-plan-day="${this.focusDay}"]`) : root.querySelector<HTMLElement>("[data-plan-section='author-sessions']");
+		target?.scrollIntoView({ block: "start", behavior: "smooth" });
+	}
+	/**
+	 * The author planner on one page: what lies ahead as a lane per goal and
+	 * engagement, the days as squares filled by what is planned, then the
+	 * goals. The sessions themselves and the setup behind them (time set aside,
+	 * work to schedule) fold away below, since they are opened far less often
+	 * than the picture is read.
+	 */
+	private renderAuthor(root: HTMLElement): void {
+		for (const warning of [...(this.vault?.notices ?? []), ...this.warnings]) root.createEl("p", { cls: "editorialist-plan__warning", text: warning });
+		if (!this.loaded) { root.createEl("p", { cls: "editorialist-plan__hint", text: "Loading your plans…" }); return; }
+		const today = localDate(new Date());
+		// The planner's own plan is the current one; the rest are as last read.
+		const plans = (this.vault?.plans ?? []).map((plan) => plan.scope === AUTHOR_PLAN_SCOPE ? { ...plan, plan: this.plan, candidates: this.candidates } : plan);
+		const engagements = vaultEngagements(this.plugin, plans, today);
+		const goals = this.plan.targets ?? [];
+		const weeks = vaultDays(this.plugin, plans, today);
+		const from = weeks[0]![0]!.day, to = weeks[weeks.length - 1]![6]!.day;
+		const range = `${planDayLabel(from)} – ${planDayLabel(to)}`;
+		const lanes = runwayLanes(goals, engagements, this.goalWords, from, today);
+		if (lanes.length) {
+			const ahead = root.createDiv({ cls: "editorialist-author__panel" });
+			const head = ahead.createDiv({ cls: "editorialist-author__panel-head" });
+			head.createSpan({ cls: "editorialist-project__eyebrow", text: "Ahead of you" });
+			head.createSpan({ cls: "editorialist-author__panel-range", text: range });
+			renderRunway(ahead, lanes, from, to, today);
+		}
+		const calendar = root.createDiv({ cls: "editorialist-author__panel" });
+		const head = calendar.createDiv({ cls: "editorialist-author__panel-head" });
+		head.createSpan({ cls: "editorialist-project__eyebrow", text: "Your days" });
+		head.createSpan({ cls: "editorialist-author__panel-range", text: range });
+		renderDayGrid(calendar, weeks, { hint: "Click to plan this day", open: (day) => this.openDay(day.day) });
+		const ahead = weeks.flat().filter((day) => day.day >= today);
+		const sessions = ahead.reduce((sum, day) => sum + day.sessions.length, 0);
+		const over = ahead.filter((day) => day.state === "over").length;
+		const foot = calendar.createDiv({ cls: "editorialist-author__panel-foot" });
+		foot.createSpan({ text: [sessions ? `${sessions} ${sessions === 1 ? "session" : "sessions"} planned` : "Nothing scheduled yet", ...(over ? [`${over} ${over === 1 ? "day" : "days"} over`] : [])].join(" · ") });
+		const available = this.available().length;
+		const fill = this.button(foot, "", () => this.plugin.openAuthorScheduler(), !available || this.stale);
+		fill.addClass("editorialist-plan__autoplan");
+		if (available) fill.addClass("mod-cta");
+		setIcon(fill.createSpan(), "calendar-plus");
+		fill.createSpan({ text: "Fill my days" });
+		setIconLabel(fill, available ? `Schedule sessions for ${available} ${available === 1 ? "goal" : "goals"} around your time and deadlines` : "Every goal already has its sessions in the plan");
+
+		const panel = this.authorPanel();
+		panel.render(root);
+		if (this.pendingGoal && !this.busy) {
+			const goal = this.plan.targets?.find((target) => target.id === this.pendingGoal);
+			this.pendingGoal = null;
+			if (goal) panel.edit(goal); else new Notice("That goal is no longer in your planner.");
+		}
+
+		const open = this.plan.entries.filter((entry) => !isPlanEntryComplete(entry, this.candidates, this.doneKeys())).length;
+		const sessionsFold = root.createEl("details", { cls: "editorialist-author__fold", attr: { "data-plan-section": "author-sessions" } });
+		const sessionsHead = sessionsFold.createEl("summary");
+		setIcon(sessionsHead.createSpan({ cls: "editorialist-author__fold-icon" }), "list-ordered");
+		sessionsHead.createSpan({ cls: "editorialist-author__fold-title", text: "Sessions" });
+		sessionsHead.createSpan({ cls: "editorialist-author__fold-value", text: open ? `${open} open` : "None yet" });
+		const sessionsBody = sessionsFold.createDiv({ cls: "editorialist-author__fold-body" });
+		this.renderViewTabs(sessionsBody);
+		this.renderSessions(sessionsBody);
+		if (!open) sessionsBody.createEl("p", { cls: "editorialist-plan__hint", text: "Fill my days schedules sessions for your goals. You can also add them one at a time from Capacity & work." });
+
+		const setup = root.createEl("details", { cls: "editorialist-author__fold", attr: { "data-plan-section": "author-setup" } });
+		const setupHead = setup.createEl("summary");
+		setIcon(setupHead.createSpan({ cls: "editorialist-author__fold-icon" }), "sliders-horizontal");
+		setupHead.createSpan({ cls: "editorialist-author__fold-title", text: "Capacity & work" });
+		const weekly = this.plan.capacity.reduce((sum, minutes) => sum + minutes, 0);
+		setupHead.createSpan({ cls: "editorialist-author__fold-value", text: [`${duration(weekly)} a week`, ...(available ? [`${available} to schedule`] : [])].join(" · ") });
+		const setupBody = setup.createDiv({ cls: "editorialist-author__fold-body" });
+		this.renderCapacity(setupBody);
+		this.renderBacklog(setupBody);
 	}
 	async onOpen(): Promise<void> {
 		this.contentEl.addClass("editorialist-plan");
@@ -193,7 +288,7 @@ export class RevisionPlanPanel extends ItemView {
 		// Keep the existing page in place during background reads.
 		if (!this.loaded) this.render();
 		try {
-			if (this.author) { await this.plugin.synchronizeAuthorTargets(); this.goalWords = (await this.plugin.recordAuthorWordGoals()).counts; }
+			if (this.author) { this.vault = await this.plugin.collectVaultPlans(); this.goalWords = (await this.plugin.recordAuthorWordGoals()).counts; }
 			else await this.plugin.refreshActiveBookScope();
 			const book = this.scopeKey();
 			const revision = this.sourceRevision;
@@ -271,20 +366,11 @@ export class RevisionPlanPanel extends ItemView {
 		renderPanelHeader(container, this.plugin, this.getViewType(), this.getDisplayText(), this.author ? "Across your vault" : undefined, this.author ? { label: "Add goal", action: () => this.authorPanel().edit(), disabled: this.busy || !this.loaded } : undefined);
 		const root = container.createDiv({ cls: "editorialist-plan__body" });
 		if (this.author) {
-			const navigation = root.createDiv({ cls: "editorialist-project__tabs editorialist-author__tabs" });
-			for (const [value, label] of [["overview", "Goals"], ["schedule", "Schedule"]] as const) { const tab = this.button(navigation, label, () => { this.section = value; this.render(); }); tab.setAttribute("aria-pressed", String(this.section === value)); }
-			if (this.section !== "schedule") {
-				const panel = this.authorPanel();
-				panel.render(root);
-				this.restoreSections(root);
-				container.scrollTop = scrollTop;
-				if (this.pendingGoal && this.loaded && !this.busy) {
-					const goal = this.plan.targets?.find((target) => target.id === this.pendingGoal);
-					this.pendingGoal = null;
-					if (goal) panel.edit(goal); else new Notice("That goal is no longer in your planner.");
-				}
-				return;
-			}
+			this.renderAuthor(root);
+			this.restoreSections(root);
+			container.scrollTop = scrollTop;
+			this.revealDay(root);
+			return;
 		}
 
 		if (this.plan.project) {
@@ -300,22 +386,32 @@ export class RevisionPlanPanel extends ItemView {
 			}
 		}
 		const toolbar = root.createDiv({ cls: "editorialist-plan__toolbar" });
-		const tabs = toolbar.createDiv({ cls: "editorialist-plan__tabs" });
-		for (const [value, label, icon] of [["queue", "Queue", "list-ordered"], ["days", "Days", "calendar-days"]] as const) {
-			const tab = this.button(tabs, label, () => { this.view = value; this.render(); });
-			tab.setAttribute("aria-pressed", String(this.view === value));
-			setIcon(tab.createSpan(), icon);
-		}
+		this.renderViewTabs(toolbar);
 		const refresh = this.button(toolbar, "", () => { void this.refresh(); });
 		refresh.addClass("editorialist-plan__icon-button");
 		refresh.setAttribute("aria-label", "Re-read manuscript notes and feedback to update available work and progress.");
 		setIcon(refresh.createSpan(), "refresh-cw");
 		for (const warning of this.warnings) root.createEl("p", { cls: "editorialist-plan__warning", text: warning });
 		if (!this.book || !this.loaded) return;
-		if (!this.author && !this.plan.project) this.projectPanel().renderOverview(root);
-		if (!this.author) this.renderProgress(root);
+		if (!this.plan.project) this.projectPanel().renderOverview(root);
+		this.renderProgress(root);
 		this.renderSummary(root);
 		this.renderCapacity(root);
+		this.renderSessions(root);
+		this.renderBacklog(root);
+		this.restoreSections(root);
+		container.scrollTop = scrollTop;
+	}
+	private renderViewTabs(parent: HTMLElement): void {
+		const tabs = parent.createDiv({ cls: "editorialist-plan__tabs" });
+		for (const [value, label, icon] of [["queue", "Queue", "list-ordered"], ["days", "Days", "calendar-days"]] as const) {
+			const tab = this.button(tabs, label, () => { this.view = value; this.render(); });
+			tab.setAttribute("aria-pressed", String(this.view === value));
+			setIcon(tab.createSpan(), icon);
+		}
+	}
+	/** The plan's sessions, as a queue in the author's order or by day, then the finished ones. */
+	private renderSessions(root: HTMLElement): void {
 		const open = this.plan.entries.filter((entry) => !isPlanEntryComplete(entry, this.candidates, this.doneKeys()));
 		if (open.length) {
 			const heading = root.createDiv({ cls: "editorialist-plan__section-heading" });
@@ -326,7 +422,7 @@ export class RevisionPlanPanel extends ItemView {
 			if (open.length) root.createEl("p", { cls: "editorialist-plan__hint", text: "Drag to prioritize · scheduling options on each task" });
 			for (const entry of open) this.renderEntry(root, entry);
 		} else {
-			const dates = [...new Set([...this.weekDays(), ...open.map((entry) => entry.day).filter((day): day is string => day !== null)])].sort();
+			const dates = [...new Set([...this.weekDays(), ...(this.focusDay ? [this.focusDay] : []), ...open.map((entry) => entry.day).filter((day): day is string => day !== null)])].sort();
 			for (const day of [...dates, null]) {
 				const group = root.createDiv({ cls: "editorialist-plan__day" });
 				group.setAttribute("data-plan-day", day ?? "unscheduled");
@@ -347,9 +443,6 @@ export class RevisionPlanPanel extends ItemView {
 			details.createEl("summary", { text: completed.length === 1 ? "1 finished session or resolved source" : `${completed.length} finished sessions or resolved sources` });
 			for (const entry of completed) this.renderEntry(details, entry);
 		}
-		this.renderBacklog(root);
-		this.restoreSections(root);
-		container.scrollTop = scrollTop;
 	}
 	private restoreSections(root: HTMLElement): void {
 		for (const item of Array.from(root.querySelectorAll<HTMLDetailsElement>("details[data-plan-section]"))) {
@@ -387,7 +480,7 @@ export class RevisionPlanPanel extends ItemView {
 			item.createSpan({ text: ` ${text}` });
 		}
 		const kinds = card.createDiv({ cls: "editorialist-plan__momentum-kinds" });
-		for (const [kind, text] of [["batch", "Line edits"], ["directive", "Editorialisms"], ["pending", "Notes"], ["preparation", this.author ? "Goals" : "Engagement tasks"], ["response", "Responses"]] as const) {
+		for (const [kind, text] of [["batch", "Line edits"], ["directive", "Editorialisms"], ["pending", "Notes"], ["preparation", "Engagement tasks"], ["response", "Responses"]] as const) {
 			const counts = summary.byKind[kind];
 			if (!counts.done && !counts.remaining) continue;
 			kinds.createSpan({ text: `${text} ${counts.done}/${counts.done + counts.remaining}` });
@@ -423,12 +516,11 @@ export class RevisionPlanPanel extends ItemView {
 		const summary = root.createDiv({ cls: "editorialist-plan__summary" });
 		const label = summary.createDiv({ cls: "editorialist-plan__summary-label" });
 		setIcon(label.createSpan(), "calendar-check");
-		label.createSpan({ text: this.plan.deadline ? `Working toward ${planDayLabel(this.plan.deadline)}` : this.author ? "Your writing schedule" : "Your revision plan" });
+		label.createSpan({ text: this.plan.deadline ? `Working toward ${planDayLabel(this.plan.deadline)}` : "Your revision plan" });
 		if (!this.plan.entries.length) {
 			summary.createEl("h2", { text: "Choose what comes next." });
-			summary.createEl("p", { text: this.author ? "Add goals, then plan writing sessions around their deadlines and your weekly capacity." : this.plan.project ? "Bring engagement tasks, scene notes, review batches and directives into one working queue." : "Bring scene notes, review batches, and directives into one working queue." });
-			const choose = this.button(summary, this.author ? "View goals" : "Choose work", () => {
-				if (this.author) { this.section = "overview"; this.render(); return; }
+			summary.createEl("p", { text: this.plan.project ? "Bring engagement tasks, scene notes, review batches and directives into one working queue." : "Bring scene notes, review batches, and directives into one working queue." });
+			const choose = this.button(summary, "Choose work", () => {
 				const backlog = root.querySelector<HTMLDetailsElement>(".editorialist-plan__backlog");
 				if (backlog) { backlog.open = true; backlog.scrollIntoView({ block: "start", behavior: "smooth" }); backlog.querySelector<HTMLInputElement>("input")?.focus(); }
 			});
@@ -466,7 +558,7 @@ export class RevisionPlanPanel extends ItemView {
 		for (const issue of issues) summary.createDiv({ cls: "editorialist-plan__warning", text: issue });
 		const notes = summary.createEl("details", { cls: "editorialist-plan__estimate-notes", attr: { "data-plan-section": "estimate-notes" } });
 		notes.createEl("summary", { text: "How this estimate works" });
-		notes.createEl("p", { text: `Selected required work only. Optional work still occupies daily capacity. Unestimated work is not counted as zero.${this.author ? "" : ` Work due to an editor aims to finish ${this.plan.cushionDays} ${this.plan.cushionDays === 1 ? "day" : "days"} early.`}` });
+		notes.createEl("p", { text: `Selected required work only. Optional work still occupies daily capacity. Unestimated work is not counted as zero. Work due to an editor aims to finish ${this.plan.cushionDays} ${this.plan.cushionDays === 1 ? "day" : "days"} early.` });
 		if (open.length) this.renderWeek(root, forecast.dailyLoads);
 	}
 	// The plan only counts work that is in it. Auto-plan brings every open
@@ -475,7 +567,7 @@ export class RevisionPlanPanel extends ItemView {
 	// instead of the one or two items added by hand.
 	private renderAutoPlanButton(parent: HTMLElement, primary: boolean): void {
 		const count = this.available().length;
-		const button = this.button(parent, "", () => { if (this.author) this.plugin.openAuthorScheduler(); else this.plugin.openDeliveryScheduler(null); }, !count || this.stale);
+		const button = this.button(parent, "", () => this.plugin.openDeliveryScheduler(null), !count || this.stale);
 		button.addClass("editorialist-plan__autoplan");
 		if (primary) button.addClass("mod-cta");
 		setIcon(button.createSpan(), "calendar-range");
