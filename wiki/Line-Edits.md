@@ -36,22 +36,22 @@ Use the editor toolbar, right-click menu, or command palette to back up selected
 
 The edit grid shows a round of edits as dots, one for each edit, grouped by scene in story order. **Today** shows the whole grid for the active book under **Edits in** *(book)*. Each panel shows its own part of it: **Line edits** shows copy edits and an editorial pass's edits, **Editorialisms** shows the directives of every active agenda (and an open agenda's own, under **Directives**), and **Pending edits** shows one dot for each pending edit.
 
-- **The colour is the kind of work:** a copy edit, an edit from an editorial pass, a directive from an Editorialism agenda, or a pending edit, in yellow.
+- **The color shows the kind of work:** a copy edit, an edit from an editorial pass, a directive from an Editorialism agenda, or a pending edit, in yellow.
 - **The fill is where it stands.** A hollow dot is still to do, a solid one is done (accepted or rewritten), and a faint one was declined. A directive you deferred is faint too.
-- **A small mark in the centre means an AI made it.** The legend counts what is left of each kind and how many an AI made, for example *11 of 22 to do · 3 AI*.
+- **A small mark in the center means an AI made it.** The legend counts what is left of each kind and how many an AI made, for example *11 of 22 to do · 3 AI*.
 
 Hover a dot to see a card with its kind of work, whether it came from your editor's Word file or from an AI, where it stands, its scene or agenda, and the edit itself. Click the dot to go to it: an edit opens its scene's review with that edit selected, a directive opens its agenda in the Editorialisms panel, and a pending edit opens the review of that scene's pending edits.
 
-Hold **Shift** over a dot to find its scene without leaving the grid. The scene lights up wherever it is shown: on Radial Timeline's timeline and Timetable, in the file list, in a base, and on an open canvas. Nothing opens, and letting go of Shift or moving off the dot puts it out. A directive lights the first scene it is anchored to, or the scene it covers; a directive about the whole manuscript lights nothing.
+Hold **Shift** over a dot to find its scene without leaving the grid. The scene lights up wherever it is shown: on Radial Timeline's timeline and Timetable, in the file list, in a base, and on an open canvas. You stay on the grid, and letting go of Shift or moving off the dot puts the light out. A directive lights the first scene it is anchored to, or the scene it covers; a directive about the whole manuscript keeps the view as it is.
 
 ### Rounds
 
-The grid keeps a record of the current round, so an edit stays on it after you clean its scene, with your last decision. Clicking that dot opens the scene. When a round is finished, open the **…** menu on Today's grid:
+The grid keeps a record of the current round, so an edit stays on it after you clean its scene, with your last decision. Clicking that dot opens the scene. When a round is finished, open the **…** rounds menu at the top right of Today's grid:
 
-- **Start a new round** takes the handled edits off the grid. Edits still to do stay.
-- **Archive this round and start a new one** does the same, and keeps the round's totals under **Earlier rounds** in the same menu.
+- **Start a new round** takes the handled edits off the grid. Edits still to do stay. It is ready once at least one edit in the round is handled.
+- **Archive this round and start a new one** does the same, and keeps the round's totals under **Earlier rounds** in the same menu, one line per round with its dates and how many edits were done.
 
-Neither changes your scenes or your decisions. From then on, the grid shows the edits still to do and every pass you bring in. Today also draws your pending edits, but they are not part of the round: the count reads, for example, *22 of 23 handled · 3 pending*, and a new round leaves them where they are.
+Each asks you to confirm first. Your scenes and your decisions stay exactly as they are. From then on, the grid shows the edits still to do and every pass you bring in. Today also draws your pending edits, but they are not part of the round: the count reads, for example, *22 of 23 handled · 3 pending*, and a new round leaves them where they are.
 
 With nothing in the round, Today shows an empty tray, **Your first round starts here** or **Ready for the next round** with the last round's totals, and offers **Bring in edits** and **Start an agenda**.
 
@@ -85,7 +85,7 @@ When the same fix appears in a later scene of the same import, such as *grey →
 
 ### Advisory suggestions
 
-**Condense** and **Expand** sometimes arrive as direction rather than replacement prose — there is nothing for Editorialist to write, so the card is labelled **Advisory** instead of Pending, and you resolve it by rewriting the passage yourself and clicking **Mark as rewritten**, or by rejecting it.
+**Condense** and **Expand** sometimes arrive as direction rather than replacement prose — there is nothing for Editorialist to write, so the card is labeled **Advisory** instead of Pending, and you resolve it by rewriting the passage yourself and clicking **Mark as rewritten**, or by rejecting it.
 
 
 ### Navigation and filters
@@ -171,7 +171,7 @@ Within each group, directives with open passages here come first, and a directiv
 
 **Getting to the passage.** Click the directive's sentence to jump to the first open passage it names in this scene, or click a quoted passage (marked with a locate icon) to jump to that one. The passage flashes briefly in the editor so your eye finds it. With reduced motion turned on, it holds a stronger highlight instead.
 
-**Decisions and questions.** A directive that asks you to choose ("Choose her age", or a `[?]` item) shows **Decision needed** with a **Decide** button. Your answer is written to the directive's line as `[decision:: …]`. From then on **Decided: …** leads the directive, with **Change** beside it, so each passage becomes a quick check against an answer you already gave. Choosing **Question** from a status menu, or **Ask a question…**, asks you to write the question down. It is saved on the line as `[question:: …]` and shown under the directive as **Your question**, with **Edit**. Cancelling changes nothing. See [Decisions](Editorialisms-Panel#decisions) and [Questions](Editorialisms-Panel#questions) for the full behavior.
+**Decisions and questions.** A directive that asks you to choose ("Choose her age", or a `[?]` item) shows **Decision needed** with a **Decide** button. Your answer is written to the directive's line as `[decision:: …]`. From then on **Decided: …** leads the directive, with **Change** beside it, so each passage becomes a quick check against an answer you already gave. Choosing **Question** from a status menu, or **Ask a question…**, asks you to write the question down. It is saved on the line as `[question:: …]` and shown under the directive as **Your question**, with **Edit**. Canceling leaves the line as it was. See [Decisions](Editorialisms-Panel#decisions) and [Questions](Editorialisms-Panel#questions) for the full behavior.
 
 **Passages in other scenes.** A directive whose passages all sit elsewhere says where they are, for example "2 passages in scenes 26 and 27". Those scenes are named, not linked. Leaving mid-pass would abandon the batch you are working, so walking a directive across scenes stays the [Editorialisms panel](Editorialisms-Panel)'s job.
 
@@ -188,7 +188,7 @@ Directives scoped to the whole manuscript do not appear here: they apply everywh
 
 Many revision decisions involve more than one scene: a hat worn in three scenes, a reunion that a later scene already treats as fact, an age that has to agree in six places. When other scenes bear on the selected suggestion, its card gains an **Across scenes** row listing them by number. Expand it to read the relevant paragraphs without leaving the scene you're reviewing.
 
-Each paragraph is labelled with the reason it is shown:
+Each paragraph is labeled with the reason it is shown:
 
 | Label | Where it comes from |
 |---|---|

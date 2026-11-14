@@ -19,7 +19,7 @@ Editorialist registers these commands in the command palette:
 
 | Command | What it does |
 |---|---|
-| **Open today** | Opens Today in the sidebar: the session to do now, the rest of today, and what is coming up |
+| **Open today** | Opens Today in the sidebar: your editor engagement, the session to do now, the rest of today, what is coming up, and the active book's [edit grid](Line-Edits#the-edit-grid) |
 | **Open review launcher** | Opens the launcher modal to import a review batch or start a pending-edits review |
 | **Open editor engagement** | Opens [Editor Engagement](Editor-Engagement), with dates, milestones, history, and a revision schedule |
 | **Open author planner** | Opens [Author Planner](Author-Planner) for vault-wide writing goals and schedules |

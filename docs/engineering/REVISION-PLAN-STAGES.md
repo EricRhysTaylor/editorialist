@@ -4,7 +4,7 @@ Approved direction: a shared plan orders author-selected work from pending edits
 scene batches, and Editorialism directives. Existing review decisions remain the
 source of truth. Reordering a plan never reorders source files or applies prose.
 
-1. Panel navigation and readability: shared labelled view selector and actions,
+1. Panel navigation and readability: shared labeled view selector and actions,
    accessible list rows, pending availability, directive filters and status menus,
    compact context and history, list effort estimates.
 2. Planning foundations: versioned persistence, durable plan-entry identities,

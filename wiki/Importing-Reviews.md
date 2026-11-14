@@ -22,7 +22,7 @@ Most revision passes use a **review batch**. Use an **Editorialism file** when t
 
 ## Format A — the review batch
 
-A review batch is usually a fenced code block labelled `editorialist-review`. It is the AI response you copy back into Editorialist. Replace attribution placeholders with the actual reviewer: credit the human when converting their feedback and omit Provider/Model; for an independent AI review, use its actual identity without guessing a model version. Keep any additional AI advice separate from the human’s notes.
+A review batch is usually a fenced code block labeled `editorialist-review`. It is the AI response you copy back into Editorialist. Replace attribution placeholders with the actual reviewer: credit the human when converting their feedback and omit Provider/Model; for an independent AI review, use its actual identity without guessing a model version. Keep any additional AI advice separate from the human’s notes.
 
 ````markdown
 ```editorialist-review
@@ -63,7 +63,7 @@ The lines before the first `=== SECTION ===` marker identify the batch and the c
 | Field | Purpose |
 |---|---|
 | `Reviewer:` | Display name of the contributor (person or model) |
-| `ReviewerType:` | Role. Human: `editor`, `developmental-editor`, `line-editor`, `copy-editor`, `publisher-editor`, `agent`, `beta-reader`, `sensitivity-reader` (`human-editor` is accepted as `editor`). AI: `ai-editor`, `ai-developmental-editor`, `ai-line-editor`, `ai-copy-editor`. Anything unrecognised is treated as the author. |
+| `ReviewerType:` | Role. Human: `editor`, `developmental-editor`, `line-editor`, `copy-editor`, `publisher-editor`, `agent`, `beta-reader`, `sensitivity-reader` (`human-editor` is accepted as `editor`). AI: `ai-editor`, `ai-developmental-editor`, `ai-line-editor`, `ai-copy-editor`. Anything unrecognized is treated as the author. |
 | `Provider:` / `Model:` | For AI contributors — drives the provider brand icon in the [contributor directory](Settings-Reference#contributors-tab) |
 | `Template:` / `TemplateYear:` / `SupportedOperations:` | Emitted by the template; identifies which format version produced the batch |
 
@@ -97,7 +97,7 @@ Context: 65 "the reunion at Terminus"
 - 64 "Wala3 arranges the handover" → "through an XO."
 ```
 
-When you review that suggestion, the referenced paragraphs appear in the **Across scenes** section of the suggestion card, labelled **Quoted reference**, each with **Open beside** to read it in a side pane without losing your place. Context is never applied to the manuscript. A line that does not read as a scene number and a quoted fragment is ignored rather than guessed at. Self-contained line edits need no `Context:`.
+When you review that suggestion, the referenced paragraphs appear in the **Across scenes** section of the suggestion card, labeled **Quoted reference**, each with **Open beside** to read it in a side pane without losing your place. Context is never applied to the manuscript. A line that does not read as a scene number and a quoted fragment is ignored rather than guessed at. Self-contained line edits need no `Context:`.
 
 ### Memo-only batches
 

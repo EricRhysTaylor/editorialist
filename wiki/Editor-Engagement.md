@@ -23,7 +23,7 @@ Under the start date, one bar runs through the whole engagement in up to three s
 
 Your documents and tasks sit on the bar on the day they are due, and so does a milestone with nothing due on it. Hover a mark to see what is due and whether it is sent or done; click it to go to its row below, opening its section if it was closed. Things due on the same day share one mark with a count. Click it to zoom the bar into that day: its targets spread out, finished ones first, with a list of each underneath, and **Whole engagement** zooms back out. Once everything due by the start is done and sent, the preparation stretch drops off and the bar is your editor's. While anything is still open, it stays, with late marks in red.
 
-**Today** shows the same bar for each engagement, from the day you set it up until your question window closes, with your editor's name and the days to the start. Click a mark there to open the engagement.
+**Today** shows the same bar for each engagement under **Your editor engagement**, from the day you set it up until your question window closes, with your editor's name and the days to the start. Hover a mark there for a card with what is due, on which day, and whether it is done; click the bar, or the **Open engagement** button beside your editor's name, to open the engagement.
 
 ### Engagement notes
 

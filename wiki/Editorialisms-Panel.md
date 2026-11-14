@@ -112,7 +112,7 @@ From then on the directive leads with **Decided: raspberries**, and each passage
 
 ### Questions
 
-When a directive leaves you with a question rather than a choice, pick **Question** in the status menu, or **Ask a question…**. Editorialist asks you to write the question down, saves it on the line, and marks the item `[?]`. Cancelling changes nothing.
+When a directive leaves you with a question rather than a choice, pick **Question** in the status menu, or **Ask a question…**. Editorialist asks you to write the question down, saves it on the line, and marks the item `[?]`. Canceling leaves the line as it was.
 
 ```markdown
 - [?] Keep the footage delay consistent [scope:: 44–47] [question:: Is the footage delayed, or is scene 47 wrong?]

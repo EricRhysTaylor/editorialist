@@ -12,7 +12,7 @@ node scripts/round-screenshot.mjs wiki/images/<file>.png
 
 GitHub strips styles from markdown, so the radius has to be built into the
 image. The script makes the corners transparent, so they read correctly on
-light and dark pages. It keeps the colour profile and every pixel outside the
+light and dark pages. It keeps the color profile and every pixel outside the
 corners, and leaves a file that is already rounded alone. Pass
 `--radius <px>` (in image pixels) only for an image captured at another
 scale, so the corners still display at 12 CSS pixels.
