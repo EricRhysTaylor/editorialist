@@ -1225,12 +1225,20 @@ export default class EditorialistPlugin extends Plugin {
 		}));
 		const present = new Set(inputs.map((item) => item.key));
 		const previouslyOpen = new Set(plan.progress?.open.map((item) => item.key));
+		// A response is finished only once it is saved, so an unsaved one stays
+		// open while its pass is still registered, even after the pass leaves
+		// Available work. A pass gone from the registry can no longer take a
+		// response: its open response is set aside, neither done nor remaining.
+		const registered = new Set<string>();
 		for (const batch of this.getSweepRegistryEntries()) {
-			if (!batch.responseSavedAt) continue;
 			const key = sourceKey({ kind: "response", path: RESPONSES_FOLDER, locator: batch.batchId });
-			if (previouslyOpen.has(key) && !present.has(key)) inputs.push({ key, kind: "response", state: "complete" });
+			registered.add(key);
+			if (batch.responseSavedAt && previouslyOpen.has(key) && !present.has(key)) inputs.push({ key, kind: "response", state: "complete" });
 		}
-		const progress = advancePlanProgress(plan.progress, inputs, localDate(new Date()), (item) => item.kind === "response" || work.held.some((source) => {
+		for (const item of plan.progress?.open ?? []) {
+			if (item.kind === "response" && !present.has(item.key) && !registered.has(item.key)) inputs.push({ key: item.key, kind: "response", state: "inactive" });
+		}
+		const progress = advancePlanProgress(plan.progress, inputs, localDate(new Date()), (item) => item.kind === "response" ? registered.has(item.key) : work.held.some((source) => {
 			if (source.kind !== item.kind) return false;
 			if (!("path" in source) || source.path === undefined) return true;
 			const [, path] = JSON.parse(item.key) as [string, string];
