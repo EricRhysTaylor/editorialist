@@ -68,6 +68,40 @@ function dialogField(label: string): HTMLInputElement {
 }
 
 describe("Recording that a document was sent", () => {
+	it("records the newly chosen filename when editing an older activity", async () => {
+		const project = createEditorialProject("Morgan Lee", "2026-11-30", () => "project-1");
+		const record = { id: "old", day: "2026-11-09", kind: "sent" as const, description: "Sent the draft", filenames: "Old draft.docx", referencePath: "" };
+		project.records.push(record);
+		const save = vi.fn(async (_expected: unknown, _next: unknown) => {});
+		const keepCopy = vi.fn(async () => ({ copy: "Editorialist/Engagement history/new.docx", digest: "a".repeat(64) }));
+		const host = { app: { vault: { getFiles: () => [] } }, plan: { ...emptyRevisionPlan(), project }, service: { keepCopy }, save };
+		const panel = new EditorialProjectPanel(host as unknown as ProjectPanelHost);
+		(Reflect.get(panel, "recordActivity") as (value: typeof record) => void).call(panel, record);
+		const form = dialogField("File names").closest("form")!;
+		const input = form.querySelector<HTMLInputElement>('input[type="file"]')!;
+		const file = new File(["new content"], "New draft.docx");
+		Object.defineProperty(input, "files", { value: [file], configurable: true });
+		input.dispatchEvent(new Event("change"));
+		form.dispatchEvent(new Event("submit", { cancelable: true }));
+		await vi.waitFor(() => expect(save).toHaveBeenCalledOnce());
+		const next = save.mock.calls[0]![1] as { project: { records: Array<{ filenames: string }> } };
+		expect(next.project.records[0]?.filenames).toBe("New draft.docx");
+	});
+
+	it("keeps edits to typed filenames when the file selection is unchanged", async () => {
+		const project = createEditorialProject("Morgan Lee", "2026-11-30", () => "project-2");
+		const record = { id: "old", day: "2026-11-09", kind: "sent" as const, description: "Sent the draft", filenames: "Old draft.docx", referencePath: "" };
+		project.records.push(record);
+		const save = vi.fn(async (_expected: unknown, _next: unknown) => {});
+		const host = { app: { vault: { getFiles: () => [] } }, plan: { ...emptyRevisionPlan(), project }, save };
+		const panel = new EditorialProjectPanel(host as unknown as ProjectPanelHost);
+		(Reflect.get(panel, "recordActivity") as (value: typeof record) => void).call(panel, record);
+		const names = dialogField("File names"); names.value = "Corrected name.docx";
+		names.closest("form")!.dispatchEvent(new Event("submit", { cancelable: true }));
+		await vi.waitFor(() => expect(save).toHaveBeenCalledOnce());
+		const next = save.mock.calls[0]![1] as { project: { records: Array<{ filenames: string }> } };
+		expect(next.project.records[0]?.filenames).toBe("Corrected name.docx");
+	});
 	it("says plainly that an unsent document is not sent yet, with a way to record it", () => {
 		const card = engagement(false).root.querySelector<HTMLElement>(".editorialist-project__document")!;
 		expect(card.dataset.documentState).toBe("unsent");

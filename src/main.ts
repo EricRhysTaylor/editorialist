@@ -1226,14 +1226,17 @@ export default class EditorialistPlugin extends Plugin {
 		const present = new Set(inputs.map((item) => item.key));
 		const previouslyOpen = new Set(plan.progress?.open.map((item) => item.key));
 		// A response is finished only once it is saved, so an unsaved one stays
-		// open while its pass is still registered, even after the pass leaves
-		// Available work. A pass gone from the registry can no longer take a
-		// response: its open response is set aside, neither done nor remaining.
+		// open while its pass is still active, even after the pass leaves
+		// Available work. A pass that was closed, or is gone from the registry,
+		// can no longer take a response: its open response is set aside,
+		// neither done nor remaining.
 		const registered = new Set<string>();
 		for (const batch of this.getSweepRegistryEntries()) {
 			const key = sourceKey({ kind: "response", path: RESPONSES_FOLDER, locator: batch.batchId });
 			registered.add(key);
-			if (batch.responseSavedAt && previouslyOpen.has(key) && !present.has(key)) inputs.push({ key, kind: "response", state: "complete" });
+			if (!previouslyOpen.has(key) || present.has(key)) continue;
+			if (batch.responseSavedAt) inputs.push({ key, kind: "response", state: "complete" });
+			else if (batch.status === "cleaned" || batch.status === "ended_early") inputs.push({ key, kind: "response", state: "inactive" });
 		}
 		for (const item of plan.progress?.open ?? []) {
 			if (item.kind === "response" && !present.has(item.key) && !registered.has(item.key)) inputs.push({ key: item.key, kind: "response", state: "inactive" });

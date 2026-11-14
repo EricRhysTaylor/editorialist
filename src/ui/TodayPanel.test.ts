@@ -22,13 +22,24 @@ const entry = (id: string, extra: Partial<PlanEntry> = {}): PlanEntry => ({
 const withEntries = (...entries: PlanEntry[]): RevisionPlan => ({ ...emptyRevisionPlan(), entries });
 
 describe("response progress", () => {
-	it("does not mark a missing response done without evidence that it was saved", async () => {
+	it("holds a response open when an active pass cannot be read", async () => {
 		const response = { kind: "response" as const, path: "Editorialist/Responses", locator: "batch-1" };
 		const plan: RevisionPlan = { ...emptyRevisionPlan(), progress: { since: "2026-11-01", open: [{ key: sourceKey(response), kind: "response" }], done: [] } };
-		const host = { getRevisionPlan: () => plan, getSweepRegistryEntries: () => [{ batchId: "batch-1", status: "cleaned" }], saveRevisionPlan: vi.fn(async () => {}) };
+		const host = { getRevisionPlan: () => plan, getSweepRegistryEntries: () => [{ batchId: "batch-1", status: "in_progress" }], saveRevisionPlan: vi.fn(async () => {}) };
 		await EditorialistPlugin.prototype.recordRevisionProgress.call(host as never, key("Book 1"), { candidates: [], warnings: [], held: [] });
 		expect(plan.progress?.open).toEqual([{ key: sourceKey(response), kind: "response" }]);
 		expect(plan.progress?.done).toEqual([]);
+	});
+
+	it.each(["cleaned", "ended_early"])("sets aside an unsaved response when the pass is %s", async (status) => {
+		const response = { kind: "response" as const, path: "Editorialist/Responses", locator: "batch-1" };
+		const session = entry("scheduled", { source: response });
+		const plan: RevisionPlan = { ...emptyRevisionPlan(), entries: [session], progress: { since: "2026-11-01", open: [{ key: sourceKey(response), kind: "response" }], done: [] } };
+		const host = { getRevisionPlan: () => plan, getSweepRegistryEntries: () => [{ batchId: "batch-1", status }], saveRevisionPlan: vi.fn(async () => {}) };
+		await EditorialistPlugin.prototype.recordRevisionProgress.call(host as never, key("Book 1"), { candidates: [], warnings: [], held: [] });
+		expect(plan.progress?.open).toEqual([]);
+		expect(plan.progress?.done).toEqual([]);
+		expect(plan.entries).toEqual([session]);
 	});
 
 	it("records a saved response even if its pass was cleaned before the next refresh", async () => {

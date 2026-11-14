@@ -2,12 +2,41 @@
 // Only stored and deflated entries occur in Word files; inflating uses the
 // platform's DecompressionStream, so the plugin carries no compression
 // library. Writing stores entries uncompressed, which every Word reads.
+//
+// Reading is bounded, because a few kilobytes of deflate can expand to
+// gigabytes (a "zip bomb") and the whole result is held in memory:
+//
+// - at most 2,000 entries in the archive (Word files have a few dozen);
+// - at most 300 MB decompressed across all entries read;
+// - each deflated entry at most min(100 MB, max(50 × its declared size, 1 MB)).
+//   The declared size comes from the central directory and is exact for an
+//   honest file; the 50× and 1 MB slack only keep an odd writer's rounding
+//   from failing a real document, while a bomb that declares a small size is
+//   stopped soon after it passes it.
+//
+// Inflation reads the stream chunk by chunk and stops as soon as a cap is
+// passed, so a bomb never reaches its full size. Passing a cap throws
+// ZipLimitError.
 
 const END_OF_CENTRAL_DIRECTORY = 0x06054b50;
 const CENTRAL_DIRECTORY_ENTRY = 0x02014b50;
 const LOCAL_FILE_HEADER = 0x04034b50;
 
 export class NotAZipError extends Error {}
+
+// The archive is larger, or expands to more, than any Word file would.
+export class ZipLimitError extends Error {}
+
+const MAX_ENTRIES = 2000;
+const MAX_TOTAL_BYTES = 300 * 1024 * 1024;
+const MAX_ENTRY_BYTES = 100 * 1024 * 1024;
+const MIN_ENTRY_ALLOWANCE = 1024 * 1024;
+const DECLARED_SIZE_SLACK = 50;
+
+// The most one deflated entry may expand to, given the size it declares.
+export function entryOutputLimit(declaredSize: number): number {
+	return Math.min(MAX_ENTRY_BYTES, Math.max(DECLARED_SIZE_SLACK * declaredSize, MIN_ENTRY_ALLOWANCE));
+}
 
 // The named files, or every file in archive order when no names are given.
 export async function readZipEntries(bytes: Uint8Array, names?: readonly string[]): Promise<Map<string, Uint8Array>> {
@@ -16,6 +45,8 @@ export async function readZipEntries(bytes: Uint8Array, names?: readonly string[
 	const wanted = names ? new Set(names) : null;
 	const found = new Map<string, Uint8Array>();
 	const decoder = new TextDecoder();
+	if (directory.count > MAX_ENTRIES) throw new ZipLimitError(`The archive has ${directory.count} entries.`);
+	let totalRead = 0;
 
 	let offset = directory.offset;
 	for (let entry = 0; entry < directory.count; entry++) {
@@ -24,6 +55,7 @@ export async function readZipEntries(bytes: Uint8Array, names?: readonly string[
 		}
 		const method = view.getUint16(offset + 10, true);
 		const compressedSize = view.getUint32(offset + 20, true);
+		const declaredSize = view.getUint32(offset + 24, true);
 		const nameLength = view.getUint16(offset + 28, true);
 		const extraLength = view.getUint16(offset + 30, true);
 		const commentLength = view.getUint16(offset + 32, true);
@@ -35,9 +67,14 @@ export async function readZipEntries(bytes: Uint8Array, names?: readonly string[
 		if (view.getUint32(localOffset, true) !== LOCAL_FILE_HEADER) throw new NotAZipError("Damaged ZIP entry.");
 		const dataStart = localOffset + 30 + view.getUint16(localOffset + 26, true) + view.getUint16(localOffset + 28, true);
 		const data = bytes.subarray(dataStart, dataStart + compressedSize);
-		if (method === 0) found.set(name, data);
-		else if (method === 8) found.set(name, await inflateRaw(data));
+		const remaining = MAX_TOTAL_BYTES - totalRead;
+		let content: Uint8Array;
+		if (method === 0) content = data;
+		else if (method === 8) content = await inflateRaw(data, Math.min(entryOutputLimit(declaredSize), remaining));
 		else throw new NotAZipError(`Unsupported compression in ${name}.`);
+		if (content.length > remaining) throw new ZipLimitError("The archive expands past its total limit.");
+		totalRead += content.length;
+		found.set(name, content);
 	}
 	return found;
 }
@@ -53,10 +90,29 @@ function findCentralDirectory(view: DataView): { count: number; offset: number }
 	throw new NotAZipError("Not a ZIP archive.");
 }
 
-async function inflateRaw(data: Uint8Array): Promise<Uint8Array> {
+async function inflateRaw(data: Uint8Array, limit: number): Promise<Uint8Array> {
 	// A copy, so the Blob gets a plain ArrayBuffer rather than a view of a shared one.
 	const stream = new Blob([new Uint8Array(data)]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
-	return new Uint8Array(await new Response(stream).arrayBuffer());
+	const reader = stream.getReader();
+	const chunks: Uint8Array[] = [];
+	let length = 0;
+	for (;;) {
+		const { done, value } = await reader.read();
+		if (done) break;
+		length += value.length;
+		if (length > limit) {
+			await reader.cancel().catch(() => undefined);
+			throw new ZipLimitError(`An entry expands past ${limit} bytes.`);
+		}
+		chunks.push(value);
+	}
+	const out = new Uint8Array(length);
+	let at = 0;
+	for (const chunk of chunks) {
+		out.set(chunk, at);
+		at += chunk.length;
+	}
+	return out;
 }
 
 // A ZIP archive of the given files, stored uncompressed, in the order given.
