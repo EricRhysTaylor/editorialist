@@ -1,4 +1,4 @@
-Keep an editor’s agreed dates, the documents you send, your tasks, shared milestones, and activity history together for the active book. Run **Open editor engagement**, or choose **Editor engagement** from the panel’s mode selector. **Open editorial project in workspace** opens the same plan in a full workspace tab.
+Keep an editor’s agreed dates, the documents you send, your tasks, shared milestones, and activity history together for the active book. Run **Open editor engagement**, or choose **Editor engagement** from the panel’s mode selector. The view has three tabs: **Overview**, **Schedule**, and **History**. **Open engagement in workspace**, in the panel's **⋯** menu, opens the same plan in a full workspace tab.
 
 <p align="center"><img src="images/panel-editor-engagement.png" alt="Editor engagement overview for Morgan Lee: the start date six days away, the engagement bar with your preparation, the editor's stretch and your questions, a cushion bar with six days left, and Next up with the next session and the next date due" width="460"></p>
 
@@ -11,11 +11,11 @@ Keep an editor’s agreed dates, the documents you send, your tasks, shared mile
 When your editor's feedback arrives and you import it, Editorialist links it to the engagement for you, as its **Returned feedback**. From then on the actual return date is the date that feedback was received, kept in one place: change it here or in **Editorial deliveries** and both show the new date. A return date you entered before the feedback arrived moves to the feedback when it links.
 4. Save, then add your documents, tasks, and milestones. New engagements start with empty lists.
 
-**Editor profile** opens that contributor’s existing profile controls. If the saved profile becomes unavailable, relink it in **Engagement details**. AI contributors are excluded from the editor selector.
+Click your editor's name on the overview to open that contributor’s existing profile controls. If the saved profile becomes unavailable, relink it in **Engagement details**. AI contributors are excluded from the editor selector.
 
 ## Overview
 
-The overview starts with your editor and the agreed start date, counted down in days ("9 days away", "Today", or "3 days ago"), and the day to aim for: what is due at the start should be ready your cushion of days early (see [Deadlines and your cushion](Revision-Plan#deadlines-and-your-cushion)). Once that aim has passed, a bar shows how many days of the cushion are left.
+The overview starts with your editor and the agreed start date, counted down in days ("9 days away", "Today", or "3 days ago"), and the day to aim for: what is due at the start should be ready your cushion of days early (see [Deadlines and your cushion](Revision-Plan#deadlines-and-your-cushion)). Once that aim has passed, a bar shows how many days of the cushion are left. Until you record your editor's return, the card reminds you that your days for questions start from the actual return; once it is recorded, it gives the return and the day your questions are due. **Engagement details** changes the dates and the editor, and **Open collaboration** opens your editor's site when you have saved its link.
 
 ### The engagement bar
 
@@ -33,21 +33,23 @@ The chat icon in the corner of the editor's card opens **Engagement notes**, the
 
 **Next up** names the book's next session by the same rule Today uses: a session left from an earlier day or scheduled for today comes first, then the first session of the next scheduled day, then the first unscheduled item in your work queue. Today also counts your writing goals, so when a goal session comes first there, Today names it and this card still names the book's. Click an engagement task's circle and choose **Done** to finish it right there, or **Open** to reopen it; any other kind of work shows what it is, when it is scheduled, and an **Open** button. A session whose day has passed says **Overdue** and its day in red, with a red edge on the card, as Today and the work queue mark it. The card also shows the next open milestone, marked overdue in amber once its date passes, and **Open schedule**. When the queue is empty, it says so and points you to the **Schedule** tab.
 
-Below it, **Editor return & questions**, **Documents**, **Other tasks**, and **Milestones** follow as sections you can collapse; each remembers whether you left it open or closed. Each thing appears once, with one status: a task is done or open, a document is sent or not, and a milestone is met by what is due on it. Quiet icon actions sit at the right of each row.
+Below it, **Documents**, **Other tasks**, and **Milestones** follow as sections you can collapse; each remembers whether you left it open or closed. Each thing appears once, with one status: a task is done or open, a document is sent or not, and a milestone is met by what is due on it. Quiet icon actions sit at the right of each row.
 
 ## Documents
 
 Use **Add document** for what you prepare for your editor: a query letter, a synopsis, the manuscript. A document can link its **working document** in your vault, carry a **Word limit**, and have a **Due** date.
 
+Each document is one line: a circle that turns into a green check once it is sent, its name, when it is due or the day it went out, how many of its tasks are still open, and its word count. Click the line to open the document: its working note, its tasks, each time it was sent, and the icons to open its working document, add a task, or edit it. One document is open at a time; opening another closes the first.
+
 A word limit caps the working document, a query letter at 500 words, say. Wherever that document appears, a bar shows its current prose words against the limit and turns red once over; the count leaves out properties, headings, and hidden comments. **Open working document** on the document's row, **Open document** in the schedule, or **Start** on Today opens it.
 
-A document's tasks sit in its card, under its title. Add one with the list icon on the document's row, or choose the document in a task's **Document** field. Tasks with no document are listed under **Other tasks**. Click a task's circle and choose **Done** or **Open**; opening the menu changes nothing until you choose, and finished tasks are struck through.
+A document's tasks sit inside it, under its title. Add one with the list icon in the open document, or choose the document in a task's **Document** field. Tasks with no document are listed under **Other tasks**. Click a task's circle and choose **Done** or **Open**; opening the menu changes nothing until you choose, and finished tasks are struck through.
 
 <p align="center"><img src="images/engagement-documents.png" alt="Documents section with four cards: a query letter sent to Morgan Lee as a Word file with a copy kept, and three documents not sent yet, each with its due date, word count, tasks and Record sending link" width="450"></p>
 
 ### Record sending a document
 
-Every document card says whether it has gone to your editor: **Not sent yet**, or each send with its date and file. A document's details include **Sent to** your editor **on** and **File you sent**, right beside its working document and word limit. The same fields appear in the form of every task for that document, so finishing the last task and recording the send happen in one place. **Record sending…** on an unsent card opens the document's details at the send date.
+Every document says whether it has gone to your editor: its line gives the day it was sent, and inside it reads **Not sent yet**, or lists each send with its date and file. A document's details include **Sent to** your editor **on** and **File you sent**, right beside its working document and word limit. The same fields appear in the form of every task for that document, so finishing the last task and recording the send happen in one place. **Record sending…** in an unsent document opens the document's details at the send date.
 
 Enter the day you sent it and the file you actually sent, which is usually not the working note but the Word file or PDF made from it: pick it from your vault, or **Choose file…** to bring one in from your computer. Editorialist keeps a copy of the file as it was, so later changes to it don't change what you sent; for a file from your vault you can untick **Keep a copy of this file as it is now**. The file icon on the send opens the copy in Word or whichever app opens it.
 
@@ -65,7 +67,7 @@ Prepare and exchange files through your editor’s collaboration service, email,
 
 ## Schedule the work
 
-Open **Schedule** for the ordered **Queue**, daily **Days** view, deadline, weekday capacity, and how many days early to finish work due to your editor. Personal tasks join imported review batches, Editorialism directives, and pending edits. Review a schedule preview before applying it, then resolve feedback in its own workflow. Marking a scheduled session **Done** records the planning session; finishing the feedback itself is separate.
+Open **Schedule** to see the book's days as squares, a week to a row, as the [Author Planner](Author-Planner) draws them for all your books: a square fills with the time planned that day against the time you set aside, turns red past it, and is tinted while the manuscript is with your editor; a red ring marks the agreed start. Hover a square for the day's sessions, and click it to open that day in **Days**. Below them are the ordered **Queue**, daily **Days** view, deadline, weekday capacity, and how many days early to finish work due to your editor. Personal tasks join imported review batches, Editorialism directives, and pending edits. Review a schedule preview before applying it, then resolve feedback in its own workflow. Marking a scheduled session **Done** records the planning session; finishing the feedback itself is separate.
 
 <p align="center"><img src="images/panel-revision-plan.png" alt="Editor engagement schedule with book progress and a capacity forecast" width="460"></p>
 
