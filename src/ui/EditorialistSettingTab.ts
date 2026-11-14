@@ -18,14 +18,13 @@ import { openEditorialistChoiceModal } from "./EditorialistChoiceModal";
 import { BACKUPS_FOLDER, EDITORIALISM_FOLDER_NAME, RESPONSES_FOLDER, WORD_FILES_FOLDER } from "../services/EditorialismService";
 import { describeUnremovedBlocksSuffix } from "../orchestrators/ReviewBatchProcessor";
 import { RADIAL_TIMELINE_ICON_ID } from "./RadialTimelineLogoIcon";
+import { RADIAL_TIMELINE_DOCS_URL, settingsDocsUrl } from "./util/docsLinks";
 
 export type SettingsTabId = "core" | "reviewer" | "configuration";
 
 export class EditorialistSettingTab extends PluginSettingTab {
-	private static readonly SETTINGS_DOCS_URL = "https://github.com/EricRhysTaylor/Editorialist#readme";
 	private static readonly RADIAL_TIMELINE_INSTALL_URL = "obsidian://show-plugin?id=radial-timeline";
 	private static readonly RADIAL_TIMELINE_REPOSITORY_URL = "https://github.com/EricRhysTaylor/Obsidian-Manuscript-Timeline";
-	private static readonly RADIAL_TIMELINE_WIKI_URL = "https://github.com/EricRhysTaylor/Obsidian-Manuscript-Timeline/wiki";
 	private activeBookOnly = true;
 	private activeTab: SettingsTabId = "core";
 	private dashboardEl: HTMLElement | null = null;
@@ -236,7 +235,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			text: "Core · Editorial review",
 		});
 		const badgeLink = badge.createEl("a", {
-			href: EditorialistSettingTab.SETTINGS_DOCS_URL,
+			href: settingsDocsUrl("Core"),
 			cls: "editorialist-settings__hero-intro-badge-link editorialist-settings__rt-card-badge-link",
 			attr: {
 				target: "_blank",
@@ -281,7 +280,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			text: "Contributors · Directory",
 		});
 		const badgeLink = badge.createEl("a", {
-			href: EditorialistSettingTab.SETTINGS_DOCS_URL,
+			href: settingsDocsUrl("Contributors"),
 			cls: "editorialist-settings__hero-intro-badge-link editorialist-settings__rt-card-badge-link",
 			attr: {
 				target: "_blank",
@@ -325,7 +324,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			text: "Configuration · Scope & data",
 		});
 		const badgeLink = badge.createEl("a", {
-			href: EditorialistSettingTab.SETTINGS_DOCS_URL,
+			href: settingsDocsUrl("Configuration"),
 			cls: "editorialist-settings__hero-intro-badge-link editorialist-settings__rt-card-badge-link",
 			attr: {
 				target: "_blank",
@@ -570,14 +569,14 @@ export class EditorialistSettingTab extends PluginSettingTab {
 			text: "Radial Timeline integration",
 		});
 		const wikiLink = badge.createEl("a", {
-			href: EditorialistSettingTab.RADIAL_TIMELINE_WIKI_URL,
+			href: RADIAL_TIMELINE_DOCS_URL,
 			cls: "editorialist-settings__hero-intro-badge-link editorialist-settings__rt-card-badge-link",
 			attr: {
 				target: "_blank",
 				rel: "noopener",
 			},
 		});
-		setAccessibleLabel(wikiLink, "Open the Radial Timeline wiki");
+		setAccessibleLabel(wikiLink, "Open the Radial Timeline docs");
 		setIcon(wikiLink, "external-link");
 		content.createDiv({
 			cls: "editorialist-settings__rt-card-title",
@@ -1658,7 +1657,7 @@ export class EditorialistSettingTab extends PluginSettingTab {
 		setIcon(iconEl, icon);
 		row.createSpan({ cls: "editorialist-settings__section-title", text: title });
 		const link = row.createEl("a", {
-			href: EditorialistSettingTab.SETTINGS_DOCS_URL,
+			href: settingsDocsUrl(title),
 			cls: "editorialist-settings__section-title-link",
 			attr: {
 				target: "_blank",
