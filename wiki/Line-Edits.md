@@ -205,7 +205,23 @@ To check a detail yourself across the book, use Obsidian's search scoped to the 
 
 ### Cut-file preview
 
-<p align="center"><img src="images/panel-side-cut-closeup-rounded.png" alt="Closeup of a scene cut file with Class: Cut frontmatter and Editorialist backup metadata" width="520"></p>
+A scene's cut file after one backup:
+
+```markdown
+---
+Class: Cut
+---
+
+%% editorialist-cut
+source: selection
+scene: Pride & Prejudice/1 Bingley Arrives.md
+backed-up: 2026-09-25T18:28:38Z
+%%
+
+It is a truth universally acknowledged, that a single man in possession of a good fortune must be in want of a wife.
+
+---
+```
 
 When you use **Backup to cut file**, Editorialist writes the selected passage to the scene's cut file before you decide what to do with the suggestion. The cut file keeps the archived text with source metadata, while the review suggestion stays active until you accept, reject, rewrite, or defer it.
 

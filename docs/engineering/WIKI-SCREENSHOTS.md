@@ -294,3 +294,13 @@ brought in through Your editor's Word file. No Author-vault content was used.
 Seen in another capture, not published: at a 435 CSS px sidebar the
 engagement bar's combined mark at the start date and the bare milestone just
 after it overlapped.
+
+## November 14, 2026 — docs site review
+
+All 24 wiki images were checked against the 3.4.1 code for docs.radialtimeline.com/editorialist/ (which is built from the published wiki), and every on-screen label matched. Two were retired, and both moved to `docs/wiki-archive/images/`:
+
+- `panel-side-cut-closeup-rounded.png`: Line Edits now shows the cut file as a Markdown code block, matching `CutArchiveService` (frontmatter, then the `%% editorialist-cut %%` header and the text). Settings Reference drops its second copy; its text lists the fields.
+- `settings-radial-timeline-rounded.png`: removed from Radial Timeline Integration, whose text already says what the placard said.
+
+`ui-toolbar-closeup-rounded.png` stays in the wiki. The docs site shows a live HTML version of the toolbar in its place.
+

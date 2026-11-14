@@ -147,8 +147,6 @@ Back a passage up before you accept a **Cut** if you want a copy kept. Accepting
 
 The archive is a per-scene cut file — one per scene, named after the scene and tagged with its own `Class: Cut` frontmatter. Each archived block stores source, scene, and backup timestamp, plus operation, suggestion ID, contributor, and reason when they are available. Cut files are separate from review status and acceptance decisions: backing a passage up never changes a suggestion's status.
 
-<p align="center"><img src="images/panel-side-cut-closeup-rounded.png" alt="Closeup of a scene cut file with Class: Cut frontmatter and Editorialist backup metadata" width="520"></p>
-
 - **Cut folder** — a path field. Leave empty to use the default: a **Cut** folder inside the book's folder when there is an active book, otherwise a **Cut** folder beside each scene.
 - **Save** / **Use default** buttons apply your folder or go back to the default.
 - If a scene sits outside the active book folder, cut files fall back to that scene's own folder.
