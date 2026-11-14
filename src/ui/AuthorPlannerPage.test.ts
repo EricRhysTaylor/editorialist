@@ -47,6 +47,31 @@ function authorPage(): { root: HTMLElement; panel: RevisionPlanPanel; plugin: { 
 	return { root, panel, plugin };
 }
 
+describe("an engagement's schedule", () => {
+	it("draws the book's days as squares, its editor's start ringed, and opens a day in its sessions", () => {
+		const project = createEditorialProject("Morgan Lee", shift(16), () => "p");
+		project.expectedReturn = shift(58);
+		project.tasks.push({ id: "t", title: "Resolve final pass", materialId: null, milestoneId: null, done: false });
+		const plan: RevisionPlan = { ...emptyRevisionPlan(), capacity: [120, 120, 120, 120, 120, 120, 120], project, entries: [
+			{ id: "s1", source: { kind: "preparation", path: "p", locator: "t" }, title: "Resolve final pass", lowMinutes: 90, highMinutes: 100, day: shift(3), required: true, done: false, afterId: null },
+		] };
+		const plugin = { getEditorialDeliveries: () => [], getReviewerProfiles: () => [] };
+		const panel = Object.assign(Object.create(RevisionPlanPanel.prototype) as object, {
+			author: false, plugin, plan, candidates: [], book: "b", view: "queue", sectionOpen: new Map(), focusDay: null, revealPending: false,
+			render: vi.fn(),
+		}) as { render: ReturnType<typeof vi.fn>; view: string; focusDay: string | null };
+		const root = document.body.appendChild(document.createElement("div"));
+		Reflect.apply(Reflect.get(panel, "renderBookDays") as (root: HTMLElement) => void, panel, [root]);
+		expect(root.querySelector(`[data-day="${shift(3)}"]`)?.classList.contains("is-full")).toBe(true);
+		expect(root.querySelector(`[data-day="${shift(16)}"]`)?.classList.contains("is-hard")).toBe(true);
+		expect(root.querySelector(".editorialist-author__panel-foot")?.textContent).toBe("1 session planned");
+		root.querySelector<HTMLButtonElement>(`[data-day="${shift(3)}"]`)!.click();
+		expect(panel.view).toBe("days");
+		expect(panel.focusDay).toBe(shift(3));
+		expect(panel.render).toHaveBeenCalled();
+	});
+});
+
 describe("the author planner on one page", () => {
 	it("shows what lies ahead, the days, the goals, then folds the sessions and setup", () => {
 		const { root, plugin } = authorPage();

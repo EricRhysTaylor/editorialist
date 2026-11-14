@@ -17,8 +17,11 @@ export function panelHeaderSignature(plugin: EditorialistPlugin, scopeLabel?: st
 	return scopeLabel ?? JSON.stringify(bookTarget(plugin));
 }
 
+/** An action of the panel's own, listed first in its ⋯ menu. */
+export interface PanelMenuItem { title: string; icon: string; action: () => void }
+
 /** Consistent navigation; source-specific work stays in the panel body. */
-export function renderPanelHeader(parent: HTMLElement, plugin: EditorialistPlugin, viewType: string, label: string, scopeLabel?: string, primary?: { label: string; action: () => void; disabled?: boolean }): HTMLElement {
+export function renderPanelHeader(parent: HTMLElement, plugin: EditorialistPlugin, viewType: string, label: string, scopeLabel?: string, primary?: { label: string; action: () => void; disabled?: boolean }, own: readonly PanelMenuItem[] = []): HTMLElement {
 	const header = parent.createDiv({ cls: "editorialist-panel__header" });
 	const row = header.createDiv({ cls: "editorialist-panel__title-row" });
 	const mode = row.createEl("button", {
@@ -40,6 +43,8 @@ export function renderPanelHeader(parent: HTMLElement, plugin: EditorialistPlugi
 	setIconLabel(more, t("panel.actions"));
 	more.addEventListener("click", (event) => {
 		const menu = new Menu();
+		for (const entry of own) menu.addItem((item) => item.setTitle(entry.title).setIcon(entry.icon).onClick(entry.action));
+		if (own.length) menu.addSeparator();
 		menu.addItem((item) => item.setTitle(t("panel.deliveries")).setIcon("package").onClick(() => plugin.openEditorialDeliveries()));
 		menu.addSeparator();
 		menu.addItem((item) => item.setTitle(t("commands.insertAuthorQuery")).setIcon("message-square-plus").onClick(() => { void plugin.insertAuthorQuery(); }));

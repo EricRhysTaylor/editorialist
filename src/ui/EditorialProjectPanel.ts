@@ -2,7 +2,7 @@ import { renderWordLimit } from "./primitives/WordLimitBar";
 import { setIconLabel } from "./primitives/AccessibleLabel";
 import { bindCompletionMenu } from "./primitives/CompletionMenu";
 import { Modal, Notice, TFile, normalizePath, setIcon, type App } from "obsidian";
-import { ENGAGEMENT_START, MAX_AGREEMENT_LENGTH, candidateDeadline, collaborationUrl, createEditorialProject, deadlineState, documentDue, documentSends, dueDeadline, engagementPhases, engagementReturned, engagementStartCountdown, isProjectEditorProfile, milestoneState, projectEditor, recordProjectEvent, removeDocument, removeMilestone, removeTask, shiftDate, taskDue, type EditorialProject, type EngagementRecord, type EngagementTask, type ProjectMaterial } from "../core/planning/EditorialProject";
+import { ENGAGEMENT_START, MAX_AGREEMENT_LENGTH, candidateDeadline, collaborationUrl, createEditorialProject, deadlineState, documentDue, documentSends, dueDeadline, engagementReturned, engagementStartCountdown, isProjectEditorProfile, milestoneState, projectEditor, recordProjectEvent, removeDocument, removeMilestone, removeTask, shiftDate, taskDue, type EditorialProject, type EngagementRecord, type EngagementTask, type ProjectMaterial } from "../core/planning/EditorialProject";
 import { isDate, localDate, type RevisionPlan } from "../core/planning/RevisionPlan";
 import { deadlineLabel, planDayLabel } from "../core/planning/WorkPresentation";
 import { renderCushionBar } from "./primitives/CushionBar";
@@ -25,7 +25,6 @@ export interface ProjectPanelHost {
 	getReviewers(): ContributorProfile[];
 	manageEditor(id: string): Promise<void>;
 	openSchedule(): void;
-	openWorkspace(): Promise<void>;
 	openSource(path: string): Promise<void>;
 	/** The next session, by the rule Today uses. */
 	nextInQueue(): QueueHead | null;
@@ -146,10 +145,6 @@ export class EditorialProjectPanel {
 		if (!next.project) throw new Error("Create an editor engagement first.");
 		await update(next.project); await this.host.save(expected, next);
 	}
-	private action(parent: HTMLElement, text: string, action: () => Promise<void>): HTMLButtonElement {
-		const el = button(parent, text, () => { if (el.disabled) return; el.disabled = true; void action().catch((reason: unknown) => { new Notice(reason instanceof Error ? reason.message : "Could not update engagement."); }).finally(() => { if (el.isConnected) el.disabled = this.host.busy; }); });
-		el.disabled = this.host.busy; return el;
-	}
 	renderOverview(root: HTMLElement): void {
 		const project = this.host.plan.project;
 		if (!project) {
@@ -159,7 +154,15 @@ export class EditorialProjectPanel {
 		}
 		const hero = root.createDiv({ cls: "editorialist-project__hero" }), editor = projectEditor(project, this.host.getReviewers());
 		hero.createDiv({ cls: "editorialist-project__editor-label", text: "Your editor" });
-		hero.createEl("h2", { cls: "editorialist-project__editor-name", text: editor.name });
+		// The name opens the editor's profile, when there is one to open.
+		const name = hero.createEl("h2", { cls: "editorialist-project__editor-name" });
+		if (editor.profile) {
+			const profile = editor.profile;
+			const link = name.createEl("button", { cls: "editorialist-project__editor-link", text: editor.name, attr: { type: "button" } });
+			setIconLabel(link, `Open ${editor.name}'s profile`);
+			link.disabled = this.host.busy;
+			link.addEventListener("click", () => { void this.host.manageEditor(profile.id).catch((reason: unknown) => new Notice(reason instanceof Error ? reason.message : "Could not open the editor's profile.")); });
+		} else name.setText(editor.name);
 		hero.createDiv({ cls: "editorialist-project__editor-role", text: project.title });
 		if (editor.state === "unavailable") hero.createEl("p", { cls: "editorialist-project__warning", text: "The saved editor profile is unavailable. Choose an existing contributor in engagement details." });
 		const today = localDate(new Date());
@@ -168,39 +171,26 @@ export class EditorialProjectPanel {
 		// author's preparation with its targets, the editor's stretch, then
 		// the author's question window. A target's mark goes to it below.
 		const returned = engagementReturned(project, this.host.deliveries).date;
-		const phases = engagementPhases(project, returned ?? null, today);
 		renderEngagementPhaseBar(hero, engagementTrack(project, returned ?? null, today), today, (target) => this.revealTarget(root, target));
 		const ready = candidateDeadline(this.host.plan, { due: project.submissionDate, path: project.id })!;
 		const cushion = this.host.plan.cushionDays;
 		renderCushionBar(hero, ready, today);
 		hero.createEl("p", { cls: "editorialist-project__hint", text: ready.aim < ready.due && ready.aim >= today ? `Agreed start date · aim to have everything ready by ${dayLabel(ready.aim)}, ${cushion} ${cushion === 1 ? "day" : "days"} early.` : "Agreed start date · prepare and exchange files directly through your collaboration." });
+		// The track carries the return and question dates; the note says only
+		// what moves them, and which feedback came back.
+		if (project.expectedReturn && !returned) hero.createEl("p", { cls: "editorialist-project__hint", text: `Return not yet recorded. Your ${project.questionsDays} days for questions start from the actual return.` });
+		if (returned) hero.createEl("p", { cls: "editorialist-project__hint", text: `Returned ${dayLabel(returned)} · questions due ${dayLabel(shiftDate(returned, project.questionsDays))}.` });
+		if (project.deliveryId) hero.createEl("p", { cls: "editorialist-project__hint", text: `Feedback: ${this.host.deliveries.find((item) => item.id === project.deliveryId)?.title ?? "Linked feedback unavailable"}` });
+		// Two actions: the engagement's own details, and the editor's site.
+		// Activity is recorded in History, where it is listed.
 		const actions = hero.createDiv({ cls: "editorialist-project__actions" }); button(actions, "Engagement details", () => this.setup());
-		button(actions, "Record activity", () => this.recordActivity());
-		if (editor.profile) this.action(actions, "Editor profile", () => this.host.manageEditor(editor.profile!.id));
-		this.action(actions, "Open in workspace", () => this.host.openWorkspace());
 		if (project.collaborationUrl) button(actions, "Open collaboration", () => window.open(project.collaborationUrl, "_blank", "noopener,noreferrer"));
 		this.renderAgreement(hero, project, editor.name);
 		this.renderNextUp(root, project);
-		if (project.expectedReturn || returned) {
-			const returnInfo = root.createEl("details", { cls: "editorialist-project__return", attr: { open: "" } });
-			const summary = returnInfo.createEl("summary");
-			setIcon(summary.createSpan({ cls: "editorialist-panel__disclosure-icon", attr: { "aria-hidden": "true" } }), "calendar-clock");
-			const heading = summary.createSpan({ cls: "editorialist-project__return-heading" });
-			heading.createSpan({ cls: "editorialist-project__return-title", text: "Editor return & questions" });
-			const returnDate = returned ?? project.expectedReturn!;
-			heading.createSpan({ cls: "editorialist-project__hint", text: `${returned ? "Returned" : "Expected return"} · ${dayLabel(returnDate)}` });
-			setIcon(summary.createSpan({ cls: "editorialist-panel__disclosure-caret", attr: { "aria-hidden": "true" } }), "chevron-right");
-			const body = returnInfo.createDiv({ cls: "editorialist-project__return-body" });
-			// The placard's bar carries the dates; the note says only what moves them.
-			if (phases) { if (!returned) body.createEl("p", { cls: "editorialist-project__hint", text: `Return not yet recorded. Your ${project.questionsDays} days for questions start from the actual return.` }); }
-			else body.createEl("p", { text: returned ? `Questions due ${dayLabel(shiftDate(returned, project.questionsDays))} · ${project.questionsDays} days after actual return.` : `${project.questionsDays} days for questions after actual return. Return not yet recorded.` });
-			if (project.deliveryId) body.createEl("p", { text: `Feedback: ${this.host.deliveries.find((item) => item.id === project.deliveryId)?.title ?? "Linked feedback unavailable"}` });
-			button(body, "Update return dates", () => this.setup());
-		}
 		// Each thing appears once, with its one status: a document and its tasks
 		// and sends together, the rest of the tasks, then the shared dates.
 		// Counted like the other sections: what is still open, here documents not yet sent.
-		this.renderDocuments(section(root, "materials", "files", "Documents", project.materials.filter((item) => !documentSends(project, item.id).length).length), true);
+		this.renderDocuments(section(root, "materials", "files", "Documents", project.materials.filter((item) => !documentSends(project, item.id).length).length));
 		this.renderOtherTasks(root); this.renderMilestones(root);
 	}
 	// The engagement notes: the conversation that set the engagement up, pasted
@@ -239,6 +229,8 @@ export class EditorialProjectPanel {
 		const attribute = target.kind === "document" ? "data-material-id" : target.kind === "task" ? "data-task-id" : "data-milestone-id";
 		const row = [...root.querySelectorAll<HTMLElement>(`[${attribute}]`)].find((item) => item.getAttribute(attribute) === target.id);
 		if (!row) { new Notice(`“${target.title}” is not on this page.`); return; }
+		// A document is its own fold; open it, and the folds around it.
+		if (row.tagName === "DETAILS") (row as HTMLDetailsElement).open = true;
 		for (let parent = row.parentElement; parent && parent !== root; parent = parent.parentElement) if (parent.instanceOf(HTMLDetailsElement)) parent.open = true;
 		row.scrollIntoView({ block: "center", behavior: "smooth" });
 		row.removeClass("is-revealed"); void row.offsetWidth; row.addClass("is-revealed");
@@ -312,22 +304,24 @@ export class EditorialProjectPanel {
 		control.disabled = this.host.busy;
 		bindCompletionMenu(control, done, (next) => this.change((draft) => update(draft, next)));
 	}
-	renderDocuments(root: HTMLElement, compact = false): void {
-		const project = this.host.plan.project; if (!project) { this.renderOverview(root); return; }
-		if (!compact) root.createEl("p", { cls: "editorialist-project__hint", text: "What you prepare for your editor. Each document keeps its working note, its tasks, and each time you sent it." });
+	private renderDocuments(root: HTMLElement): void {
+		const project = this.host.plan.project!;
 		if (!project.materials.length) root.createEl("p", { cls: "editorialist-project__hint", text: "No documents yet. Add what you will send, such as a query letter, a synopsis or the manuscript." });
-		for (const material of project.materials) this.renderDocument(root, project, material, compact);
+		for (const material of project.materials) this.renderDocument(root, project, material);
 		button(root, "Add document", () => this.editMaterial(null)).addClass("editorialist-project__add");
 	}
-	// A document with everything about it: when it is due, its working note,
-	// the tasks on it, and each time it was sent. Being sent is its one status.
-	private renderDocument(parent: HTMLElement, project: EditorialProject, material: ProjectMaterial, compact: boolean): void {
+	// A document as one line: whether it was sent, its name, when it is due or
+	// went out, and its word count against its limit. Opening the line shows
+	// the rest of it, its working note, its tasks and each time it was sent,
+	// one document at a time.
+	private renderDocument(parent: HTMLElement, project: EditorialProject, material: ProjectMaterial): void {
 		const sends = documentSends(project, material.id), sent = sends.length > 0;
 		const due = documentDue(project, material);
 		const deadline = due ? dueDeadline(this.host.plan, project, due) : null;
 		const state = deadline && !sent ? deadlineState(deadline, localDate(new Date())) : null;
-		const card = parent.createDiv({ cls: "editorialist-project__document", attr: { "data-material-id": material.id, "data-document-state": sent ? "sent" : "unsent" } });
-		const head = card.createDiv({ cls: `editorialist-project__row editorialist-project__document-head${sent ? " is-sent" : state === "late" ? " is-overdue" : state === "cushion" ? " is-cushion" : ""}` });
+		const tasks = project.tasks.filter((item) => item.materialId === material.id);
+		const card = parent.createEl("details", { cls: "editorialist-project__document", attr: { name: "editorialist-documents", "data-plan-section": `document:${material.id}`, "data-material-id": material.id, "data-document-state": sent ? "sent" : "unsent" } });
+		const head = card.createEl("summary", { cls: `editorialist-project__row editorialist-project__document-head${sent ? " is-sent" : state === "late" ? " is-overdue" : state === "cushion" ? " is-cushion" : ""}` });
 		// A status mark, not a control: the send itself is edited in the
 		// document's details, like everything else about it.
 		const mark = head.createSpan({ cls: "editorialist-project__row-icon editorialist-project__document-status", attr: { role: "img" } });
@@ -335,24 +329,30 @@ export class EditorialProjectPanel {
 		setIconLabel(mark, sent ? "Sent to your editor" : state === "late" ? "Not sent yet, overdue" : "Not sent yet");
 		const main = head.createDiv({ cls: "editorialist-project__row-main" });
 		main.createDiv({ cls: "editorialist-project__row-title", text: material.title });
-		if (due && deadline) main.createDiv({ cls: "editorialist-project__row-meta editorialist-project__row-deadline", text: sent ? `Due ${planDayLabel(due.day)}` : deadlineLabel(deadline, state === "late") });
-		if (material.notes) main.createDiv({ cls: "editorialist-project__row-notes", text: material.notes });
-		if (!compact && material.source) main.createDiv({ cls: "editorialist-project__path", text: material.source });
+		const open = tasks.filter((task) => !task.done).length;
+		const when = sent ? `Sent ${planDayLabel(sends[0]!.day)}` : deadline ? deadlineLabel(deadline, state === "late") : "Not sent yet";
+		main.createDiv({ cls: "editorialist-project__row-meta editorialist-project__row-deadline", text: [when, open ? `${open} ${open === 1 ? "task" : "tasks"} open` : null].filter(Boolean).join(" · ") });
 		this.wordLimit(main, material);
-		const actions = head.createDiv({ cls: "editorialist-project__row-actions" });
+		setIcon(head.createSpan({ cls: "editorialist-project__document-caret", attr: { "aria-hidden": "true" } }), "chevron-right");
+
+		const body = card.createDiv({ cls: "editorialist-project__document-body" });
+		const about = body.createDiv({ cls: "editorialist-project__row editorialist-project__document-about" });
+		const detail = about.createDiv({ cls: "editorialist-project__row-main" });
+		if (material.notes) detail.createDiv({ cls: "editorialist-project__row-notes", text: material.notes });
+		if (material.source) detail.createDiv({ cls: "editorialist-project__path", text: material.source });
+		const actions = about.createDiv({ cls: "editorialist-project__row-actions" });
 		if (material.source) iconButton(actions, "file-text", "Open working document", () => this.open(material.source, "Could not open the document."));
 		if (material.exportPath) iconButton(actions, "file-output", "Open file reference", () => this.open(material.exportPath, "Could not open the file."));
 		iconButton(actions, "list-plus", `Add a task for “${material.title}”`, () => this.editTask(undefined, material.id));
 		iconButton(actions, "pencil", `Edit “${material.title}”`, () => this.editMaterial(material));
 
-		const tasks = project.tasks.filter((item) => item.materialId === material.id);
 		if (tasks.length) {
-			const list = card.createDiv({ cls: "editorialist-project__document-tasks" });
+			const list = body.createDiv({ cls: "editorialist-project__document-tasks" });
 			for (const task of tasks) this.renderTask(list, project, task, true);
 		}
-		// Whether and when it went to the editor, always in view: each send with
-		// its date and file, or plainly not sent yet, one click from recording it.
-		const list = card.createDiv({ cls: "editorialist-project__sends" });
+		// Whether and when it went to the editor: each send with its date and
+		// file, or plainly not sent yet, one click from recording it.
+		const list = body.createDiv({ cls: "editorialist-project__sends" });
 		if (!sent) {
 			const row = list.createDiv({ cls: "editorialist-project__row editorialist-project__send is-unsent" });
 			setIcon(row.createSpan({ cls: "editorialist-project__row-icon", attr: { "aria-hidden": "true" } }), "send");

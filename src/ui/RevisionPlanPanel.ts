@@ -16,7 +16,9 @@ import { summarizePlanProgress } from "../core/planning/PlanProgress";
 import { estimateRange } from "../core/planning/AutoSchedule";
 import { type QueueHead, EditorialProjectPanel } from "./EditorialProjectPanel";
 import { EditorialProjectService } from "../services/EditorialProjectService";
-import { cushionProgress, deadlineState, entryWorkDeadline, taskDocument } from "../core/planning/EditorialProject";
+import { cushionProgress, deadlineState, engagementReturned, entryWorkDeadline, projectEditor, taskDocument } from "../core/planning/EditorialProject";
+import { dayGrid, gridHorizon, gridWeeks, type GridEngagement } from "../core/planning/DayGrid";
+import { engagementTrack } from "../core/planning/EngagementTrack";
 import { renderCushionBar } from "./primitives/CushionBar";
 import { bindCompletionMenu } from "./primitives/CompletionMenu";
 import { desktopFileActions, opensInObsidian } from "./primitives/DesktopFileActions";
@@ -34,7 +36,7 @@ export class RevisionPlanPanel extends ItemView {
 	private goalWords: Record<string, number | null> = {};
 	private warnings: string[] = [];
 	private view: "queue" | "days" = "queue";
-	private section: "overview" | "materials" | "schedule" | "history" = "overview";
+	private section: "overview" | "schedule" | "history" = "overview";
 	// Each section's last open/closed state as the author left it, kept across
 	// re-renders and tab switches; a section never toggled keeps its default.
 	private readonly sectionOpen = new Map<string, boolean>();
@@ -92,7 +94,7 @@ export class RevisionPlanPanel extends ItemView {
 		const book = this.book;
 		return new EditorialProjectPanel({ app: this.app, plan: this.plan, busy: this.busy || this.stale, service: this.projectService(), deliveries: this.plugin.getEditorialDeliveries(), saveDelivery: async (delivery) => { await this.plugin.saveEditorialDelivery(delivery); }, getReviewers: () => this.plugin.getReviewerProfiles(), manageEditor: async (id) => { await this.plugin.contributors.openContributorManagementFlow(id); },
 			save: async (expected, next) => { if (!book || book !== this.scopeKey()) throw new Error("The active book changed. Reopen the project before saving."); await this.plugin.applyScheduledPlan(book, expected, next); },
-			openWorkspace: () => this.plugin.openEditorialProjectWorkspace(), openSchedule: () => { this.section = "schedule"; this.render(); }, openSource: (path) => this.openEngagementFile(path),
+			openSchedule: () => { this.section = "schedule"; this.render(); }, openSource: (path) => this.openEngagementFile(path),
 			nextInQueue: () => this.queueHead(),
 			wordCounts: this.wordCounts,
 		});
@@ -363,7 +365,8 @@ export class RevisionPlanPanel extends ItemView {
 		// Background refreshes re-render; keep the author's place.
 		const scrollTop = container.scrollTop;
 		container.empty();
-		renderPanelHeader(container, this.plugin, this.getViewType(), this.getDisplayText(), this.author ? "Across your vault" : undefined, this.author ? { label: "Add goal", action: () => this.authorPanel().edit(), disabled: this.busy || !this.loaded } : undefined);
+		const workspace = !this.author && this.plan.project ? [{ title: "Open engagement in workspace", icon: "layout-dashboard", action: () => { void this.plugin.openEditorialProjectWorkspace().catch((reason: unknown) => new Notice(reason instanceof Error ? reason.message : "Could not open the workspace.")); } }] : [];
+		renderPanelHeader(container, this.plugin, this.getViewType(), this.getDisplayText(), this.author ? "Across your vault" : undefined, this.author ? { label: "Add goal", action: () => this.authorPanel().edit(), disabled: this.busy || !this.loaded } : undefined, workspace);
 		const root = container.createDiv({ cls: "editorialist-plan__body" });
 		if (this.author) {
 			this.renderAuthor(root);
@@ -375,11 +378,11 @@ export class RevisionPlanPanel extends ItemView {
 
 		if (this.plan.project) {
 			const navigation = root.createDiv({ cls: "editorialist-project__tabs" });
-			for (const [value, label] of [["overview", "Overview"], ["schedule", "Schedule"], ["materials", "Documents"], ["history", "History"]] as const) { const tab = this.button(navigation, label, () => { this.section = value; this.render(); }); tab.setAttribute("aria-pressed", String(this.section === value)); }
+			for (const [value, label] of [["overview", "Overview"], ["schedule", "Schedule"], ["history", "History"]] as const) { const tab = this.button(navigation, label, () => { this.section = value; this.render(); }); tab.setAttribute("aria-pressed", String(this.section === value)); }
 			if (this.section !== "schedule") {
 				for (const warning of this.warnings) root.createEl("p", { cls: "editorialist-plan__warning", text: warning });
 				const project = this.projectPanel();
-				if (this.section === "overview") project.renderOverview(root); else if (this.section === "materials") project.renderDocuments(root); else project.renderHistory(root);
+				if (this.section === "overview") project.renderOverview(root); else project.renderHistory(root);
 				this.restoreSections(root);
 				if (this.busy) for (const control of Array.from(root.querySelectorAll<HTMLButtonElement>("button"))) control.disabled = true;
 				container.scrollTop = scrollTop; return;
@@ -394,6 +397,7 @@ export class RevisionPlanPanel extends ItemView {
 		for (const warning of this.warnings) root.createEl("p", { cls: "editorialist-plan__warning", text: warning });
 		if (!this.book || !this.loaded) return;
 		if (!this.plan.project) this.projectPanel().renderOverview(root);
+		this.renderBookDays(root);
 		this.renderProgress(root);
 		this.renderSummary(root);
 		this.renderCapacity(root);
@@ -401,6 +405,33 @@ export class RevisionPlanPanel extends ItemView {
 		this.renderBacklog(root);
 		this.restoreSections(root);
 		container.scrollTop = scrollTop;
+		this.revealDay(root);
+	}
+	/**
+	 * This book's days as squares, as the author planner draws them for the
+	 * whole vault: its sessions against the time set aside, and the dates of
+	 * its engagement. A day opens in the sessions by day below.
+	 */
+	private renderBookDays(root: HTMLElement): void {
+		const today = localDate(new Date());
+		const plans = [{ scope: this.book ?? "", plan: this.plan, candidates: this.candidates }];
+		const engagements: GridEngagement[] = [];
+		const project = this.plan.project;
+		if (project) {
+			const track = engagementTrack(project, engagementReturned(project, this.plugin.getEditorialDeliveries()).date ?? null, today);
+			if (track.stages.length && track.current !== "done") engagements.push({ label: project.title, editor: projectEditor(project, this.plugin.getReviewerProfiles()).name, track, start: project.submissionDate });
+		}
+		const weeks = dayGrid(plans, [], engagements, today, gridWeeks(today, gridHorizon([], engagements, plans)));
+		const from = weeks[0]![0]!.day, to = weeks[weeks.length - 1]![6]!.day;
+		const calendar = root.createDiv({ cls: "editorialist-author__panel" });
+		const head = calendar.createDiv({ cls: "editorialist-author__panel-head" });
+		head.createSpan({ cls: "editorialist-project__eyebrow", text: "Your days" });
+		head.createSpan({ cls: "editorialist-author__panel-range", text: `${planDayLabel(from)} – ${planDayLabel(to)}` });
+		renderDayGrid(calendar, weeks, { hint: "Click to see this day's sessions", open: (day) => this.openDay(day.day) });
+		const ahead = weeks.flat().filter((day) => day.day >= today);
+		const sessions = ahead.reduce((sum, day) => sum + day.sessions.length, 0);
+		const over = ahead.filter((day) => day.state === "over").length;
+		calendar.createDiv({ cls: "editorialist-author__panel-foot" }).createSpan({ text: [sessions ? `${sessions} ${sessions === 1 ? "session" : "sessions"} planned` : "Nothing scheduled yet", ...(over ? [`${over} ${over === 1 ? "day" : "days"} over`] : [])].join(" · ") });
 	}
 	private renderViewTabs(parent: HTMLElement): void {
 		const tabs = parent.createDiv({ cls: "editorialist-plan__tabs" });

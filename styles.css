@@ -8792,8 +8792,7 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 
 .editorialist-project__hero,
 .editorialist-project__material,
-.editorialist-project__next,
-.editorialist-project__return {
+.editorialist-project__next {
 	min-width: 0;
 	padding: 14px;
 	margin-bottom: 12px;
@@ -8801,59 +8800,6 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	border-radius: 8px;
 	background: var(--background-secondary);
 	overflow-wrap: anywhere;
-}
-
-.editorialist-project__return {
-	margin-block: 16px;
-	border-inline-start: 3px solid color-mix(in srgb, var(--interactive-accent) 65%, var(--background-modifier-border));
-}
-
-.editorialist-project__return > summary {
-	display: flex;
-	min-height: 44px;
-	align-items: center;
-	gap: 10px;
-	list-style: none;
-	border-radius: 4px;
-}
-
-.editorialist-project__return > summary::-webkit-details-marker {
-	display: none;
-}
-
-.editorialist-project__return-heading {
-	display: flex;
-	flex: 1;
-	min-width: 0;
-	flex-direction: column;
-	gap: 4px;
-}
-
-.editorialist-project__return-title {
-	font-size: var(--font-small);
-	font-weight: var(--font-semibold);
-	color: var(--text-normal);
-	line-height: 1.4;
-}
-
-.editorialist-project__return[open] .editorialist-panel__disclosure-caret {
-	transform: rotate(90deg);
-}
-
-.editorialist-project__return-body {
-	margin-top: 12px;
-	padding-top: 12px;
-	border-top: 1px solid var(--background-modifier-border);
-	font-size: var(--font-small);
-	line-height: 1.5;
-}
-
-.editorialist-project__return-body p {
-	margin: 0 0 8px;
-}
-
-.editorialist-project__return-body p:last-child {
-	margin-bottom: 0;
 }
 
 /* A pasted conversation keeps its line breaks and scrolls inside the section. */
@@ -9335,6 +9281,21 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	word-break: normal;
 }
 
+/* The name opens the editor's profile without looking like a button. */
+.editorialist-project__editor-name .editorialist-project__editor-link {
+	all: unset;
+	cursor: var(--cursor);
+	border-radius: 4px;
+}
+
+.editorialist-project__editor-name .editorialist-project__editor-link:hover {
+	text-decoration: underline;
+}
+
+.editorialist-project__editor-name .editorialist-project__editor-link:focus-visible {
+	box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
+}
+
 .editorialist-project__editor-role {
 	margin-bottom: 18px;
 	font-size: var(--font-small);
@@ -9706,9 +9667,57 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	border-top: none;
 }
 
+/* A document is one line until it is opened: the whole line is the toggle,
+   with a caret at its end that turns down when the document is open. */
+.editorialist-project__document > summary {
+	list-style: none;
+	cursor: var(--cursor);
+	align-items: center;
+}
+
+.editorialist-project__document > summary::-webkit-details-marker {
+	display: none;
+}
+
+.editorialist-project__document > summary:hover .editorialist-project__row-title {
+	color: var(--text-accent);
+}
+
+.editorialist-project__document-caret {
+	display: inline-flex;
+	flex: 0 0 auto;
+	color: var(--text-faint);
+	transition: transform 120ms ease-out;
+}
+
+.editorialist-project__document-caret svg {
+	width: 16px;
+	height: 16px;
+}
+
+.editorialist-project__document[open] .editorialist-project__document-caret {
+	transform: rotate(90deg);
+	color: var(--text-muted);
+}
+
+.editorialist-project__document-body {
+	padding-bottom: 8px;
+}
+
+.editorialist-project__document-about {
+	align-items: center;
+	padding-block: 0 4px;
+	padding-inline-start: 30px;
+	border-top: none;
+}
+
+.editorialist-project__document-about .editorialist-project__row-main:empty {
+	min-height: 0;
+}
+
 .editorialist-project__document-tasks,
 .editorialist-project__sends {
-	margin: -4px 0 6px;
+	margin: 0 0 2px;
 	padding-inline-start: 30px;
 }
 

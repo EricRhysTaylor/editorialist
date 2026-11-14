@@ -149,7 +149,7 @@ describe("Recording that a document was sent", () => {
 		expect(again.project.records.map((item) => item.day)).toEqual(["2026-11-09", "2026-11-10"]);
 
 		// An emptied date is not a quiet way to delete the send.
-		[...root.querySelectorAll<HTMLButtonElement>(".editorialist-project__document-head .editorialist-project__row-actions button")].pop()!.click();
+		[...root.querySelectorAll<HTMLButtonElement>(".editorialist-project__document-about .editorialist-project__row-actions button")].pop()!.click();
 		const latest = dialogField("Sent to Morgan Lee on");
 		latest.value = "";
 		const form = latest.closest("form")!;
@@ -181,6 +181,30 @@ describe("Documents, tasks and milestones on the engagement overview", () => {
 		const send = cards[0]!.querySelector(".editorialist-project__send")!;
 		expect(send.querySelector(".editorialist-project__row-title")?.textContent).toBe("Sent to Morgan Lee");
 		expect(send.querySelector(".editorialist-project__row-meta")?.textContent).toBe(`${planDayLabel("2026-11-09")} · Query letter.docx, copy kept`);
+	});
+
+	it("shows a document as one closed line saying when it went out, with the rest inside", () => {
+		const card = overview().querySelector<HTMLDetailsElement>("details.editorialist-project__document")!;
+		expect(card.open).toBe(false);
+		expect(card.getAttribute("name")).toBe("editorialist-documents");
+		const line = card.querySelector(":scope > summary")!;
+		expect(line.querySelector(".editorialist-project__row-title")?.textContent).toBe("Query letter");
+		expect(line.querySelector(".editorialist-project__row-meta")?.textContent).toBe(`Sent ${planDayLabel("2026-11-09")}`);
+		// The tasks, sends and the document's own controls are inside, not on the line.
+		expect(line.querySelector("button")).toBeNull();
+		expect(card.querySelector(".editorialist-project__document-body .editorialist-project__document-tasks")).not.toBeNull();
+	});
+
+	it("gives an unsent document's due date on its line, without open tasks it does not have", () => {
+		const line = engagement(false).root.querySelector(".editorialist-project__document > summary .editorialist-project__row-meta")!;
+		expect(line.textContent).toContain(planDayLabel("2026-11-09"));
+		expect(line.textContent).not.toMatch(/Sent|task/);
+	});
+
+	it("keeps the editor card to its own details, with no collaboration link set", () => {
+		const actions = overview().querySelector(".editorialist-project__hero > .editorialist-project__actions")!;
+		expect([...actions.querySelectorAll("button")].map((item) => item.textContent)).toEqual(["Engagement details"]);
+		expect(overview().querySelector(".editorialist-project__return")).toBeNull();
 	});
 
 	it("lists only tasks without a document under other tasks", () => {
