@@ -55,12 +55,21 @@ function publish() {
         process.exit(1);
     }
 
-    // 3. Copy files from 'wiki/' to temp dir
-    console.log(`Copying files from ${SOURCE_DIR} to ${TEMP_DIR}...`);
-    // Using cp -R for simplicity on Mac
-    run(`cp -R ${SOURCE_DIR}/. ${TEMP_DIR}/`);
-    // Strip macOS metadata files so they never reach the public wiki
-    run(`find ${TEMP_DIR} -name .DS_Store -delete`);
+    // 3. Mirror 'wiki/' into the clone, as Radial Timeline's publisher does. rsync --delete
+    // makes wiki/ the source of truth: a page or image removed or renamed here is removed
+    // from the public wiki too, instead of lingering unlinked (cp -R never deleted, so the
+    // two images retired on 2026-11-14 stayed on the wiki). .git is excluded, so --delete
+    // cannot touch the clone's own history, and .DS_Store never travels.
+    // Guard: never mirror an empty or wrong folder, which would wipe the public wiki.
+    if (!fs.existsSync(path.join(SOURCE_DIR, 'Home.md')) || !fs.existsSync(path.join(SOURCE_DIR, '_Sidebar.md'))) {
+        console.error(`${SOURCE_DIR}/ has no Home.md or _Sidebar.md; refusing to mirror it over the wiki.`);
+        fs.rmSync(TEMP_DIR, { recursive: true, force: true });
+        process.exit(1);
+    }
+    console.log(`Mirroring ${SOURCE_DIR}/ into ${TEMP_DIR}...`);
+    run(`rsync -a --delete --exclude='.git' --exclude='.DS_Store' ${SOURCE_DIR}/ ${TEMP_DIR}/`);
+    // Strip any macOS metadata files the wiki already carries, so they never stay public
+    run(`find ${TEMP_DIR} -name .DS_Store -not -path '*/.git/*' -delete`);
 
     // 4. Commit and Push
     console.log('Committing and pushing changes...');
@@ -79,7 +88,7 @@ function publish() {
             const ts = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
             const summary = changedFiles.slice(0, 6).map(f => f.replace(/\.md$/, '')).join(', ');
             const extra = changedFiles.length > 6 ? ` (+${changedFiles.length - 6} more)` : '';
-            const commitMsg = `[wiki] ${ts} — ${changedFiles.length} pages — ${summary}${extra}`;
+            const commitMsg = `[wiki] ${ts} — ${changedFiles.length} files — ${summary}${extra}`;
 
             run('git add .', cwd);
             run(`git commit -m ${JSON.stringify(commitMsg)}`, cwd);
