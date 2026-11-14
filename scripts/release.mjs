@@ -38,6 +38,7 @@ const PKG = path.join(ROOT, "package.json");
 const REPO_URL = "https://github.com/EricRhysTaylor/Editorialist";
 
 function run(command, description, { silent = false, allowFail = false } = {}) {
+	closePrompts();
 	if (!silent) console.log(`\n→ ${description}`);
 	try {
 		return execSync(command, { encoding: "utf8", stdio: silent ? "pipe" : "inherit", cwd: ROOT });
@@ -89,20 +90,33 @@ function writeJSON(file, data) {
 	writeFileSync(file, `${JSON.stringify(data, null, "\t")}\n`, "utf8");
 }
 
+// Prompts asked one after another share one reader. A terminal that sends
+// Enter as a Return and then a separate line feed would otherwise hand the
+// line feed to the next prompt as an empty answer: "Repair/update assets?
+// n" then quit at "Start a new release?" before anything was typed. One
+// reader takes the pair as a single Enter, however far apart they arrive.
+// It is closed before a command runs in the terminal, so Ctrl+C reaches the
+// command, and when the script ends, so it can exit.
+let prompts = null;
+
+function prompt(question) {
+	prompts ??= readline.createInterface({ input: process.stdin, output: process.stdout, crlfDelay: Infinity });
+	return new Promise((resolve) => prompts.question(question, resolve));
+}
+
+function closePrompts() {
+	prompts?.close();
+	prompts = null;
+}
+
 async function confirm(question) {
 	if (!process.stdin.isTTY) return true;
-	const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-	const answer = await new Promise((resolve) => rl.question(question, resolve));
-	rl.close();
-	return /^y(es)?$/i.test(answer.trim());
+	return /^y(es)?$/i.test((await prompt(question)).trim());
 }
 
 async function ask(question) {
 	if (!process.stdin.isTTY) return "";
-	const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-	const answer = await new Promise((resolve) => rl.question(question, resolve));
-	rl.close();
-	return answer.trim();
+	return (await prompt(question)).trim();
 }
 
 function requireMainBranch() {
@@ -491,7 +505,7 @@ async function main() {
 	await startRelease(bumpArg, options);
 }
 
-main().catch((err) => {
+main().finally(closePrompts).catch((err) => {
 	console.error(`\n[release] ${err.message}`);
 	process.exit(1);
 });
