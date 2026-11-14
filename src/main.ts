@@ -700,6 +700,8 @@ export default class EditorialistPlugin extends Plugin {
 		// Obsidian restores workspace state on reload, and registerView() already handles cleanup.
 		this.toolbarOverlay.destroy();
 		this.toolbarKeyTracker.dispose();
+		// Invalidate any in-flight spotlight so its await cannot light rows after unload.
+		this.spotlightRun++;
 		this.sceneSpotlight?.clear();
 		closeDotPopover();
 		this.editorChangeResyncDebouncer.cancel();
@@ -1223,13 +1225,23 @@ export default class EditorialistPlugin extends Plugin {
 		}));
 		const present = new Set(inputs.map((item) => item.key));
 		const previouslyOpen = new Set(plan.progress?.open.map((item) => item.key));
+		// A response is finished only once it is saved, so an unsaved one stays
+		// open while its pass is still active, even after the pass leaves
+		// Available work. A pass that was closed, or is gone from the registry,
+		// can no longer take a response: its open response is set aside,
+		// neither done nor remaining.
+		const registered = new Set<string>();
 		for (const batch of this.getSweepRegistryEntries()) {
 			const key = sourceKey({ kind: "response", path: RESPONSES_FOLDER, locator: batch.batchId });
+			registered.add(key);
 			if (!previouslyOpen.has(key) || present.has(key)) continue;
 			if (batch.responseSavedAt) inputs.push({ key, kind: "response", state: "complete" });
 			else if (batch.status === "cleaned" || batch.status === "ended_early") inputs.push({ key, kind: "response", state: "inactive" });
 		}
-		const progress = advancePlanProgress(plan.progress, inputs, localDate(new Date()), (item) => item.kind === "response" || work.held.some((source) => {
+		for (const item of plan.progress?.open ?? []) {
+			if (item.kind === "response" && !present.has(item.key) && !registered.has(item.key)) inputs.push({ key: item.key, kind: "response", state: "inactive" });
+		}
+		const progress = advancePlanProgress(plan.progress, inputs, localDate(new Date()), (item) => item.kind === "response" ? registered.has(item.key) : work.held.some((source) => {
 			if (source.kind !== item.kind) return false;
 			if (!("path" in source) || source.path === undefined) return true;
 			const [, path] = JSON.parse(item.key) as [string, string];
@@ -1745,7 +1757,7 @@ export default class EditorialistPlugin extends Plugin {
 	// records it on the batch. A different file of the same name gets a number.
 	async keepWordFile(batchId: string, fileName: string, editor: string, bytes: Uint8Array): Promise<void> {
 		const folder = WORD_FILES_FOLDER;
-		if (!(await this.ensureVaultFolder(folder))) throw new Error("The review was imported, but the Word file could not be kept. Free the Word files folder and keep the original file.");
+		if (!(await this.ensureVaultFolder(folder))) throw new Error(`A file is in the way of the ${folder} folder; move or rename it.`);
 		const dot = fileName.toLowerCase().endsWith(".docx") ? fileName.length - 5 : fileName.length;
 		const stem = fileName.slice(0, dot).replace(/[\\/:*?"<>|#^[\]]/g, "-").trim() || "Editor's file";
 		let path = normalizePath(`${folder}/${stem}.docx`);

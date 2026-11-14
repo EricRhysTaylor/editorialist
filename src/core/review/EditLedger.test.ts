@@ -23,6 +23,8 @@ describe("edit ledger", () => {
 		expect(book.entries[`ed|${agenda}|0.1`]).toMatchObject({ status: "accepted", live: true, id: "0.1" });
 		// A directive since deleted keeps its last state.
 		expect(book.entries[`ed|${agenda}|9`]).toMatchObject({ status: "accepted", live: false });
+		// Once only the deleted directive's line key is left, later gathers record no change.
+		expect(recordLiveEdits(book, [directive("0.0", 4, "Tighten", "accepted"), directive("0.1", 6, "Cut", "accepted")], 300).changed).toBe(false);
 	});
 
 	it("records every edit in the blocks the first time, with its decision", () => {

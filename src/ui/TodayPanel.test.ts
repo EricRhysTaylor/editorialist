@@ -50,6 +50,15 @@ describe("response progress", () => {
 		expect(plan.progress?.open).toEqual([]);
 		expect(plan.progress?.done).toEqual([expect.objectContaining({ key: sourceKey(response), kind: "response" })]);
 	});
+
+	it("sets aside an unsaved response once its pass leaves the registry", async () => {
+		const response = { kind: "response" as const, path: "Editorialist/Responses", locator: "batch-1" };
+		const plan: RevisionPlan = { ...emptyRevisionPlan(), progress: { since: "2026-11-01", open: [{ key: sourceKey(response), kind: "response" }], done: [] } };
+		const host = { getRevisionPlan: () => plan, getSweepRegistryEntries: () => [], saveRevisionPlan: vi.fn(async () => {}) };
+		await EditorialistPlugin.prototype.recordRevisionProgress.call(host as never, key("Book 1"), { candidates: [], warnings: [], held: [] });
+		expect(plan.progress?.open).toEqual([]);
+		expect(plan.progress?.done).toEqual([]);
+	});
 });
 
 describe("scheduledBookFolders", () => {

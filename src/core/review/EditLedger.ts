@@ -103,6 +103,7 @@ export function adoptDirectivePlaces(book: EditLedgerBook, live: readonly LiveEd
 	if (!legacy.length) return null;
 	const directives = live.filter((edit) => edit.source === "editorialism");
 	const entries = { ...book.entries };
+	let moved = false;
 	for (const key of legacy) {
 		const entry = entries[key];
 		const match = LINE_KEY.exec(key);
@@ -111,12 +112,15 @@ export function adoptDirectivePlaces(book: EditLedgerBook, live: readonly LiveEd
 		const here = directives.find((edit) => edit.notePath === entry.notePath && edit.order === line);
 		delete entries[key];
 		if (here) {
+			moved = true;
 			if (!entries[here.key]) entries[here.key] = { ...entry, id: here.id };
 		} else if (!directives.some((edit) => edit.notePath === entry.notePath && edit.summary === entry.summary)) {
 			entries[key] = entry;
+		} else {
+			moved = true;
 		}
 	}
-	return { ...book, entries };
+	return moved ? { ...book, entries } : null;
 }
 
 export function roundCounts(book: EditLedgerBook): EditCounts {
