@@ -11056,6 +11056,11 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	border-inline-start: 3px solid var(--editorialist-source-color);
 }
 
+/* The engagement's bar sits above the session to do now; keep the two apart. */
+.editorialist-today__list + .editorialist-today__now {
+	margin-top: 12px;
+}
+
 .editorialist-today__title {
 	margin: 6px 0 4px;
 	font-size: var(--font-ui-medium);
