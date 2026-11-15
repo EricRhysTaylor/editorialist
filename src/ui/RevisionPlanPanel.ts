@@ -11,7 +11,7 @@ import { renderRunway } from "./primitives/Runway";
 import { ItemView, Notice, TFile, TFolder, setIcon, type TAbstractFile, type WorkspaceLeaf } from "obsidian";
 import type EditorialistPlugin from "../main";
 import { renderPanelHeader } from "./primitives/PanelHeader";
-import { MAX_CUSHION_DAYS, emptyRevisionPlan, forecastPlan, isDate, isPlanEntryComplete, localDate, movePlanEntry, progressDoneKeys, removePlanEntries, resolvePlanSource, sourceKey, type PlanEntry, type RevisionPlan, type WorkCandidate } from "../core/planning/RevisionPlan";
+import { MAX_CUSHION_DAYS, emptyRevisionPlan, forecastPlan, isDate, isPlanEntryComplete, localDate, movePlanEntry, progressDoneKeys, rangeText, removePlanEntries, resolvePlanSource, sourceKey, type PlanEntry, type RevisionPlan, type WorkCandidate } from "../core/planning/RevisionPlan";
 import { summarizePlanProgress } from "../core/planning/PlanProgress";
 import { estimateRange } from "../core/planning/AutoSchedule";
 import { movableSessions, vaultWork } from "../core/planning/VaultSchedule";
@@ -573,7 +573,7 @@ export class RevisionPlanPanel extends ItemView {
 			return;
 		}
 		const metric = summary.createDiv({ cls: "editorialist-plan__hero-metric" });
-		metric.createSpan({ text: !open.length ? "All planned work finished" : forecast.unknownCount === open.filter((item) => item.required).length && forecast.unknownCount > 0 ? "Time to be estimated" : `${duration(forecast.lowMinutes)}–${duration(forecast.highMinutes)}` });
+		metric.createSpan({ text: !open.length ? "All planned work finished" : forecast.unknownCount === open.filter((item) => item.required).length && forecast.unknownCount > 0 ? "Time to be estimated" : rangeText(duration(forecast.lowMinutes), duration(forecast.highMinutes)) });
 		summary.createDiv({ cls: "editorialist-plan__hint", text: forecast.unknownCount ? "Known estimate · Some required work is unestimated" : "Estimated time for required work" });
 		if (this.available().length) this.renderAutoPlanButton(summary, false);
 		const stats = summary.createDiv({ cls: "editorialist-plan__stats" });
@@ -711,7 +711,7 @@ export class RevisionPlanPanel extends ItemView {
 		const details = row.createEl("details", { cls: "editorialist-plan__entry-options", attr: { "data-plan-section": entry.id } });
 		details.createEl("summary", { text: "Schedule & options" });
 		const metadata = main.createDiv({ cls: "editorialist-plan__task-meta" });
-		for (const [icon, text, unset] of [["calendar", entry.day ? `${overdue ? "Overdue · " : ""}${planDayLabel(entry.day)}` : "Unscheduled", !entry.day], ["clock-3", entry.lowMinutes === null || entry.highMinutes === null ? "Add estimate" : `${entry.lowMinutes}–${entry.highMinutes} min`, entry.lowMinutes === null || entry.highMinutes === null]] as const) {
+		for (const [icon, text, unset] of [["calendar", entry.day ? `${overdue ? "Overdue · " : ""}${planDayLabel(entry.day)}` : "Unscheduled", !entry.day], ["clock-3", entry.lowMinutes === null || entry.highMinutes === null ? "Add estimate" : `${rangeText(entry.lowMinutes, entry.highMinutes)} min`, entry.lowMinutes === null || entry.highMinutes === null]] as const) {
 			const chip = this.button(metadata, "", () => { details.open = true; details.querySelector<HTMLInputElement>("input")?.focus(); });
 			chip.addClass("editorialist-plan__chip");
 			if (unset) chip.addClass("is-unset");

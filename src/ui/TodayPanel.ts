@@ -1,7 +1,7 @@
 import { ItemView, Notice, TFile, debounce, setIcon, type Debouncer, type WorkspaceLeaf } from "obsidian";
 import type EditorialistPlugin from "../main";
 import { AUTHOR_PLAN_SCOPE, goalTimeline, wordProgress, type AuthorTarget } from "../core/planning/AuthorPlan";
-import { localDate, resolvePlanSource, type PlanEntry, type RevisionPlan, type WorkCandidate } from "../core/planning/RevisionPlan";
+import { localDate, rangeText, resolvePlanSource, type PlanEntry, type RevisionPlan, type WorkCandidate } from "../core/planning/RevisionPlan";
 import { activeGoals, todayAgenda, type AgendaItem, type TodayAgenda, type VaultPlan } from "../core/planning/TodayAgenda";
 import { deadlineLabel, kindIcons, kindLabels, pendingWorkTitle, planDayLabel } from "../core/planning/WorkPresentation";
 import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
@@ -138,7 +138,7 @@ export class TodayPanel extends ItemView {
 		if (now) {
 			const overdue = agenda.items.filter((item) => item.overdue).length;
 			const parts = [
-				agenda.highMinutes ? `${agenda.lowMinutes}–${agenda.highMinutes} min planned` : "",
+				agenda.highMinutes ? `${rangeText(agenda.lowMinutes, agenda.highMinutes)} min planned` : "",
 				agenda.unestimated ? `${agenda.unestimated} without an estimate` : "",
 				overdue ? `${overdue} left from ${overdue === 1 ? "an earlier day" : "earlier days"}` : "",
 			].filter(Boolean);
@@ -346,7 +346,7 @@ export class TodayPanel extends ItemView {
 		return [
 			this.plan(item)?.label ?? "",
 			entry.sessionCount ? `Session ${entry.sessionIndex}/${entry.sessionCount}` : "",
-			entry.lowMinutes !== null && entry.highMinutes !== null ? `${entry.lowMinutes}–${entry.highMinutes} min` : "",
+			entry.lowMinutes !== null && entry.highMinutes !== null ? `${rangeText(entry.lowMinutes, entry.highMinutes)} min` : "",
 		].filter(Boolean);
 	}
 

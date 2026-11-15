@@ -6,7 +6,7 @@ import { deliveryDate, type EditorialDelivery } from "../core/EditorialDeliverie
 import { draftSchedule, estimateRange, suggestPhase, type ScheduleDraft, type ScheduleOptions } from "../core/planning/AutoSchedule";
 import { addDays } from "../core/planning/PlanProgress";
 import { DEFAULT_SCHEDULE, type SchedulePreset, type WorkPhase } from "../core/planning/ScheduleDefaults";
-import { MAX_CUSHION_DAYS, localDate, sourceKey, type RevisionPlan, type WorkCandidate } from "../core/planning/RevisionPlan";
+import { MAX_CUSHION_DAYS, localDate, rangeText, sourceKey, type RevisionPlan, type WorkCandidate } from "../core/planning/RevisionPlan";
 const PRESETS: Record<SchedulePreset, string> = { developmental: "Developmental revision", copy: "Copy-edit pass", mixed: "Mixed editorial delivery" };
 const PHASES: Record<WorkPhase, string> = { structure: "Structural decisions", rewrite: "Scene rewrites", polish: "Prose refinement" };
 
@@ -146,7 +146,7 @@ export class AutoScheduleModal extends Modal {
 				const title = row.createDiv({ cls: "editorialist-autoschedule__session-title" });
 				title.createSpan({ text: entry.title });
 				if ((entry.sessionCount ?? 1) > 1) title.createSpan({ cls: "editorialist-autoschedule__session-part", text: `Part ${entry.sessionIndex} of ${entry.sessionCount}` });
-				row.createSpan({ cls: "editorialist-autoschedule__duration", text: `${entry.lowMinutes ?? "?"}–${entry.highMinutes ?? "?"} min` });
+				row.createSpan({ cls: "editorialist-autoschedule__duration", text: `${rangeText(entry.lowMinutes ?? "?", entry.highMinutes ?? "?")} min` });
 			}
 		}
 		const apply = this.button(preview, "Use this plan", () => { apply.disabled = true; void this.apply(draft).catch((error: unknown) => { new Notice(error instanceof Error ? error.message : "Could not apply schedule."); this.invalidate(); }); });

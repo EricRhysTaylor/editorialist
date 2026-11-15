@@ -1,9 +1,12 @@
 import { migratePluginData } from "../../services/PluginDataMigration";
 import { describe, expect, it } from "vitest";
-import { emptyRevisionPlan, forecastPlan, isDate, movePlanEntry, normalizeRevisionPlans, removePlanEntries, resolvePlanSource, type PlanEntry, type WorkCandidate } from "./RevisionPlan";
+import { emptyRevisionPlan, forecastPlan, isDate, movePlanEntry, normalizeRevisionPlans, rangeText, removePlanEntries, resolvePlanSource, type PlanEntry, type WorkCandidate } from "./RevisionPlan";
 const source: WorkCandidate = { kind: "pending", path: "Book/A.md", locator: "Rewrite opening", title: "Opening", detail: "A", complete: false, deferred: false };
 const entry = (id: string): PlanEntry => ({ id, source: { kind: source.kind, path: source.path, locator: source.locator }, title: id, lowMinutes: 30, highMinutes: 60, day: null, required: true, done: false, afterId: null });
 describe("Revision planning", () => {
+	it("writes an estimate with one figure when low and high are the same", () => {
+		expect([rangeText(45, 60), rangeText(60, 60), rangeText("11 h", "11 h"), rangeText("?", "?")]).toEqual(["45–60", "60", "11 h", "?"]);
+	});
 	it("does not bind a changed or duplicate instruction by position", () => {
 		expect(resolvePlanSource(source, [{ ...source, locator: "Other task" }]).state).toBe("missing");
 		expect(resolvePlanSource(source, [source, source]).state).toBe("ambiguous");

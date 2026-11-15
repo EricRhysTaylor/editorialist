@@ -79,6 +79,10 @@ export const MAX_CUSHION_DAYS = 90;
 export function emptyRevisionPlan(): RevisionPlan {
 	return { deadline: null, capacity: [0, 120, 120, 120, 120, 120, 0], cushionDays: DEFAULT_CUSHION_DAYS, entries: [] };
 }
+/** An estimate as the author reads it: "45–60", or just "60" when low and high are the same. */
+export function rangeText(low: string | number, high: string | number): string {
+	return String(low) === String(high) ? String(low) : `${low}–${high}`;
+}
 export function sourceKey(source: WorkSource): string {
 	return JSON.stringify([source.kind, source.path, source.locator]);
 }
