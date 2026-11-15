@@ -93,7 +93,7 @@ For one editor's larger handoff, import line-level work as batches and structura
 
 ## Plan your own goals
 
-Run **Open author planner**, choose **Add goal**, and give your goal a target date and a completion description. Optionally give it a number of words to write in a folder, link a document, or follow a Radial Timeline book-stage target. Choose **Schedule work** to preview sessions against your availability. See [Author Planner](Author-Planner).
+Run **Open author planner**, choose **Add goal**, and give your goal a target date and a completion description. Optionally give it a number of words to write in a folder, link a document, or follow a Radial Timeline book-stage target. Choose **Fill my days** to plan sessions for your goals, and for what is due to an editor, against the hours you have. See [Author Planner](Author-Planner).
 
 To track an editor’s agreed dates before feedback arrives, choose **Create engagement** in [Editor Engagement](Editor-Engagement). Add the documents you will send, your tasks, and shared milestones, then record each send and other activity as the collaboration progresses.
 

@@ -25,15 +25,20 @@ The card shows the words written so far against the target, with a bar. Below it
 
 The count is the folder’s total, so cutting words lowers it, and moving a note into the folder raises it. Cut files saved by Editorialist are not counted. The day’s count starts the first time Obsidian is open that day. Reaching the target doesn’t complete the goal; **Mark complete** is still your decision.
 
-## Schedule your goals
+## Fill my days
 
-Choose **Schedule work** to open the planning dialog. Set a planning window, session length, and weekday capacity, then review **Preview plan** before **Use this plan** saves the sessions. Estimates are editable assumptions; use your own effort ranges when known. Goals are planned to their own dates; the cushion that the editor engagement keeps before an editor's deadline does not apply to them.
+**Fill my days**, under the squares, plans your goals and what is due to your editor together, so the two never claim the same hour. It also opens from the **Schedule** tab of an [editor engagement](Editor-Engagement). It walks through four short steps, and nothing is saved until the last.
 
-The **Schedule** tab shows **Queue** and **Days**, along with the forecast and available work. Target dates influence ordering; hard deadlines constrain placement. Sessions for the same goal stay ordered, while unrelated goals can still be scheduled if another goal cannot fit. Work that does not fit remains visible as unscheduled.
+1. **Your time.** The hours you can give to writing work on each day of the week, the day to start on, and your longest sitting. Leave a day at 0 to keep it free. These are the same hours for every book and every goal: change them here, or in any schedule's **Deadline & capacity**, and they change everywhere.
+2. **What's due.** Each engagement task and each goal that has no sessions yet, with its date. Say how many hours each will take. Work you leave without a time stays out of the plan for now. The hours you give a goal are kept as that goal's estimate. If sessions are already on your calendar, **Move the sessions already on my calendar** places them again so everything fits together; a session set to **Keep this date** stays where it is. The box is ticked for you when a day already holds more than its hours.
+3. **The balance.** Shown when you have both goals and work due to an editor. Choose which comes first when a day has no room for both: what is due to your editor, your writing goals, or **Some of each, every day**, which keeps a set number of minutes for your goals on each day they need them and gives your editor's work the rest.
+4. **Preview.** Your days as squares, as the plan would leave them. If everything fits it says so, with the number of sessions and the last day. If not, it says how many hours find no day and for which work; go **Back** to give your days more time, give the work less, or change the balance. Work due to your editor aims to be ready your cushion of days early, and the preview lists what lands later than that. **Use this plan** saves the sessions to your goals and to each book's engagement.
 
-<p align="center"><img src="images/author-schedule-preview.png" alt="Author goal schedule preview showing sessions and a finish forecast" width="524"></p>
+Goals are planned to their own dates; the cushion kept before an editor's deadline does not apply to them. A book's feedback work, its review batches, Editorialism directives and pending edits, is planned from that book's own schedule; Fill my days leaves those sessions where they are and plans around them.
 
-Marking a session **Done** from its circle records work on that session. Use **Mark complete** on the goal when its outcome is achieved. The two planners have their own capacity settings and sessions; do not assume one reserves time in the other. **Today** adds up both: when the day's sessions need more time than either planner sets aside for that day, it says so, so you can move some to another day.
+**Sessions**, below your goals, lists what is planned as a **Queue** or by **Days**. Target dates influence ordering; hard deadlines constrain placement. Sessions for the same goal stay ordered, while unrelated goals can still be scheduled if another goal cannot fit. Work that does not fit remains visible as unscheduled.
+
+Marking a session **Done** from its circle records work on that session. Use **Mark complete** on the goal when its outcome is achieved. Your goals and each book keep their own sessions, but they share one set of hours, and each planner leaves alone the time the others already hold. **Today** adds them up: when the day's sessions need more time than you set aside for that day, it says so, so you can move some to another day.
 
 ## Optional Radial Timeline target dates
 
