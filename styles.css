@@ -7258,7 +7258,9 @@ button.editorialist-panel__contributors-row:focus-visible {
 
 /* Polished panel shell: native theme tokens, compact type, clear action levels. */
 .editorialist-panel__header .editorialist-panel__view-selector {
-	padding: 0;
+	/* Room for the hover background on both sides; the margin keeps the mark on the panel's left edge. */
+	padding: 0 8px;
+	margin-left: -8px;
 	background: transparent;
 	box-shadow: none;
 	border: none;
