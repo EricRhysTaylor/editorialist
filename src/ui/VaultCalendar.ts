@@ -46,9 +46,11 @@ const elapsed = (from: string, to: string, today: string): number => Math.min(1,
  * its start, or from `from` without one, to its deadline, filled by the words
  * written; a goal without words to count is drawn as its window alone.
  * `words` holds each word goal's folder total, as the goals report it.
+ * The lanes follow the author's balance: the work that comes first in their
+ * days is listed first, an editor's unless they put their goals ahead.
  */
-export function runwayLanes(goals: readonly AuthorTarget[], engagements: readonly VaultEngagement[], words: Readonly<Record<string, number | null>>, from: string, today: string): RunwayLane[] {
-	const lanes: RunwayLane[] = [];
+export function runwayLanes(goals: readonly AuthorTarget[], engagements: readonly VaultEngagement[], words: Readonly<Record<string, number | null>>, from: string, today: string, goalsFirst = false): RunwayLane[] {
+	const lanes: RunwayLane[] = [], editors: RunwayLane[] = [];
 	for (const goal of [...goals].filter((item) => !item.done).sort((a, b) => a.due.localeCompare(b.due))) {
 		const current = words[goal.id];
 		const progress = goal.words && typeof current === "number" ? wordProgress(goal.words, goal.start, goal.due, current, today) : null;
@@ -68,12 +70,12 @@ export function runwayLanes(goals: readonly AuthorTarget[], engagements: readonl
 		const detail = track.current === "preparation" ? `${track.preparation.total ? `${track.preparation.done} of ${track.preparation.total} ready · ` : ""}starts ${planDayLabel(project.submissionDate)}`
 			: track.current === "editing" ? `With ${editor} until ${planDayLabel(stage!.to)}`
 			: `Your questions until ${planDayLabel(stage!.to)}`;
-		lanes.push({
+		editors.push({
 			title: `${plan.label ?? project.title} · ${editor}`,
 			detail,
 			segments: track.stages.map((item) => ({ from: item.from, to: item.to, tone: item.key, fill: elapsed(item.from, item.to, today) })),
 			ticks: track.stages.slice(1).map((item) => item.from),
 		});
 	}
-	return lanes;
+	return goalsFirst ? [...lanes, ...editors] : [...editors, ...lanes];
 }

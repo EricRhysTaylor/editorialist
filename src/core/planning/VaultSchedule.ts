@@ -52,6 +52,8 @@ export interface VaultUnplaced {
 	/** One of its sessions is longer than any day's hours, so no day could ever hold it. */
 	tooLong?: true;
 }
+/** A goal with a date it cannot be finished by: the time that fits is planned, and the rest is said. */
+export interface VaultShort { key: string; title: string; wanted: number; placed: number; due: string | null }
 export interface VaultDraftPlan { scope: string; original: RevisionPlan; next: RevisionPlan }
 export interface VaultDraft {
 	/** Only the plans the draft changes. */
@@ -60,8 +62,10 @@ export interface VaultDraft {
 	plans: AgendaPlan[];
 	/** The day of each new or moved session that found one. */
 	days: string[];
-	/** Work that found no day before its deadline, with the time still wanting. */
+	/** An editor's work that found no day before its deadline, with the time still wanting. */
 	unplaced: VaultUnplaced[];
+	/** Goals given the days there are, where those are fewer than the goal needs. */
+	short: VaultShort[];
 	cushion: ScheduleIssue[];
 	/** Anything else the author should know: a kept date over its day, a broken order. */
 	notes: ScheduleIssue[];
@@ -78,11 +82,33 @@ function scoped({ scope, plan, candidates }: AgendaPlan): WorkCandidate[] {
 	return candidates.map((candidate) => candidate.kind === "preparation" && candidate.path === plan.project?.id ? candidate : { ...candidate, inactive: true });
 }
 
+/**
+ * Open sessions that were never given a day. Fill my days plans their work
+ * afresh rather than leaving them behind; a session the author kept stays.
+ */
+function waitingEntries(plan: RevisionPlan, candidates: readonly WorkCandidate[]): Map<string, number> {
+	const doneKeys = progressDoneKeys(plan);
+	const waiting = new Map<string, number>();
+	for (const entry of plan.entries) {
+		if (entry.day || entry.locked || isPlanEntryComplete(entry, candidates, doneKeys)) continue;
+		const resolved = resolvePlanSource(entry.source, candidates);
+		if (resolved.state === "ready" && !resolved.candidate.inactive) waiting.set(entry.id, entry.highMinutes ?? 0);
+	}
+	return waiting;
+}
+/** The time the waiting sessions of each piece of work were given, by work key. */
+function waitingMinutes(plan: RevisionPlan, waiting: ReadonlyMap<string, number>): Map<string, number> {
+	const minutes = new Map<string, number>();
+	for (const entry of plan.entries) if (waiting.has(entry.id)) minutes.set(sourceKey(entry.source), (minutes.get(sourceKey(entry.source)) ?? 0) + waiting.get(entry.id)!);
+	return minutes;
+}
+
 /** The goals and engagement tasks still to be given their sessions. */
 export function vaultWork(plans: readonly (AgendaPlan & { label?: string | null })[]): VaultWorkItem[] {
 	return plans.flatMap((source) => {
 		const candidates = scoped(source);
-		const planned = new Set(source.plan.entries.map((entry) => sourceKey(entry.source)));
+		const waiting = waitingEntries(source.plan, candidates), before = waitingMinutes(source.plan, waiting);
+		const planned = new Set(source.plan.entries.filter((entry) => !waiting.has(entry.id)).map((entry) => sourceKey(entry.source)));
 		const goal = source.scope === AUTHOR_PLAN_SCOPE;
 		return candidates.flatMap((candidate): VaultWorkItem[] => {
 			if (candidate.inactive || candidate.complete || planned.has(sourceKey(candidate)) || resolvePlanSource(candidate, candidates).state !== "ready") return [];
@@ -94,7 +120,7 @@ export function vaultWork(plans: readonly (AgendaPlan & { label?: string | null 
 				due: deadline?.due ?? candidate.targetDate ?? null,
 				aim: deadline?.aim ?? candidate.targetDate ?? null,
 				hard: Boolean(deadline),
-				minutes: (goal ? target?.highMinutes : source.plan.project?.tasks.find((task) => task.id === candidate.locator)?.minutes) ?? null,
+				minutes: ((goal ? target?.highMinutes : source.plan.project?.tasks.find((task) => task.id === candidate.locator)?.minutes) ?? before.get(sourceKey(candidate))) || null,
 			}];
 		});
 	});
@@ -102,7 +128,8 @@ export function vaultWork(plans: readonly (AgendaPlan & { label?: string | null 
 
 /** The open sessions already on the calendar that a replan would move. */
 export function movableSessions(plans: readonly AgendaPlan[]): number {
-	return plans.reduce((sum, source) => sum + movableEntries(source.plan, scoped(source), { replan: true, deliveryId: null }).size, 0);
+	// A session that never had a day is planned afresh, not moved.
+	return plans.reduce((sum, source) => { const candidates = scoped(source), waiting = waitingEntries(source.plan, candidates); return sum + [...movableEntries(source.plan, candidates, { replan: true, deliveryId: null })].filter((id) => !waiting.has(id)).length; }, 0);
 }
 
 interface Part { scope: string; goal: boolean; original: RevisionPlan; plan: RevisionPlan; candidates: WorkCandidate[]; all: readonly WorkCandidate[]; draft: ScheduleDraft | null }
@@ -126,11 +153,15 @@ export function busyDays(plans: readonly AgendaPlan[], scope: string): Map<strin
 }
 
 export function draftVaultSchedule(sources: readonly AgendaPlan[], options: VaultScheduleOptions, makeId: () => string): VaultDraft {
-	const parts: Part[] = sources.map((source) => ({
-		scope: source.scope, goal: source.scope === AUTHOR_PLAN_SCOPE, original: source.plan,
-		plan: { ...structuredClone(source.plan), capacity: [...options.capacity] },
-		candidates: scoped(source), all: source.candidates, draft: null,
-	}));
+	const earlier = new Map<string, number>();
+	const parts: Part[] = sources.map((source) => {
+		const candidates = scoped(source), plan: RevisionPlan = { ...structuredClone(source.plan), capacity: [...options.capacity] };
+		// Sessions that never had a day are planned again from their work, not left behind.
+		const waiting = waitingEntries(plan, candidates);
+		for (const [key, minutes] of waitingMinutes(plan, waiting)) if (minutes > 0) earlier.set(key, minutes);
+		plan.entries = plan.entries.filter((entry) => !waiting.has(entry.id)).map((entry) => entry.afterId && waiting.has(entry.afterId) ? { ...entry, afterId: null } : entry);
+		return { scope: source.scope, goal: source.scope === AUTHOR_PLAN_SCOPE, original: source.plan, plan, candidates, all: source.candidates, draft: null };
+	});
 	const author = parts.find((part) => part.goal);
 	// The time the author gives a goal here becomes the goal's own estimate.
 	for (const target of author?.plan.targets ?? []) {
@@ -159,7 +190,7 @@ export function draftVaultSchedule(sources: readonly AgendaPlan[], options: Vaul
 			const key = sourceKey(candidate);
 			if (candidate.inactive || candidate.complete || planned.has(key)) continue;
 			const target = part.goal ? part.plan.targets?.find((item) => item.id === candidate.locator) : undefined;
-			const high = options.minutes[key] ?? target?.highMinutes ?? candidate.suggestedMinutes ?? 0;
+			const high = options.minutes[key] ?? target?.highMinutes ?? candidate.suggestedMinutes ?? earlier.get(key) ?? 0;
 			choices[key] = high > 0 ? { phase: "structure", low: target?.highMinutes === high ? target.lowMinutes ?? high : high, high } : { skip: true };
 		}
 		return choices;
@@ -214,16 +245,31 @@ export function draftVaultSchedule(sources: readonly AgendaPlan[], options: Vaul
 		part.draft = again;
 	}
 	const unplaced = new Map<string, VaultUnplaced>();
+	const short = new Map<string, VaultShort>();
 	const notes: ScheduleIssue[] = [];
 	const days: string[] = [];
 	for (const part of order) {
 		const draft = part.draft!;
+		const dropped = new Set<string>();
 		for (const entry of draft.generated) {
 			if (entry.day) { days.push(entry.day); continue; }
 			const key = sourceKey(entry.source), found = unplaced.get(key);
 			const resolved = resolvePlanSource(entry.source, part.candidates);
 			const due = entryWorkDeadline(draft.plan, entry, part.candidates)?.due ?? (resolved.state === "ready" ? resolved.candidate.targetDate ?? null : null);
+			// A goal takes the days there are before its date. What does not fit is said, not left as sessions with no day.
+			if (part.goal && (entry.highMinutes ?? 0) <= room) {
+				dropped.add(entry.id);
+				const all = draft.generated.filter((item) => sourceKey(item.source) === key);
+				short.set(key, { key, title: resolved.state === "ready" ? resolved.candidate.title : entry.title, wanted: all.reduce((sum, item) => sum + (item.highMinutes ?? 0), 0), placed: all.reduce((sum, item) => sum + (item.day ? item.highMinutes ?? 0 : 0), 0), due });
+				continue;
+			}
 			unplaced.set(key, { title: resolved.state === "ready" ? resolved.candidate.title : entry.title, minutes: (found?.minutes ?? 0) + (entry.highMinutes ?? 0), due, ...(found?.tooLong || (entry.highMinutes ?? 0) > room ? { tooLong: true as const } : {}) });
+		}
+		if (dropped.size) {
+			draft.plan.entries = draft.plan.entries.filter((entry) => !dropped.has(entry.id));
+			const kept = new Map<string, number>();
+			for (const entry of draft.generated) if (!dropped.has(entry.id)) kept.set(sourceKey(entry.source), (kept.get(sourceKey(entry.source)) ?? 0) + 1);
+			for (const entry of draft.plan.entries) if (entry.sessionCount && draft.generated.some((item) => item.id === entry.id)) entry.sessionCount = kept.get(sourceKey(entry.source)) ?? entry.sessionCount;
 		}
 		notes.push(...draft.issues.filter((issue) => issue.reason !== NO_FIT && issue.reason !== LEFT_OUT && issue.reason !== WAITING));
 	}
@@ -233,6 +279,7 @@ export function draftVaultSchedule(sources: readonly AgendaPlan[], options: Vaul
 		plans: parts.map((part) => ({ scope: part.scope, plan: next(part), candidates: part.all })),
 		days,
 		unplaced: [...unplaced.values()],
+		short: [...short.values()],
 		cushion: order.flatMap((part) => part.draft!.cushion),
 		notes,
 	};
