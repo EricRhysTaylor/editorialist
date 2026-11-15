@@ -89,6 +89,12 @@ describe("one schedule for goals and engagement tasks", () => {
 		expect(draft.notes).toEqual([]);
 		expect(draft.plans.find((plan) => plan.scope === AUTHOR_PLAN_SCOPE)!.plan.targets![0]).toMatchObject({ lowMinutes: 120, highMinutes: 120 });
 	});
+	it("leaves out work whose saved time the author cleared", () => {
+		const saved = author([goal({ lowMinutes: 120, highMinutes: 120 })]);
+		const draft = run([book(), saved], { minutes: { [taskKey]: 120 } });
+		expect(days(draft.plans, AUTHOR_PLAN_SCOPE)).toEqual([]);
+		expect(days(draft.plans, book().scope)).toHaveLength(2);
+	});
 	it("remembers the balance, the kept minutes and each task's time through a save", () => {
 		const draft = run([book(), author()], { balance: "split", reserveMinutes: 45 });
 		const store = normalizeRevisionPlans({ version: 1, books: Object.fromEntries(draft.plans.map((plan) => [plan.scope, plan.plan])) });

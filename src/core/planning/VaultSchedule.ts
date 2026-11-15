@@ -159,7 +159,9 @@ export function draftVaultSchedule(sources: readonly AgendaPlan[], options: Vaul
 			const key = sourceKey(candidate);
 			if (candidate.inactive || candidate.complete || planned.has(key)) continue;
 			const target = part.goal ? part.plan.targets?.find((item) => item.id === candidate.locator) : undefined;
-			const high = options.minutes[key] ?? target?.highMinutes ?? candidate.suggestedMinutes ?? 0;
+			// Only the time the author gave in this draft counts: a time cleared here leaves the work out,
+			// as the work step says, rather than falling back to the estimate saved last time.
+			const high = options.minutes[key] ?? 0;
 			choices[key] = high > 0 ? { phase: "structure", low: target?.highMinutes === high ? target.lowMinutes ?? high : high, high } : { skip: true };
 		}
 		return choices;
