@@ -8462,6 +8462,25 @@ button.editorialist-panel__contributors-row:focus-visible {
 	gap: 6px;
 }
 
+/* Each step opens: the plan is shown first, and a step changes an answer in it. */
+.editorialist-fill__steps button {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	height: auto;
+	padding: 0;
+	border: none;
+	background: none;
+	box-shadow: none;
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
+}
+
+.editorialist-fill__steps button:hover {
+	color: var(--text-normal);
+}
+
 .editorialist-fill__steps li.is-done {
 	color: var(--text-muted);
 }

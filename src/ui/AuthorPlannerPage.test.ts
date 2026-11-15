@@ -76,8 +76,8 @@ describe("an engagement's schedule", () => {
 describe("the author planner on one page", () => {
 	it("shows what lies ahead, the days, the goals, then folds the sessions and setup", () => {
 		const { root, plugin } = authorPage();
-		expect([...root.querySelectorAll(".editorialist-runway__title")].map((item) => item.textContent)).toEqual(["November Writers' Month", "Book 2 · Morgan Lee"]);
-		expect(root.querySelector(".editorialist-runway__detail")?.textContent).toMatch(/^22% · due /);
+		expect([...root.querySelectorAll(".editorialist-runway__title")].map((item) => item.textContent)).toEqual(["Book 2 · Morgan Lee", "November Writers' Month"]);
+		expect(root.querySelectorAll(".editorialist-runway__detail")[1]?.textContent).toMatch(/^22% · due /);
 		expect(root.querySelectorAll(".editorialist-days button.editorialist-days__day").length % 7).toBe(0);
 		expect(root.querySelector(`[data-day="${shift(3)}"]`)?.classList.contains("is-full")).toBe(true);
 		expect(root.querySelector(`[data-day="${shift(16)}"]`)?.classList.contains("is-hard")).toBe(true);

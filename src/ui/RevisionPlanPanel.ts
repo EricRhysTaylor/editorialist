@@ -153,7 +153,7 @@ export class RevisionPlanPanel extends ItemView {
 		const weeks = vaultDays(this.plugin, plans, today);
 		const from = weeks[0]![0]!.day, to = weeks[weeks.length - 1]![6]!.day;
 		const range = `${planDayLabel(from)} – ${planDayLabel(to)}`;
-		const lanes = runwayLanes(goals, engagements, this.goalWords, from, today);
+		const lanes = runwayLanes(goals, engagements, this.goalWords, from, today, this.plan.scheduling?.balance === "goals");
 		if (lanes.length) {
 			const ahead = root.createDiv({ cls: "editorialist-author__panel" });
 			const head = ahead.createDiv({ cls: "editorialist-author__panel-head" });

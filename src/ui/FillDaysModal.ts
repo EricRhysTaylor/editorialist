@@ -1,9 +1,9 @@
 import { Modal, Notice, setIcon } from "obsidian";
 import type EditorialistPlugin from "../main";
-import { AUTHOR_PLAN_SCOPE } from "../core/planning/AuthorPlan";
+import { AUTHOR_PLAN_SCOPE, wordProgress } from "../core/planning/AuthorPlan";
 import { isDate, localDate } from "../core/planning/RevisionPlan";
 import type { VaultPlan, VaultPlans } from "../core/planning/TodayAgenda";
-import { busyDays, draftVaultSchedule, movableSessions, vaultWork, type Balance, type VaultDraft, type VaultWorkItem } from "../core/planning/VaultSchedule";
+import { draftVaultSchedule, movableSessions, vaultWork, type Balance, type VaultDraft, type VaultWorkItem } from "../core/planning/VaultSchedule";
 import { planDayLabel } from "../core/planning/WorkPresentation";
 import { setAccessibleLabel } from "./primitives/AccessibleLabel";
 import { renderDayGrid } from "./primitives/DayGrid";
@@ -23,9 +23,9 @@ const plural = (count: number, word: string): string => `${count} ${word}${count
 
 /**
  * Fill my days: the author's goals and each engagement's tasks planned
- * together, in four short steps. The hours, the time each piece of work
- * takes and which work comes first are the author's to say; the last step
- * shows the days before anything is saved.
+ * together. It opens on the plan itself, worked out from the author's hours,
+ * their writing pace and the choices they made last time, so one click uses
+ * it. The steps before it are there to change an answer, not to be filled in.
  */
 export class FillDaysModal extends Modal {
 	private vault!: VaultPlans;
@@ -40,6 +40,11 @@ export class FillDaysModal extends Modal {
 	private reserveMinutes = 60;
 	private replan = false;
 	private minutes: Record<string, number> = {};
+	/** Where a time filled in for the author came from, by work key. */
+	private basis: Record<string, string> = {};
+	/** The author's writing pace, and the word goals it turns hours into words for. */
+	private rate = 0;
+	private wordGoals = new Set<string>();
 	private draft: VaultDraft | null = null;
 	private saving = false;
 	constructor(private readonly plugin: EditorialistPlugin) { super(plugin.app); }
@@ -51,6 +56,8 @@ export class FillDaysModal extends Modal {
 	onClose(): void { this.contentEl.empty(); }
 	private fingerprintOf(vault: VaultPlans): string { return JSON.stringify(vault.plans.map(({ scope, plan, candidates }) => [scope, plan, candidates])); }
 	private async load(): Promise<void> {
+		// Counting first: it may record the day's opening total in the goals' plan.
+		const counts = (await this.plugin.recordAuthorWordGoals()).counts;
 		this.vault = await this.plugin.collectVaultPlans();
 		this.fingerprint = this.fingerprintOf(this.vault);
 		const author = this.vault.plans.find((plan) => plan.scope === AUTHOR_PLAN_SCOPE)!.plan;
@@ -60,10 +67,31 @@ export class FillDaysModal extends Modal {
 		this.reserveMinutes = author.scheduling?.reserveMinutes ?? 60;
 		this.work = vaultWork(this.vault.plans);
 		this.movable = movableSessions(this.vault.plans);
-		for (const item of this.work) if (item.minutes) this.minutes[item.key] = item.minutes;
-		// Offer to move what is there when the days already hold more than their hours.
-		this.replan = [...busyDays(this.vault.plans, "")].some(([day, minutes]) => day >= this.start && minutes > (this.capacity[new Date(`${day}T12:00:00`).getDay()] ?? 0));
-		this.render();
+		// Every piece of work comes with a time, so the author need not give one:
+		// what they said before, else the words left at their writing pace, else one sitting.
+		const rate = this.rate = this.plugin.getEffortSettings().draftRateWordsPerHour;
+		for (const item of this.work) {
+			const goal = item.goal ? author.targets?.find((target) => target.id === item.id) : undefined;
+			// A word goal is always the words still to write, so its time falls as the words rise.
+			if (item.minutes && !(goal?.words && rate > 0)) { this.minutes[item.key] = item.minutes; continue; }
+			if (goal?.words && rate > 0) {
+				this.wordGoals.add(item.key);
+				const count = counts[item.id];
+				const left = Math.max(0, goal.words.target - (typeof count === "number" ? wordProgress(goal.words, goal.start, goal.due, count, this.start).written ?? 0 : 0));
+				if (left > 0) {
+					this.minutes[item.key] = Math.ceil(left / rate * 4) * 15;
+					this.basis[item.key] = `${left.toLocaleString()} words to go at ${rate.toLocaleString()} an hour`;
+					continue;
+				}
+			}
+			if (item.minutes) { this.minutes[item.key] = item.minutes; continue; }
+			this.minutes[item.key] = this.sessionMinutes;
+			this.basis[item.key] = "one sitting, until you say otherwise";
+		}
+		// Planning again moves what is already there, so the days fit together; a kept date stays.
+		this.replan = this.movable > 0;
+		// With hours and something to plan, the plan itself is the first thing shown.
+		if (this.capacity.some((minutes) => minutes > 0) && (this.work.length || this.movable)) this.go("preview"); else this.render();
 	}
 	/** The balance only matters when goals and an editor's work want the same days. */
 	private steps(): Step[] {
@@ -98,8 +126,16 @@ export class FillDaysModal extends Modal {
 		const trail = root.createEl("ol", { cls: "editorialist-fill__steps" });
 		steps.forEach((step, position) => {
 			const item = trail.createEl("li", { cls: position === index ? "is-current" : position < index ? "is-done" : "", attr: position === index ? { "aria-current": "step" } : {} });
-			item.createSpan({ cls: "editorialist-fill__step-number", text: String(position + 1) });
-			item.createSpan({ text: STEPS[step] });
+			// Any step can be opened: the plan comes first, and these change an answer in it.
+			const link = item.createEl("button", { attr: { type: "button" } });
+			link.createSpan({ cls: "editorialist-fill__step-number", text: String(position + 1) });
+			link.createSpan({ text: STEPS[step] });
+			link.addEventListener("click", () => {
+				if (position === index) return;
+				const problem = this.problem();
+				if (problem) { new Notice(problem); return; }
+				this.go(step);
+			});
 		});
 		const body = root.createDiv({ cls: "editorialist-fill__body" });
 		if (this.step === "time") this.renderTime(body);
@@ -141,11 +177,12 @@ export class FillDaysModal extends Modal {
 	}
 	private renderWork(body: HTMLElement): void {
 		if (!this.work.length) body.createEl("p", { cls: "editorialist-deliveries__intro", text: this.movable ? "Everything already has its sessions. You can still move them so your days fit together." : "Nothing is waiting for a place in your days. Add a goal, or a task in an editor engagement, and come back." });
-		else body.createEl("p", { cls: "editorialist-deliveries__intro", text: "Say how long each piece of work will take. Work without a time stays out of the plan for now; you can come back to it." });
+		else body.createEl("p", { cls: "editorialist-deliveries__intro", text: "Each piece of work has a time filled in for you. Change any that looks wrong; set one to 0 to leave it out of the plan for now." });
 		const goalNote = (item: VaultWorkItem): string => {
 			const target = this.vault.plans.find((plan) => plan.scope === AUTHOR_PLAN_SCOPE)?.plan.targets?.find((goal) => goal.id === item.id);
 			return [item.due ? `${item.hard ? "Hard deadline" : "Target"} ${planDayLabel(item.due)}` : "", target?.words ? `${target.words.target.toLocaleString()} words` : ""].filter(Boolean).join(" · ");
 		};
+		const basis = (item: VaultWorkItem): string => this.basis[item.key] ? ` · ${this.basis[item.key]}` : "";
 		const taskNote = (item: VaultWorkItem): string => !item.due ? "No date yet" : item.aim && item.aim < item.due ? `Due ${planDayLabel(item.due)} · ready by ${planDayLabel(item.aim)}` : `Due ${planDayLabel(item.due)}`;
 		const groups = new Map<string, VaultWorkItem[]>();
 		for (const item of this.work) { const name = item.goal ? "Your goals" : `Due to your editor${item.group ? ` · ${item.group}` : ""}`; groups.set(name, [...(groups.get(name) ?? []), item]); }
@@ -162,7 +199,7 @@ export class FillDaysModal extends Modal {
 				const row = group.createDiv({ cls: "editorialist-fill__item" });
 				const main = row.createDiv({ cls: "editorialist-fill__item-main" });
 				main.createEl("strong", { text: item.title });
-				main.createSpan({ text: item.goal ? goalNote(item) : taskNote(item) });
+				main.createSpan({ text: `${item.goal ? goalNote(item) : taskNote(item)}${basis(item)}` });
 				const time = row.createEl("label", { cls: "editorialist-fill__hours" });
 				const given = this.minutes[item.key];
 				const field = time.createEl("input", { type: "number", value: given ? String(Math.round(given / 6) / 10) : "", attr: { min: "0", step: "0.25", placeholder: "0" } });
@@ -171,6 +208,7 @@ export class FillDaysModal extends Modal {
 				field.addEventListener("change", () => {
 					const value = Math.round(Math.max(0, Number(field.value) || 0) * 60);
 					if (value) this.minutes[item.key] = value; else delete this.minutes[item.key];
+					delete this.basis[item.key];
 					sum();
 				});
 			}
@@ -216,12 +254,20 @@ export class FillDaysModal extends Modal {
 		setIcon(heading.createSpan({ cls: "editorialist-autoschedule__forecast-icon", attr: { "aria-hidden": "true" } }), short ? "calendar-clock" : draft.days.length ? "calendar-check" : "calendar");
 		const text = heading.createDiv();
 		text.createDiv({ cls: "editorialist-autoschedule__eyebrow", text: "Your days with this plan" });
-		text.createEl("h3", { text: short ? `${hours(short)} will not fit` : draft.days.length ? "Everything fits" : draft.changes.length ? "No new sessions; your choices are kept" : "Nothing new to plan" });
+		text.createEl("h3", { text: short ? `${hours(short)} will not fit` : draft.short.length ? "Your days are planned" : draft.days.length ? "Everything fits" : draft.changes.length ? "No new sessions; your choices are kept" : "Nothing new to plan" });
 		if (draft.days.length) preview.createEl("p", { cls: "editorialist-deliveries__intro", text: `${plural(draft.days.length, "session")} over ${plural(new Set(draft.days).size, "day")}, the last on ${planDayLabel(last!)}.` });
 		const days = new Map(draft.plans.map((plan) => [plan.scope, plan.plan]));
 		const plans: VaultPlan[] = this.vault.plans.map((plan) => ({ ...plan, plan: days.get(plan.scope) ?? plan.plan }));
 		const calendar = preview.createDiv({ cls: "editorialist-fill__days" });
 		renderDayGrid(calendar, vaultDays(this.plugin, plans, localDate(new Date())), { hint: "The day as this plan leaves it", open: () => undefined });
+		if (draft.short.length) {
+			preview.createEl("h4", { text: "More than your days hold" });
+			for (const item of draft.short) {
+				const row = preview.createDiv({ cls: "editorialist-autoschedule__issue is-cushion" });
+				row.createEl("strong", { text: item.title });
+				row.createEl("p", { text: `${item.placed ? `${hours(item.placed)} of the ${hours(item.wanted)} it needs` : `None of the ${hours(item.wanted)} it needs`} fit${item.due ? ` before ${planDayLabel(item.due)}` : ""}. Every day you have is planned; to fit the rest, give your days more time under Your time, or move its date.${this.wordGoals.has(item.key) && item.placed ? ` At ${this.rate.toLocaleString()} words an hour, that time is about ${(Math.round(item.placed / 60 * this.rate / 50) * 50).toLocaleString()} words.` : ""}` });
+			}
+		}
 		if (draft.unplaced.length) {
 			preview.createEl("h4", { text: "Not enough time" });
 			preview.createEl("p", { text: "Go back to give your days more time, give this work less, or change which comes first. If you use the plan as it is, these sessions wait in your plan without a day." });
@@ -234,7 +280,10 @@ export class FillDaysModal extends Modal {
 		if (draft.cushion.length) {
 			preview.createEl("h4", { text: "Later than you aim for" });
 			preview.createEl("p", { text: "These are ready by their date, but closer to it than you like to finish." });
-			for (const item of draft.cushion) { const row = preview.createDiv({ cls: "editorialist-autoschedule__issue is-cushion" }); row.createEl("strong", { text: item.title }); row.createEl("p", { text: item.reason }); }
+			// One line for each piece of work: its last session is the one that says when it is ready.
+			const last = new Map<string, string>();
+			for (const item of draft.cushion) last.set(item.title.replace(/ · Session \d+\/\d+$/, ""), item.reason);
+			for (const [title, reason] of last) { const row = preview.createDiv({ cls: "editorialist-autoschedule__issue is-cushion" }); row.createEl("strong", { text: title }); row.createEl("p", { text: reason }); }
 		}
 		if (draft.notes.length) {
 			preview.createEl("h4", { text: "Worth a look" });

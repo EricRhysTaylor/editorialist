@@ -72,12 +72,25 @@ describe("one schedule for goals and engagement tasks", () => {
 		expect(days(draft.plans, book().scope)).toEqual(["2026-11-12"]);
 		expect(draft.plans[0]!.plan.entries[0]!.locked).toBeUndefined();
 	});
-	it("says how much time finds no day before a deadline", () => {
+	it("gives a goal the days there are before its date, and says how much of it fits", () => {
 		const draft = run([book(), author()], { minutes: { [goalKey]: 1200, [taskKey]: 240 } });
 		// Ten working days hold twenty hours; the task has four of them.
-		expect(draft.unplaced).toEqual([{ title: "Writers' month", minutes: 240, due: "2026-11-13" }]);
-		// The sessions waiting behind the first that found no day are in that time, not listed again.
+		expect(draft.short).toEqual([{ key: goalKey, title: "Writers' month", wanted: 1200, placed: 960, due: "2026-11-13" }]);
+		expect(draft.unplaced).toEqual([]);
 		expect(draft.notes).toEqual([]);
+		// No goal session is left without a day, and the kept ones count themselves.
+		const goals = draft.plans.find((plan) => plan.scope === AUTHOR_PLAN_SCOPE)!.plan.entries;
+		expect(goals).toHaveLength(16);
+		expect(goals.every((entry) => entry.day && entry.sessionCount === 16)).toBe(true);
+	});
+	it("plans a session that never had a day again, with the time it was given", () => {
+		const waiting: PlanEntry = { id: "old", source: { kind: "preparation", path: "engagement", locator: "synopsis" }, title: "Write the synopsis", lowMinutes: null, highMinutes: 180, day: null, required: true, done: false, afterId: null };
+		expect(vaultWork([book([waiting])]).map((item) => [item.title, item.minutes])).toEqual([["Write the synopsis", 180]]);
+		const draft = run([book([waiting]), author()], { minutes: {} });
+		expect(days(draft.plans, book().scope)).toEqual(["2026-11-02", "2026-11-02", "2026-11-03"]);
+		expect(draft.plans[0]!.plan.entries.some((entry) => entry.id === "old")).toBe(false);
+		// One the author kept stays as it is.
+		expect(run([book([{ ...waiting, locked: true }]), author()], { minutes: {} }).changes).toEqual([]);
 	});
 	it("names a session longer than any day rather than calling the days full", () => {
 		const long: PlanEntry = { id: "long", source: { kind: "preparation", path: "engagement", locator: "synopsis" }, title: "Write the synopsis", lowMinutes: 150, highMinutes: 150, day: START, required: true, done: false, afterId: null };
