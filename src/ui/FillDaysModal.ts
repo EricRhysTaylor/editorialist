@@ -8,6 +8,7 @@ import { planDayLabel } from "../core/planning/WorkPresentation";
 import { setAccessibleLabel } from "./primitives/AccessibleLabel";
 import { renderDayGrid } from "./primitives/DayGrid";
 import { vaultDays } from "./VaultCalendar";
+import { plural } from "./util/wording";
 
 type Step = "time" | "work" | "balance" | "preview";
 const STEPS: Record<Step, string> = { time: "Your time", work: "What's due", balance: "The balance", preview: "Preview" };
@@ -19,7 +20,6 @@ const BALANCES: [Balance, string, string][] = [
 	["goals", "Your writing goals first", "What's due to your editor gets the time that is left on each day."],
 ];
 const hours = (minutes: number): string => `${Math.round(minutes / 6) / 10} h`;
-const plural = (count: number, word: string): string => `${count} ${word}${count === 1 ? "" : "s"}`;
 
 /**
  * Fill my days: the author's goals and each engagement's tasks planned

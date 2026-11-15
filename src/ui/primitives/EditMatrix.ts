@@ -7,6 +7,7 @@ import { compareSceneTitles } from "../panels/ReviewPanelIdleSections";
 import { bindMenuAction } from "../util/bindMenuAction";
 import { displayDirectiveText } from "../../core/DirectiveText";
 import { bindDotPopover, type DotPopoverContent } from "./DotPopover";
+import { capitalize } from "../util/wording";
 
 const SOURCE_NAMES: Record<DotSource, string> = { copy: "Copy edit", editor: "Editorial pass", editorialism: "Editorialism", pending: "Pending edit" };
 const STATE_NAMES: Record<EditState, string> = { open: "to do", done: "done", declined: "declined" };
@@ -86,7 +87,6 @@ function dotSummary(dot: EditDot): string {
 	return dot.source === "editorialism" ? displayDirectiveText(dot.summary) : dot.summary;
 }
 
-const capitalize = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
 
 /** An edit in full beside its dot: what kind of work it is and where it
  * stands, the scene it belongs to, the edit itself, and what a click and
