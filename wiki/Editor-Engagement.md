@@ -1,6 +1,6 @@
 Keep an editor’s agreed dates, the documents you send, your tasks, shared milestones, and activity history together for the active book. Run **Open editor engagement**, or choose **Editor engagement** from the panel’s mode selector. The view has three tabs: **Overview**, **Schedule**, and **History**. **Open engagement in workspace**, in the panel's **⋯** menu, opens the same plan in a full workspace tab.
 
-<p align="center"><img src="images/panel-editor-engagement.png" alt="Editor engagement overview for Morgan Lee: the start date six days away, the engagement bar with your preparation, the editor's stretch and your questions, a cushion bar with six days left, and Next up with the next session and the next date due" width="460"></p>
+<p align="center"><img src="images/panel-editor-engagement.png" alt="Editor engagement overview for Morgan Lee: the Overview, Schedule and History tabs, the start date 16 days away, the engagement bar with your preparation, the editor's stretch and your questions, the day to aim for, and Next up with the next session and the next date due" width="460"></p>
 
 ## Create an engagement
 
@@ -45,7 +45,7 @@ A word limit caps the working document, a query letter at 500 words, say. Wherev
 
 A document's tasks sit inside it, under its title. Add one with the list icon in the open document, or choose the document in a task's **Document** field. Tasks with no document are listed under **Other tasks**. Click a task's circle and choose **Done** or **Open**; opening the menu changes nothing until you choose, and finished tasks are struck through.
 
-<p align="center"><img src="images/engagement-documents.png" alt="Documents section with four cards: a query letter sent to Morgan Lee as a Word file with a copy kept, and three documents not sent yet, each with its due date, word count, tasks and Record sending link" width="450"></p>
+<p align="center"><img src="images/engagement-documents.png" alt="Documents section with four lines: a query letter with a green check and the day it was sent, and three not sent yet, each with its due date, open tasks and word count. The synopsis is open, showing its working note, two tasks, Not sent yet and Record sending" width="460"></p>
 
 ### Record sending a document
 
@@ -69,7 +69,7 @@ Prepare and exchange files through your editor’s collaboration service, email,
 
 Open **Schedule** to see the book's days as squares, a week to a row, as the [Author Planner](Author-Planner) draws them for all your books: a square fills with the time planned that day against the time you set aside, turns red past it, and is tinted while the manuscript is with your editor; a red ring marks the agreed start. Hover a square for the day's sessions, and click it to open that day in **Days**. **Fill my days**, under the squares, plans this engagement's tasks together with your writing goals; see [Author Planner](Author-Planner#fill-my-days). Below them are the ordered **Queue**, daily **Days** view, deadline, weekday capacity, and how many days early to finish work due to your editor. Personal tasks join imported review batches, Editorialism directives, and pending edits. Review a schedule preview before applying it, then resolve feedback in its own workflow. Marking a scheduled session **Done** records the planning session; finishing the feedback itself is separate.
 
-<p align="center"><img src="images/panel-revision-plan.png" alt="Editor engagement schedule with book progress and a capacity forecast" width="460"></p>
+<p align="center"><img src="images/panel-revision-plan.png" alt="Schedule tab of an editor engagement: Queue and Days, then Your days, the book's days as squares with the days due ringed, 11 sessions planned and the Fill my days button" width="460"></p>
 
 See [Revision Plan](Revision-Plan) for estimates, automatic planning, delivery scheduling, prerequisites, and preserved dates.
 
@@ -77,7 +77,7 @@ See [Revision Plan](Revision-Plan) for estimates, automatic planning, delivery s
 
 Choose **Record activity** to record something sent, something received, or a note. A date and description are required; the document, the file, and file names are optional. Sends you record in a document's details appear here too, with the document's name. Record events that have happened; put future work in the schedule. Records can be corrected or deleted later.
 
-<p align="center"><img src="images/engagement-history.png" alt="Activity records with a sent record and a note, each with its kind icon and edit, reference, and archive actions" width="460"></p>
+<p align="center"><img src="images/engagement-history.png" alt="Activity records with a sent record and a note, each with its kind icon and an edit action, and Record activity below" width="460"></p>
 
 A kept copy holds one file, up to 64 MB, under `Editorialist/Engagement history/`, and stays independent of later changes to the original. Live references follow file renames; file names and kept copies preserve the record. Deleting a record keeps its copy.
 

@@ -304,3 +304,40 @@ All 24 wiki images were checked against the 3.4.1 code for docs.radialtimeline.c
 
 `ui-toolbar-closeup-rounded.png` stays in the wiki. The docs site shows a live HTML version of the toolbar in its place.
 
+## November 14, 2026 — planner and engagement refresh
+
+Captured from main at `79a323e` plus the Today spacing fix that follows it, in
+an isolated desktop Obsidian 1.15.0 (its own profile, started with a debugging
+port and driven and captured through it, so no pointer is in any image). Dark
+theme, 2x device scale, 460 CSS-pixel right sidebar. The vault was new and
+made up: six scenes in `Book/`, Workshop documents with word limits, seven
+chapters in `Drafts/Book 2/`, Morgan Lee's developmental edit starting Nov 30,
+and the goals "Draft Book 2" (50,000 words in November) and "Outline Book 3".
+Hours were two a day, Monday to Friday. No Author-vault content was used.
+
+The sessions in these images were made by the plugin: Fill my days was run in
+the vault with 11 hours of engagement tasks and 15 of goals, editor's work
+first, and its plan applied (26 sessions over 13 days).
+
+- `fill-my-days.png` (new) — the Preview step, the whole window (560 CSS px
+  wide, shown at 520), rounded at 44 to match its corners. It replaces the
+  retired `author-schedule-preview.png`.
+- `panel-author-planner.png` — the one-page planner through Your days (700
+  CSS px); the goal cards moved to their own image.
+- `author-goals.png` (new) — Your goals with both cards (514 CSS px).
+- `panel-editor-engagement.png` — the three tabs, through Next up. The aim day
+  is still ahead, so there is no cushion bar.
+- `engagement-documents.png` — the one-line documents, with Synopsis open. Now
+  the full 460 CSS-pixel panel width.
+- `engagement-history.png` — the History tab's Activity records.
+- `panel-revision-plan.png` — the Schedule tab through Your days and the Fill
+  my days button; progress and the summary are below.
+- `plan-queue-cards.png` — three cards with single-figure estimates.
+- `panel-today.png` — through the Now card. For this one image, Saturday was
+  given two hours and the first two sessions were moved to today, so the Now
+  card and the week strip have something to show.
+
+Kept: `delivery-schedule-preview.png` (a delivery's schedule preview, which
+needs imported feedback; its layout is unchanged) and every review, import and
+settings image.
+

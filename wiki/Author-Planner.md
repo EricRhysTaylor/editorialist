@@ -1,6 +1,6 @@
 Give your own writing goals a target date and room in your working week. Run **Open author planner**, or choose **Author planner** from the panel’s mode selector. This plan spans the vault and stays separate from each book’s [Editor Engagement](Editor-Engagement).
 
-<p align="center"><img src="images/panel-author-planner.png" alt="Author planner with a word-count goal showing words written, today's words and the daily pace, above a goal that starts tomorrow with a hard deadline" width="460"></p>
+<p align="center"><img src="images/panel-author-planner.png" alt="Author planner: Ahead of you, with a bar for each goal and for the editor engagement against today, and Your days, nine weeks of squares filled where sessions are planned, with the Fill my days button below" width="460"></p>
 
 ## Add a writing goal
 
@@ -12,6 +12,8 @@ Give your own writing goals a target date and room in your working week. Run **O
 6. Save. **Edit goal** lets you change these details later.
 
 Each goal card counts down to its date. Before a goal’s start date, it shows the days until you start and the length of the window; after that, the days left, plus the weeks when at least two weeks remain. A goal with a start date also shows a bar of how much of the time from start to deadline has passed. The bar measures time, not how much of the writing is done. It turns amber in the last 14 days and red when the goal is due today or past due, and a hard deadline’s date is shown in red.
+
+<p align="center"><img src="images/author-goals.png" alt="Two goal cards: a word-count goal with words written, today's words, the daily pace and a hard deadline in red, above a goal that starts in two days" width="460"></p>
 
 A document link opens the working file. Linking or editing it never completes the goal. **Mark complete** records your decision; **Reopen goal** brings it back. **Remove goal** removes that goal and its planned sessions while preserving the document.
 
@@ -33,6 +35,8 @@ The count is the folder’s total, so cutting words lowers it, and moving a note
 2. **What's due.** Each engagement task and each goal that has no sessions yet, with its date. Say how many hours each will take. Work you leave without a time stays out of the plan for now. The hours you give a goal or a task are kept with it, so you are not asked twice. If sessions are already on your calendar, **Move the sessions already on my calendar** places them again so everything fits together; a session set to **Keep this date** stays where it is. The box is ticked for you when a day already holds more than its hours.
 3. **The balance.** Shown when you have both goals and work due to an editor. Choose which comes first when a day has no room for both: what is due to your editor, your writing goals, or **Some of each, every day**, which keeps a set number of minutes for your goals on each day they need them and gives your editor's work the rest. Your choice is remembered for next time.
 4. **Preview.** Your days as squares, as the plan would leave them. If everything fits it says so, with the number of sessions and the last day. If not, it says how many hours find no day and for which work; go **Back** to give your days more time, give the work less, or change the balance. Work due to your editor aims to be ready your cushion of days early, and the preview lists what lands later than that. **Use this plan** saves the sessions to your goals and to each book's engagement.
+
+<p align="center"><img src="images/fill-my-days.png" alt="Fill my days at its Preview step: Everything fits, 26 sessions over 13 days, with the days drawn as squares, full on the days now planned, and Back and Use this plan below" width="520"></p>
 
 Goals are planned to their own dates; the cushion kept before an editor's deadline does not apply to them. A book's feedback work, its review batches, Editorialism directives and pending edits, is planned from that book's own schedule; Fill my days leaves those sessions where they are and plans around them.
 
