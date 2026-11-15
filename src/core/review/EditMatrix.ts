@@ -38,7 +38,7 @@ export const EDIT_SOURCES: readonly EditSource[] = ["copy", "editor", "editorial
 export const DOT_SOURCES: readonly DotSource[] = [...EDIT_SOURCES, "pending"];
 export const EDIT_STATES: readonly EditState[] = ["open", "done", "declined"];
 
-export function editSource(suggestion: ReviewSuggestion): EditSource {
+function editSource(suggestion: ReviewSuggestion): EditSource {
 	const role = suggestion.contributor.reviewerType;
 	return role === "copy-editor" || role === "ai-copy-editor" ? "copy" : "editor";
 }
@@ -53,7 +53,7 @@ const clip = (text: string, length = 70): string => {
 	return flat.length > length ? `${flat.slice(0, length - 1)}…` : flat;
 };
 
-export function editSummary(suggestion: ReviewSuggestion): string {
+function editSummary(suggestion: ReviewSuggestion): string {
 	switch (suggestion.operation) {
 		case "edit": {
 			const { original, revised } = suggestion.payload;
@@ -87,7 +87,7 @@ export interface LiveEdit {
 
 // An edit's identity across sessions: its pass, its scene and its place in
 // that pass's entries there. The suggestion id alone repeats in every scene.
-export function liveEditKey(notePath: string, suggestion: ReviewSuggestion): string {
+function liveEditKey(notePath: string, suggestion: ReviewSuggestion): string {
 	const { batchId, blockIndex, entryIndex } = suggestion.source;
 	return batchId ? `${batchId}|${notePath}|${entryIndex}` : `raw|${notePath}|${blockIndex}.${entryIndex}`;
 }
@@ -117,7 +117,7 @@ export function liveEdits(
 	});
 }
 
-export function directivePlace(sectionIndex: number, itemIndex: number): string {
+function directivePlace(sectionIndex: number, itemIndex: number): string {
 	return `${sectionIndex}.${itemIndex}`;
 }
 
@@ -143,7 +143,7 @@ export function directiveItem(editorialism: Editorialism, id: string): Editorial
 
 // A directive's state on the grid. Deferred is the author choosing to skip
 // it, so it reads as declined; a question is still to do.
-export function directiveStatus(status: EditorialismItemStatus): ReviewStatus {
+function directiveStatus(status: EditorialismItemStatus): ReviewStatus {
 	if (status === "done") return "accepted";
 	return status === "deferred" ? "rejected" : "pending";
 }

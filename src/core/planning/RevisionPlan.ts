@@ -74,7 +74,7 @@ export interface RevisionPlanStore {
 	capacity: number[];
 	books: Record<string, RevisionPlan>;
 }
-export const DEFAULT_CUSHION_DAYS = 14;
+const DEFAULT_CUSHION_DAYS = 14;
 export const MAX_CUSHION_DAYS = 90;
 export function emptyRevisionPlan(): RevisionPlan {
 	return { deadline: null, capacity: [0, 120, 120, 120, 120, 120, 0], cushionDays: DEFAULT_CUSHION_DAYS, entries: [] };

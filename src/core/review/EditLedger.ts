@@ -98,7 +98,7 @@ const LINE_KEY = /^ed\|(.*)\|(\d+)$/;
  * on the grid by its text, is dropped. Anything else, such as a directive
  * since deleted, is kept. Returns null when nothing needed moving.
  */
-export function adoptDirectivePlaces(book: EditLedgerBook, live: readonly LiveEdit[]): EditLedgerBook | null {
+function adoptDirectivePlaces(book: EditLedgerBook, live: readonly LiveEdit[]): EditLedgerBook | null {
 	const legacy = Object.keys(book.entries).filter((key) => LINE_KEY.test(key));
 	if (!legacy.length) return null;
 	const directives = live.filter((edit) => edit.source === "editorialism");
