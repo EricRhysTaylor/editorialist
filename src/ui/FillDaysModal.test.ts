@@ -113,6 +113,25 @@ describe("Fill my days", () => {
 		// No session is left without a day.
 		expect(apply.mock.calls[0]![0].flatMap((change) => change.next.entries).every((entry) => entry.day)).toBe(true);
 	});
+	it("keeps every piece of work in the plan: a time set to 0 or cleared comes back", async () => {
+		const { root, apply } = await open();
+		step(root, 1);
+		expect(root.querySelector(".editorialist-fill__body .editorialist-deliveries__intro")?.textContent).not.toMatch(/leave it out/);
+		const fields = [...root.querySelectorAll<HTMLInputElement>(".editorialist-fill__hours input")];
+		type(fields[0]!, "0");
+		expect(fields[0]!.value).toBe("1");
+		type(fields[1]!, "");
+		expect(fields[1]!.value).toBe("33.5");
+		// Less than a quarter of an hour is given a quarter.
+		type(fields[0]!, "0.1");
+		expect(fields[0]!.value).toBe("0.3");
+		type(fields[0]!, "1");
+		expect(root.querySelector(".editorialist-fill__total")?.textContent).toBe("34.5 h to plan");
+		step(root, 3);
+		next(root);
+		await vi.waitFor(() => expect(apply).toHaveBeenCalled());
+		expect(apply.mock.calls[0]![0].map((change) => change.next.entries.length)).toEqual([1, 34]);
+	});
 	it("asks for a day with time before going on", async () => {
 		const { root } = await open();
 		step(root, 0);

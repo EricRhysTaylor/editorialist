@@ -177,7 +177,7 @@ export class FillDaysModal extends Modal {
 	}
 	private renderWork(body: HTMLElement): void {
 		if (!this.work.length) body.createEl("p", { cls: "editorialist-deliveries__intro", text: this.movable ? "Everything already has its sessions. You can still move them so your days fit together." : "Nothing is waiting for a place in your days. Add a goal, or a task in an editor engagement, and come back." });
-		else body.createEl("p", { cls: "editorialist-deliveries__intro", text: "Each piece of work has a time filled in for you. Change any that looks wrong; set one to 0 to leave it out of the plan for now." });
+		else body.createEl("p", { cls: "editorialist-deliveries__intro", text: "Each piece of work has a time filled in for you. Change any that looks wrong. To plan a piece of work later, change its date; to drop it, remove it from your goals or its engagement." });
 		const goalNote = (item: VaultWorkItem): string => {
 			const target = this.vault.plans.find((plan) => plan.scope === AUTHOR_PLAN_SCOPE)?.plan.targets?.find((goal) => goal.id === item.id);
 			return [item.due ? `${item.hard ? "Hard deadline" : "Target"} ${planDayLabel(item.due)}` : "", target?.words ? `${target.words.target.toLocaleString()} words` : ""].filter(Boolean).join(" · ");
@@ -187,11 +187,7 @@ export class FillDaysModal extends Modal {
 		const groups = new Map<string, VaultWorkItem[]>();
 		for (const item of this.work) { const name = item.goal ? "Your goals" : `Due to your editor${item.group ? ` · ${item.group}` : ""}`; groups.set(name, [...(groups.get(name) ?? []), item]); }
 		let total: HTMLElement | null = null;
-		const sum = (): void => {
-			const given = this.work.filter((item) => this.minutes[item.key]);
-			const missing = this.work.length - given.length;
-			total?.setText([`${hours(given.reduce((all, item) => all + this.minutes[item.key]!, 0))} to plan`, ...(missing ? [`${missing} without a time`] : [])].join(" · "));
-		};
+		const sum = (): void => { total?.setText(`${hours(this.work.reduce((all, item) => all + (this.minutes[item.key] ?? 0), 0))} to plan`); };
 		for (const [name, items] of [...groups].sort(([a], [b]) => Number(a === "Your goals") - Number(b === "Your goals") || a.localeCompare(b))) {
 			const group = body.createDiv({ cls: "editorialist-fill__group" });
 			group.createDiv({ cls: "editorialist-project__eyebrow", text: name });
@@ -201,14 +197,16 @@ export class FillDaysModal extends Modal {
 				main.createEl("strong", { text: item.title });
 				main.createSpan({ text: `${item.goal ? goalNote(item) : taskNote(item)}${basis(item)}` });
 				const time = row.createEl("label", { cls: "editorialist-fill__hours" });
-				const given = this.minutes[item.key];
-				const field = time.createEl("input", { type: "number", value: given ? String(Math.round(given / 6) / 10) : "", attr: { min: "0", step: "0.25", placeholder: "0" } });
+				const shown = (): string => String(Math.round((this.minutes[item.key] ?? 0) / 6) / 10);
+				const field = time.createEl("input", { type: "number", value: shown(), attr: { min: "0.25", step: "0.25" } });
 				setAccessibleLabel(field, `Hours for ${item.title}`);
 				time.createSpan({ cls: "editorialist-fill__unit", text: "hours" });
 				field.addEventListener("change", () => {
-					const value = Math.round(Math.max(0, Number(field.value) || 0) * 60);
-					if (value) this.minutes[item.key] = value; else delete this.minutes[item.key];
-					delete this.basis[item.key];
+					// Everything listed is planned: no time, or none at all, is not an answer, so the
+					// time it had comes back. Work for later gets a later date; dropped work is removed.
+					const value = Math.round((Number(field.value) || 0) * 60);
+					if (value > 0) { this.minutes[item.key] = Math.max(15, value); delete this.basis[item.key]; }
+					field.value = shown();
 					sum();
 				});
 			}
