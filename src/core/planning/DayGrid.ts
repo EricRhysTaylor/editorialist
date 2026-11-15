@@ -24,7 +24,7 @@ export interface GridDay {
 	day: string;
 	state: GridDayState;
 	today: boolean;
-	/** The larger of the plans' own capacities for the weekday, in minutes. */
+	/** The minutes set aside for the weekday, which every plan shares. */
 	capacity: number;
 	/** Planned minutes of the day's open, estimated sessions. */
 	minutes: number;

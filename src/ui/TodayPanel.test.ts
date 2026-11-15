@@ -1,6 +1,7 @@
 import { TFolder } from "obsidian";
 import { describe, expect, it, vi } from "vitest";
 import { AUTHOR_PLAN_SCOPE } from "../core/planning/AuthorPlan";
+import { createEditorialProject } from "../core/planning/EditorialProject";
 import { emptyRevisionPlan, sourceKey, type PlanEntry, type RevisionPlan } from "../core/planning/RevisionPlan";
 import { readVaultPlans, scheduledBookFolders, type VaultPlanHost } from "../core/planning/TodayAgenda";
 import EditorialistPlugin from "../main";
@@ -71,6 +72,15 @@ describe("scheduledBookFolders", () => {
 			[AUTHOR_PLAN_SCOPE]: withEntries(entry("d")),
 		};
 		expect(scheduledBookFolders(Object.keys(plans), (book) => plans[book]!)).toEqual(["Scheduled"]);
+	});
+	it("keeps a book whose engagement still has a task to do", () => {
+		const project = createEditorialProject("Morgan Lee", "2026-11-30", () => "p");
+		project.tasks = [{ id: "t", title: "Write the synopsis", materialId: null, milestoneId: null, done: false }];
+		const plans: Record<string, RevisionPlan> = {
+			[key("Open")]: { ...emptyRevisionPlan(), project },
+			[key("Ready")]: { ...emptyRevisionPlan(), project: { ...project, tasks: [{ ...project.tasks[0]!, done: true }] } },
+		};
+		expect(scheduledBookFolders(Object.keys(plans), (book) => plans[book]!)).toEqual(["Open"]);
 	});
 });
 

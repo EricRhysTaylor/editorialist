@@ -1,5 +1,5 @@
 import { setAccessibleLabel } from "./primitives/AccessibleLabel";
-import { AUTHOR_PLAN_SCOPE } from "../core/planning/AuthorPlan";
+import { busyDays } from "../core/planning/VaultSchedule";
 import { Modal, Notice, setIcon } from "obsidian";
 import type EditorialistPlugin from "../main";
 import { deliveryDate, type EditorialDelivery } from "../core/EditorialDeliveries";
@@ -20,33 +20,33 @@ export class AutoScheduleModal extends Modal {
 	private book = "";
 	private fingerprint = "";
 	private deliverySnapshot = "";
+	// The time the author's goals and other books already hold on each day.
+	private busy: ReadonlyMap<string, number> = new Map();
 	// With no delivery, the planner schedules every open batch, directive, and
 	// pending edit in the active book — the plan most authors actually want.
-	constructor(private readonly plugin: EditorialistPlugin, private readonly delivery: EditorialDelivery | null, private readonly adjusting = false, private readonly planningScope?: string) { super(plugin.app); }
+	constructor(private readonly plugin: EditorialistPlugin, private readonly delivery: EditorialDelivery | null, private readonly adjusting = false) { super(plugin.app); }
 	private inScope(item: WorkCandidate): boolean { return this.delivery === null || item.deliveryId === this.delivery.id; }
 	onOpen(): void { this.contentEl.addClass("editorialist-autoschedule"); void this.load().catch(() => { this.contentEl.empty(); this.contentEl.createEl("p", { text: "Could not load scheduling sources. Close this window and try again." }); }); }
 	onClose(): void { this.contentEl.empty(); }
 	private async load(): Promise<void> {
-		if (this.planningScope === AUTHOR_PLAN_SCOPE) await this.plugin.synchronizeAuthorTargets(); else await this.plugin.refreshActiveBookScope();
-		this.book = this.planningScope ?? JSON.stringify(["folder", this.delivery?.bookFolder ?? this.plugin.getActiveBookScopeInfo().sourceFolder?.replace(/\/$/, "")]);
-		this.original = this.planningScope === AUTHOR_PLAN_SCOPE ? this.plugin.getAuthorPlanningPlan() : this.plugin.getRevisionPlan(this.book);
+		await this.plugin.refreshActiveBookScope();
+		this.book = JSON.stringify(["folder", this.delivery?.bookFolder ?? this.plugin.getActiveBookScopeInfo().sourceFolder?.replace(/\/$/, "")]);
+		// Read before the plan: reading every plan brings each one's progress up to date.
+		this.busy = busyDays((await this.plugin.collectVaultPlans()).plans, this.book);
+		this.original = this.plugin.getRevisionPlan(this.book);
 		this.plan = structuredClone(this.original);
-		const work = this.planningScope === AUTHOR_PLAN_SCOPE ? this.plugin.collectAuthorWork() : await this.plugin.collectRevisionWork(); this.candidates = work.candidates; this.warnings = work.warnings;
+		const work = await this.plugin.collectRevisionWork(); this.candidates = work.candidates; this.warnings = work.warnings;
 		this.fingerprint = JSON.stringify(work);
 		this.deliverySnapshot = JSON.stringify(this.delivery);
 		this.options = { ...(this.plan.scheduling ?? DEFAULT_SCHEDULE), deliveryId: this.delivery?.id ?? null, start: localDate(new Date()), end: this.delivery?.due ?? this.plan.deadline ?? addDays(localDate(new Date()), 30), replan: this.adjusting, useEstimates: true, choices: {} };
-		if (this.planningScope === AUTHOR_PLAN_SCOPE) {
-			this.options.end = this.plan.deadline ?? [...(this.plan.targets ?? []).filter((target) => !target.done).map((target) => target.due), addDays(localDate(new Date()), 30)].sort().at(-1)!;
-			for (const candidate of this.candidates) { const target = this.plan.targets?.find((item) => item.id === candidate.locator); if (target?.lowMinutes !== null && target?.highMinutes !== null && target) this.options.choices[sourceKey(candidate)] = { phase: "structure", low: target.lowMinutes, high: target.highMinutes }; }
-		}
 		this.render();
 	}
 	private button(parent: HTMLElement, label: string, action: () => void): HTMLButtonElement { const button = parent.createEl("button", { text: label, attr: { type: "button" } }); button.addEventListener("click", action); return button; }
 	private invalidate(): void { this.draft = null; this.contentEl.querySelector(".editorialist-autoschedule__preview")?.remove(); }
 	private render(): void {
 		const root = this.contentEl; root.empty();
-		root.createEl("h2", { text: this.planningScope === AUTHOR_PLAN_SCOPE ? "Plan your writing goals" : this.adjusting ? "Adjust remaining schedule" : this.delivery ? "Plan this delivery" : "Plan all open work" });
-		root.createEl("p", { cls: "editorialist-deliveries__intro", text: this.planningScope === AUTHOR_PLAN_SCOPE ? "Your vault-wide goals share one weekly capacity. Add effort estimates to schedule sessions; hard goal deadlines are enforced, while target dates remain personal aims." : this.delivery?.title ?? "Open engagement tasks, review batches, editorialism directives and pending edits in this book, spread across your working days before their deadlines and milestones. Work already in your plan keeps its place." });
+		root.createEl("h2", { text: this.adjusting ? "Adjust remaining schedule" : this.delivery ? "Plan this delivery" : "Plan all open work" });
+		root.createEl("p", { cls: "editorialist-deliveries__intro", text: this.delivery?.title ?? "Open engagement tasks, review batches, editorialism directives and pending edits in this book, spread across your working days before their deadlines and milestones. Work already in your plan keeps its place, and so does the time your goals and other books hold." });
 		const grid = root.createDiv({ cls: "editorialist-deliveries__fields" });
 		const input = (parent: HTMLElement, label: string, type: string, value: string, change: (value: string) => void): HTMLInputElement => {
 			const wrap = parent.createEl("label", { text: label }); const field = wrap.createEl("input", { type, value });
@@ -55,14 +55,12 @@ export class AutoScheduleModal extends Modal {
 		input(grid, "Start on", "date", this.options.start, (value) => { this.options.start = value; });
 		input(grid, "Finish by", "date", this.options.end, (value) => { this.options.end = value; });
 		const capacity = root.createEl("details"); const availability = capacity.createEl("summary");
-		const updateAvailability = (): void => { availability.setText(`Availability · ${this.plan.capacity.filter((minutes) => minutes > 0).length} days/week · ${Math.round(this.plan.capacity.reduce((sum, minutes) => sum + minutes, 0) / 6) / 10} hours/week · Change`); };
+		const updateAvailability = (): void => { availability.setText(`Your hours, for every book and goal · ${this.plan.capacity.filter((minutes) => minutes > 0).length} days/week · ${Math.round(this.plan.capacity.reduce((sum, minutes) => sum + minutes, 0) / 6) / 10} hours/week · Change`); };
 		updateAvailability();
 		const days = capacity.createDiv({ cls: "editorialist-deliveries__fields" });
 		for (const [index, day] of ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].entries()) { const field = input(days, `${day} minutes`, "number", String(this.plan.capacity[index]), (value) => { this.plan.capacity[index] = Math.min(1440, Math.max(0, Number(value) || 0)); updateAvailability(); }); field.min = "0"; field.max = "1440"; }
-		if (this.planningScope !== AUTHOR_PLAN_SCOPE) {
-			const cushion = input(grid, "Finish early by (days)", "number", String(this.plan.cushionDays), (value) => { this.plan.cushionDays = Math.max(0, Math.min(MAX_CUSHION_DAYS, Math.round(Number(value) || 0))); });
-			cushion.min = "0"; cushion.max = String(MAX_CUSHION_DAYS);
-		}
+		const cushion = input(grid, "Finish early by (days)", "number", String(this.plan.cushionDays), (value) => { this.plan.cushionDays = Math.max(0, Math.min(MAX_CUSHION_DAYS, Math.round(Number(value) || 0))); });
+		cushion.min = "0"; cushion.max = String(MAX_CUSHION_DAYS);
 		const advanced = root.createEl("details"); advanced.createEl("summary", { text: "Ordering & estimates" });
 		const settings = advanced.createDiv({ cls: "editorialist-deliveries__fields" });
 		const presetLabel = settings.createEl("label", { text: "Preset" }); const preset = presetLabel.createEl("select");
@@ -87,7 +85,7 @@ export class AutoScheduleModal extends Modal {
 			const high = input(fields, `High minutes: ${candidate.title}`, "number", choice.high === undefined ? "" : String(choice.high), (value) => { choice.high = value === "" ? undefined : Number(value); }); high.placeholder = estimate ? `Suggested ${estimate.high}` : "Unknown"; high.min = "1";
 			this.button(row, choice.skip ? "Include in draft" : "Leave out for now", () => { choice.skip = !choice.skip; this.invalidate(); this.render(); });
 		}
-		this.button(root, "Preview plan", () => { try { this.draft = draftSchedule(this.plan, this.candidates, this.options, () => crypto.randomUUID()); this.renderPreview(); } catch (error) { new Notice(error instanceof Error ? error.message : "Could not generate schedule."); } }).addClass("mod-cta");
+		this.button(root, "Preview plan", () => { try { this.draft = draftSchedule(this.plan, this.candidates, this.options, () => crypto.randomUUID(), this.busy); this.renderPreview(); } catch (error) { new Notice(error instanceof Error ? error.message : "Could not generate schedule."); } }).addClass("mod-cta");
 	}
 	private renderPreview(): void {
 		this.contentEl.querySelector(".editorialist-autoschedule__preview")?.remove();
@@ -152,14 +150,14 @@ export class AutoScheduleModal extends Modal {
 			}
 		}
 		const apply = this.button(preview, "Use this plan", () => { apply.disabled = true; void this.apply(draft).catch((error: unknown) => { new Notice(error instanceof Error ? error.message : "Could not apply schedule."); this.invalidate(); }); });
-		apply.addClass("mod-cta"); apply.disabled = (this.planningScope !== AUTHOR_PLAN_SCOPE && this.warnings.length > 0) || draft.generated.length === 0;
+		apply.addClass("mod-cta"); apply.disabled = this.warnings.length > 0 || draft.generated.length === 0;
 		preview.scrollIntoView({ block: "start", behavior: "smooth" });
 	}
 	private async apply(draft: ScheduleDraft): Promise<void> {
-		const work = this.planningScope === AUTHOR_PLAN_SCOPE ? this.plugin.collectAuthorWork() : await this.plugin.collectRevisionWork();
+		const work = await this.plugin.collectRevisionWork();
 		const delivery = this.delivery ? this.plugin.getEditorialDeliveries().find((item) => item.id === this.delivery?.id) : null;
 		if (JSON.stringify(work) !== this.fingerprint || JSON.stringify(delivery) !== this.deliverySnapshot) throw new Error("Feedback or delivery changed. Reopen this planner to generate a fresh draft.");
 		await this.plugin.applyScheduledPlan(this.book, this.original, draft.plan);
-		this.close(); if (this.planningScope === AUTHOR_PLAN_SCOPE) await this.plugin.openAuthorPlanner(); else await this.plugin.openRevisionPlanPanel();
+		this.close(); await this.plugin.openRevisionPlanPanel();
 	}
 }

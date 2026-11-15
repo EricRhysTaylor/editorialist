@@ -311,14 +311,15 @@ export class ReviewRegistryService {
 	}
 
 	getRevisionPlan(book: string): RevisionPlan {
-		return structuredClone(this.revisionPlans.books[book] ?? emptyRevisionPlan());
+		return structuredClone(this.revisionPlans.books[book] ?? { ...emptyRevisionPlan(), capacity: this.revisionPlans.capacity });
 	}
 
 	getRevisionPlanKeys(): string[] { return Object.keys(this.revisionPlans.books); }
 
 	async setRevisionPlan(book: string, plan: RevisionPlan): Promise<void> {
 		const previous = this.revisionPlans;
-		const next = normalizeRevisionPlans({ version: 1, books: { ...previous.books, [book]: plan } });
+		// The saved plan's hours are the newest; they are everyone's hours.
+		const next = normalizeRevisionPlans({ version: 1, capacity: plan.capacity, books: { ...previous.books, [book]: plan } });
 		this.revisionPlans = next;
 		try { await this.persistData(); }
 		catch (error) { if (this.revisionPlans === next) this.revisionPlans = previous; throw error; }

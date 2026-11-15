@@ -63,11 +63,7 @@ export interface TodayAgenda {
 	highMinutes: number;
 	/** Items without an estimate, left out of the minutes. */
 	unestimated: number;
-	/**
-	 * The working minutes set aside for today: the larger of the plans' own
-	 * capacities, since each plan schedules against its own and both describe
-	 * the same day. Zero when no plan sets aside time today.
-	 */
+	/** The working minutes set aside for today, which every plan shares. Zero on a day off. */
 	capacityMinutes: number;
 	/** Even the low estimates of today's sessions need more than that time. */
 	overbooked: boolean;
@@ -89,13 +85,17 @@ function openEntries(plans: readonly AgendaPlan[]): OpenEntry[] {
 }
 
 /**
- * The book folders with an unfinished session on the calendar. Today reads only
- * these: a book with nothing scheduled adds nothing to the day.
+ * The book folders with an unfinished session on the calendar, or with an
+ * engagement task still to do, which the author's days have to make room for.
+ * Today and the author planner read only these: a book with neither adds
+ * nothing to the day.
  */
 export function scheduledBookFolders(keys: readonly string[], planFor: (key: string) => RevisionPlan): string[] {
 	return keys.flatMap((key) => {
 		const folder = planKeyFolder(key);
-		return folder && planFor(key).entries.some((entry) => entry.day !== null && !entry.done) ? [folder] : [];
+		if (!folder) return [];
+		const plan = planFor(key);
+		return plan.entries.some((entry) => entry.day !== null && !entry.done) || plan.project?.tasks.some((task) => !task.done) ? [folder] : [];
 	});
 }
 

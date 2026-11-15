@@ -14,6 +14,7 @@ import { renderPanelHeader } from "./primitives/PanelHeader";
 import { MAX_CUSHION_DAYS, emptyRevisionPlan, forecastPlan, isDate, isPlanEntryComplete, localDate, movePlanEntry, progressDoneKeys, removePlanEntries, resolvePlanSource, sourceKey, type PlanEntry, type RevisionPlan, type WorkCandidate } from "../core/planning/RevisionPlan";
 import { summarizePlanProgress } from "../core/planning/PlanProgress";
 import { estimateRange } from "../core/planning/AutoSchedule";
+import { movableSessions, vaultWork } from "../core/planning/VaultSchedule";
 import { type QueueHead, EditorialProjectPanel } from "./EditorialProjectPanel";
 import { EditorialProjectService } from "../services/EditorialProjectService";
 import { cushionProgress, deadlineState, engagementReturned, entryWorkDeadline, projectEditor, taskDocument } from "../core/planning/EditorialProject";
@@ -171,12 +172,14 @@ export class RevisionPlanPanel extends ItemView {
 		const foot = calendar.createDiv({ cls: "editorialist-author__panel-foot" });
 		foot.createSpan({ text: [sessions ? `${sessions} ${sessions === 1 ? "session" : "sessions"} planned` : "Nothing scheduled yet", ...(over ? [`${over} ${over === 1 ? "day" : "days"} over`] : [])].join(" · ") });
 		const available = this.available().length;
-		const fill = this.button(foot, "", () => this.plugin.openAuthorScheduler(), !available || this.stale);
+		// Goals and each engagement's tasks are planned together, against one set of hours.
+		const waiting = vaultWork(plans).length, movable = movableSessions(plans);
+		const fill = this.button(foot, "", () => this.plugin.openAuthorScheduler(), !(waiting || movable) || this.stale);
 		fill.addClass("editorialist-plan__autoplan");
-		if (available) fill.addClass("mod-cta");
+		if (waiting) fill.addClass("mod-cta");
 		setIcon(fill.createSpan(), "calendar-plus");
 		fill.createSpan({ text: "Fill my days" });
-		setIconLabel(fill, available ? `Schedule sessions for ${available} ${available === 1 ? "goal" : "goals"} around your time and deadlines` : "Every goal already has its sessions in the plan");
+		setIconLabel(fill, waiting ? `Plan ${waiting} ${waiting === 1 ? "piece" : "pieces"} of work around your time and deadlines` : movable ? "Move your sessions so your days fit together" : "Everything already has its sessions in the plan");
 
 		const panel = this.authorPanel();
 		panel.render(root);
@@ -195,7 +198,7 @@ export class RevisionPlanPanel extends ItemView {
 		const sessionsBody = sessionsFold.createDiv({ cls: "editorialist-author__fold-body" });
 		this.renderViewTabs(sessionsBody);
 		this.renderSessions(sessionsBody);
-		if (!open) sessionsBody.createEl("p", { cls: "editorialist-plan__hint", text: "Fill my days schedules sessions for your goals. You can also add them one at a time from Capacity & work." });
+		if (!open) sessionsBody.createEl("p", { cls: "editorialist-plan__hint", text: "Fill my days schedules sessions for your goals and for what's due to your editor. You can also add them one at a time from Capacity & work." });
 
 		const setup = root.createEl("details", { cls: "editorialist-author__fold", attr: { "data-plan-section": "author-setup" } });
 		const setupHead = setup.createEl("summary");
@@ -431,7 +434,16 @@ export class RevisionPlanPanel extends ItemView {
 		const ahead = weeks.flat().filter((day) => day.day >= today);
 		const sessions = ahead.reduce((sum, day) => sum + day.sessions.length, 0);
 		const over = ahead.filter((day) => day.state === "over").length;
-		calendar.createDiv({ cls: "editorialist-author__panel-foot" }).createSpan({ text: [sessions ? `${sessions} ${sessions === 1 ? "session" : "sessions"} planned` : "Nothing scheduled yet", ...(over ? [`${over} ${over === 1 ? "day" : "days"} over`] : [])].join(" · ") });
+		const foot = calendar.createDiv({ cls: "editorialist-author__panel-foot" });
+		foot.createSpan({ text: [sessions ? `${sessions} ${sessions === 1 ? "session" : "sessions"} planned` : "Nothing scheduled yet", ...(over ? [`${over} ${over === 1 ? "day" : "days"} over`] : [])].join(" · ") });
+		// The engagement's tasks share their days with the author's goals, so they are planned together.
+		if (project) {
+			const fill = this.button(foot, "", () => this.plugin.openAuthorScheduler(), this.stale);
+			fill.addClass("editorialist-plan__autoplan");
+			setIcon(fill.createSpan(), "calendar-plus");
+			fill.createSpan({ text: "Fill my days" });
+			setIconLabel(fill, "Plan this engagement's tasks together with your writing goals");
+		}
 	}
 	private renderViewTabs(parent: HTMLElement): void {
 		const tabs = parent.createDiv({ cls: "editorialist-plan__tabs" });
@@ -638,7 +650,7 @@ export class RevisionPlanPanel extends ItemView {
 			const cushion = this.input(details, "Finish early by (days)", "number", String(this.plan.cushionDays), (value) => { void this.change((plan) => { plan.cushionDays = Math.max(0, Math.min(MAX_CUSHION_DAYS, Math.round(Number(value) || 0))); }); });
 			cushion.min = "0"; cushion.max = String(MAX_CUSHION_DAYS);
 		}
-		details.createEl("p", { text: this.author ? "Set zero for days off. Capacity repeats weekly and includes a full allowance for today." : "Set zero for days off. Capacity repeats weekly and includes a full allowance for today. Work due to an editor is planned to finish this many days before its deadline, so a slow week does not make you late." });
+		details.createEl("p", { text: this.author ? "Set zero for days off. These are your hours for every book and every goal; they repeat weekly and include a full allowance for today." : "Set zero for days off. These are your hours for every book and every goal; they repeat weekly and include a full allowance for today. Work due to an editor is planned to finish this many days before its deadline, so a slow week does not make you late." });
 	}
 	// A queue card reads like the engagement rows: a drag handle at the left,
 	// the work in the middle led by a check circle that finishes or reopens the

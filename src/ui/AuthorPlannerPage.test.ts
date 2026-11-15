@@ -57,14 +57,15 @@ describe("an engagement's schedule", () => {
 		] };
 		const plugin = { getEditorialDeliveries: () => [], getReviewerProfiles: () => [] };
 		const panel = Object.assign(Object.create(RevisionPlanPanel.prototype) as object, {
-			author: false, plugin, plan, candidates: [], book: "b", view: "queue", sectionOpen: new Map(), focusDay: null, revealPending: false,
+			author: false, plugin, plan, candidates: [], book: "b", busy: false, stale: false, view: "queue", sectionOpen: new Map(), focusDay: null, revealPending: false,
 			render: vi.fn(),
 		}) as { render: ReturnType<typeof vi.fn>; view: string; focusDay: string | null };
 		const root = document.body.appendChild(document.createElement("div"));
 		Reflect.apply(Reflect.get(panel, "renderBookDays") as (root: HTMLElement) => void, panel, [root]);
 		expect(root.querySelector(`[data-day="${shift(3)}"]`)?.classList.contains("is-full")).toBe(true);
 		expect(root.querySelector(`[data-day="${shift(16)}"]`)?.classList.contains("is-hard")).toBe(true);
-		expect(root.querySelector(".editorialist-author__panel-foot")?.textContent).toBe("1 session planned");
+		expect(root.querySelector(".editorialist-author__panel-foot span")?.textContent).toBe("1 session planned");
+		expect(root.querySelector(".editorialist-author__panel-foot button")?.textContent).toBe("Fill my days");
 		root.querySelector<HTMLButtonElement>(`[data-day="${shift(3)}"]`)!.click();
 		expect(panel.view).toBe("days");
 		expect(panel.focusDay).toBe(shift(3));

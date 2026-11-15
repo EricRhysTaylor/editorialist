@@ -32,7 +32,33 @@ export function estimateRange(candidate: WorkCandidate): { low: number; high: nu
 	const minutes = candidate.suggestedMinutes;
 	return minutes && Number.isFinite(minutes) && minutes > 0 ? { low: Math.max(1, Math.floor(minutes * 0.75)), high: Math.ceil(minutes * 1.25) } : null;
 }
-export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandidate[], options: ScheduleOptions, makeId: () => string): ScheduleDraft {
+/**
+ * The sessions a replan may move: open, not kept in place by the author, with
+ * a source still to be found, and not something a session staying put waits on.
+ * Replanning a delivery moves its own sessions; without one it moves them all.
+ */
+export function movableEntries(plan: RevisionPlan, candidates: readonly WorkCandidate[], options: Pick<ScheduleOptions, "replan" | "deliveryId">): Set<string> {
+	const doneKeys = progressDoneKeys(plan);
+	const byId = new Map(plan.entries.map((entry) => [entry.id, entry]));
+	const movable = new Set(plan.entries.filter((entry) => {
+		const resolved = resolvePlanSource(entry.source, candidates);
+		return options.replan && (options.deliveryId === null || entry.autoDeliveryId === options.deliveryId) && !entry.locked && !isPlanEntryComplete(entry, candidates, doneKeys) && resolved.state === "ready" && !resolved.candidate.inactive;
+	}).map((entry) => entry.id));
+	// Keep the prerequisite chain of any preserved commitment in place too.
+	const protect = (id: string, seen = new Set<string>()): void => {
+		if (seen.has(id)) return; seen.add(id);
+		movable.delete(id);
+		const parent = byId.get(id)?.afterId;
+		if (parent) protect(parent, seen);
+	};
+	for (const entry of plan.entries) if (!movable.has(entry.id)) protect(entry.id);
+	return movable;
+}
+/**
+ * `busy` is the time other plans already hold on each day. Every plan shares
+ * the author's hours, so a day is free only for what the rest leave of it.
+ */
+export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandidate[], options: ScheduleOptions, makeId: () => string, busy: ReadonlyMap<string, number> = new Map()): ScheduleDraft {
 	if (!isDate(options.start) || !isDate(options.end) || options.end < options.start) throw new Error("Choose a valid planning window.");
 	if (options.sessionMinutes < 15 || options.sessionMinutes > 240 || !Number.isInteger(options.sessionMinutes)) throw new Error("Session length must be 15–240 minutes.");
 	// The schedule deadline is not a window cap: it binds only work without a
@@ -46,19 +72,7 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 	const next = structuredClone(plan);
 	next.scheduling = { preset: options.preset, sessionMinutes: options.sessionMinutes, useEstimates: options.useEstimates };
 	const issues: ScheduleIssue[] = [];
-	const byId = new Map(next.entries.map((entry) => [entry.id, entry]));
-	const movable = new Set(next.entries.filter((entry) => {
-		const resolved = resolvePlanSource(entry.source, candidates);
-		return options.replan && options.deliveryId !== null && entry.autoDeliveryId === options.deliveryId && !entry.locked && !isPlanEntryComplete(entry, candidates, doneKeys) && resolved.state === "ready" && !resolved.candidate.inactive;
-	}).map((entry) => entry.id));
-	// Keep the prerequisite chain of any preserved commitment in place too.
-	const protect = (id: string, seen = new Set<string>()): void => {
-		if (seen.has(id)) return; seen.add(id);
-		movable.delete(id);
-		const parent = byId.get(id)?.afterId;
-		if (parent) protect(parent, seen);
-	};
-	for (const entry of next.entries) if (!movable.has(entry.id)) protect(entry.id);
+	const movable = movableEntries(next, candidates, options);
 	const fixed = next.entries.filter((entry) => !movable.has(entry.id));
 	const pending: PlanEntry[] = next.entries.filter((entry) => movable.has(entry.id)).map((entry) => ({ ...entry, day: null }));
 	const existingKeys = new Set(next.entries.map((entry) => sourceKey(entry.source)));
@@ -103,7 +117,7 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 			pending.push(entry); after = entry.id; previousNewId = entry.id; lowLeft -= low; highLeft -= high;
 		}
 	}
-	const remaining = new Map(days.map((day) => [day, plan.capacity[new Date(`${day}T12:00:00`).getDay()] ?? 0]));
+	const remaining = new Map(days.map((day) => [day, Math.max(0, (plan.capacity[new Date(`${day}T12:00:00`).getDay()] ?? 0) - (busy.get(day) ?? 0))]));
 	for (const entry of fixed) {
 		if (isPlanEntryComplete(entry, candidates, doneKeys) || !entry.day || !remaining.has(entry.day)) continue;
 		if (entry.highMinutes === null) { remaining.set(entry.day, 0); issues.push({ title: entry.title, reason: "Existing scheduled work has no estimate; its day is reserved in full." }); }

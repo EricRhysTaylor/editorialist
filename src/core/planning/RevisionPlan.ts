@@ -66,6 +66,12 @@ export interface RevisionPlan {
 }
 export interface RevisionPlanStore {
 	version: 1;
+	/**
+	 * The author's working minutes, Sunday through Saturday: one set of hours
+	 * for every book and for the goals, since they are all the same days. Each
+	 * plan's `capacity` is a copy of it, never a figure of its own.
+	 */
+	capacity: number[];
 	books: Record<string, RevisionPlan>;
 }
 export const DEFAULT_CUSHION_DAYS = 14;
@@ -96,7 +102,7 @@ function minutes(value: unknown): number | null {
 }
 export function normalizeRevisionPlans(raw: unknown): RevisionPlanStore {
 	const data = object(raw);
-	const store: RevisionPlanStore = { version: 1, books: {} };
+	const store: RevisionPlanStore = { version: 1, capacity: emptyRevisionPlan().capacity, books: {} };
 	if (!data) return store;
 	if (data.version !== 1) throw new Error("Unsupported revision plan version; update the plugin before saving plans.");
 	for (const [book, rawPlan] of Object.entries(object(data.books) ?? {})) {
@@ -141,6 +147,14 @@ export function normalizeRevisionPlans(raw: unknown): RevisionPlanStore {
 		// Book keys are serialized scope tuples, but still reject prototype keys.
 		if (book !== "__proto__" && book !== "constructor" && book !== "prototype") store.books[book] = plan;
 	}
+	// Plans saved before the hours were shared each carry their own. The day
+	// was already read as the longest of them, so that is what the author keeps.
+	const shared = Array.isArray(data.capacity) && data.capacity.length === 7 ? data.capacity.map((value) => minutes(value)) : [];
+	const plans = Object.values(store.books);
+	store.capacity = shared.length && shared.every((value) => value !== null)
+		? shared.map((value) => Math.min(1440, value ?? 0))
+		: store.capacity.map((value, index) => plans.length ? Math.max(...plans.map((plan) => plan.capacity[index] ?? 0)) : value);
+	for (const plan of plans) plan.capacity = [...store.capacity];
 	return store;
 }
 export function movePlanEntry(entries: readonly PlanEntry[], id: string, beforeId: string | null): PlanEntry[] {

@@ -42,7 +42,7 @@ describe("Editorial preparation project", () => {
 	});
 	it("round trips records without requiring documents or preparation evidence", () => {
 		const p = project(); p.records.push({ id: "r", day: "2026-10-11", kind: "received", description: "Editorial letter received", filenames: "", referencePath: "", archive: { copy: "Editorialist/Engagement history/r/letter.pdf", digest: hash } });
-		const store = { version: 1, books: { a: { ...emptyRevisionPlan(), project: p }, b: emptyRevisionPlan() } }; expect(normalizeRevisionPlans(store)).toEqual(store);
+		const store = { version: 1, capacity: emptyRevisionPlan().capacity, books: { a: { ...emptyRevisionPlan(), project: p }, b: emptyRevisionPlan() } }; expect(normalizeRevisionPlans(store)).toEqual(store);
 	});
 	it("fails clearly instead of dropping invalid activity records", () => { const p = project(); expect(() => normalizeEditorialProject({ ...p, records: [{ id: "r", day: "bad" }] })).toThrow(/record/); });
 	it("rejects unsupported project schemas rather than erasing them", () => { expect(() => normalizeEditorialProject({ ...project(), version: 3 })).toThrow(/Unsupported/); });

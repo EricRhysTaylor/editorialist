@@ -45,10 +45,22 @@ describe("Revision planning", () => {
 		expect(forecastPlan(plan, [{ ...source, complete: true }]).highMinutes).toBe(0);
 	});
 	it("round-trips stable entry ids and rejects unsupported plan schemas", () => {
-		const data = { version: 1, books: { book: { ...emptyRevisionPlan(), entries: [entry("durable")] } } };
+		const data = { version: 1, capacity: emptyRevisionPlan().capacity, books: { book: { ...emptyRevisionPlan(), entries: [entry("durable")] } } };
 		expect(normalizeRevisionPlans(JSON.parse(JSON.stringify(data)))).toEqual(data);
 		expect(() => normalizeRevisionPlans({ version: 2 })).toThrow(/Unsupported/);
-		expect(normalizeRevisionPlans(undefined)).toEqual({ version: 1, books: {} });
+		expect(normalizeRevisionPlans(undefined)).toEqual({ version: 1, capacity: emptyRevisionPlan().capacity, books: {} });
+	});
+	it("keeps one set of hours for every plan", () => {
+		const week = (minutes: number): number[] => [0, minutes, minutes, minutes, minutes, minutes, 0];
+		// Plans from before the hours were shared keep the longest day of each.
+		const earlier = normalizeRevisionPlans({ version: 1, books: { book: { capacity: [0, 60, 60, 60, 60, 60, 240] }, goals: { capacity: week(120) } } });
+		expect(earlier.capacity).toEqual([0, 120, 120, 120, 120, 120, 240]);
+		expect(earlier.books.book!.capacity).toEqual(earlier.capacity);
+		expect(earlier.books.goals!.capacity).toEqual(earlier.capacity);
+		// Once shared, the stored hours stand, whatever a plan still carries.
+		const shared = normalizeRevisionPlans({ version: 1, capacity: week(90), books: { book: { capacity: week(300) } } });
+		expect(shared.books.book!.capacity).toEqual(week(90));
+		expect(normalizeRevisionPlans({ version: 1, capacity: [1, 2, "x"], books: {} }).capacity).toEqual(emptyRevisionPlan().capacity);
 	});
 	it("validates real calendar dates and preserves days off", () => {
 		expect(isDate("2026-02-30")).toBe(false);
@@ -60,7 +72,7 @@ describe("Revision planning", () => {
 
 
 it("preserves plans through the plugin migration while older saves start empty", () => {
-	const plan = { version: 1, books: { book: { ...emptyRevisionPlan(), entries: [entry("stable")] } } };
+	const plan = { version: 1, capacity: emptyRevisionPlan().capacity, books: { book: { ...emptyRevisionPlan(), entries: [entry("stable")] } } };
 	const migrated = migratePluginData({ version: 1, revisionPlans: plan });
 	expect(migrated.version).toBe(2);
 	expect(migrated.revisionPlans).toEqual(plan);

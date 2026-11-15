@@ -8441,6 +8441,193 @@ button.editorialist-panel__contributors-row:focus-visible {
 	flex-shrink: 0;
 }
 
+/* Fill my days: four short steps, one at a time, in the scheduling window. */
+.editorialist-fill__steps {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px 16px;
+	margin: 0 0 16px;
+	padding: 0 0 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	list-style: none;
+	color: var(--text-faint);
+	font-size: var(--font-ui-small);
+}
+
+.editorialist-fill__steps li {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.editorialist-fill__steps li.is-done {
+	color: var(--text-muted);
+}
+
+.editorialist-fill__steps li.is-current {
+	color: var(--text-normal);
+	font-weight: 600;
+}
+
+.editorialist-fill__step-number {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	border-radius: 50%;
+	border: 1px solid var(--background-modifier-border);
+	font-size: var(--font-ui-smaller);
+	font-variant-numeric: tabular-nums;
+}
+
+.editorialist-fill__steps li.is-current .editorialist-fill__step-number {
+	border-color: var(--interactive-accent);
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.editorialist-fill__week {
+	display: grid;
+	gap: 6px;
+	margin: 12px 0 8px;
+}
+
+.editorialist-fill__day {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 72px 44px;
+	align-items: center;
+	gap: 8px;
+}
+
+.editorialist-fill__day input,
+.editorialist-fill__hours input,
+.editorialist-fill__keep input {
+	width: 72px;
+	text-align: end;
+	font-variant-numeric: tabular-nums;
+}
+
+.editorialist-fill__unit {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.editorialist-fill__total {
+	margin: 8px 0 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	text-align: end;
+}
+
+.editorialist-fill__group {
+	margin-top: 16px;
+}
+
+.editorialist-fill__item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 8px 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.editorialist-fill__item-main {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.editorialist-fill__item-main strong {
+	overflow-wrap: anywhere;
+}
+
+.editorialist-fill__item-main span,
+.editorialist-fill__choice span,
+.editorialist-fill__check span {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	line-height: 1.4;
+}
+
+.editorialist-fill__hours,
+.editorialist-fill__keep {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	flex-shrink: 0;
+}
+
+.editorialist-fill__keep {
+	margin-top: 8px;
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+}
+
+.editorialist-fill__check,
+.editorialist-fill__choice {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	cursor: pointer;
+}
+
+.editorialist-fill__check {
+	margin-top: 16px;
+}
+
+.editorialist-fill__check > div,
+.editorialist-fill__choice > div {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.editorialist-fill__check input,
+.editorialist-fill__choice input[type="radio"] {
+	flex-shrink: 0;
+	margin: 3px 0 0;
+}
+
+.editorialist-fill__choices {
+	display: grid;
+	gap: 8px;
+	margin-top: 12px;
+}
+
+.editorialist-fill__choice {
+	padding: 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 10px;
+}
+
+.editorialist-fill__choice.is-chosen {
+	border-color: var(--interactive-accent);
+	background: color-mix(in srgb, var(--interactive-accent) 8%, transparent);
+}
+
+.editorialist-fill__days {
+	margin-top: 16px;
+}
+
+.editorialist-fill .editorialist-autoschedule__preview {
+	margin-top: 0;
+}
+
+.editorialist-fill .editorialist-autoschedule__preview h4 {
+	margin: 16px 0 4px;
+}
+
+.editorialist-fill__nav {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-top: 20px;
+}
+
 /* Shared interaction feedback. A theme overlay preserves selected/accent colors
    while giving custom controls the same response as native Obsidian controls.
    Selects are left out: their chevron is a background image this would replace,

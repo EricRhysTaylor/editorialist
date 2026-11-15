@@ -9,6 +9,8 @@ import { editorMenuEntries, type EditorMenuEntry } from "./core/EditorMenuEntrie
 import { ensureVaultFolderPath } from "./core/VaultFolders";
 import { saveOpenEditors } from "./services/SaveOpenEditors";
 import { AutoScheduleModal } from "./ui/AutoScheduleModal";
+import { FillDaysModal } from "./ui/FillDaysModal";
+import type { VaultDraftPlan } from "./core/planning/VaultSchedule";
 import { EditorialDeliveriesModal } from "./ui/EditorialDeliveriesModal";
 import { deliveryCaption, planDeliveryLink, type DeliverySource, type EditorialDelivery } from "./core/EditorialDeliveries";
 import { formatReviewerTypeLabel, normalizeReviewerType, passReviewerType } from "./core/ContributorIdentity";
@@ -949,7 +951,18 @@ export default class EditorialistPlugin extends Plugin {
 		const leaf = await this.openEditorialistPanel(author ? AUTHOR_PLAN_VIEW_TYPE : REVISION_PLAN_VIEW_TYPE);
 		if (leaf?.view instanceof RevisionPlanPanel) leaf.view.focusSection(section, goalId, day);
 	}
-	openAuthorScheduler(): void { new AutoScheduleModal(this, null, false, AUTHOR_PLAN_SCOPE).open(); }
+	openAuthorScheduler(): void { new FillDaysModal(this).open(); }
+	/**
+	 * Saves the plans a vault schedule changes, or none of them: each must
+	 * still be as the draft read it, since the draft placed every plan's
+	 * sessions around the others'.
+	 */
+	async applyVaultSchedule(changes: readonly VaultDraftPlan[]): Promise<void> {
+		const current = (scope: string): RevisionPlan => scope === AUTHOR_PLAN_SCOPE ? this.getAuthorPlanningPlan() : this.getRevisionPlan(scope);
+		if (changes.some((change) => JSON.stringify(current(change.scope)) !== JSON.stringify(change.original))) throw new Error("A plan changed while this one was open. Open Fill my days again for a fresh plan.");
+		for (const change of changes) await this.saveRevisionPlan(change.scope, change.next);
+		await this.refreshPlanViews();
+	}
 	readonly radialBookGoals = new RadialBookGoals(() => {
 		// SAFE: Obsidian's loaded-plugin map is not in the public App typings.
 		const app = this.app as typeof this.app & { plugins?: { plugins?: Record<string, unknown> } };
