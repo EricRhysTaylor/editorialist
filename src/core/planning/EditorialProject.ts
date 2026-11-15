@@ -12,7 +12,11 @@ export interface ProjectMilestone { id: string; title: string; day: string }
 /** A due date's source: a milestone's id, the engagement start, or none for a date of the item's own. */
 export const ENGAGEMENT_START = "__start__";
 /** The author's work. Its own due date, else its document's; done is the only status kept by hand. */
-export interface EngagementTask { id: string; title: string; materialId: string | null; milestoneId: string | null; due?: string; done: boolean }
+export interface EngagementTask {
+	id: string; title: string; materialId: string | null; milestoneId: string | null; due?: string; done: boolean;
+	/** How long the author expects it to take, as last given when planning their days. */
+	minutes?: number;
+}
 export interface FrozenSource { path: string; digest: string; copy: string; sceneId?: string }
 export interface MaterialCheck {
 	packetWordCount?: number;
@@ -255,7 +259,7 @@ export function preparationWork(project: EditorialProject): WorkCandidate[] {
 	return project.tasks.map((task) => {
 		const due = taskDue(project, task);
 		const milestone = due?.milestoneId ? project.milestones.find((item) => item.id === due.milestoneId) : undefined;
-		return { kind: "preparation", path: project.id, locator: task.id, title: task.title, detail: [project.title, milestone?.title].filter(Boolean).join(" · "), ...(due ? { due: due.day } : {}), ...(due && !due.start ? { ownTarget: true } : {}), complete: task.done, deferred: false };
+		return { kind: "preparation", path: project.id, locator: task.id, title: task.title, detail: [project.title, milestone?.title].filter(Boolean).join(" · "), ...(due ? { due: due.day } : {}), ...(due && !due.start ? { ownTarget: true } : {}), complete: task.done, deferred: false, ...(task.minutes ? { suggestedMinutes: task.minutes } : {}) };
 	});
 }
 /**
@@ -346,7 +350,7 @@ export function normalizeEditorialProject(raw: unknown): EditorialProject | unde
 		const frozenSources = list(item.frozenSources).flatMap((value): FrozenSource[] => { const source = record(value); return source && str(source.path) && digest(source.digest) && str(source.copy) ? [{ path: str(source.path), digest: digest(source.digest)!, copy: str(source.copy), ...(str(source.sceneId) ? { sceneId: str(source.sceneId) } : {}) }] : []; });
 		return [{ ...(str(item.notes) ? { notes: str(item.notes) } : {}), id: str(item.id), title: str(item.title), kind: item.kind as ProjectMaterial["kind"], required: item.required !== false, source: str(item.source), exportPath: str(item.exportPath), milestoneId: str(item.milestoneId) || null, ...due(item.due), requirements: texts(item.requirements), approvedDigest: digest(item.approvedDigest), check: normalizeCheck(item.check), uploads, ...(item.frozenSources !== undefined ? { frozenSources } : {}), ...(typeof item.wordCount === "number" && Number.isInteger(item.wordCount) && item.wordCount > 0 ? { wordCount: item.wordCount } : {}), ...(typeof item.wordLimit === "number" && Number.isInteger(item.wordLimit) && item.wordLimit > 0 ? { wordLimit: item.wordLimit } : {}) }];
 	}));
-	const tasks = unique(list(data.tasks).flatMap((value): EngagementTask[] => { const item = record(value); return item && str(item.id) && str(item.title) ? [{ id: str(item.id), title: str(item.title), materialId: str(item.materialId) || null, milestoneId: str(item.milestoneId) || null, ...due(item.due), done: item.done === true }] : []; }));
+	const tasks = unique(list(data.tasks).flatMap((value): EngagementTask[] => { const item = record(value); return item && str(item.id) && str(item.title) ? [{ id: str(item.id), title: str(item.title), materialId: str(item.materialId) || null, milestoneId: str(item.milestoneId) || null, ...due(item.due), done: item.done === true, ...(typeof item.minutes === "number" && Number.isFinite(item.minutes) && item.minutes > 0 ? { minutes: Math.round(item.minutes) } : {}) }] : []; }));
 	const records = normalizeEngagementRecords(data.records);
 	const history = list(data.history).flatMap((value): ProjectEvent[] => { const item = record(value); return item && stamp(item.at) && str(item.text) ? [{ at: stamp(item.at), text: str(item.text) }] : []; });
 	if (data.version === 1) carryVersion1Statuses(list(data.materials), materials, milestones, records, history, data.submissionDate);

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AUTHOR_PLAN_SCOPE, authorWork, type AuthorTarget } from "./AuthorPlan";
 import { ENGAGEMENT_START, createEditorialProject, preparationWork } from "./EditorialProject";
-import { emptyRevisionPlan, sourceKey, type PlanEntry, type RevisionPlan, type WorkCandidate } from "./RevisionPlan";
+import { emptyRevisionPlan, normalizeRevisionPlans, sourceKey, type PlanEntry, type RevisionPlan, type WorkCandidate } from "./RevisionPlan";
 import type { AgendaPlan } from "./TodayAgenda";
 import { draftVaultSchedule, movableSessions, vaultWork, type VaultScheduleOptions } from "./VaultSchedule";
 
@@ -88,6 +88,19 @@ describe("one schedule for goals and engagement tasks", () => {
 		expect(days(draft.plans, book().scope)).toEqual([]);
 		expect(draft.notes).toEqual([]);
 		expect(draft.plans.find((plan) => plan.scope === AUTHOR_PLAN_SCOPE)!.plan.targets![0]).toMatchObject({ lowMinutes: 120, highMinutes: 120 });
+	});
+	it("remembers the balance, the kept minutes and each task's time through a save", () => {
+		const draft = run([book(), author()], { balance: "split", reserveMinutes: 45 });
+		const store = normalizeRevisionPlans({ version: 1, books: Object.fromEntries(draft.plans.map((plan) => [plan.scope, plan.plan])) });
+		expect(store.books[AUTHOR_PLAN_SCOPE]!.scheduling).toMatchObject({ balance: "split", reserveMinutes: 45, sessionMinutes: 60 });
+		const saved = store.books[book().scope]!;
+		expect(saved.project!.tasks[0]!.minutes).toBe(240);
+		// A task whose sessions are later taken off the plan is offered again with its time.
+		expect(vaultWork([{ scope: book().scope, plan: { ...saved, entries: [] }, candidates: preparationWork(saved.project!) }])[0]!.minutes).toBe(240);
+		// A changed choice is kept even when there is nothing new to place.
+		const again = run(draft.plans, { balance: "goals", minutes: {} });
+		expect(again.days).toEqual([]);
+		expect(again.changes.map((change) => [change.scope, change.next.scheduling?.balance])).toEqual([[AUTHOR_PLAN_SCOPE, "goals"]]);
 	});
 	it("moves sessions that share a day, except a date the author kept", () => {
 		const session = (id: string, locator: string, path: string, extra: Partial<PlanEntry> = {}): PlanEntry => ({ id, source: { kind: "preparation", path, locator }, title: id, lowMinutes: 120, highMinutes: 120, day: START, required: true, done: false, afterId: null, ...extra });

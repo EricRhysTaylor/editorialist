@@ -79,6 +79,8 @@ describe("Fill my days", () => {
 		expect(changes.map((change) => change.scope)).toEqual([BOOK, AUTHOR_PLAN_SCOPE]);
 		expect(changes.map((change) => change.next.entries.length)).toEqual([4, 6]);
 		expect(changes[1]!.next.targets![0]).toMatchObject({ highMinutes: 360 });
+		expect(changes[1]!.next.scheduling).toMatchObject({ balance: "split", reserveMinutes: 60 });
+		expect(changes[0]!.next.project!.tasks[0]!.minutes).toBe(240);
 	});
 	it("says how much will not fit, and leaves work without a time out", async () => {
 		const { root } = await open();

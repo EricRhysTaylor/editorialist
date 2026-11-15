@@ -1,5 +1,6 @@
 import { draftSchedule, movableEntries, type ScheduleDraft, type ScheduleIssue, type ScheduleOptions, type TriageChoice } from "./AutoSchedule";
 import { AUTHOR_PLAN_SCOPE } from "./AuthorPlan";
+import type { Balance } from "./ScheduleDefaults";
 import { candidateDeadline, entryWorkDeadline } from "./EditorialProject";
 import { addDays } from "./PlanProgress";
 import { isPlanEntryComplete, progressDoneKeys, resolvePlanSource, sourceKey, type RevisionPlan, type WorkCandidate } from "./RevisionPlan";
@@ -13,8 +14,7 @@ import type { AgendaPlan } from "./TodayAgenda";
  * balance gives, so two kinds of work never claim the same hour.
  */
 
-/** Which work has first call on the time when both want the same days. */
-export type Balance = "deliverables" | "split" | "goals";
+export type { Balance } from "./ScheduleDefaults";
 
 export interface VaultWorkItem {
 	scope: string;
@@ -94,7 +94,7 @@ export function vaultWork(plans: readonly (AgendaPlan & { label?: string | null 
 				due: deadline?.due ?? candidate.targetDate ?? null,
 				aim: deadline?.aim ?? candidate.targetDate ?? null,
 				hard: Boolean(deadline),
-				minutes: target?.highMinutes ?? null,
+				minutes: (goal ? target?.highMinutes : source.plan.project?.tasks.find((task) => task.id === candidate.locator)?.minutes) ?? null,
 			}];
 		});
 	});
@@ -137,6 +137,11 @@ export function draftVaultSchedule(sources: readonly AgendaPlan[], options: Vaul
 		const minutes = options.minutes[sourceKey({ kind: "preparation", path: AUTHOR_PLAN_SCOPE, locator: target.id })];
 		if (minutes !== undefined && minutes > 0 && minutes !== target.highMinutes) { target.lowMinutes = minutes; target.highMinutes = minutes; }
 	}
+	// So does the time given to an engagement task, so it is not asked for twice.
+	for (const part of parts) for (const task of part.goal ? [] : part.plan.project?.tasks ?? []) {
+		const minutes = options.minutes[sourceKey({ kind: "preparation", path: part.plan.project!.id, locator: task.id })];
+		if (minutes !== undefined && minutes > 0) task.minutes = minutes;
+	}
 	const books = parts.filter((part) => !part.goal && part.plan.project).sort((a, b) => a.plan.project!.submissionDate.localeCompare(b.plan.project!.submissionDate));
 	const order = !author ? books : options.balance === "goals" ? [author, ...books] : [...books, author];
 	const dates = parts.flatMap((part) => [part.plan.deadline, ...part.candidates.flatMap((candidate) => candidate.inactive || candidate.complete ? [] : [candidate.due, candidate.targetDate])]).filter((day): day is string => Boolean(day));
@@ -154,7 +159,7 @@ export function draftVaultSchedule(sources: readonly AgendaPlan[], options: Vaul
 			const key = sourceKey(candidate);
 			if (candidate.inactive || candidate.complete || planned.has(key)) continue;
 			const target = part.goal ? part.plan.targets?.find((item) => item.id === candidate.locator) : undefined;
-			const high = options.minutes[key] ?? target?.highMinutes ?? 0;
+			const high = options.minutes[key] ?? target?.highMinutes ?? candidate.suggestedMinutes ?? 0;
 			choices[key] = high > 0 ? { phase: "structure", low: target?.highMinutes === high ? target.lowMinutes ?? high : high, high } : { skip: true };
 		}
 		return choices;
@@ -185,8 +190,9 @@ export function draftVaultSchedule(sources: readonly AgendaPlan[], options: Vaul
 		const busy = others(part);
 		if (!part.goal) for (const [day, minutes] of kept) busy.set(day, (busy.get(day) ?? 0) + minutes);
 		const draft = draftSchedule(part.plan, part.candidates, { ...base, sessionMinutes: sitting(part), choices: choicesFor(part) }, makeId, busy);
-		// A book keeps its own planner's settings; the goals remember the session length used here.
-		if (part.goal && draft.generated.length) draft.plan.scheduling = { preset: part.original.scheduling?.preset ?? "developmental", sessionMinutes: options.sessionMinutes, useEstimates: part.original.scheduling?.useEstimates ?? true };
+		const before = part.original.scheduling;
+		// The goals' plan remembers the choices made here, once there is something to remember.
+		if (part.goal && (draft.generated.length || options.balance !== (before?.balance ?? "deliverables") || (options.balance === "split" && options.reserveMinutes !== before?.reserveMinutes))) draft.plan.scheduling = { preset: before?.preset ?? "developmental", sessionMinutes: options.sessionMinutes, useEstimates: before?.useEstimates ?? true, balance: options.balance, reserveMinutes: options.reserveMinutes };
 		else if (part.original.scheduling) draft.plan.scheduling = part.original.scheduling;
 		else delete draft.plan.scheduling;
 		part.draft = draft;

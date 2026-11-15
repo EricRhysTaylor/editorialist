@@ -56,6 +56,8 @@ export class FillDaysModal extends Modal {
 		const author = this.vault.plans.find((plan) => plan.scope === AUTHOR_PLAN_SCOPE)!.plan;
 		this.capacity = [...author.capacity];
 		this.sessionMinutes = author.scheduling?.sessionMinutes ?? 60;
+		this.balance = author.scheduling?.balance ?? "deliverables";
+		this.reserveMinutes = author.scheduling?.reserveMinutes ?? 60;
 		this.work = vaultWork(this.vault.plans);
 		this.movable = movableSessions(this.vault.plans);
 		for (const item of this.work) if (item.minutes) this.minutes[item.key] = item.minutes;
@@ -214,7 +216,7 @@ export class FillDaysModal extends Modal {
 		setIcon(heading.createSpan({ cls: "editorialist-autoschedule__forecast-icon", attr: { "aria-hidden": "true" } }), short ? "calendar-clock" : draft.days.length ? "calendar-check" : "calendar");
 		const text = heading.createDiv();
 		text.createDiv({ cls: "editorialist-autoschedule__eyebrow", text: "Your days with this plan" });
-		text.createEl("h3", { text: short ? `${hours(short)} will not fit` : !draft.changes.length ? "Nothing new to plan" : draft.days.length ? "Everything fits" : "Your hours are updated" });
+		text.createEl("h3", { text: short ? `${hours(short)} will not fit` : draft.days.length ? "Everything fits" : draft.changes.length ? "No new sessions; your choices are kept" : "Nothing new to plan" });
 		if (draft.days.length) preview.createEl("p", { cls: "editorialist-deliveries__intro", text: `${plural(draft.days.length, "session")} over ${plural(new Set(draft.days).size, "day")}, the last on ${planDayLabel(last!)}.` });
 		const days = new Map(draft.plans.map((plan) => [plan.scope, plan.plan]));
 		const plans: VaultPlan[] = this.vault.plans.map((plan) => ({ ...plan, plan: days.get(plan.scope) ?? plan.plan }));
