@@ -1,4 +1,4 @@
-import { isDate } from "./planning/RevisionPlan";
+import { isDate, localDate } from "./planning/RevisionPlan";
 
 export interface EditorialDelivery {
 	id: string;
@@ -76,7 +76,7 @@ const sameName = (a: string, b: string): boolean => a.trim().toLocaleLowerCase()
 function daysBefore(day: string, days: number): string {
 	const date = new Date(`${day}T12:00:00`);
 	date.setDate(date.getDate() - days);
-	return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+	return localDate(date);
 }
 /** Still collecting this reviewer's feedback: its deadline has not passed, or it has none and arrived recently. */
 export function isDeliveryOpen(delivery: EditorialDelivery, today: string): boolean {
