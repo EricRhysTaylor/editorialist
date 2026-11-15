@@ -1,11 +1,11 @@
 import type { GridDay } from "../../core/planning/DayGrid";
 import { bindDotPopover, type DotPopoverContent } from "./DotPopover";
+import { plural } from "../util/wording";
 
 const WEEKDAYS = ["M", "T", "W", "T", "F", "S", "S"];
 const date = (day: string): Date => new Date(`${day}T12:00:00`);
 const dayName = (day: string): string => date(day).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 const weekName = (day: string): string => date(day).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-const plural = (count: number, word: string): string => `${count} ${word}${count === 1 ? "" : "s"}`;
 
 export interface DayGridOptions {
 	/** What a click on a day does, as its popover says. */

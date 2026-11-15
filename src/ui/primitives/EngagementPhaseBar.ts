@@ -3,6 +3,7 @@ import { stageWidths, type EngagementTrack, type TrackMark, type TrackStage, typ
 import { planDayLabel } from "../../core/planning/WorkPresentation";
 import { setAccessibleLabel } from "./AccessibleLabel";
 import { bindDotPopover, type DotPopoverContent, type DotPopoverItem } from "./DotPopover";
+import { capitalize } from "../util/wording";
 
 const days = (from: string, to: string): number => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000);
 const NAMES: Record<TrackStage["key"], string> = { preparation: "Your preparation", editing: "Editor at work", questions: "Your questions" };
@@ -15,7 +16,6 @@ function targetState(target: TrackTarget, late: boolean): string {
 
 const markState = (done: boolean, late: boolean): string => done ? "is-done" : late ? "is-late" : "is-open";
 const KINDS: Record<TrackTarget["kind"], string> = { document: "Document", task: "Task", milestone: "Milestone" };
-const capitalize = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
 
 /** A target's own state, as its popover's head shows it. */
 function targetTitle(target: TrackTarget, late: boolean): DotPopoverContent["state"] {
