@@ -44,7 +44,7 @@ The four steps above the plan change an answer in it. Click one to open it; noth
 3. **The balance.** Shown when you have both goals and work due to an editor. What is due to your editor comes first unless you choose your writing goals, or **Some of each, every day**, which keeps a set number of minutes for your goals on each day they need them. Your choice is remembered, and **Ahead of you** lists the work that comes first at the top.
 4. **Preview.** Your days as squares, as the plan would leave them, with the number of sessions and the last day. Work due to your editor aims to be ready your cushion of days early, and the preview names what lands later than that.
 
-<p align="center"><img src="images/fill-my-days.png" alt="Fill my days showing its plan: Everything fits, 26 sessions over 13 days, with the days drawn as squares, full on the days now planned, and Back and Use this plan below" width="520"></p>
+<p align="center"><img src="images/fill-my-days.png" alt="Fill my days showing its plan: Your days are planned, 22 sessions over 11 days, with the days drawn as squares, full on the days now planned. Below, More than your days hold says how much of the goal Draft Book 2 fits before its date, and Later than you aim for names one task. Back and Use this plan are at the bottom" width="520"></p>
 
 Goals are planned to their own dates; the cushion kept before an editor's deadline does not apply to them. A book's feedback work, its review batches, Editorialism directives and pending edits, is planned from that book's own schedule; Fill my days leaves those sessions where they are and plans around them.
 

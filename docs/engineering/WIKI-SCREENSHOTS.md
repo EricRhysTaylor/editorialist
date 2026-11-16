@@ -322,6 +322,12 @@ first, and its plan applied (26 sessions over 13 days).
 - `fill-my-days.png` (new) — the Preview step, the whole window (560 CSS px
   wide, shown at 520), rounded at 44 to match its corners. It replaces the
   retired `author-schedule-preview.png`.
+  Retaken November 15, 2026 from main at `17ffdd5`, same rig, on a second
+  made-up vault: two hours a weekday, the goal "Draft Book 2" (25,000 words by
+  Nov 30 at 750 words an hour) and Morgan Lee's edit starting Nov 30 with five
+  tasks and no times typed. It now shows the plan Fill my days opens on when a
+  goal is larger than the days there are: "Your days are planned", "More than
+  your days hold" and "Later than you aim for". Same width and radius.
 - `panel-author-planner.png` — the one-page planner through Your days (700
   CSS px); the goal cards moved to their own image.
 - `author-goals.png` (new) — Your goals with both cards (514 CSS px).
