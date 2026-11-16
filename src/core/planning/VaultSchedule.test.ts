@@ -3,7 +3,7 @@ import { AUTHOR_PLAN_SCOPE, authorWork, type AuthorTarget } from "./AuthorPlan";
 import { ENGAGEMENT_START, createEditorialProject, preparationWork } from "./EditorialProject";
 import { emptyRevisionPlan, normalizeRevisionPlans, sourceKey, type PlanEntry, type RevisionPlan, type WorkCandidate } from "./RevisionPlan";
 import type { AgendaPlan } from "./TodayAgenda";
-import { draftVaultSchedule, movableSessions, vaultWork, type VaultScheduleOptions } from "./VaultSchedule";
+import { balanceApplies, draftVaultSchedule, movableSessions, vaultWork, type VaultScheduleOptions } from "./VaultSchedule";
 
 // Monday 2 November 2026; two hours every weekday.
 const START = "2026-11-02";
@@ -61,6 +61,15 @@ describe("one schedule for goals and engagement tasks", () => {
 		// Nothing is kept back once the goal's own date has passed.
 		const later = run([book(), author([goal({ due: "2026-11-02" })])], { balance: "split", minutes: { [goalKey]: 60, [taskKey]: 240 } });
 		expect(days(later.plans, book().scope)).toEqual(["2026-11-02", "2026-11-03", "2026-11-03", "2026-11-04"]);
+	});
+	it("gives book work full sittings under a remembered split once every goal is finished", () => {
+		const finished = [book(), author([goal({ done: true })])];
+		expect(balanceApplies(finished)).toBe(false);
+		expect(balanceApplies([book(), author()])).toBe(true);
+		const draft = run(finished, { balance: "split", reserveMinutes: 90 });
+		// Sixty-minute sittings, as with no split at all, not the half hour a split would leave.
+		expect(draft.plans.find((plan) => plan.scope === book().scope)!.plan.entries.map((entry) => entry.highMinutes)).toEqual([60, 60, 60, 60]);
+		expect(days(draft.plans, book().scope)).toEqual(["2026-11-02", "2026-11-02", "2026-11-03", "2026-11-03"]);
 	});
 	it("lets a long session have a day the goals turned out not to need", () => {
 		// An hour a day is kept for the goal on every day to the synopsis's date, so ninety minutes fit beside none of them.

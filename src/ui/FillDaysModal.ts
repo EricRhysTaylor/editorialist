@@ -3,7 +3,7 @@ import type EditorialistPlugin from "../main";
 import { AUTHOR_PLAN_SCOPE, wordProgress } from "../core/planning/AuthorPlan";
 import { isDate, localDate } from "../core/planning/RevisionPlan";
 import type { VaultPlan, VaultPlans } from "../core/planning/TodayAgenda";
-import { draftVaultSchedule, movableSessions, vaultWork, type Balance, type VaultDraft, type VaultWorkItem } from "../core/planning/VaultSchedule";
+import { balanceApplies, draftVaultSchedule, movableSessions, vaultWork, type Balance, type VaultDraft, type VaultWorkItem } from "../core/planning/VaultSchedule";
 import { planDayLabel } from "../core/planning/WorkPresentation";
 import { setAccessibleLabel } from "./primitives/AccessibleLabel";
 import { renderDayGrid } from "./primitives/DayGrid";
@@ -19,7 +19,10 @@ const BALANCES: [Balance, string, string][] = [
 	["split", "Some of each, every day", "A set time is kept for your goals on each day one is open. What's due to your editor gets the rest."],
 	["goals", "Your writing goals first", "What's due to your editor gets the time that is left on each day."],
 ];
-const hours = (minutes: number): string => `${Math.round(minutes / 6) / 10} h`;
+// Two decimals, so a quarter hour reads exactly (45 minutes is 0.75) and retyping
+// the figure shown gives back the same minutes.
+const inHours = (minutes: number): number => Math.round(minutes / 60 * 100) / 100;
+const hours = (minutes: number): string => `${inHours(minutes)} h`;
 
 /**
  * Fill my days: the author's goals and each engagement's tasks planned
@@ -93,11 +96,8 @@ export class FillDaysModal extends Modal {
 		// With hours and something to plan, the plan itself is the first thing shown.
 		if (this.capacity.some((minutes) => minutes > 0) && (this.work.length || this.movable)) this.go("preview"); else this.render();
 	}
-	/** The balance only matters when goals and an editor's work want the same days. */
 	private steps(): Step[] {
-		const goals = this.vault.plans.some((plan) => plan.scope === AUTHOR_PLAN_SCOPE && plan.plan.targets?.some((target) => !target.done));
-		const tasks = this.vault.plans.some((plan) => plan.plan.project?.tasks.some((task) => !task.done));
-		return goals && tasks ? ["time", "work", "balance", "preview"] : ["time", "work", "preview"];
+		return balanceApplies(this.vault.plans) ? ["time", "work", "balance", "preview"] : ["time", "work", "preview"];
 	}
 	private button(parent: HTMLElement, label: string, action: () => void): HTMLButtonElement {
 		const button = parent.createEl("button", { text: label, attr: { type: "button" } });
@@ -164,7 +164,7 @@ export class FillDaysModal extends Modal {
 		for (const [day, name] of WEEK) {
 			const row = week.createEl("label", { cls: "editorialist-fill__day" });
 			row.createSpan({ text: name });
-			const field = row.createEl("input", { type: "number", value: String(Math.round((this.capacity[day] ?? 0) / 6) / 10), attr: { min: "0", max: "24", step: "0.25" } });
+			const field = row.createEl("input", { type: "number", value: String(inHours(this.capacity[day] ?? 0)), attr: { min: "0", max: "24", step: "0.25" } });
 			row.createSpan({ cls: "editorialist-fill__unit", text: "hours" });
 			field.addEventListener("change", () => { this.capacity[day] = Math.round(Math.min(24, Math.max(0, Number(field.value) || 0)) * 60); sum(); });
 		}
@@ -197,7 +197,7 @@ export class FillDaysModal extends Modal {
 				main.createEl("strong", { text: item.title });
 				main.createSpan({ text: `${item.goal ? goalNote(item) : taskNote(item)}${basis(item)}` });
 				const time = row.createEl("label", { cls: "editorialist-fill__hours" });
-				const shown = (): string => String(Math.round((this.minutes[item.key] ?? 0) / 6) / 10);
+				const shown = (): string => String(inHours(this.minutes[item.key] ?? 0));
 				const field = time.createEl("input", { type: "number", value: shown(), attr: { min: "0.25", step: "0.25" } });
 				setAccessibleLabel(field, `Hours for ${item.title}`);
 				time.createSpan({ cls: "editorialist-fill__unit", text: "hours" });

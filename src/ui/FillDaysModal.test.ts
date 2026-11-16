@@ -124,13 +124,37 @@ describe("Fill my days", () => {
 		expect(fields[1]!.value).toBe("33.5");
 		// Less than a quarter of an hour is given a quarter.
 		type(fields[0]!, "0.1");
-		expect(fields[0]!.value).toBe("0.3");
+		expect(fields[0]!.value).toBe("0.25");
 		type(fields[0]!, "1");
 		expect(root.querySelector(".editorialist-fill__total")?.textContent).toBe("34.5 h to plan");
 		step(root, 3);
 		next(root);
 		await vi.waitFor(() => expect(apply).toHaveBeenCalled());
 		expect(apply.mock.calls[0]![0].map((change) => change.next.entries.length)).toEqual([1, 34]);
+	});
+	it("shows quarter hours exactly, and retyping them keeps the same minutes", async () => {
+		const { root, apply } = await open();
+		step(root, 0);
+		const monday = root.querySelector<HTMLInputElement>(".editorialist-fill__day input")!;
+		type(monday, "0.75");
+		expect(root.querySelector(".editorialist-fill__total")?.textContent).toBe("12.75 h a week over 7 days");
+		step(root, 1);
+		step(root, 0);
+		const again = root.querySelector<HTMLInputElement>(".editorialist-fill__day input")!;
+		expect(again.value).toBe("0.75");
+		type(again, again.value);
+		expect(root.querySelector(".editorialist-fill__total")?.textContent).toBe("12.75 h a week over 7 days");
+		step(root, 1);
+		const task = root.querySelector<HTMLInputElement>(".editorialist-fill__hours input")!;
+		type(task, "1.25");
+		expect(task.value).toBe("1.25");
+		type(task, task.value);
+		step(root, 3);
+		next(root);
+		await vi.waitFor(() => expect(apply).toHaveBeenCalled());
+		const changes = apply.mock.calls[0]![0];
+		expect(changes[0]!.next.project!.tasks[0]!.minutes).toBe(75);
+		expect(changes[0]!.next.capacity[1]).toBe(45);
 	});
 	it("asks for a day with time before going on", async () => {
 		const { root } = await open();

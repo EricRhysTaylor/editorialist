@@ -126,6 +126,16 @@ export function vaultWork(plans: readonly (AgendaPlan & { label?: string | null 
 	});
 }
 
+/**
+ * The balance only matters when goals and an editor's work want the same
+ * days: an open goal and an open engagement task, both at once.
+ */
+export function balanceApplies(plans: readonly AgendaPlan[]): boolean {
+	const goals = plans.some((plan) => plan.scope === AUTHOR_PLAN_SCOPE && plan.plan.targets?.some((target) => !target.done));
+	const tasks = plans.some((plan) => plan.plan.project?.tasks.some((task) => !task.done));
+	return goals && tasks;
+}
+
 /** The open sessions already on the calendar that a replan would move. */
 export function movableSessions(plans: readonly AgendaPlan[]): number {
 	// A session that never had a day is planned afresh, not moved.
@@ -182,7 +192,8 @@ export function draftVaultSchedule(sources: readonly AgendaPlan[], options: Vaul
 	const moving = (part: Part): ReadonlySet<string> => part.draft || !order.includes(part) ? new Set() : movableEntries(part.plan, part.candidates, base);
 	const holds = (part: Part): Map<string, number> => held(part.draft?.plan ?? part.plan, part.candidates, moving(part));
 	const room = Math.max(...options.capacity);
-	const split = Boolean(author) && options.balance === "split";
+	// A remembered split is set aside while only one kind of work is open, as its step is.
+	const split = Boolean(author) && options.balance === "split" && balanceApplies(sources);
 	const choicesFor = (part: Part): Record<string, TriageChoice> => {
 		const planned = new Set(part.plan.entries.map((entry) => sourceKey(entry.source)));
 		const choices: Record<string, TriageChoice> = {};
