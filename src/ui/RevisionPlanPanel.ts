@@ -333,12 +333,18 @@ export class RevisionPlanPanel extends ItemView {
 		this.busy = true;
 		for (const control of Array.from(this.contentEl.querySelectorAll<HTMLInputElement | HTMLButtonElement | HTMLSelectElement>("input, button, select"))) control.disabled = true;
 		const next = this.author ? this.plugin.getAuthorPlanningPlan() : this.plugin.getRevisionPlan(this.book);
+		const hours = JSON.stringify(next.capacity);
 		update(next);
+		let saved = false;
 		try {
 			await this.plugin.saveRevisionPlan(this.book, next);
 			this.plan = this.author ? this.plugin.getAuthorPlanningPlan() : this.plugin.getRevisionPlan(this.book);
+			saved = true;
 		} catch { new Notice("Could not save the revision plan. Refresh before continuing."); this.stale = true; }
 		finally { this.busy = false; this.render(); }
+		// Every plan shares the hours, and the day squares read them from every
+		// plan, so an hours change re-reads them all, not just this page's own.
+		if (saved && JSON.stringify(next.capacity) !== hours) await this.plugin.refreshPlanViews();
 	}
 	private button(parent: HTMLElement, label: string, action: () => void, disabled = false): HTMLButtonElement {
 		const button = parent.createEl("button", { text: label, attr: { type: "button" } });

@@ -149,6 +149,35 @@ describe("engagement source refreshes", () => {
 });
 
 
+describe("changing the work hours", () => {
+	function hoursPanel() {
+		const { host, plans } = planningHost();
+		const panel = Object.assign(Object.create(RevisionPlanPanel.prototype) as object, {
+			plugin: host, author: false, book: key("Book A"), plan: structuredClone(plans[key("Book A")]!), stale: false, busy: false,
+			contentEl: { querySelectorAll: () => [], setAttribute: vi.fn() }, render: vi.fn(),
+		}) as unknown as RevisionPlanPanel;
+		const change = (update: (plan: RevisionPlan) => void): Promise<void> => Reflect.apply(Reflect.get(panel, "change") as (update: (plan: RevisionPlan) => void) => Promise<void>, panel, [update]);
+		return { host, change };
+	}
+	it("re-reads every plan when the hours change, so the day squares follow lower hours", async () => {
+		const { host, change } = hoursPanel();
+		await change((plan) => { plan.capacity[1] = 30; });
+		expect(host.saveRevisionPlan).toHaveBeenCalledOnce();
+		expect(host.refreshPlanViews).toHaveBeenCalledOnce();
+	});
+	it("leaves the other plans alone when the hours stay the same", async () => {
+		const { host, change } = hoursPanel();
+		await change((plan) => { plan.deadline = "2026-12-01"; });
+		expect(host.refreshPlanViews).not.toHaveBeenCalled();
+	});
+	it("does not re-read after a failed save", async () => {
+		const { host, change } = hoursPanel();
+		host.saveRevisionPlan.mockRejectedValueOnce(new Error("disk full"));
+		await change((plan) => { plan.capacity[1] = 30; });
+		expect(host.refreshPlanViews).not.toHaveBeenCalled();
+	});
+});
+
 it("queues a refresh requested while a previous read is busy", async () => {
 	const scheduleRefresh = vi.fn();
 	const panel = Object.assign(Object.create(RevisionPlanPanel.prototype) as object, { busy: true, scheduleRefresh }) as unknown as RevisionPlanPanel;
