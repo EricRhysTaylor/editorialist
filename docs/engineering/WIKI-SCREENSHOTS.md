@@ -347,3 +347,14 @@ Kept: `delivery-schedule-preview.png` (a delivery's schedule preview, which
 needs imported feedback; its layout is unchanged) and every review, import and
 settings image.
 
+## 3.5.1 Fill my days refresh — November 19, 2026
+
+- `fill-my-days.png` — replaced by the capture made while the preview's
+  wording was rewritten (main at `ad4937b` plus the change that became
+  `1a5e4ba`, taken minutes before it was committed). Separate Obsidian, made-up
+  vault `Demo Vaults/Testing Vaults/2026-11-19 Fill my days fit`: one
+  engagement for Book 1 with five tasks in a set order, two of them due Nov 16,
+  and a 1,000-word goal. It shows the Preview step: "Planned · 2 finish after
+  the due date", After the due date and Past the early completion date.
+  1226 × 2202, 2x, dark, rounded at 24 px; the release notes for 3.5.1 use it.
+
