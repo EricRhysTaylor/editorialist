@@ -1,9 +1,9 @@
-import { draftSchedule, movableEntries, type ScheduleDraft, type ScheduleIssue, type ScheduleOptions, type TriageChoice } from "./AutoSchedule";
+import { draftSchedule, type ScheduleDraft, type ScheduleIssue, type ScheduleOptions, type TriageChoice } from "./AutoSchedule";
 import { AUTHOR_PLAN_SCOPE } from "./AuthorPlan";
 import type { Balance } from "./ScheduleDefaults";
 import { candidateDeadline, entryWorkDeadline } from "./EditorialProject";
 import { addDays } from "./PlanProgress";
-import { isPlanEntryComplete, progressDoneKeys, resolvePlanSource, sourceKey, type RevisionPlan, type WorkCandidate } from "./RevisionPlan";
+import { isPlanEntryComplete, progressDoneKeys, resolvePlanSource, sourceKey, type PlanEntry, type RevisionPlan, type WorkCandidate } from "./RevisionPlan";
 import type { AgendaPlan } from "./TodayAgenda";
 
 /**
@@ -40,8 +40,8 @@ export interface VaultScheduleOptions {
 	balance: Balance;
 	/** With "split": the minutes kept for goals on each day a goal is open. */
 	reserveMinutes: number;
-	/** Move the open sessions already on the calendar, except dates the author kept. */
-	replan: boolean;
+	/** The order the author does an engagement's tasks in, by work key; saved with the engagement. */
+	order?: readonly string[];
 	/** The time each piece of work takes, by `VaultWorkItem.key`. Work without one is left out. */
 	minutes: Readonly<Record<string, number>>;
 }
@@ -80,47 +80,69 @@ function scoped({ scope, plan, candidates }: AgendaPlan): WorkCandidate[] {
 }
 
 /**
- * Open sessions that were never given a day. Fill my days plans their work
- * afresh rather than leaving them behind; a session the author kept stays.
+ * The sessions Fill my days plans afresh: every open one, on the calendar or
+ * not, of the goals and engagement tasks. A piece of work with a session the
+ * author set to keep its date keeps all its sessions where they are.
  */
-function waitingEntries(plan: RevisionPlan, candidates: readonly WorkCandidate[]): Map<string, number> {
+function openEntries(plan: RevisionPlan, candidates: readonly WorkCandidate[]): Map<string, number> {
 	const doneKeys = progressDoneKeys(plan);
-	const waiting = new Map<string, number>();
-	for (const entry of plan.entries) {
-		if (entry.day || entry.locked || isPlanEntryComplete(entry, candidates, doneKeys)) continue;
+	const open = plan.entries.filter((entry) => {
+		if (isPlanEntryComplete(entry, candidates, doneKeys)) return false;
 		const resolved = resolvePlanSource(entry.source, candidates);
-		if (resolved.state === "ready" && !resolved.candidate.inactive) waiting.set(entry.id, entry.highMinutes ?? 0);
-	}
-	return waiting;
+		return resolved.state === "ready" && !resolved.candidate.inactive;
+	});
+	const kept = new Set(open.filter((entry) => entry.locked).map((entry) => sourceKey(entry.source)));
+	return new Map(open.filter((entry) => !kept.has(sourceKey(entry.source))).map((entry) => [entry.id, entry.highMinutes ?? 0]));
 }
-/** The time the waiting sessions of each piece of work were given, by work key. */
-function waitingMinutes(plan: RevisionPlan, waiting: ReadonlyMap<string, number>): Map<string, number> {
+/** The time each piece of work's sessions hold, by work key: the open ones given, or the done ones. */
+function entryMinutes(plan: RevisionPlan, ids: (entry: PlanEntry) => boolean): Map<string, number> {
 	const minutes = new Map<string, number>();
-	for (const entry of plan.entries) if (waiting.has(entry.id)) minutes.set(sourceKey(entry.source), (minutes.get(sourceKey(entry.source)) ?? 0) + waiting.get(entry.id)!);
+	for (const entry of plan.entries) if (ids(entry)) minutes.set(sourceKey(entry.source), (minutes.get(sourceKey(entry.source)) ?? 0) + (entry.highMinutes ?? 0));
 	return minutes;
 }
+function doneMinutes(plan: RevisionPlan, candidates: readonly WorkCandidate[]): Map<string, number> {
+	const doneKeys = progressDoneKeys(plan);
+	return entryMinutes(plan, (entry) => isPlanEntryComplete(entry, candidates, doneKeys));
+}
 
-/** The goals and engagement tasks still to be given their sessions. */
+/**
+ * Every open goal and engagement task, planned or not, with the time it still
+ * needs. Work with a session kept on its date is left as it is, so it is not listed.
+ */
 export function vaultWork(plans: readonly (AgendaPlan & { label?: string | null })[]): VaultWorkItem[] {
 	return plans.flatMap((source) => {
 		const candidates = scoped(source);
-		const waiting = waitingEntries(source.plan, candidates), before = waitingMinutes(source.plan, waiting);
-		const planned = new Set(source.plan.entries.filter((entry) => !waiting.has(entry.id)).map((entry) => sourceKey(entry.source)));
+		const open = openEntries(source.plan, candidates), given = entryMinutes(source.plan, (entry) => open.has(entry.id)), done = doneMinutes(source.plan, candidates);
+		const kept = new Set(source.plan.entries.filter((entry) => entry.locked).map((entry) => sourceKey(entry.source)));
 		const goal = source.scope === AUTHOR_PLAN_SCOPE;
-		return candidates.flatMap((candidate): VaultWorkItem[] => {
-			if (candidate.inactive || candidate.complete || planned.has(sourceKey(candidate)) || resolvePlanSource(candidate, candidates).state !== "ready") return [];
+		const tasks = source.plan.project?.tasks ?? [];
+		const items = candidates.flatMap((candidate): VaultWorkItem[] => {
+			const key = sourceKey(candidate);
+			if (candidate.inactive || candidate.complete || kept.has(key) || resolvePlanSource(candidate, candidates).state !== "ready") return [];
 			const deadline = candidateDeadline(source.plan, candidate);
 			const target = goal ? source.plan.targets?.find((item) => item.id === candidate.locator) : undefined;
+			const total = goal ? target?.highMinutes : tasks.find((task) => task.id === candidate.locator)?.minutes;
+			const still = total ? Math.max(0, total - (done.get(key) ?? 0)) : given.get(key) ?? 0;
 			return [{
-				scope: source.scope, key: sourceKey(candidate), id: candidate.locator, goal, title: candidate.title,
+				scope: source.scope, key, id: candidate.locator, goal, title: candidate.title,
 				group: goal ? null : source.label ?? source.plan.project?.title ?? null,
 				due: deadline?.due ?? candidate.targetDate ?? null,
 				aim: deadline?.aim ?? candidate.targetDate ?? null,
 				hard: Boolean(deadline),
-				minutes: ((goal ? target?.highMinutes : source.plan.project?.tasks.find((task) => task.id === candidate.locator)?.minutes) ?? before.get(sourceKey(candidate))) || null,
+				minutes: still || null,
 			}];
 		});
+		// An engagement's tasks in the order the author does them.
+		const place = (item: VaultWorkItem): number => { const index = tasks.findIndex((task) => task.id === item.id); return index < 0 ? tasks.length : index; };
+		return goal ? items : items.sort((a, b) => place(a) - place(b));
 	});
+}
+
+/** The engagement's tasks put in the order given by work keys; tasks not named keep their place after them. */
+export function orderTasks(plan: RevisionPlan, order: readonly string[]): void {
+	const project = plan.project; if (!project) return;
+	const rank = (id: string): number => { const index = order.indexOf(sourceKey({ kind: "preparation", path: project.id, locator: id })); return index < 0 ? order.length : index; };
+	project.tasks = project.tasks.map((task, index) => ({ task, index })).sort((a, b) => rank(a.task.id) - rank(b.task.id) || a.index - b.index).map(({ task }) => task);
 }
 
 /**
@@ -133,10 +155,9 @@ export function balanceApplies(plans: readonly AgendaPlan[]): boolean {
 	return goals && tasks;
 }
 
-/** The open sessions already on the calendar that a replan would move. */
+/** The open sessions already on the calendar that Fill my days places again. */
 export function movableSessions(plans: readonly AgendaPlan[]): number {
-	// A session that never had a day is planned afresh, not moved.
-	return plans.reduce((sum, source) => { const candidates = scoped(source), waiting = waitingEntries(source.plan, candidates); return sum + [...movableEntries(source.plan, candidates, { replan: true, deliveryId: null })].filter((id) => !waiting.has(id)).length; }, 0);
+	return plans.reduce((sum, source) => { const open = openEntries(source.plan, scoped(source)); return sum + source.plan.entries.filter((entry) => entry.day && open.has(entry.id)).length; }, 0);
 }
 
 interface Part { scope: string; goal: boolean; original: RevisionPlan; plan: RevisionPlan; candidates: WorkCandidate[]; all: readonly WorkCandidate[]; draft: ScheduleDraft | null }
@@ -169,43 +190,50 @@ export function freeMinutes(plans: readonly AgendaPlan[], capacity: readonly num
 
 export function draftVaultSchedule(sources: readonly AgendaPlan[], options: VaultScheduleOptions, makeId: () => string): VaultDraft {
 	const earlier = new Map<string, number>();
+	const finished = new Map<string, number>();
 	const parts: Part[] = sources.map((source) => {
 		const candidates = scoped(source), plan: RevisionPlan = { ...structuredClone(source.plan), capacity: [...options.capacity] };
-		// Sessions that never had a day are planned again from their work, not left behind.
-		const waiting = waitingEntries(plan, candidates);
-		for (const [key, minutes] of waitingMinutes(plan, waiting)) if (minutes > 0) earlier.set(key, minutes);
-		plan.entries = plan.entries.filter((entry) => !waiting.has(entry.id)).map((entry) => entry.afterId && waiting.has(entry.afterId) ? { ...entry, afterId: null } : entry);
+		// Every open session is planned again from its work; a kept one stays.
+		const open = openEntries(plan, candidates);
+		for (const [key, minutes] of entryMinutes(plan, (entry) => open.has(entry.id))) if (minutes > 0) earlier.set(key, minutes);
+		for (const [key, minutes] of doneMinutes(plan, candidates)) finished.set(key, minutes);
+		plan.entries = plan.entries.filter((entry) => !open.has(entry.id)).map((entry) => entry.afterId && open.has(entry.afterId) ? { ...entry, afterId: null } : entry);
+		if (options.order) orderTasks(plan, options.order);
 		return { scope: source.scope, goal: source.scope === AUTHOR_PLAN_SCOPE, original: source.plan, plan, candidates, all: source.candidates, draft: null };
 	});
 	const author = parts.find((part) => part.goal);
-	// The time the author gives a goal here becomes the goal's own estimate.
+	// The time still needed, given here, plus what is already done becomes the
+	// work's own estimate, so it is not asked for twice.
+	const total = (key: string, minutes: number): number => minutes + (finished.get(key) ?? 0);
 	for (const target of author?.plan.targets ?? []) {
-		const minutes = options.minutes[sourceKey({ kind: "preparation", path: AUTHOR_PLAN_SCOPE, locator: target.id })];
-		if (minutes !== undefined && minutes > 0 && minutes !== target.highMinutes) { target.lowMinutes = minutes; target.highMinutes = minutes; }
+		const key = sourceKey({ kind: "preparation", path: AUTHOR_PLAN_SCOPE, locator: target.id }), minutes = options.minutes[key];
+		if (minutes !== undefined && minutes > 0 && total(key, minutes) !== target.highMinutes) { target.lowMinutes = total(key, minutes); target.highMinutes = total(key, minutes); }
 	}
-	// So does the time given to an engagement task, so it is not asked for twice.
 	for (const part of parts) for (const task of part.goal ? [] : part.plan.project?.tasks ?? []) {
-		const minutes = options.minutes[sourceKey({ kind: "preparation", path: part.plan.project!.id, locator: task.id })];
-		if (minutes !== undefined && minutes > 0) task.minutes = minutes;
+		const key = sourceKey({ kind: "preparation", path: part.plan.project!.id, locator: task.id }), minutes = options.minutes[key];
+		if (minutes !== undefined && minutes > 0) task.minutes = total(key, minutes);
 	}
 	const books = parts.filter((part) => !part.goal && part.plan.project).sort((a, b) => a.plan.project!.submissionDate.localeCompare(b.plan.project!.submissionDate));
 	const order = !author ? books : options.balance === "goals" ? [author, ...books] : [...books, author];
 	const dates = parts.flatMap((part) => [part.plan.deadline, ...part.candidates.flatMap((candidate) => candidate.inactive || candidate.complete ? [] : [candidate.due, candidate.targetDate])]).filter((day): day is string => Boolean(day));
 	const limit = addDays(options.start, 365);
 	const end = [addDays(options.start, 30), ...dates].sort().at(-1)!;
-	const base: ScheduleOptions = { preset: "developmental", useEstimates: false, deliveryId: null, start: options.start, end: end > limit ? limit : end, replan: options.replan, sessionMinutes: 60, choices: {}, fill: true };
-	const moving = (part: Part): ReadonlySet<string> => part.draft || !order.includes(part) ? new Set() : movableEntries(part.plan, part.candidates, base);
-	const holds = (part: Part): Map<string, number> => held(part.draft?.plan ?? part.plan, part.candidates, moving(part));
+	const base: ScheduleOptions = { preset: "developmental", useEstimates: false, deliveryId: null, start: options.start, end: end > limit ? limit : end, replan: false, sessionMinutes: 60, choices: {}, fill: true };
+	// The open sessions are already taken out, so what a plan holds is what stays.
+	const holds = (part: Part): Map<string, number> => held(part.draft?.plan ?? part.plan, part.candidates, new Set());
 	// A remembered split is set aside while only one kind of work is open, as its step is.
 	const split = Boolean(author) && options.balance === "split" && balanceApplies(sources);
 	const choicesFor = (part: Part): Record<string, TriageChoice> => {
-		const planned = new Set(part.plan.entries.map((entry) => sourceKey(entry.source)));
+		// Work with an open session still in the plan is kept on its date; done sessions do not count.
+		const doneKeys = progressDoneKeys(part.plan);
+		const planned = new Set(part.plan.entries.filter((entry) => !isPlanEntryComplete(entry, part.candidates, doneKeys)).map((entry) => sourceKey(entry.source)));
 		const choices: Record<string, TriageChoice> = {};
 		for (const candidate of part.candidates) {
 			const key = sourceKey(candidate);
 			if (candidate.inactive || candidate.complete || planned.has(key)) continue;
 			const target = part.goal ? part.plan.targets?.find((item) => item.id === candidate.locator) : undefined;
-			const high = options.minutes[key] ?? target?.highMinutes ?? candidate.suggestedMinutes ?? earlier.get(key) ?? 0;
+			const estimate = target?.highMinutes ?? candidate.suggestedMinutes;
+			const high = options.minutes[key] ?? (estimate ? Math.max(0, estimate - (finished.get(key) ?? 0)) : earlier.get(key) ?? 0);
 			choices[key] = high > 0 ? { phase: "structure", low: target?.highMinutes === high ? target.lowMinutes ?? high : high, high } : { skip: true };
 		}
 		return choices;

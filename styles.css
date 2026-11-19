@@ -8556,9 +8556,49 @@ button.editorialist-panel__contributors-row:focus-visible {
 
 .editorialist-fill__item-main {
 	display: flex;
+	flex: 1;
 	flex-direction: column;
 	gap: 2px;
 	min-width: 0;
+}
+
+/* An engagement task's place in the author's order, with the buttons that move it. */
+.editorialist-fill__move {
+	display: grid;
+	grid-template-columns: 20px auto;
+	grid-template-rows: auto auto;
+	align-items: center;
+	column-gap: 2px;
+	flex-shrink: 0;
+}
+
+.editorialist-fill__position {
+	grid-row: 1 / span 2;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	font-variant-numeric: tabular-nums;
+	text-align: center;
+}
+
+.editorialist-fill__shift {
+	padding: 0 2px;
+	height: 18px;
+}
+
+.editorialist-fill__shift:disabled {
+	opacity: 0.3;
+	cursor: default;
+}
+
+.editorialist-fill__shift svg {
+	width: 14px;
+	height: 14px;
+}
+
+.editorialist-fill__note {
+	margin: 12px 0 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
 }
 
 .editorialist-fill__item-main strong {

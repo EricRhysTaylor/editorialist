@@ -22,7 +22,7 @@ function book(entries: PlanEntry[] = [], extra: WorkCandidate[] = []): AgendaPla
 	return { scope: JSON.stringify(["folder", "Book"]), plan, candidates: [...preparationWork(project), ...extra] };
 }
 const taskKey = sourceKey({ kind: "preparation", path: "engagement", locator: "synopsis" });
-const options = (extra: Partial<VaultScheduleOptions> = {}): VaultScheduleOptions => ({ start: START, capacity: week, balance: "deliverables", reserveMinutes: 60, replan: false, minutes: { [goalKey]: 240, [taskKey]: 240 }, ...extra });
+const options = (extra: Partial<VaultScheduleOptions> = {}): VaultScheduleOptions => ({ start: START, capacity: week, balance: "deliverables", reserveMinutes: 60, minutes: { [goalKey]: 240, [taskKey]: 240 }, ...extra });
 const run = (plans: AgendaPlan[], extra: Partial<VaultScheduleOptions> = {}) => { let id = 0; return draftVaultSchedule(plans, options(extra), () => `s${++id}`); };
 const days = (plans: readonly AgendaPlan[], scope: string): (string | null)[] => plans.find((plan) => plan.scope === scope)!.plan.entries.map((entry) => entry.day);
 const load = (plans: readonly AgendaPlan[]): Record<string, number> => {
@@ -75,7 +75,7 @@ describe("one schedule for goals and engagement tasks", () => {
 	it("fills what a split leaves of each day, so a long session is cut across days", () => {
 		// An hour a day is kept for the goal, so ninety minutes take the hour left on the 2nd and half an hour on the 3rd.
 		const long: PlanEntry = { id: "long", source: { kind: "preparation", path: "engagement", locator: "synopsis" }, title: "Write the synopsis", lowMinutes: 90, highMinutes: 90, day: "2026-11-20", required: true, done: false, afterId: null };
-		const draft = run([book([long]), author([goal({ due: "2026-11-20" })])], { balance: "split", replan: true, minutes: { [goalKey]: 900 } });
+		const draft = run([book([long]), author([goal({ due: "2026-11-20" })])], { balance: "split", minutes: { [goalKey]: 900 } });
 		expect(draft.unplaced).toEqual([]);
 		expect(days(draft.plans, book().scope)).toEqual(["2026-11-02", "2026-11-03"]);
 		expect(draft.plans[0]!.plan.entries.map((entry) => entry.highMinutes)).toEqual([60, 30]);
@@ -106,7 +106,7 @@ describe("one schedule for goals and engagement tasks", () => {
 	});
 	it("cuts a session longer than any day across the days it needs", () => {
 		const long: PlanEntry = { id: "long", source: { kind: "preparation", path: "engagement", locator: "synopsis" }, title: "Write the synopsis", lowMinutes: 150, highMinutes: 150, day: START, required: true, done: false, afterId: null };
-		const draft = run([book([long]), author()], { replan: true, minutes: {} });
+		const draft = run([book([long]), author()], { minutes: {} });
 		expect(draft.unplaced).toEqual([]);
 		expect(draft.plans[0]!.plan.entries.map((entry) => [entry.day, entry.highMinutes, entry.sessionIndex, entry.sessionCount])).toEqual([[START, 120, 1, 2], ["2026-11-03", 30, 2, 2]]);
 	});
@@ -130,27 +130,28 @@ describe("one schedule for goals and engagement tasks", () => {
 		expect(saved.project!.tasks[0]!.minutes).toBe(240);
 		// A task whose sessions are later taken off the plan is offered again with its time.
 		expect(vaultWork([{ scope: book().scope, plan: { ...saved, entries: [] }, candidates: preparationWork(saved.project!) }])[0]!.minutes).toBe(240);
-		// A changed choice is kept even when there is nothing new to place.
+		// Planned again with goals first, the work keeps its time and the choice is kept.
 		const again = run(draft.plans, { balance: "goals", minutes: {} });
-		expect(again.days).toEqual([]);
-		expect(again.changes.map((change) => [change.scope, change.next.scheduling?.balance])).toEqual([[AUTHOR_PLAN_SCOPE, "goals"]]);
+		expect(again.days).toHaveLength(4);
+		expect(again.plans.find((plan) => plan.scope === AUTHOR_PLAN_SCOPE)!.plan.scheduling?.balance).toBe("goals");
+		expect(days(again.plans, AUTHOR_PLAN_SCOPE)).toEqual([START, "2026-11-03"]);
 	});
 	it("moves sessions that share a day, except a date the author kept", () => {
 		const session = (id: string, locator: string, path: string, extra: Partial<PlanEntry> = {}): PlanEntry => ({ id, source: { kind: "preparation", path, locator }, title: id, lowMinutes: 120, highMinutes: 120, day: START, required: true, done: false, afterId: null, ...extra });
 		const plans = [book([session("task", "synopsis", "engagement")]), author([goal({ highMinutes: 120 })], [session("goal", "month", AUTHOR_PLAN_SCOPE)])];
 		expect(movableSessions(plans)).toBe(2);
-		expect(run(plans, { minutes: {} }).changes).toEqual([]);
-		const moved = run(plans, { replan: true, minutes: {} });
+		// Every open session is placed again, so two that shared a day no longer do.
+		const moved = run(plans, { minutes: {} });
 		expect(days(moved.plans, book().scope)).toEqual([START]);
 		expect(days(moved.plans, AUTHOR_PLAN_SCOPE)).toEqual(["2026-11-03"]);
-		const kept = run([plans[0]!, author([goal({ highMinutes: 120 })], [session("goal", "month", AUTHOR_PLAN_SCOPE, { locked: true })])], { replan: true, minutes: {} });
+		const kept = run([plans[0]!, author([goal({ highMinutes: 120 })], [session("goal", "month", AUTHOR_PLAN_SCOPE, { locked: true })])], { minutes: {} });
 		expect(days(kept.plans, AUTHOR_PLAN_SCOPE)).toEqual([START]);
 		expect(days(kept.plans, book().scope)).toEqual(["2026-11-03"]);
 	});
 	it("plans around a book's feedback sessions without moving them", () => {
 		const batch: WorkCandidate = { kind: "batch", path: "Scene.md", locator: "b", title: "Review", detail: "", complete: false, deferred: false };
 		const review: PlanEntry = { id: "review", source: batch, title: "Review", lowMinutes: 120, highMinutes: 120, day: START, required: true, done: false, afterId: null };
-		const draft = run([book([review], [batch]), author()], { replan: true, minutes: { [taskKey]: 60 } });
+		const draft = run([book([review], [batch]), author()], { minutes: { [taskKey]: 60 } });
 		expect(days(draft.plans, book().scope)).toEqual([START, "2026-11-03"]);
 		// The book keeps its own planner's settings.
 		expect(draft.plans[0]!.plan.scheduling).toBeUndefined();
@@ -166,6 +167,34 @@ describe("one schedule for goals and engagement tasks", () => {
 		// One task with no day before its date no longer leaves the next one without a day.
 		expect(draft.unplaced).toEqual([]);
 		expect(days(draft.plans, late.scope)).toEqual([START, START]);
-		expect(draft.overdue).toEqual([{ key: freezeKey, title: "Freeze the manuscript", reason: "Was due Oct 30; planned for Nov 2." }]);
+		expect(draft.overdue).toEqual([{ key: freezeKey, title: "Freeze the manuscript", reason: "Was due Oct 30; finishes Nov 2.", due: "2026-10-30" }]);
+	});
+	it("plans an engagement's tasks in the author's order, each after the one before, whatever their dates", () => {
+		const source = book();
+		const project = source.plan.project!;
+		project.milestones = [{ id: "frozen", title: "Manuscript frozen", day: "2026-11-03" }];
+		// Listed freeze first; the author does the synopsis first.
+		project.tasks = [{ id: "freeze", title: "Freeze the manuscript", materialId: null, milestoneId: "frozen", done: false }, ...project.tasks];
+		const plan: AgendaPlan = { ...source, candidates: preparationWork(project) };
+		const freezeKey = sourceKey({ kind: "preparation", path: "engagement", locator: "freeze" });
+		const draft = run([plan], { minutes: { [taskKey]: 240, [freezeKey]: 60 }, order: [taskKey, freezeKey] });
+		const entries = draft.plans[0]!.plan.entries.map((entry) => [entry.source.locator, entry.day, entry.highMinutes]);
+		expect(entries).toEqual([["synopsis", START, 120], ["synopsis", "2026-11-03", 120], ["freeze", "2026-11-04", 60]]);
+		// Its date is kept, and the preview says it finishes after it.
+		expect(draft.overdue).toEqual([{ key: freezeKey, title: "Freeze the manuscript", reason: "Due Nov 3; finishes Nov 4.", due: "2026-11-03" }]);
+		// The order is saved with the engagement.
+		expect(draft.changes[0]!.next.project!.tasks.map((task) => task.id)).toEqual(["synopsis", "freeze"]);
+		expect(vaultWork(draft.plans).map((item) => item.id)).toEqual(["synopsis", "freeze"]);
+	});
+	it("lists planned work too, with the time it still needs after the sessions done", () => {
+		const done: PlanEntry = { id: "done", source: { kind: "preparation", path: "engagement", locator: "synopsis" }, title: "Write the synopsis", lowMinutes: 60, highMinutes: 60, day: "2026-10-30", required: true, done: true, afterId: null };
+		const open: PlanEntry = { ...done, id: "open", day: START, done: false, highMinutes: 120, lowMinutes: 120 };
+		const source = book([done, open]);
+		source.plan.project!.tasks[0]!.minutes = 180;
+		expect(vaultWork([source]).map((item) => [item.title, item.minutes])).toEqual([["Write the synopsis", 120]]);
+		// Planned again, the done hour stays and the two hours left are placed; the task keeps its three.
+		const draft = run([source], { minutes: { [taskKey]: 120 } });
+		expect(draft.plans[0]!.plan.entries.map((entry) => [entry.id === "done" ? "done" : "new", entry.day, entry.highMinutes])).toEqual([["done", "2026-10-30", 60], ["new", START, 120]]);
+		expect(draft.plans[0]!.plan.project!.tasks[0]!.minutes).toBe(180);
 	});
 });

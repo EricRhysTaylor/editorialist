@@ -20,11 +20,11 @@ const week = [120, 120, 120, 120, 120, 120, 120];
 const BOOK = JSON.stringify(["folder", "Book 2"]);
 
 /** One goal and one engagement task, neither with a session yet. */
-function vault(): VaultPlans {
+function vault(more = false): VaultPlans {
 	const goal: AuthorTarget = { id: "g", title: "November Writers' Month", description: "", file: "", bookLabel: "", start: null, due: shift(20), hardDeadline: true, done: false, lowMinutes: null, highMinutes: null, words: { target: 25000, folder: "Book 2", startCount: null, days: {} } };
 	const author: RevisionPlan = { ...emptyRevisionPlan(), capacity: week, targets: [goal] };
 	const project = createEditorialProject("Morgan Lee", shift(20), () => "p");
-	project.tasks = [{ id: "t", title: "Write the synopsis", materialId: null, milestoneId: ENGAGEMENT_START, done: false }];
+	project.tasks = [{ id: "t", title: "Write the synopsis", materialId: null, milestoneId: ENGAGEMENT_START, done: false }, ...(more ? [{ id: "u", title: "Upload the files", materialId: null, milestoneId: null, done: false }] : [])];
 	const book: RevisionPlan = { ...emptyRevisionPlan(), capacity: week, cushionDays: 7, project };
 	return { notices: [], activeLabel: "Book 2", plans: [
 		{ scope: BOOK, plan: book, candidates: preparationWork(project), warnings: [], folder: "Book 2", label: "Book 2" },
@@ -32,9 +32,9 @@ function vault(): VaultPlans {
 	] };
 }
 
-async function open(): Promise<{ root: HTMLElement; apply: ReturnType<typeof vi.fn<(changes: readonly VaultDraftPlan[]) => Promise<void>>> }> {
+async function open(more = false): Promise<{ root: HTMLElement; apply: ReturnType<typeof vi.fn<(changes: readonly VaultDraftPlan[]) => Promise<void>>> }> {
 	const apply = vi.fn<(changes: readonly VaultDraftPlan[]) => Promise<void>>(async () => {});
-	const plugin = { app: {}, collectVaultPlans: async () => vault(), applyVaultSchedule: apply, getEditorialDeliveries: () => [], getReviewerProfiles: () => [], recordAuthorWordGoals: async () => ({ counts: { g: 4000 }, saved: false }), getEffortSettings: () => ({ draftRateWordsPerHour: 750 }) };
+	const plugin = { app: {}, collectVaultPlans: async () => vault(more), applyVaultSchedule: apply, getEditorialDeliveries: () => [], getReviewerProfiles: () => [], recordAuthorWordGoals: async () => ({ counts: { g: 4000 }, saved: false }), getEffortSettings: () => ({ draftRateWordsPerHour: 750 }) };
 	// SAFE: the modal reads only these members of the plugin.
 	const modal = new FillDaysModal(plugin as unknown as ConstructorParameters<typeof FillDaysModal>[0]);
 	modal.open();
@@ -172,5 +172,26 @@ describe("Fill my days", () => {
 		expect(root.querySelector(".editorialist-fill__total")?.textContent).toBe("0 h a week over 0 days");
 		next(root);
 		expect(current(root)).toBe("1Your time");
+	});
+	it("puts an engagement's tasks in the author's order and saves it", async () => {
+		const { root, apply } = await open(true);
+		step(root, 1);
+		const titles = (): string[] => [...root.querySelectorAll(".editorialist-fill__group:first-of-type .editorialist-fill__item-main strong")].map((item) => item.textContent ?? "");
+		expect(titles()).toEqual(["Write the synopsis", "Upload the files"]);
+		// No checkbox stands in for the work: every task is listed with its time.
+		expect(root.querySelector(".editorialist-fill__check")).toBeNull();
+		const button = (label: string): HTMLButtonElement => root.querySelector<HTMLButtonElement>(`[aria-label="${label}"]`)!;
+		expect(button("Move up: Write the synopsis").disabled).toBe(true);
+		button("Move down: Write the synopsis").click();
+		expect(titles()).toEqual(["Upload the files", "Write the synopsis"]);
+		expect([...root.querySelectorAll(".editorialist-fill__position")].map((item) => item.textContent)).toEqual(["1", "2"]);
+		step(root, 3);
+		next(root);
+		await vi.waitFor(() => expect(apply).toHaveBeenCalled());
+		const book = apply.mock.calls[0]![0].find((change) => change.scope === BOOK)!;
+		expect(book.next.project!.tasks.map((task) => task.id)).toEqual(["u", "t"]);
+		// The upload comes first in the days, the synopsis after it.
+		const first = (id: string): string => book.next.entries.filter((entry) => entry.source.locator === id).map((entry) => entry.day!).sort()[0]!;
+		expect(first("u") <= first("t")).toBe(true);
 	});
 });

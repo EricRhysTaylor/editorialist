@@ -33,18 +33,18 @@ The count is the folder’s total, so cutting words lowers it, and moving a note
 
 - A goal with a word count gets the words still to write at your **Drafting rate**, from Editorialist's settings. 25,000 words at 750 an hour is 33.5 hours. The time falls as you write.
 - An engagement task gets an hour, until you give it a time of your own.
-- A session that was in a plan without a day is planned again with the time it had.
+- Work already planned keeps the time it was given, less any sessions you have marked done.
 
 When a goal needs more time than there is before its date, every day you have is planned and the preview says how much of the goal fits, in hours and in words. Nothing is left over without a day. Work due to your editor that finds no day is listed under **Not enough time**, with how much time your days have left before its date, and stays in that book's plan without one. Under either list, **To make it fit** has a button for each way to change it: give your days more hours, give the work less time, or change what comes first. Moving a date, in the engagement or the goal, works too.
 
-A task due to your editor whose date has already passed is still owed, so it goes on the first day with room and is listed under **Past its date**. A task that cannot be placed never holds up the tasks after it.
+An engagement's tasks are planned in the order you put them in, each starting once the one before it is done. A task is owed to your editor even when your order or your hours take it past its date, so it is still planned, and the preview lists it under **After its date** with the day it is due and the day it finishes. Its date is never moved for you: change it in the engagement if it should.
 
 Your days are filled, not cut into blocks: each piece of work takes what is left of each day in turn, so no time goes unused and a piece of work has one session a day at most. A day's leftover under a quarter of an hour is not given a session of its own.
 
 The four steps above the plan change an answer in it. Click one to open it; nothing is saved until **Use this plan**.
 
 1. **Your time.** The hours you can give to writing work on each day of the week and the day to start on. Leave a day at 0 to keep it free. These are the same hours for every book and every goal: change them here, or in any schedule's **Deadline & capacity**, and they change everywhere.
-2. **What's due.** Each engagement task and each goal, with its date and the time filled in for it. Change any that looks wrong. Everything listed is planned: to plan a piece of work later, change its date, and to drop it, remove it from your goals or its engagement. A time you give a task is kept with it. **Move the sessions already on my calendar** is ticked, so sessions you planned before are placed again and everything fits together; a session set to **Keep this date** stays where it is.
+2. **What's due.** Every open engagement task and goal, planned already or not, with its date and the time it still needs. Change any time that looks wrong; it is kept with the task. Use the arrows beside an engagement's tasks to put them in the order you'll do them; the order is saved with the engagement. Everything listed is planned afresh, so it all fits together. To drop a piece of work, remove it from your goals or its engagement. Work with a session set to **Keep this date** stays where it is and is not listed.
 3. **The balance.** Shown when you have both goals and work due to an editor. What is due to your editor comes first unless you choose your writing goals, or **Some of each, every day**, which keeps a set number of minutes for your goals on each day they need them. Your choice is remembered, and **Ahead of you** lists the work that comes first at the top.
 4. **Preview.** Your days as squares, as the plan would leave them, with the number of sessions and the last day. Work due to your editor aims to be ready your cushion of days early, and the preview names what lands later than that.
 

@@ -20,7 +20,7 @@ export interface ScheduleOptions extends ScheduleDefaults {
 }
 // A day's leftover shorter than this is not worth a session of its own.
 const SMALLEST_PIECE = 15;
-export interface ScheduleIssue { title: string; reason: string; key?: string }
+export interface ScheduleIssue { title: string; reason: string; key?: string; /** For work after its date: the day it was due. */ due?: string }
 export interface ScheduleDraft {
 	plan: RevisionPlan; issues: ScheduleIssue[]; generated: PlanEntry[]; preserved: number; estimated: number;
 	/** Work that fits only by spending some of the days kept free before its deadline. */
@@ -85,7 +85,13 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 	const movable = movableEntries(next, candidates, options);
 	const fixed = next.entries.filter((entry) => !movable.has(entry.id));
 	const pending: PlanEntry[] = next.entries.filter((entry) => movable.has(entry.id)).map((entry) => ({ ...entry, day: null }));
-	const existingKeys = new Set(next.entries.map((entry) => sourceKey(entry.source)));
+	// Filling the days, a done session does not stand for the rest of its work.
+	const existingKeys = new Set(next.entries.filter((entry) => !options.fill || !isPlanEntryComplete(entry, candidates, doneKeys)).map((entry) => sourceKey(entry.source)));
+	// Filling the days, an engagement's tasks go in the order the author does them, not by date.
+	const sequence = (candidate: WorkCandidate): number => {
+		if (!options.fill || !plan.project || candidate.kind !== "preparation" || candidate.path !== plan.project.id) return -1;
+		return plan.project.tasks.findIndex((task) => task.id === candidate.locator);
+	};
 	const rank = (phase: WorkPhase | null): number => options.preset === "copy" ? 0 : phase === "structure" ? 0 : phase === "rewrite" ? 1 : 2;
 	const chosen = candidates.filter((candidate) => (options.deliveryId === null || candidate.deliveryId === options.deliveryId) && !candidate.inactive && !candidate.complete && !existingKeys.has(sourceKey(candidate)));
 	const phase = (candidate: WorkCandidate): WorkPhase | null => {
@@ -94,6 +100,7 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 	};
 	const scene = (candidate: WorkCandidate): string => candidate.sceneOrder?.match(/\d+/)?.[0]?.padStart(8, "0") ?? "~";
 	chosen.sort((a, b) => {
+		if (sequence(a) >= 0 && sequence(b) >= 0) return sequence(a) - sequence(b);
 		const targetOrder = plan.targets || plan.project ? (a.targetDate ?? workDeadline(plan, a.kind, a.due) ?? options.end).localeCompare(b.targetDate ?? workDeadline(plan, b.kind, b.due) ?? options.end) || Number(a.kind === "preparation") - Number(b.kind === "preparation") : 0;
 		const scenes = scene(a).localeCompare(scene(b)) || (a.sceneOrder ?? "").localeCompare(b.sceneOrder ?? "", undefined, { numeric: true });
 		const phases = rank(phase(a)) - rank(phase(b));
@@ -144,6 +151,8 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 	const generated: PlanEntry[] = [];
 	const cushion: ScheduleIssue[] = [];
 	const overdue: ScheduleIssue[] = [];
+	// The day the last task in the author's order finishes; the next one starts no earlier.
+	let floor: string | null = null;
 	let queue = pending;
 	while (queue.length) {
 		const waiting: PlanEntry[] = [];
@@ -167,10 +176,13 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 			else if (entry.highMinutes === null || entry.lowMinutes === null) reason = "Needs an effort range.";
 			else if (earliest && earliest > end && !late) reason = "Its start date is after its deadline or the end of the planning window.";
 			else if (options.fill) {
+				// An engagement's task is owed and done in the author's order: it starts once
+				// the task before it is done, and is planned even when that runs past its date.
+				const sequenced = resolved.state === "ready" && sequence(resolved.candidate) >= 0;
 				// Each day with room before the date takes as much as it has, earliest first.
-				const open = (day: string): boolean => (!earliest || day >= earliest) && (parentDone || !parent?.day || day >= parent.day);
+				const open = (day: string): boolean => (!earliest || day >= earliest) && (parentDone || !parent?.day || day >= parent.day) && (!sequenced || !floor || day >= floor);
 				const high = entry.highMinutes, low = entry.lowMinutes;
-				const limit = late ? options.end : end;
+				const limit = late || sequenced ? options.end : end;
 				const pieces: [string, number][] = [];
 				let left = high;
 				for (const day of days) {
@@ -192,7 +204,9 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 				// Work that waits on this one waits for its last day.
 				if (last) scheduled.set(entry.id, { ...entry, day: last });
 				if (left) issues.push({ title: entry.title, reason: "Does not fit before the deadline with the current capacity." });
-				if (last && late) overdue.push({ key: sourceKey(entry.source), title: entry.title, reason: `Was due ${planDayLabel(end)}; planned for ${planDayLabel(last)}.` });
+				if (sequenced && last && !left) floor = last;
+				const pastDate = late || (sequenced && end < options.end && last !== null && last > end);
+				if (last && pastDate) overdue.push({ key: sourceKey(entry.source), title: entry.title, due: end, reason: `${late ? "Was due" : "Due"} ${planDayLabel(end)}; finishes ${planDayLabel(last)}.` });
 				else if (last && !left && deadline && last > aim) {
 					const daysLeft = Math.round((Date.parse(`${deadline.due}T00:00:00Z`) - Date.parse(`${last}T00:00:00Z`)) / 86400000);
 					cushion.push({ title: entry.title, reason: daysLeft > 0 ? `Lands ${daysLeft} ${daysLeft === 1 ? "day" : "days"} before its ${planDayLabel(deadline.due)} deadline, not ${plan.cushionDays}.` : `Lands on its ${planDayLabel(deadline.due)} deadline, not ${plan.cushionDays} days before.` });
