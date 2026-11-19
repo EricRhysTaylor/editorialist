@@ -167,7 +167,7 @@ describe("one schedule for goals and engagement tasks", () => {
 		// One task with no day before its date no longer leaves the next one without a day.
 		expect(draft.unplaced).toEqual([]);
 		expect(days(draft.plans, late.scope)).toEqual([START, START]);
-		expect(draft.overdue).toEqual([{ key: freezeKey, title: "Freeze the manuscript", reason: "Was due Oct 30; finishes Nov 2.", due: "2026-10-30" }]);
+		expect(draft.overdue).toEqual([{ key: freezeKey, title: "Freeze the manuscript", reason: "Due Oct 30 · finishes Nov 2", due: "2026-10-30" }]);
 	});
 	it("plans an engagement's tasks in the author's order, each after the one before, whatever their dates", () => {
 		const source = book();
@@ -181,7 +181,7 @@ describe("one schedule for goals and engagement tasks", () => {
 		const entries = draft.plans[0]!.plan.entries.map((entry) => [entry.source.locator, entry.day, entry.highMinutes]);
 		expect(entries).toEqual([["synopsis", START, 120], ["synopsis", "2026-11-03", 120], ["freeze", "2026-11-04", 60]]);
 		// Its date is kept, and the preview says it finishes after it.
-		expect(draft.overdue).toEqual([{ key: freezeKey, title: "Freeze the manuscript", reason: "Due Nov 3; finishes Nov 4.", due: "2026-11-03" }]);
+		expect(draft.overdue).toEqual([{ key: freezeKey, title: "Freeze the manuscript", reason: "Due Nov 3 · finishes Nov 4", due: "2026-11-03" }]);
 		// The order is saved with the engagement.
 		expect(draft.changes[0]!.next.project!.tasks.map((task) => task.id)).toEqual(["synopsis", "freeze"]);
 		expect(vaultWork(draft.plans).map((item) => item.id)).toEqual(["synopsis", "freeze"]);

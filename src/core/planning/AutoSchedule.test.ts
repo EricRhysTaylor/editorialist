@@ -44,8 +44,7 @@ describe("Automatic delivery scheduling", () => {
 		const late = run(busy, [editor], options({ end: "2026-10-09" }));
 		expect(late.generated[0]!.day).toBe("2026-09-28");
 		expect(late.cushion).toHaveLength(1);
-		expect(late.cushion[0]!.reason).toContain("11 days before");
-		expect(late.cushion[0]!.reason).toContain("not 14");
+		expect(late.cushion[0]!.reason).toBe("Early completion Sep 25 · finishes Sep 28 · due Oct 9");
 		expect(late.issues.some((issue) => issue.reason.includes("Does not fit"))).toBe(false);
 	});
 	it("lets work's own date win over the schedule deadline, which covers only undated work", () => {

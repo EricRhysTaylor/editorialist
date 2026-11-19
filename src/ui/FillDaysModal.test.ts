@@ -52,7 +52,7 @@ describe("Fill my days", () => {
 		expect(current(root)).toBe("4Preview");
 		// 25,000 words at 750 an hour is 33.5 h, and the task an hour: one session a day, the task and the goal sharing the first.
 		expect(root.querySelector(".editorialist-autoschedule__forecast h3")?.textContent).toBe("Everything fits");
-		expect(root.querySelector(".editorialist-autoschedule__preview .editorialist-deliveries__intro")?.textContent).toMatch(/^19 sessions over 18 days, the last on /);
+		expect(root.querySelector(".editorialist-autoschedule__preview .editorialist-deliveries__intro")?.textContent).toMatch(/^19 sessions over 18 days, ending /);
 		expect(root.querySelectorAll(".editorialist-days__day.is-over")).toHaveLength(0);
 		next(root);
 		await vi.waitFor(() => expect(apply).toHaveBeenCalled());
@@ -72,7 +72,7 @@ describe("Fill my days", () => {
 		expect(current(root)).toBe("2What's due");
 		expect([...root.querySelectorAll(".editorialist-fill__group .editorialist-project__eyebrow")].map((item) => item.textContent)).toEqual(["Due to your editor · Book 2", "Your goals"]);
 		const notes = [...root.querySelectorAll(".editorialist-fill__item-main span")].map((item) => item.textContent ?? "");
-		expect(notes[0]).toMatch(/^Due .+ · ready by .+ · an hour, until you say otherwise$/);
+		expect(notes[0]).toMatch(/^Due .+ · early completion .+ · estimated at 1 h$/);
 		expect(notes[1]).toMatch(/^Hard deadline .+ · 25,000 words · 25,000 words to go at 750 an hour$/);
 		const fields = [...root.querySelectorAll<HTMLInputElement>(".editorialist-fill__hours input")];
 		expect(fields.map((field) => field.value)).toEqual(["1", "33.5"]);
@@ -86,7 +86,7 @@ describe("Fill my days", () => {
 		next(root);
 		expect(current(root)).toBe("4Preview");
 		expect(root.querySelector(".editorialist-autoschedule__forecast h3")?.textContent).toBe("Everything fits");
-		expect(root.querySelector(".editorialist-autoschedule__preview .editorialist-deliveries__intro")?.textContent).toMatch(/^9 sessions over 5 days, the last on /);
+		expect(root.querySelector(".editorialist-autoschedule__preview .editorialist-deliveries__intro")?.textContent).toMatch(/^9 sessions over 5 days, ending /);
 		// An hour of each on the first days: no day holds more than its two hours.
 		expect(root.querySelectorAll(".editorialist-days__day.is-over")).toHaveLength(0);
 		expect(root.querySelector(`.editorialist-days__day[data-day="${shift(0)}"]`)?.classList.contains("is-full")).toBe(true);
@@ -105,14 +105,14 @@ describe("Fill my days", () => {
 		expect(root.querySelector(".editorialist-fill__total")?.textContent).toBe("61 h to plan");
 		step(root, 3);
 		// Twenty-one days of two hours hold forty-two; the task has one of them.
-		expect(root.querySelector(".editorialist-autoschedule__forecast h3")?.textContent).toBe("Your days are planned");
-		expect(root.querySelector(".editorialist-fill__section h4")?.textContent).toBe("More than your days hold");
+		expect(root.querySelector(".editorialist-autoschedule__forecast h3")?.textContent).toBe("Your days are full");
+		expect(root.querySelector(".editorialist-fill__section h4")?.textContent).toBe("Goal needs more time");
 		expect(root.querySelector(".editorialist-fill__row-title")?.textContent).toBe("November Writers' Month");
 		expect(root.querySelector(".editorialist-fill__row-figure")?.textContent).toBe("41 of 60 h");
-		expect(root.querySelector(".editorialist-fill__row-detail")?.textContent).toMatch(/^Before .+ · about 30,750 words at your pace$/);
+		expect(root.querySelector(".editorialist-fill__row-detail")?.textContent).toMatch(/^Due .+ · about 30,750 words$/);
 		// Each way to make it fit opens the step that changes it.
 		const fixes = [...root.querySelectorAll<HTMLButtonElement>(".editorialist-fill__fix")];
-		expect(fixes.map((button) => button.textContent)).toEqual(["Give your days more hours", "Give the work less time", "Change what comes first"]);
+		expect(fixes.map((button) => button.textContent)).toEqual(["Add hours", "Reduce task time", "Change what comes first"]);
 		fixes[0]!.click();
 		expect(current(root)).toBe("1Your time");
 		expect(root.textContent).not.toMatch(/Longest sitting/);

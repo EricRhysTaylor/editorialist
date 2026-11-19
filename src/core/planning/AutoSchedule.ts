@@ -206,10 +206,9 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 				if (left) issues.push({ title: entry.title, reason: "Does not fit before the deadline with the current capacity." });
 				if (sequenced && last && !left) floor = last;
 				const pastDate = late || (sequenced && end < options.end && last !== null && last > end);
-				if (last && pastDate) overdue.push({ key: sourceKey(entry.source), title: entry.title, due: end, reason: `${late ? "Was due" : "Due"} ${planDayLabel(end)}; finishes ${planDayLabel(last)}.` });
+				if (last && pastDate) overdue.push({ key: sourceKey(entry.source), title: entry.title, due: end, reason: `Due ${planDayLabel(end)} · finishes ${planDayLabel(last)}` });
 				else if (last && !left && deadline && last > aim) {
-					const daysLeft = Math.round((Date.parse(`${deadline.due}T00:00:00Z`) - Date.parse(`${last}T00:00:00Z`)) / 86400000);
-					cushion.push({ title: entry.title, reason: daysLeft > 0 ? `Lands ${daysLeft} ${daysLeft === 1 ? "day" : "days"} before its ${planDayLabel(deadline.due)} deadline, not ${plan.cushionDays}.` : `Lands on its ${planDayLabel(deadline.due)} deadline, not ${plan.cushionDays} days before.` });
+					cushion.push({ title: entry.title, reason: `Early completion ${planDayLabel(aim)} · finishes ${planDayLabel(last)} · due ${planDayLabel(deadline.due)}` });
 				}
 				if (!last) scheduled.set(entry.id, entry);
 				continue;
@@ -219,10 +218,9 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 				entry.day = late ? fits(options.end) : fits(aim) ?? fits(end);
 				if (entry.day) remaining.set(entry.day, remaining.get(entry.day)! - entry.highMinutes);
 				else reason = "Does not fit before the deadline with the current capacity.";
-				if (entry.day && late) overdue.push({ key: sourceKey(entry.source), title: entry.title, reason: `Was due ${planDayLabel(end)}; planned for ${planDayLabel(entry.day)}.` });
+				if (entry.day && late) overdue.push({ key: sourceKey(entry.source), title: entry.title, reason: `Due ${planDayLabel(end)} · finishes ${planDayLabel(entry.day)}` });
 				else if (entry.day && deadline && entry.day > aim) {
-					const left = Math.round((Date.parse(`${deadline.due}T00:00:00Z`) - Date.parse(`${entry.day}T00:00:00Z`)) / 86400000);
-					cushion.push({ title: `${entry.title}${entry.sessionCount ? ` · Session ${entry.sessionIndex}/${entry.sessionCount}` : ""}`, reason: left > 0 ? `Lands ${left} ${left === 1 ? "day" : "days"} before its ${planDayLabel(deadline.due)} deadline, not ${plan.cushionDays}.` : `Lands on its ${planDayLabel(deadline.due)} deadline, not ${plan.cushionDays} days before.` });
+					cushion.push({ title: `${entry.title}${entry.sessionCount ? ` · Session ${entry.sessionIndex}/${entry.sessionCount}` : ""}`, reason: `Early completion ${planDayLabel(aim)} · finishes ${planDayLabel(entry.day)} · due ${planDayLabel(deadline.due)}` });
 				}
 			}
 			if (reason) issues.push({ title: `${entry.title}${entry.sessionCount ? ` · Session ${entry.sessionIndex}/${entry.sessionCount}` : ""}`, reason });
