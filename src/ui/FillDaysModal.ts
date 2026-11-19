@@ -3,7 +3,7 @@ import type EditorialistPlugin from "../main";
 import { AUTHOR_PLAN_SCOPE, wordProgress } from "../core/planning/AuthorPlan";
 import { isDate, localDate } from "../core/planning/RevisionPlan";
 import type { VaultPlan, VaultPlans } from "../core/planning/TodayAgenda";
-import { balanceApplies, draftVaultSchedule, movableSessions, vaultWork, type Balance, type VaultDraft, type VaultWorkItem } from "../core/planning/VaultSchedule";
+import { balanceApplies, draftVaultSchedule, freeMinutes, movableSessions, vaultWork, type Balance, type VaultDraft, type VaultWorkItem } from "../core/planning/VaultSchedule";
 import { planDayLabel } from "../core/planning/WorkPresentation";
 import { setAccessibleLabel } from "./primitives/AccessibleLabel";
 import { renderDayGrid } from "./primitives/DayGrid";
@@ -22,6 +22,9 @@ const BALANCES: [Balance, string, string][] = [
 // Two decimals, so a quarter hour reads exactly (45 minutes is 0.75) and retyping
 // the figure shown gives back the same minutes.
 const inHours = (minutes: number): number => Math.round(minutes / 60 * 100) / 100;
+// Work is laid out in pieces of up to an hour, so a day's hours can hold several
+// kinds of work. Not the author's to set: it is how the days are packed, not a break.
+const PIECE_MINUTES = 60;
 const hours = (minutes: number): string => `${inHours(minutes)} h`;
 
 /**
@@ -38,7 +41,6 @@ export class FillDaysModal extends Modal {
 	private step: Step = "time";
 	private capacity: number[] = [];
 	private start = localDate(new Date());
-	private sessionMinutes = 60;
 	private balance: Balance = "deliverables";
 	private reserveMinutes = 60;
 	private replan = false;
@@ -65,13 +67,12 @@ export class FillDaysModal extends Modal {
 		this.fingerprint = this.fingerprintOf(this.vault);
 		const author = this.vault.plans.find((plan) => plan.scope === AUTHOR_PLAN_SCOPE)!.plan;
 		this.capacity = [...author.capacity];
-		this.sessionMinutes = author.scheduling?.sessionMinutes ?? 60;
 		this.balance = author.scheduling?.balance ?? "deliverables";
 		this.reserveMinutes = author.scheduling?.reserveMinutes ?? 60;
 		this.work = vaultWork(this.vault.plans);
 		this.movable = movableSessions(this.vault.plans);
 		// Every piece of work comes with a time, so the author need not give one:
-		// what they said before, else the words left at their writing pace, else one sitting.
+		// what they said before, else the words left at their writing pace, else an hour.
 		const rate = this.rate = this.plugin.getEffortSettings().draftRateWordsPerHour;
 		for (const item of this.work) {
 			const goal = item.goal ? author.targets?.find((target) => target.id === item.id) : undefined;
@@ -88,8 +89,8 @@ export class FillDaysModal extends Modal {
 				}
 			}
 			if (item.minutes) { this.minutes[item.key] = item.minutes; continue; }
-			this.minutes[item.key] = this.sessionMinutes;
-			this.basis[item.key] = "one sitting, until you say otherwise";
+			this.minutes[item.key] = 60;
+			this.basis[item.key] = "an hour, until you say otherwise";
 		}
 		// Planning again moves what is already there, so the days fit together; a kept date stays.
 		this.replan = this.movable > 0;
@@ -107,7 +108,7 @@ export class FillDaysModal extends Modal {
 	private go(step: Step): void {
 		if (step === "preview") {
 			try {
-				this.draft = draftVaultSchedule(this.vault.plans, { start: this.start, capacity: this.capacity, sessionMinutes: this.sessionMinutes, balance: this.balance, reserveMinutes: this.reserveMinutes, replan: this.replan, minutes: this.minutes }, () => crypto.randomUUID());
+				this.draft = draftVaultSchedule(this.vault.plans, { start: this.start, capacity: this.capacity, sessionMinutes: PIECE_MINUTES, balance: this.balance, reserveMinutes: this.reserveMinutes, replan: this.replan, minutes: this.minutes }, () => crypto.randomUUID());
 			} catch (error) { new Notice(error instanceof Error ? error.message : "Could not plan your days."); return; }
 		}
 		this.step = step;
@@ -172,8 +173,6 @@ export class FillDaysModal extends Modal {
 		const fields = body.createDiv({ cls: "editorialist-deliveries__fields" });
 		const start = fields.createEl("label", { text: "Start on" }).createEl("input", { type: "date", value: this.start });
 		start.addEventListener("change", () => { this.start = start.value; });
-		const session = fields.createEl("label", { text: "Longest sitting (minutes)" }).createEl("input", { type: "number", value: String(this.sessionMinutes), attr: { min: "15", max: "240", step: "5" } });
-		session.addEventListener("change", () => { this.sessionMinutes = Math.round(Math.min(240, Math.max(15, Number(session.value) || 60))); session.value = String(this.sessionMinutes); });
 	}
 	private renderWork(body: HTMLElement): void {
 		if (!this.work.length) body.createEl("p", { cls: "editorialist-deliveries__intro", text: this.movable ? "Everything already has its sessions. You can still move them so your days fit together." : "Nothing is waiting for a place in your days. Add a goal, or a task in an editor engagement, and come back." });
@@ -258,35 +257,72 @@ export class FillDaysModal extends Modal {
 		const plans: VaultPlan[] = this.vault.plans.map((plan) => ({ ...plan, plan: days.get(plan.scope) ?? plan.plan }));
 		const calendar = preview.createDiv({ cls: "editorialist-fill__days" });
 		renderDayGrid(calendar, vaultDays(this.plugin, plans, localDate(new Date())), { hint: "The day as this plan leaves it", open: () => undefined });
+		// What does not fit comes first, with why and what would make it fit.
+		if (draft.unplaced.length) {
+			const dates = draft.unplaced.map((item) => item.due).filter((day): day is string => Boolean(day)).sort();
+			const by = dates.at(-1);
+			const free = by && by >= this.start ? freeMinutes(draft.plans, this.capacity, this.start, by) : 0;
+			const list = this.section(body, "Not enough time", by
+				? free ? `Up to ${planDayLabel(by)} your days have ${hours(free)} free once the rest of this plan has its place. This work needs ${hours(short)}.` : `Your days up to ${planDayLabel(by)} are full with the rest of this plan.`
+				: "Your days are full with the rest of this plan.", true);
+			for (const item of draft.unplaced) this.row(list, item.title, item.tooLong ? "One piece is longer than any of your days." : item.due ? `Needed by ${planDayLabel(item.due)}` : "No date", hours(item.minutes));
+		}
 		if (draft.short.length) {
-			preview.createEl("h4", { text: "More than your days hold" });
+			const list = this.section(body, "More than your days hold", "Every day before its date is planned for it. The rest needs more time or a later date.", true);
 			for (const item of draft.short) {
-				const row = preview.createDiv({ cls: "editorialist-autoschedule__issue is-cushion" });
-				row.createEl("strong", { text: item.title });
-				row.createEl("p", { text: `${item.placed ? `${hours(item.placed)} of the ${hours(item.wanted)} it needs` : `None of the ${hours(item.wanted)} it needs`} fit${item.due ? ` before ${planDayLabel(item.due)}` : ""}. Every day you have is planned; to fit the rest, give your days more time under Your time, or move its date.${this.wordGoals.has(item.key) && item.placed ? ` At ${this.rate.toLocaleString()} words an hour, that time is about ${(Math.round(item.placed / 60 * this.rate / 50) * 50).toLocaleString()} words.` : ""}` });
+				const words = this.wordGoals.has(item.key) && item.placed ? ` · about ${(Math.round(item.placed / 60 * this.rate / 50) * 50).toLocaleString()} words at your pace` : "";
+				this.row(list, item.title, `${item.due ? `Before ${planDayLabel(item.due)}` : "In your days"}${words}`, `${inHours(item.placed)} of ${hours(item.wanted)}`);
 			}
 		}
-		if (draft.unplaced.length) {
-			preview.createEl("h4", { text: "Not enough time" });
-			preview.createEl("p", { text: "Go back to give your days more time, give this work less, or change which comes first. If you use the plan as it is, these sessions wait in your plan without a day." });
-			for (const item of draft.unplaced) {
-				const row = preview.createDiv({ cls: "editorialist-autoschedule__issue" });
-				row.createEl("strong", { text: item.title });
-				row.createEl("p", { text: item.tooLong ? "One of its sessions is longer than any of your days. Shorten that session in its plan, or give a day more time." : item.due ? `${hours(item.minutes)} find no day before ${planDayLabel(item.due)}.` : `${hours(item.minutes)} find no day.` });
-			}
+		if (draft.unplaced.length || draft.short.length) this.renderFixes(body, draft.unplaced.length > 0);
+		if (draft.overdue.length) {
+			const list = this.section(body, "Past its date", "Already due before today, so each is planned on the first day with room.");
+			for (const [title, reason] of this.lastPerWork(draft.overdue)) this.row(list, title, reason);
 		}
 		if (draft.cushion.length) {
-			preview.createEl("h4", { text: "Later than you aim for" });
-			preview.createEl("p", { text: "These are ready by their date, but closer to it than you like to finish." });
-			// One line for each piece of work: its last session is the one that says when it is ready.
-			const last = new Map<string, string>();
-			for (const item of draft.cushion) last.set(item.title.replace(/ · Session \d+\/\d+$/, ""), item.reason);
-			for (const [title, reason] of last) { const row = preview.createDiv({ cls: "editorialist-autoschedule__issue is-cushion" }); row.createEl("strong", { text: title }); row.createEl("p", { text: reason }); }
+			const list = this.section(body, "Later than you aim for", "Ready by their date, but closer to it than you like to finish.");
+			for (const [title, reason] of this.lastPerWork(draft.cushion)) this.row(list, title, reason);
 		}
 		if (draft.notes.length) {
-			preview.createEl("h4", { text: "Worth a look" });
-			for (const item of draft.notes) { const row = preview.createDiv({ cls: "editorialist-autoschedule__issue" }); row.createEl("strong", { text: item.title }); row.createEl("p", { text: item.reason }); }
+			const list = this.section(body, "Worth a look");
+			for (const item of draft.notes) this.row(list, item.title, item.reason);
 		}
+	}
+	/** A titled part of the preview, with its rows. */
+	private section(parent: HTMLElement, title: string, intro?: string, attention = false): HTMLElement {
+		const section = parent.createDiv({ cls: `editorialist-fill__section${attention ? " is-attention" : ""}` });
+		section.createEl("h4", { text: title });
+		if (intro) section.createEl("p", { cls: "editorialist-fill__section-intro", text: intro });
+		return section.createDiv({ cls: "editorialist-fill__rows", attr: { role: "list" } });
+	}
+	private row(list: HTMLElement, title: string, detail: string, figure?: string): void {
+		const row = list.createDiv({ cls: "editorialist-fill__row", attr: { role: "listitem" } });
+		const main = row.createDiv({ cls: "editorialist-fill__row-main" });
+		main.createDiv({ cls: "editorialist-fill__row-title", text: title });
+		main.createDiv({ cls: "editorialist-fill__row-detail", text: detail });
+		if (figure) row.createDiv({ cls: "editorialist-fill__row-figure", text: figure });
+	}
+	/** One line for each piece of work: its last session is the one that says when it is ready. */
+	private lastPerWork(issues: readonly { title: string; reason: string }[]): Map<string, string> {
+		const last = new Map<string, string>();
+		for (const item of issues) last.set(item.title.replace(/ · Session \d+\/\d+$/, ""), item.reason);
+		return last;
+	}
+	/** The ways to make the rest fit, each opening the step that changes it. */
+	private renderFixes(parent: HTMLElement, waiting: boolean): void {
+		const fixes = parent.createDiv({ cls: "editorialist-fill__fixes" });
+		fixes.createEl("h4", { text: "To make it fit" });
+		const actions = fixes.createDiv({ cls: "editorialist-fill__fix-actions" });
+		const fix = (label: string, icon: string, step: Step): void => {
+			const button = actions.createEl("button", { cls: "editorialist-fill__fix", attr: { type: "button" } });
+			setIcon(button.createSpan({ cls: "editorialist-fill__fix-icon", attr: { "aria-hidden": "true" } }), icon);
+			button.createSpan({ text: label });
+			button.addEventListener("click", () => this.go(step));
+		};
+		fix("Give your days more hours", "clock", "time");
+		fix("Give the work less time", "list-checks", "work");
+		if (this.steps().includes("balance")) fix("Change what comes first", "arrow-up-down", "balance");
+		fixes.createEl("p", { cls: "editorialist-fill__section-intro", text: `Or move a date, in the engagement for a task or in the goal itself. ${waiting ? "Used as it is, the plan keeps the work that does not fit waiting without a day." : "Used as it is, a goal gets the hours shown and no more."}` });
 	}
 	private async apply(button: HTMLButtonElement): Promise<void> {
 		if (!this.draft || this.saving) return;

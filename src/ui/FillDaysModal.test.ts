@@ -72,7 +72,7 @@ describe("Fill my days", () => {
 		expect(current(root)).toBe("2What's due");
 		expect([...root.querySelectorAll(".editorialist-fill__group .editorialist-project__eyebrow")].map((item) => item.textContent)).toEqual(["Due to your editor · Book 2", "Your goals"]);
 		const notes = [...root.querySelectorAll(".editorialist-fill__item-main span")].map((item) => item.textContent ?? "");
-		expect(notes[0]).toMatch(/^Due .+ · ready by .+ · one sitting, until you say otherwise$/);
+		expect(notes[0]).toMatch(/^Due .+ · ready by .+ · an hour, until you say otherwise$/);
 		expect(notes[1]).toMatch(/^Hard deadline .+ · 25,000 words · 25,000 words to go at 750 an hour$/);
 		const fields = [...root.querySelectorAll<HTMLInputElement>(".editorialist-fill__hours input")];
 		expect(fields.map((field) => field.value)).toEqual(["1", "33.5"]);
@@ -106,8 +106,17 @@ describe("Fill my days", () => {
 		step(root, 3);
 		// Twenty-one days of two hours hold forty-two; the task has one of them.
 		expect(root.querySelector(".editorialist-autoschedule__forecast h3")?.textContent).toBe("Your days are planned");
-		expect(root.querySelector(".editorialist-autoschedule__issue strong")?.textContent).toBe("November Writers' Month");
-		expect(root.querySelector(".editorialist-autoschedule__issue p")?.textContent).toMatch(/^41 h of the 60 h it needs fit before /);
+		expect(root.querySelector(".editorialist-fill__section h4")?.textContent).toBe("More than your days hold");
+		expect(root.querySelector(".editorialist-fill__row-title")?.textContent).toBe("November Writers' Month");
+		expect(root.querySelector(".editorialist-fill__row-figure")?.textContent).toBe("41 of 60 h");
+		expect(root.querySelector(".editorialist-fill__row-detail")?.textContent).toMatch(/^Before .+ · about 30,750 words at your pace$/);
+		// Each way to make it fit opens the step that changes it.
+		const fixes = [...root.querySelectorAll<HTMLButtonElement>(".editorialist-fill__fix")];
+		expect(fixes.map((button) => button.textContent)).toEqual(["Give your days more hours", "Give the work less time", "Change what comes first"]);
+		fixes[0]!.click();
+		expect(current(root)).toBe("1Your time");
+		expect(root.textContent).not.toMatch(/Longest sitting/);
+		step(root, 3);
 		next(root);
 		await vi.waitFor(() => expect(apply).toHaveBeenCalled());
 		// No session is left without a day.

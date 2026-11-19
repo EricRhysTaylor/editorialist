@@ -8638,8 +8638,108 @@ button.editorialist-panel__contributors-row:focus-visible {
 	margin-top: 0;
 }
 
-.editorialist-fill .editorialist-autoschedule__preview h4 {
-	margin: 16px 0 4px;
+/* Below the plan's days: each kind of finding as a titled list of short rows,
+   a title and its reason on the left and the figure on the right. */
+.editorialist-fill__section {
+	margin-top: 20px;
+}
+
+.editorialist-fill__section h4,
+.editorialist-fill__fixes h4 {
+	margin: 0 0 4px;
+	font-size: var(--font-ui-medium);
+}
+
+.editorialist-fill__section.is-attention h4 {
+	color: var(--text-warning);
+}
+
+.editorialist-fill__section-intro {
+	margin: 0 0 8px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	line-height: 1.45;
+}
+
+.editorialist-fill__rows {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 10px;
+	overflow: hidden;
+}
+
+.editorialist-fill__row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 10px 12px;
+}
+
+.editorialist-fill__row + .editorialist-fill__row {
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.editorialist-fill__row-main {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.editorialist-fill__row-title {
+	font-weight: 600;
+	overflow-wrap: anywhere;
+}
+
+.editorialist-fill__row-detail {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	line-height: 1.4;
+}
+
+.editorialist-fill__row-figure {
+	flex-shrink: 0;
+	font-variant-numeric: tabular-nums;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.editorialist-fill__section.is-attention .editorialist-fill__row-figure {
+	color: var(--text-warning);
+}
+
+.editorialist-fill__fixes {
+	margin-top: 16px;
+	padding: 14px;
+	border-radius: 10px;
+	background: var(--background-secondary);
+}
+
+.editorialist-fill__fix-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 8px 0 10px;
+}
+
+.editorialist-fill__fix {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.editorialist-fill__fix-icon {
+	display: inline-flex;
+	color: var(--text-accent);
+}
+
+.editorialist-fill__fix-icon svg {
+	width: 16px;
+	height: 16px;
+}
+
+.editorialist-fill__fixes .editorialist-fill__section-intro {
+	margin: 0;
 }
 
 .editorialist-fill__nav {

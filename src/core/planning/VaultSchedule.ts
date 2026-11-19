@@ -67,6 +67,8 @@ export interface VaultDraft {
 	/** Goals given the days there are, where those are fewer than the goal needs. */
 	short: VaultShort[];
 	cushion: ScheduleIssue[];
+	/** Work whose date had already passed, planned on the first days with room. */
+	overdue: ScheduleIssue[];
 	/** Anything else the author should know: a kept date over its day, a broken order. */
 	notes: ScheduleIssue[];
 }
@@ -160,6 +162,14 @@ export function busyDays(plans: readonly AgendaPlan[], scope: string): Map<strin
 	const busy = new Map<string, number>();
 	for (const { plan, candidates } of plans.filter((item) => item.scope !== scope)) for (const [day, minutes] of held(plan, candidates, new Set())) busy.set(day, (busy.get(day) ?? 0) + minutes);
 	return busy;
+}
+
+/** The minutes left free from `start` through `end` once every plan's sessions have their days. */
+export function freeMinutes(plans: readonly AgendaPlan[], capacity: readonly number[], start: string, end: string): number {
+	const busy = busyDays(plans, "");
+	let free = 0;
+	for (let day = start; day <= end; day = addDays(day, 1)) free += Math.max(0, (capacity[new Date(`${day}T12:00:00`).getDay()] ?? 0) - (busy.get(day) ?? 0));
+	return free;
 }
 
 export function draftVaultSchedule(sources: readonly AgendaPlan[], options: VaultScheduleOptions, makeId: () => string): VaultDraft {
@@ -292,6 +302,7 @@ export function draftVaultSchedule(sources: readonly AgendaPlan[], options: Vaul
 		unplaced: [...unplaced.values()],
 		short: [...short.values()],
 		cushion: order.flatMap((part) => part.draft!.cushion),
+		overdue: order.flatMap((part) => part.draft!.overdue),
 		notes,
 	};
 }

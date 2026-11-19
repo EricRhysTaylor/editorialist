@@ -17,6 +17,8 @@ export interface ScheduleDraft {
 	plan: RevisionPlan; issues: ScheduleIssue[]; generated: PlanEntry[]; preserved: number; estimated: number;
 	/** Work that fits only by spending some of the days kept free before its deadline. */
 	cushion: ScheduleIssue[];
+	/** Work whose date had passed before the plan starts, planned on the first days with room. */
+	overdue: ScheduleIssue[];
 }
 /** Suggestions only: explicit scope/word cues outrank the source format. */
 export function suggestPhase(candidate: WorkCandidate, preset: SchedulePreset): WorkPhase | null {
@@ -110,7 +112,10 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 		if (count > 500) { issues.push({ key, title: candidate.title, reason: "Estimate exceeds 500 sessions. Review its scope and effort." }); continue; }
 		const heuristic = choice?.low === undefined || choice.high === undefined;
 		if (heuristic) estimated++;
-		let highLeft = Math.ceil(range.high), lowLeft = Math.floor(range.low), after: string | null = plan.targets ? null : previousNewId;
+		// Revision work follows on from the work before it. Goals and an editor's
+		// tasks are ordered by their own dates instead: chained, one task with no
+		// room before its date left every later task without a day.
+		let highLeft = Math.ceil(range.high), lowLeft = Math.floor(range.low), after: string | null = plan.targets || candidate.kind === "preparation" ? null : previousNewId;
 		for (let index = 0; index < count; index++) {
 			const high = Math.min(size, highLeft), low = index === count - 1 ? lowLeft : Math.floor(range.low * high / range.high);
 			const entry: PlanEntry = { id: makeId(), source: { kind: candidate.kind, path: candidate.path, locator: candidate.locator }, title: candidate.title, lowMinutes: low, highMinutes: high, day: null, required: true, done: false, afterId: after, ...(options.deliveryId !== null ? { autoDeliveryId: options.deliveryId } : {}), sessionIndex: index + 1, sessionCount: count, estimated: heuristic, phase: selectedPhase };
@@ -129,6 +134,7 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 	const scheduled = new Map(fixed.map((entry) => [entry.id, entry]));
 	const generated: PlanEntry[] = [];
 	const cushion: ScheduleIssue[] = [];
+	const overdue: ScheduleIssue[] = [];
 	let queue = pending;
 	while (queue.length) {
 		const waiting: PlanEntry[] = [];
@@ -144,18 +150,22 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 			const end = [options.end, due, deadline?.due].filter((day): day is string => Boolean(day)).sort()[0]!;
 			// Aim for the cushion first; spend it only when the work will not fit otherwise.
 			const aim = deadline && deadline.aim < end ? deadline.aim : end;
+			// A task for an editor whose date has gone by is still owed, so it takes
+			// the first day with room. A goal past a hard date is not planned after it.
+			const late = end < options.start && !plan.targets && entry.source.kind === "preparation";
 			let reason = "";
 			if (entry.afterId && (!parent || (!parentDone && !parent.day))) reason = "Prerequisite is missing or unscheduled.";
 			else if (entry.highMinutes === null || entry.lowMinutes === null) reason = "Needs an effort range.";
-			else if (earliest && earliest > end) reason = "Its start date is after its deadline or the end of the planning window.";
+			else if (earliest && earliest > end && !late) reason = "Its start date is after its deadline or the end of the planning window.";
 			else {
 				const fits = (limit: string): string | null => days.find((day) => day <= limit && (!earliest || day >= earliest) && (parentDone || !parent?.day || day >= parent.day) && remaining.get(day)! >= entry.highMinutes!) ?? null;
-				entry.day = fits(aim) ?? fits(end);
+				entry.day = late ? fits(options.end) : fits(aim) ?? fits(end);
 				if (entry.day) remaining.set(entry.day, remaining.get(entry.day)! - entry.highMinutes);
 				else reason = "Does not fit before the deadline with the current capacity.";
-				if (entry.day && deadline && entry.day > aim) {
+				if (entry.day && late) overdue.push({ key: sourceKey(entry.source), title: entry.title, reason: `Was due ${planDayLabel(end)}; planned for ${planDayLabel(entry.day)}.` });
+				else if (entry.day && deadline && entry.day > aim) {
 					const left = Math.round((Date.parse(`${deadline.due}T00:00:00Z`) - Date.parse(`${entry.day}T00:00:00Z`)) / 86400000);
-					cushion.push({ title: `${entry.title}${entry.sessionCount ? ` · Session ${entry.sessionIndex}/${entry.sessionCount}` : ""}`, reason: `Lands ${left} ${left === 1 ? "day" : "days"} before its ${planDayLabel(deadline.due)} deadline, not ${plan.cushionDays}.` });
+					cushion.push({ title: `${entry.title}${entry.sessionCount ? ` · Session ${entry.sessionIndex}/${entry.sessionCount}` : ""}`, reason: left > 0 ? `Lands ${left} ${left === 1 ? "day" : "days"} before its ${planDayLabel(deadline.due)} deadline, not ${plan.cushionDays}.` : `Lands on its ${planDayLabel(deadline.due)} deadline, not ${plan.cushionDays} days before.` });
 				}
 			}
 			if (reason) issues.push({ title: `${entry.title}${entry.sessionCount ? ` · Session ${entry.sessionIndex}/${entry.sessionCount}` : ""}`, reason });
@@ -168,5 +178,5 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 		queue = waiting;
 	}
 	next.entries = [...fixed, ...generated];
-	return { plan: next, issues, generated, preserved: fixed.length, estimated, cushion };
+	return { plan: next, issues, generated, preserved: fixed.length, estimated, cushion, overdue };
 }

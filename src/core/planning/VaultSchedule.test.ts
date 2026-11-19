@@ -144,4 +144,17 @@ describe("one schedule for goals and engagement tasks", () => {
 		// The book keeps its own planner's settings.
 		expect(draft.plans[0]!.plan.scheduling).toBeUndefined();
 	});
+	it("plans a task already past its date on the first day with room, and the tasks after it as well", () => {
+		const source = book();
+		const project = source.plan.project!;
+		project.milestones = [{ id: "frozen", title: "Manuscript frozen", day: "2026-10-30" }];
+		project.tasks = [{ id: "freeze", title: "Freeze the manuscript", materialId: null, milestoneId: "frozen", done: false }, ...project.tasks];
+		const late: AgendaPlan = { ...source, candidates: preparationWork(project) };
+		const freezeKey = sourceKey({ kind: "preparation", path: "engagement", locator: "freeze" });
+		const draft = run([late], { minutes: { [freezeKey]: 60, [taskKey]: 60 } });
+		// One task with no day before its date no longer leaves the next one without a day.
+		expect(draft.unplaced).toEqual([]);
+		expect(days(draft.plans, late.scope)).toEqual([START, START]);
+		expect(draft.overdue).toEqual([{ key: freezeKey, title: "Freeze the manuscript", reason: "Was due Oct 30; planned for Nov 2." }]);
+	});
 });
