@@ -632,6 +632,7 @@ export default class EditorialistPlugin extends Plugin {
 				this.refreshReviewPanel();
 				this.refreshEditorialismPanel();
 			}).catch((error: unknown) => console.error("Editorialist: manuscript target refresh failed", error));
+			this.watchRadialBook();
 			// One-time repair of per-batch attribution — reviewer signals and
 			// review decisions alike — for vaults whose data.json predates
 			// per-suggestion batch ids. Deferred to layout-ready because it reads
@@ -1604,7 +1605,31 @@ export default class EditorialistPlugin extends Plugin {
 		this.registry.setManuscriptTarget(normalized);
 		try { await this.savePluginData(); }
 		catch (error) { this.registry.restoreManuscriptTarget(previous); throw error; }
+		await this.followManuscriptScope();
+	}
+
+	// Radial Timeline's book as Editorialist last followed it; see watchRadialBook.
+	private radialBookFollowed: string | null = null;
+
+	// Radial Timeline announces no book change, so a book picked on its timeline
+	// left every panel on the old one until a pane change made Today look again,
+	// and Today showed the other book's edits. A cheap check of its active book
+	// follows the change wherever it was made.
+	private watchRadialBook(): void {
+		this.radialBookFollowed = this.radialBookGoals.activeBookId();
+		this.registerInterval(window.setInterval(() => {
+			const id = this.radialBookGoals.activeBookId();
+			if (id === this.radialBookFollowed || this.getManuscriptTarget()?.kind !== "radial") return;
+			this.radialBookFollowed = id;
+			void this.followManuscriptScope().catch((error: unknown) => console.error("Editorialist: could not follow the Radial Timeline book", error));
+		}, 1500));
+	}
+
+	/** The book in scope changed: read it again and bring every panel to it. */
+	private async followManuscriptScope(): Promise<void> {
+		this.radialBookFollowed = this.radialBookGoals.activeBookId();
 		await this.registry.syncOperationalMetadata();
+		void this.pendingEdits.refreshPendingEditsSummary({ force: true });
 		const eligible = new Set(this.getManuscriptFiles().map((file) => file.path));
 		if (this.store.getSession() && !eligible.has(this.store.getSession()!.notePath)) {
 			this.store.clearSession();
