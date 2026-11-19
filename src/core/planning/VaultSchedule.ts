@@ -37,7 +37,6 @@ export interface VaultScheduleOptions {
 	start: string;
 	/** Sunday through Saturday; the hours every plan shares. */
 	capacity: readonly number[];
-	sessionMinutes: number;
 	balance: Balance;
 	/** With "split": the minutes kept for goals on each day a goal is open. */
 	reserveMinutes: number;
@@ -47,11 +46,7 @@ export interface VaultScheduleOptions {
 	minutes: Readonly<Record<string, number>>;
 }
 
-export interface VaultUnplaced {
-	title: string; minutes: number; due: string | null;
-	/** One of its sessions is longer than any day's hours, so no day could ever hold it. */
-	tooLong?: true;
-}
+export interface VaultUnplaced { title: string; minutes: number; due: string | null }
 /** A goal with a date it cannot be finished by: the time that fits is planned, and the rest is said. */
 export interface VaultShort { key: string; title: string; wanted: number; placed: number; due: string | null }
 export interface VaultDraftPlan { scope: string; original: RevisionPlan; next: RevisionPlan }
@@ -198,10 +193,9 @@ export function draftVaultSchedule(sources: readonly AgendaPlan[], options: Vaul
 	const dates = parts.flatMap((part) => [part.plan.deadline, ...part.candidates.flatMap((candidate) => candidate.inactive || candidate.complete ? [] : [candidate.due, candidate.targetDate])]).filter((day): day is string => Boolean(day));
 	const limit = addDays(options.start, 365);
 	const end = [addDays(options.start, 30), ...dates].sort().at(-1)!;
-	const base: ScheduleOptions = { preset: "developmental", useEstimates: false, deliveryId: null, start: options.start, end: end > limit ? limit : end, replan: options.replan, sessionMinutes: options.sessionMinutes, choices: {} };
+	const base: ScheduleOptions = { preset: "developmental", useEstimates: false, deliveryId: null, start: options.start, end: end > limit ? limit : end, replan: options.replan, sessionMinutes: 60, choices: {}, fill: true };
 	const moving = (part: Part): ReadonlySet<string> => part.draft || !order.includes(part) ? new Set() : movableEntries(part.plan, part.candidates, base);
 	const holds = (part: Part): Map<string, number> => held(part.draft?.plan ?? part.plan, part.candidates, moving(part));
-	const room = Math.max(...options.capacity);
 	// A remembered split is set aside while only one kind of work is open, as its step is.
 	const split = Boolean(author) && options.balance === "split" && balanceApplies(sources);
 	const choicesFor = (part: Part): Record<string, TriageChoice> => {
@@ -221,8 +215,6 @@ export function draftVaultSchedule(sources: readonly AgendaPlan[], options: Vaul
 		for (const other of parts) if (other !== part) for (const [day, minutes] of holds(other)) busy.set(day, (busy.get(day) ?? 0) + minutes);
 		return busy;
 	};
-	// A session has to fit in the time its kind of work is given on the longest day.
-	const sitting = (part: Part): number => Math.max(15, Math.min(options.sessionMinutes, !split ? room : part.goal ? options.reserveMinutes : room - options.reserveMinutes));
 	// With a split, the goals are first given only their kept minutes a day, to
 	// learn which days they need them. The books plan around those minutes and
 	// have the whole of every other day; the goals then take what is left.
@@ -234,17 +226,17 @@ export function draftVaultSchedule(sources: readonly AgendaPlan[], options: Vaul
 			busy.set(day, Math.max(hours - options.reserveMinutes, busy.get(day) ?? 0));
 		}
 		let trial = 0;
-		for (const entry of draftSchedule(author.plan, author.candidates, { ...base, sessionMinutes: sitting(author), choices: choicesFor(author) }, () => `trial-${++trial}`, busy).generated) {
+		for (const entry of draftSchedule(author.plan, author.candidates, { ...base, choices: choicesFor(author) }, () => `trial-${++trial}`, busy).generated) {
 			if (entry.day) kept.set(entry.day, (kept.get(entry.day) ?? 0) + (entry.highMinutes ?? 0));
 		}
 	}
 	for (const part of order) {
 		const busy = others(part);
 		if (!part.goal) for (const [day, minutes] of kept) busy.set(day, (busy.get(day) ?? 0) + minutes);
-		const draft = draftSchedule(part.plan, part.candidates, { ...base, sessionMinutes: sitting(part), choices: choicesFor(part) }, makeId, busy);
+		const draft = draftSchedule(part.plan, part.candidates, { ...base, choices: choicesFor(part) }, makeId, busy);
 		const before = part.original.scheduling;
 		// The goals' plan remembers the choices made here, once there is something to remember.
-		if (part.goal && (draft.generated.length || options.balance !== (before?.balance ?? "deliverables") || (options.balance === "split" && options.reserveMinutes !== before?.reserveMinutes))) draft.plan.scheduling = { preset: before?.preset ?? "developmental", sessionMinutes: options.sessionMinutes, useEstimates: before?.useEstimates ?? true, balance: options.balance, reserveMinutes: options.reserveMinutes };
+		if (part.goal && (draft.generated.length || options.balance !== (before?.balance ?? "deliverables") || (options.balance === "split" && options.reserveMinutes !== before?.reserveMinutes))) draft.plan.scheduling = { preset: before?.preset ?? "developmental", sessionMinutes: before?.sessionMinutes ?? 60, useEstimates: before?.useEstimates ?? true, balance: options.balance, reserveMinutes: options.reserveMinutes };
 		else if (part.original.scheduling) draft.plan.scheduling = part.original.scheduling;
 		else delete draft.plan.scheduling;
 		part.draft = draft;
@@ -259,7 +251,7 @@ export function draftVaultSchedule(sources: readonly AgendaPlan[], options: Vaul
 		// Only this draft's own sessions may move again; the rest stay as the first pass left them.
 		const held = plan.entries.filter((entry) => !fresh.has(entry.id) && !entry.locked);
 		for (const entry of held) entry.locked = true;
-		const again = draftSchedule(plan, part.candidates, { ...base, replan: true, sessionMinutes: sitting(part), choices: choicesFor({ ...part, plan }) }, makeId, others(part));
+		const again = draftSchedule(plan, part.candidates, { ...base, replan: true, choices: choicesFor({ ...part, plan }) }, makeId, others(part));
 		const pinned = new Set(held.map((entry) => entry.id));
 		for (const entry of again.plan.entries) if (pinned.has(entry.id)) delete entry.locked;
 		if (part.original.scheduling) again.plan.scheduling = part.original.scheduling; else delete again.plan.scheduling;
@@ -278,13 +270,13 @@ export function draftVaultSchedule(sources: readonly AgendaPlan[], options: Vaul
 			const resolved = resolvePlanSource(entry.source, part.candidates);
 			const due = entryWorkDeadline(draft.plan, entry, part.candidates)?.due ?? (resolved.state === "ready" ? resolved.candidate.targetDate ?? null : null);
 			// A goal takes the days there are before its date. What does not fit is said, not left as sessions with no day.
-			if (part.goal && (entry.highMinutes ?? 0) <= room) {
+			if (part.goal) {
 				dropped.add(entry.id);
 				const all = draft.generated.filter((item) => sourceKey(item.source) === key);
 				short.set(key, { key, title: resolved.state === "ready" ? resolved.candidate.title : entry.title, wanted: all.reduce((sum, item) => sum + (item.highMinutes ?? 0), 0), placed: all.reduce((sum, item) => sum + (item.day ? item.highMinutes ?? 0 : 0), 0), due });
 				continue;
 			}
-			unplaced.set(key, { title: resolved.state === "ready" ? resolved.candidate.title : entry.title, minutes: (found?.minutes ?? 0) + (entry.highMinutes ?? 0), due, ...(found?.tooLong || (entry.highMinutes ?? 0) > room ? { tooLong: true as const } : {}) });
+			unplaced.set(key, { title: resolved.state === "ready" ? resolved.candidate.title : entry.title, minutes: (found?.minutes ?? 0) + (entry.highMinutes ?? 0), due });
 		}
 		if (dropped.size) {
 			draft.plan.entries = draft.plan.entries.filter((entry) => !dropped.has(entry.id));

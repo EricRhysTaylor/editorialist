@@ -39,6 +39,8 @@ When a goal needs more time than there is before its date, every day you have is
 
 A task due to your editor whose date has already passed is still owed, so it goes on the first day with room and is listed under **Past its date**. A task that cannot be placed never holds up the tasks after it.
 
+Your days are filled, not cut into blocks: each piece of work takes what is left of each day in turn, so no time goes unused and a piece of work has one session a day at most. A day's leftover under a quarter of an hour is not given a session of its own.
+
 The four steps above the plan change an answer in it. Click one to open it; nothing is saved until **Use this plan**.
 
 1. **Your time.** The hours you can give to writing work on each day of the week and the day to start on. Leave a day at 0 to keep it free. These are the same hours for every book and every goal: change them here, or in any schedule's **Deadline & capacity**, and they change everywhere.

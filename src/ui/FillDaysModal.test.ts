@@ -50,15 +50,15 @@ describe("Fill my days", () => {
 	it("opens on a plan worked out for the author, ready to use", async () => {
 		const { root, apply } = await open();
 		expect(current(root)).toBe("4Preview");
-		// 25,000 words at 750 an hour is 33.5 h, and the task one sitting: 35 sessions in days of two hours.
+		// 25,000 words at 750 an hour is 33.5 h, and the task an hour: one session a day, the task and the goal sharing the first.
 		expect(root.querySelector(".editorialist-autoschedule__forecast h3")?.textContent).toBe("Everything fits");
-		expect(root.querySelector(".editorialist-autoschedule__preview .editorialist-deliveries__intro")?.textContent).toMatch(/^35 sessions over 18 days, the last on /);
+		expect(root.querySelector(".editorialist-autoschedule__preview .editorialist-deliveries__intro")?.textContent).toMatch(/^19 sessions over 18 days, the last on /);
 		expect(root.querySelectorAll(".editorialist-days__day.is-over")).toHaveLength(0);
 		next(root);
 		await vi.waitFor(() => expect(apply).toHaveBeenCalled());
 		const changes = apply.mock.calls[0]![0];
 		expect(changes.map((change) => change.scope)).toEqual([BOOK, AUTHOR_PLAN_SCOPE]);
-		expect(changes.map((change) => change.next.entries.length)).toEqual([1, 34]);
+		expect(changes.map((change) => change.next.entries.length)).toEqual([1, 18]);
 		expect(changes[1]!.next.targets![0]).toMatchObject({ highMinutes: 2010 });
 		expect(changes[0]!.next.project!.tasks[0]!.minutes).toBe(60);
 	});
@@ -86,14 +86,14 @@ describe("Fill my days", () => {
 		next(root);
 		expect(current(root)).toBe("4Preview");
 		expect(root.querySelector(".editorialist-autoschedule__forecast h3")?.textContent).toBe("Everything fits");
-		expect(root.querySelector(".editorialist-autoschedule__preview .editorialist-deliveries__intro")?.textContent).toMatch(/^10 sessions over 5 days, the last on /);
+		expect(root.querySelector(".editorialist-autoschedule__preview .editorialist-deliveries__intro")?.textContent).toMatch(/^9 sessions over 5 days, the last on /);
 		// An hour of each on the first days: no day holds more than its two hours.
 		expect(root.querySelectorAll(".editorialist-days__day.is-over")).toHaveLength(0);
 		expect(root.querySelector(`.editorialist-days__day[data-day="${shift(0)}"]`)?.classList.contains("is-full")).toBe(true);
 		next(root);
 		await vi.waitFor(() => expect(apply).toHaveBeenCalled());
 		const changes = apply.mock.calls[0]![0];
-		expect(changes.map((change) => change.next.entries.length)).toEqual([4, 6]);
+		expect(changes.map((change) => change.next.entries.length)).toEqual([4, 5]);
 		expect(changes[1]!.next.targets![0]).toMatchObject({ highMinutes: 360 });
 		expect(changes[1]!.next.scheduling).toMatchObject({ balance: "split", reserveMinutes: 60 });
 		expect(changes[0]!.next.project!.tasks[0]!.minutes).toBe(240);
@@ -139,7 +139,7 @@ describe("Fill my days", () => {
 		step(root, 3);
 		next(root);
 		await vi.waitFor(() => expect(apply).toHaveBeenCalled());
-		expect(apply.mock.calls[0]![0].map((change) => change.next.entries.length)).toEqual([1, 34]);
+		expect(apply.mock.calls[0]![0].map((change) => change.next.entries.length)).toEqual([1, 18]);
 	});
 	it("shows quarter hours exactly, and retyping them keeps the same minutes", async () => {
 		const { root, apply } = await open();

@@ -11,7 +11,15 @@ export interface ScheduleOptions extends ScheduleDefaults {
 	end: string;
 	replan: boolean;
 	choices: Record<string, TriageChoice>;
+	/**
+	 * Fill each day's free time instead of cutting work into sessions of a set
+	 * length: a piece of work takes what is left of each day in turn, so no day
+	 * is left with an unused sliver and the work has one session a day at most.
+	 */
+	fill?: boolean;
 }
+// A day's leftover shorter than this is not worth a session of its own.
+const SMALLEST_PIECE = 15;
 export interface ScheduleIssue { title: string; reason: string; key?: string }
 export interface ScheduleDraft {
 	plan: RevisionPlan; issues: ScheduleIssue[]; generated: PlanEntry[]; preserved: number; estimated: number;
@@ -107,7 +115,8 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 		const range = manual ? choice?.low !== undefined && choice.high !== undefined ? { low: choice.low, high: choice.high } : null : options.useEstimates ? estimateRange(candidate) : null;
 		if (!range || !Number.isFinite(range.low) || !Number.isFinite(range.high) || range.low < 0 || range.high <= 0 || range.high < range.low) { issues.push({ key, title: candidate.title, reason: "Needs a valid effort range; unknown work is not counted as zero." }); continue; }
 		if (!maxDay) { issues.push({ key, title: candidate.title, reason: "No working capacity. Set working minutes before scheduling." }); continue; }
-		const size = Math.min(options.sessionMinutes, maxDay);
+		// Filling the days, the work is one piece here and is cut by the days it lands on.
+		const size = options.fill ? Math.max(1, Math.ceil(range.high)) : Math.min(options.sessionMinutes, maxDay);
 		const count = Math.ceil(range.high / size);
 		if (count > 500) { issues.push({ key, title: candidate.title, reason: "Estimate exceeds 500 sessions. Review its scope and effort." }); continue; }
 		const heuristic = choice?.low === undefined || choice.high === undefined;
@@ -157,6 +166,40 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 			if (entry.afterId && (!parent || (!parentDone && !parent.day))) reason = "Prerequisite is missing or unscheduled.";
 			else if (entry.highMinutes === null || entry.lowMinutes === null) reason = "Needs an effort range.";
 			else if (earliest && earliest > end && !late) reason = "Its start date is after its deadline or the end of the planning window.";
+			else if (options.fill) {
+				// Each day with room before the date takes as much as it has, earliest first.
+				const open = (day: string): boolean => (!earliest || day >= earliest) && (parentDone || !parent?.day || day >= parent.day);
+				const high = entry.highMinutes, low = entry.lowMinutes;
+				const limit = late ? options.end : end;
+				const pieces: [string, number][] = [];
+				let left = high;
+				for (const day of days) {
+					if (day > limit || !left) break;
+					const free = remaining.get(day)!;
+					if (!open(day) || free < Math.min(SMALLEST_PIECE, left)) continue;
+					const take = Math.min(free, left);
+					pieces.push([day, take]); left -= take;
+				}
+				const parts: PlanEntry[] = pieces.map(([day, take], index) => index === 0
+					? Object.assign(entry, { day, highMinutes: take, lowMinutes: Math.floor(low * take / high) })
+					: { ...entry, id: makeId(), day, highMinutes: take, lowMinutes: Math.floor(low * take / high) });
+				// What found no day stays as one piece without one, so the plan still holds all of it.
+				if (left) parts.push(pieces.length ? { ...entry, id: makeId(), day: null, highMinutes: left, lowMinutes: Math.max(0, low - parts.reduce((sum, part) => sum + (part.lowMinutes ?? 0), 0)) } : Object.assign(entry, { day: null }));
+				parts.forEach((part, index) => { if (index) part.afterId = parts[index - 1]!.id; if (part.day) remaining.set(part.day, remaining.get(part.day)! - part.highMinutes!); });
+				generated.push(entry);
+				for (const part of parts.slice(1)) { generated.push(part); scheduled.set(part.id, part); }
+				const last = pieces.at(-1)?.[0] ?? null;
+				// Work that waits on this one waits for its last day.
+				if (last) scheduled.set(entry.id, { ...entry, day: last });
+				if (left) issues.push({ title: entry.title, reason: "Does not fit before the deadline with the current capacity." });
+				if (last && late) overdue.push({ key: sourceKey(entry.source), title: entry.title, reason: `Was due ${planDayLabel(end)}; planned for ${planDayLabel(last)}.` });
+				else if (last && !left && deadline && last > aim) {
+					const daysLeft = Math.round((Date.parse(`${deadline.due}T00:00:00Z`) - Date.parse(`${last}T00:00:00Z`)) / 86400000);
+					cushion.push({ title: entry.title, reason: daysLeft > 0 ? `Lands ${daysLeft} ${daysLeft === 1 ? "day" : "days"} before its ${planDayLabel(deadline.due)} deadline, not ${plan.cushionDays}.` : `Lands on its ${planDayLabel(deadline.due)} deadline, not ${plan.cushionDays} days before.` });
+				}
+				if (!last) scheduled.set(entry.id, entry);
+				continue;
+			}
 			else {
 				const fits = (limit: string): string | null => days.find((day) => day <= limit && (!earliest || day >= earliest) && (parentDone || !parent?.day || day >= parent.day) && remaining.get(day)! >= entry.highMinutes!) ?? null;
 				entry.day = late ? fits(options.end) : fits(aim) ?? fits(end);
@@ -176,6 +219,12 @@ export function draftSchedule(plan: RevisionPlan, candidates: readonly WorkCandi
 			break;
 		}
 		queue = waiting;
+	}
+	// Cut by the days, each piece of work is numbered again by its sessions.
+	if (options.fill) {
+		const bySource = new Map<string, PlanEntry[]>();
+		for (const entry of generated) bySource.set(sourceKey(entry.source), [...(bySource.get(sourceKey(entry.source)) ?? []), entry]);
+		for (const parts of bySource.values()) parts.forEach((part, index) => { part.sessionIndex = index + 1; part.sessionCount = parts.length; });
 	}
 	next.entries = [...fixed, ...generated];
 	return { plan: next, issues, generated, preserved: fixed.length, estimated, cushion, overdue };

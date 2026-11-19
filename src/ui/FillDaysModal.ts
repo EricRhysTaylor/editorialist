@@ -21,11 +21,7 @@ const BALANCES: [Balance, string, string][] = [
 ];
 // Two decimals, so a quarter hour reads exactly (45 minutes is 0.75) and retyping
 // the figure shown gives back the same minutes.
-const inHours = (minutes: number): number => Math.round(minutes / 60 * 100) / 100;
-// Work is laid out in pieces of up to an hour, so a day's hours can hold several
-// kinds of work. Not the author's to set: it is how the days are packed, not a break.
-const PIECE_MINUTES = 60;
-const hours = (minutes: number): string => `${inHours(minutes)} h`;
+const inHours = (minutes: number): number => Math.round(minutes / 60 * 100) / 100;const hours = (minutes: number): string => `${inHours(minutes)} h`;
 
 /**
  * Fill my days: the author's goals and each engagement's tasks planned
@@ -108,7 +104,7 @@ export class FillDaysModal extends Modal {
 	private go(step: Step): void {
 		if (step === "preview") {
 			try {
-				this.draft = draftVaultSchedule(this.vault.plans, { start: this.start, capacity: this.capacity, sessionMinutes: PIECE_MINUTES, balance: this.balance, reserveMinutes: this.reserveMinutes, replan: this.replan, minutes: this.minutes }, () => crypto.randomUUID());
+				this.draft = draftVaultSchedule(this.vault.plans, { start: this.start, capacity: this.capacity, balance: this.balance, reserveMinutes: this.reserveMinutes, replan: this.replan, minutes: this.minutes }, () => crypto.randomUUID());
 			} catch (error) { new Notice(error instanceof Error ? error.message : "Could not plan your days."); return; }
 		}
 		this.step = step;
@@ -265,7 +261,7 @@ export class FillDaysModal extends Modal {
 			const list = this.section(body, "Not enough time", by
 				? free ? `Up to ${planDayLabel(by)} your days have ${hours(free)} free once the rest of this plan has its place. This work needs ${hours(short)}.` : `Your days up to ${planDayLabel(by)} are full with the rest of this plan.`
 				: "Your days are full with the rest of this plan.", true);
-			for (const item of draft.unplaced) this.row(list, item.title, item.tooLong ? "One piece is longer than any of your days." : item.due ? `Needed by ${planDayLabel(item.due)}` : "No date", hours(item.minutes));
+			for (const item of draft.unplaced) this.row(list, item.title, item.due ? `Needed by ${planDayLabel(item.due)}` : "No date", hours(item.minutes));
 		}
 		if (draft.short.length) {
 			const list = this.section(body, "More than your days hold", "Every day before its date is planned for it. The rest needs more time or a later date.", true);

@@ -22,7 +22,7 @@ function book(entries: PlanEntry[] = [], extra: WorkCandidate[] = []): AgendaPla
 	return { scope: JSON.stringify(["folder", "Book"]), plan, candidates: [...preparationWork(project), ...extra] };
 }
 const taskKey = sourceKey({ kind: "preparation", path: "engagement", locator: "synopsis" });
-const options = (extra: Partial<VaultScheduleOptions> = {}): VaultScheduleOptions => ({ start: START, capacity: week, sessionMinutes: 60, balance: "deliverables", reserveMinutes: 60, replan: false, minutes: { [goalKey]: 240, [taskKey]: 240 }, ...extra });
+const options = (extra: Partial<VaultScheduleOptions> = {}): VaultScheduleOptions => ({ start: START, capacity: week, balance: "deliverables", reserveMinutes: 60, replan: false, minutes: { [goalKey]: 240, [taskKey]: 240 }, ...extra });
 const run = (plans: AgendaPlan[], extra: Partial<VaultScheduleOptions> = {}) => { let id = 0; return draftVaultSchedule(plans, options(extra), () => `s${++id}`); };
 const days = (plans: readonly AgendaPlan[], scope: string): (string | null)[] => plans.find((plan) => plan.scope === scope)!.plan.entries.map((entry) => entry.day);
 const load = (plans: readonly AgendaPlan[]): Record<string, number> => {
@@ -42,17 +42,17 @@ describe("one schedule for goals and engagement tasks", () => {
 	it("never gives the same hour to a goal and a task", () => {
 		const draft = run([book(), author()]);
 		expect(draft.unplaced).toEqual([]);
-		expect(draft.days).toHaveLength(8);
+		expect(draft.days).toHaveLength(4);
 		expect(Object.values(load(draft.plans)).every((minutes) => minutes <= 120)).toBe(true);
-		// Deliverables first: the task takes the first two days, the goal the next two.
-		expect(days(draft.plans, book().scope)).toEqual(["2026-11-02", "2026-11-02", "2026-11-03", "2026-11-03"]);
-		expect(days(draft.plans, AUTHOR_PLAN_SCOPE)).toEqual(["2026-11-04", "2026-11-04", "2026-11-05", "2026-11-05"]);
+		// Deliverables first: the task takes the first two days, the goal the next two, one session a day.
+		expect(days(draft.plans, book().scope)).toEqual(["2026-11-02", "2026-11-03"]);
+		expect(days(draft.plans, AUTHOR_PLAN_SCOPE)).toEqual(["2026-11-04", "2026-11-05"]);
 		expect(draft.changes.map((change) => change.scope).sort()).toEqual([AUTHOR_PLAN_SCOPE, book().scope].sort());
 	});
 	it("puts goals first when asked", () => {
 		const draft = run([book(), author()], { balance: "goals" });
-		expect(days(draft.plans, AUTHOR_PLAN_SCOPE)).toEqual(["2026-11-02", "2026-11-02", "2026-11-03", "2026-11-03"]);
-		expect(days(draft.plans, book().scope)).toEqual(["2026-11-04", "2026-11-04", "2026-11-05", "2026-11-05"]);
+		expect(days(draft.plans, AUTHOR_PLAN_SCOPE)).toEqual(["2026-11-02", "2026-11-03"]);
+		expect(days(draft.plans, book().scope)).toEqual(["2026-11-04", "2026-11-05"]);
 	});
 	it("keeps minutes for goals on each day a goal is open", () => {
 		const draft = run([book(), author()], { balance: "split" });
@@ -60,25 +60,28 @@ describe("one schedule for goals and engagement tasks", () => {
 		expect(days(draft.plans, AUTHOR_PLAN_SCOPE)).toEqual(["2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05"]);
 		// Nothing is kept back once the goal's own date has passed.
 		const later = run([book(), author([goal({ due: "2026-11-02" })])], { balance: "split", minutes: { [goalKey]: 60, [taskKey]: 240 } });
-		expect(days(later.plans, book().scope)).toEqual(["2026-11-02", "2026-11-03", "2026-11-03", "2026-11-04"]);
+		expect(days(later.plans, book().scope)).toEqual(["2026-11-02", "2026-11-03", "2026-11-04"]);
+		expect(later.plans.find((plan) => plan.scope === book().scope)!.plan.entries.map((entry) => entry.highMinutes)).toEqual([60, 120, 60]);
 	});
 	it("gives book work full sittings under a remembered split once every goal is finished", () => {
 		const finished = [book(), author([goal({ done: true })])];
 		expect(balanceApplies(finished)).toBe(false);
 		expect(balanceApplies([book(), author()])).toBe(true);
 		const draft = run(finished, { balance: "split", reserveMinutes: 90 });
-		// Sixty-minute sittings, as with no split at all, not the half hour a split would leave.
-		expect(draft.plans.find((plan) => plan.scope === book().scope)!.plan.entries.map((entry) => entry.highMinutes)).toEqual([60, 60, 60, 60]);
-		expect(days(draft.plans, book().scope)).toEqual(["2026-11-02", "2026-11-02", "2026-11-03", "2026-11-03"]);
+		// Whole days, as with no split at all, not the half hour a split would leave.
+		expect(draft.plans.find((plan) => plan.scope === book().scope)!.plan.entries.map((entry) => entry.highMinutes)).toEqual([120, 120]);
+		expect(days(draft.plans, book().scope)).toEqual(["2026-11-02", "2026-11-03"]);
 	});
-	it("lets a long session have a day the goals turned out not to need", () => {
-		// An hour a day is kept for the goal on every day to the synopsis's date, so ninety minutes fit beside none of them.
-		// The goal then takes whole days and is done on the 11th, which leaves the 12th.
+	it("fills what a split leaves of each day, so a long session is cut across days", () => {
+		// An hour a day is kept for the goal, so ninety minutes take the hour left on the 2nd and half an hour on the 3rd.
 		const long: PlanEntry = { id: "long", source: { kind: "preparation", path: "engagement", locator: "synopsis" }, title: "Write the synopsis", lowMinutes: 90, highMinutes: 90, day: "2026-11-20", required: true, done: false, afterId: null };
 		const draft = run([book([long]), author([goal({ due: "2026-11-20" })])], { balance: "split", replan: true, minutes: { [goalKey]: 900 } });
 		expect(draft.unplaced).toEqual([]);
-		expect(days(draft.plans, AUTHOR_PLAN_SCOPE).at(-1)).toBe("2026-11-11");
-		expect(days(draft.plans, book().scope)).toEqual(["2026-11-12"]);
+		expect(days(draft.plans, book().scope)).toEqual(["2026-11-02", "2026-11-03"]);
+		expect(draft.plans[0]!.plan.entries.map((entry) => entry.highMinutes)).toEqual([60, 30]);
+		// The goal takes the rest of each day and is done on the 12th.
+		expect(days(draft.plans, AUTHOR_PLAN_SCOPE).at(-1)).toBe("2026-11-12");
+		expect(Object.values(load(draft.plans)).every((minutes) => minutes <= 120)).toBe(true);
 		expect(draft.plans[0]!.plan.entries[0]!.locked).toBeUndefined();
 	});
 	it("gives a goal the days there are before its date, and says how much of it fits", () => {
@@ -89,21 +92,29 @@ describe("one schedule for goals and engagement tasks", () => {
 		expect(draft.notes).toEqual([]);
 		// No goal session is left without a day, and the kept ones count themselves.
 		const goals = draft.plans.find((plan) => plan.scope === AUTHOR_PLAN_SCOPE)!.plan.entries;
-		expect(goals).toHaveLength(16);
-		expect(goals.every((entry) => entry.day && entry.sessionCount === 16)).toBe(true);
+		expect(goals).toHaveLength(8);
+		expect(goals.every((entry) => entry.day && entry.sessionCount === 8)).toBe(true);
 	});
 	it("plans a session that never had a day again, with the time it was given", () => {
 		const waiting: PlanEntry = { id: "old", source: { kind: "preparation", path: "engagement", locator: "synopsis" }, title: "Write the synopsis", lowMinutes: null, highMinutes: 180, day: null, required: true, done: false, afterId: null };
 		expect(vaultWork([book([waiting])]).map((item) => [item.title, item.minutes])).toEqual([["Write the synopsis", 180]]);
 		const draft = run([book([waiting]), author()], { minutes: {} });
-		expect(days(draft.plans, book().scope)).toEqual(["2026-11-02", "2026-11-02", "2026-11-03"]);
+		expect(days(draft.plans, book().scope)).toEqual(["2026-11-02", "2026-11-03"]);
 		expect(draft.plans[0]!.plan.entries.some((entry) => entry.id === "old")).toBe(false);
 		// One the author kept stays as it is.
 		expect(run([book([{ ...waiting, locked: true }]), author()], { minutes: {} }).changes).toEqual([]);
 	});
-	it("names a session longer than any day rather than calling the days full", () => {
+	it("cuts a session longer than any day across the days it needs", () => {
 		const long: PlanEntry = { id: "long", source: { kind: "preparation", path: "engagement", locator: "synopsis" }, title: "Write the synopsis", lowMinutes: 150, highMinutes: 150, day: START, required: true, done: false, afterId: null };
-		expect(run([book([long]), author()], { replan: true, minutes: {} }).unplaced).toEqual([{ title: "Write the synopsis", minutes: 150, due: "2026-11-20", tooLong: true }]);
+		const draft = run([book([long]), author()], { replan: true, minutes: {} });
+		expect(draft.unplaced).toEqual([]);
+		expect(draft.plans[0]!.plan.entries.map((entry) => [entry.day, entry.highMinutes, entry.sessionIndex, entry.sessionCount])).toEqual([[START, 120, 1, 2], ["2026-11-03", 30, 2, 2]]);
+	});
+	it("leaves no sliver of a day unused", () => {
+		// A quarter hour of one task leaves an hour and three quarters, which the next task takes whole.
+		const draft = run([book(), author()], { minutes: { [taskKey]: 15, [goalKey]: 225 } });
+		expect(days(draft.plans, AUTHOR_PLAN_SCOPE)).toEqual([START, "2026-11-03"]);
+		expect(draft.plans.find((plan) => plan.scope === AUTHOR_PLAN_SCOPE)!.plan.entries.map((entry) => entry.highMinutes)).toEqual([105, 120]);
 	});
 	it("leaves out work the author has given no time, and keeps a goal's time as its estimate", () => {
 		const draft = run([book(), author()], { minutes: { [goalKey]: 120 } });
