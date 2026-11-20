@@ -113,7 +113,10 @@ export function vaultWork(plans: readonly (AgendaPlan & { label?: string | null 
 	return plans.flatMap((source) => {
 		const candidates = scoped(source);
 		const open = openEntries(source.plan, candidates), given = entryMinutes(source.plan, (entry) => open.has(entry.id)), done = doneMinutes(source.plan, candidates);
-		const kept = new Set(source.plan.entries.filter((entry) => entry.locked).map((entry) => sourceKey(entry.source)));
+		// Only an open kept session holds its work in place, as in openEntries; a
+		// kept session already done leaves the rest of the work to be planned.
+		const doneKeys = progressDoneKeys(source.plan);
+		const kept = new Set(source.plan.entries.filter((entry) => entry.locked && !isPlanEntryComplete(entry, candidates, doneKeys)).map((entry) => sourceKey(entry.source)));
 		const goal = source.scope === AUTHOR_PLAN_SCOPE;
 		const tasks = source.plan.project?.tasks ?? [];
 		const items = candidates.flatMap((candidate): VaultWorkItem[] => {
