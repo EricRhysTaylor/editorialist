@@ -21,7 +21,8 @@ const BALANCES: [Balance, string, string][] = [
 ];
 // Two decimals, so a quarter hour reads exactly (45 minutes is 0.75) and retyping
 // the figure shown gives back the same minutes.
-const inHours = (minutes: number): number => Math.round(minutes / 60 * 100) / 100;const hours = (minutes: number): string => `${inHours(minutes)} h`;
+const inHours = (minutes: number): number => Math.round(minutes / 60 * 100) / 100;
+const hours = (minutes: number): string => `${inHours(minutes)} h`;
 
 /**
  * Fill my days: the author's goals and each engagement's tasks planned

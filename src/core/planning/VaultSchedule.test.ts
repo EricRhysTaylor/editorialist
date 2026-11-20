@@ -104,6 +104,13 @@ describe("one schedule for goals and engagement tasks", () => {
 		// One the author kept stays as it is.
 		expect(run([book([{ ...waiting, locked: true }]), author()], { minutes: {} }).changes).toEqual([]);
 	});
+	it("lists work whose only kept session is already done, as it is planned", () => {
+		const finished: PlanEntry = { id: "done", source: { kind: "preparation", path: "engagement", locator: "synopsis" }, title: "Write the synopsis", lowMinutes: 60, highMinutes: 60, day: "2026-10-30", required: true, done: true, afterId: null, locked: true };
+		const source = book([finished]);
+		source.plan.project!.tasks[0]!.minutes = 300;
+		expect(vaultWork([source]).map((item) => [item.title, item.minutes])).toEqual([["Write the synopsis", 240]]);
+		expect(days(run([source], { minutes: { [taskKey]: 240 } }).plans, source.scope)).toEqual(["2026-10-30", START, "2026-11-03"]);
+	});
 	it("cuts a session longer than any day across the days it needs", () => {
 		const long: PlanEntry = { id: "long", source: { kind: "preparation", path: "engagement", locator: "synopsis" }, title: "Write the synopsis", lowMinutes: 150, highMinutes: 150, day: START, required: true, done: false, afterId: null };
 		const draft = run([book([long]), author()], { minutes: {} });
