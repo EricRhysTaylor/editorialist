@@ -47,6 +47,20 @@ const AVATAR_CHOICE_DEFINITIONS: AvatarChoiceDefinition[] = [
 	{ value: "grok", label: "Grok", brand: "grok" },
 ];
 
+/** A selectable tile: a button holding an (empty) icon slot and its label. */
+function createChoiceTile(parent: HTMLElement, label: string): { tile: HTMLButtonElement; icon: HTMLElement } {
+	const tile = parent.createEl("button", {
+		cls: "editorialist-contributor-modal__tile",
+		attr: { type: "button" },
+	});
+	const icon = tile.createSpan({ cls: "editorialist-contributor-modal__tile-icon" });
+	tile.createSpan({
+		cls: "editorialist-contributor-modal__tile-label",
+		text: label,
+	});
+	return { tile, icon };
+}
+
 class ContributorStrengthsModal extends PromiseModal<ContributorStrengthsModalResult> {
 	private displayName: string;
 	private identityNameEl: HTMLElement | null = null;
@@ -221,16 +235,8 @@ class ContributorStrengthsModal extends PromiseModal<ContributorStrengthsModalRe
 		definition: ContributorRoleDefinition,
 		allSyncCallbacks: Array<() => void>,
 	): () => void {
-		const tile = parent.createEl("button", {
-			cls: "editorialist-contributor-modal__tile",
-			attr: { type: "button" },
-		});
-		const icon = tile.createSpan({ cls: "editorialist-contributor-modal__tile-icon" });
+		const { tile, icon } = createChoiceTile(parent, definition.label);
 		setIcon(icon, definition.icon);
-		tile.createSpan({
-			cls: "editorialist-contributor-modal__tile-label",
-			text: definition.label,
-		});
 
 		const syncState = () => {
 			tile.toggleClass("is-selected", this.selectedRole === definition.value);
@@ -254,20 +260,12 @@ class ContributorStrengthsModal extends PromiseModal<ContributorStrengthsModalRe
 		definition: AvatarChoiceDefinition,
 		allSyncCallbacks: Array<() => void>,
 	): () => void {
-		const tile = parent.createEl("button", {
-			cls: "editorialist-contributor-modal__tile",
-			attr: { type: "button" },
-		});
-		const icon = tile.createSpan({ cls: "editorialist-contributor-modal__tile-icon" });
+		const { tile, icon } = createChoiceTile(parent, definition.label);
 		if (definition.brand) {
 			renderContributorBrandMark(icon, definition.brand);
 		} else if (definition.icon) {
 			setIcon(icon, definition.icon);
 		}
-		tile.createSpan({
-			cls: "editorialist-contributor-modal__tile-label",
-			text: definition.label,
-		});
 
 		const syncState = () => {
 			tile.toggleClass("is-selected", this.selectedAvatar === definition.value);
@@ -285,16 +283,8 @@ class ContributorStrengthsModal extends PromiseModal<ContributorStrengthsModalRe
 	}
 
 	private createStrengthTile(parent: HTMLElement, definition: ContributorStrengthDefinition): void {
-		const tile = parent.createEl("button", {
-			cls: "editorialist-contributor-modal__tile",
-			attr: { type: "button" },
-		});
-		const icon = tile.createSpan({ cls: "editorialist-contributor-modal__tile-icon" });
+		const { tile, icon } = createChoiceTile(parent, definition.label);
 		setIcon(icon, definition.icon);
-		tile.createSpan({
-			cls: "editorialist-contributor-modal__tile-label",
-			text: definition.label,
-		});
 
 		const syncState = () => {
 			tile.toggleClass("is-selected", this.selectedStrengths.has(definition.value));
