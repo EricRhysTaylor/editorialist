@@ -15,6 +15,16 @@ export interface DayGridOptions {
 	strip?: boolean;
 	/** The squares share the panel's width, as the week strip does, instead of a fixed size. */
 	fluid?: boolean;
+	/** Draw this week's time a day at a time, in a thin row right above this week's squares. */
+	load?: boolean;
+}
+
+/** One day's time: done, then still planned, against its hours. A day off is only an outline. */
+function loadSegment(parent: HTMLElement, day: GridDay): void {
+	const segment = parent.createSpan({ cls: `editorialist-days__load-day${day.capacity ? "" : " is-off"}${day.today ? " is-today" : ""}`, attr: { "aria-hidden": "true" } });
+	if (!day.capacity) return;
+	segment.createSpan({ cls: "editorialist-days__load-done" }).style.setProperty("--editorialist-load", `${Math.min(100, day.done / day.capacity * 100)}%`);
+	segment.createSpan({ cls: "editorialist-days__load-planned" }).style.setProperty("--editorialist-load", `${Math.min(100, day.minutes / day.capacity * 100)}%`);
 }
 
 /** A day gone by: what was done on it. */
@@ -98,6 +108,10 @@ export function renderDayGrid(parent: HTMLElement, weeks: readonly GridDay[][], 
 	grid.createSpan({ attr: { "aria-hidden": "true" } });
 	for (const name of WEEKDAYS) grid.createSpan({ cls: "editorialist-days__weekday", text: name, attr: { "aria-hidden": "true" } });
 	for (const week of weeks) {
+		if (options.load && week.some((day) => day.today)) {
+			grid.createSpan({ attr: { "aria-hidden": "true" } });
+			for (const day of week) loadSegment(grid, day);
+		}
 		grid.createSpan({ cls: "editorialist-days__week", text: weekName(week[0]!.day), attr: { "aria-hidden": "true" } });
 		for (const day of week) square(grid, day, options);
 	}
@@ -111,20 +125,16 @@ const hours = (minutes: number): string => `${Math.round(minutes / 6) / 10}`;
  * This week's time as one line and one bar: the part done, then the part still
  * planned, against the hours set aside. Today and the schedules share it.
  */
-export function renderWeekLoad(parent: HTMLElement, week: readonly GridDay[]): HTMLElement {
+export function renderWeekLoad(parent: HTMLElement, week: readonly GridDay[], options: { bar?: boolean } = {}): HTMLElement {
 	const { done, planned, room } = weekLoad(week);
 	const load = parent.createDiv({ cls: "editorialist-days__load" });
 	const total = done + planned;
 	load.createSpan({ cls: "editorialist-days__load-text", text: room ? `This week · ${done ? `${hours(done)} h done · ` : ""}${hours(total)} of ${hours(room)} h planned` : total ? `This week · ${hours(total)} h planned` : "This week" });
 	// A segment a day: each filled by its own time done, then still planned, against its hours.
-	if (room) {
+	// Without its own bar when the days grid draws the segments above this week's squares.
+	if (room && options.bar !== false) {
 		const bar = load.createDiv({ cls: "editorialist-days__load-bar", attr: { "aria-hidden": "true" } });
-		for (const day of week) {
-			const segment = bar.createSpan({ cls: `editorialist-days__load-day${day.capacity ? "" : " is-off"}${day.today ? " is-today" : ""}` });
-			if (!day.capacity) continue;
-			segment.createSpan({ cls: "editorialist-days__load-done" }).style.setProperty("--editorialist-load", `${Math.min(100, day.done / day.capacity * 100)}%`);
-			segment.createSpan({ cls: "editorialist-days__load-planned" }).style.setProperty("--editorialist-load", `${Math.min(100, day.minutes / day.capacity * 100)}%`);
-		}
+		for (const day of week) loadSegment(bar, day);
 	}
 	return load;
 }

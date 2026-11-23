@@ -455,8 +455,8 @@ export class RevisionPlanPanel extends ItemView {
 		head.createSpan({ cls: "editorialist-project__eyebrow", text: "Your days" });
 		head.createSpan({ cls: "editorialist-author__panel-range", text: `${planDayLabel(weeks[0]![0]!.day)} – ${planDayLabel(weeks[weeks.length - 1]![6]!.day)}` });
 		const thisWeek = weeks.find((week) => week.some((day) => day.today));
-		if (thisWeek) renderWeekLoad(calendar, thisWeek);
-		renderDayGrid(calendar, weeks, { hint, fluid: true, open: (day) => this.openDay(day.day) });
+		if (thisWeek) renderWeekLoad(calendar, thisWeek, { bar: false });
+		renderDayGrid(calendar, weeks, { hint, fluid: true, load: true, open: (day) => this.openDay(day.day) });
 		return calendar;
 	}
 	private renderViewTabs(parent: HTMLElement): void {

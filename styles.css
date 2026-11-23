@@ -7720,10 +7720,18 @@ button.editorialist-panel__contributors-row:focus-visible {
 }
 
 .editorialist-days__load-day {
+	height: 4px;
 	display: flex;
 	border-radius: 4px;
 	background: var(--background-modifier-border);
 	overflow: hidden;
+}
+
+/* In the days grid the segments sit just above this week's squares, closer to
+   the week they measure than to the one before. */
+.editorialist-days > .editorialist-days__load-day {
+	align-self: end;
+	margin-bottom: -3px;
 }
 
 /* A day off has no hours to fill, so it is only a faint gap in the week. */
