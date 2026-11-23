@@ -112,7 +112,7 @@ describe("ContributorManagementOrchestrator", () => {
 		registry.getMovedPassCount.mockReturnValue(1);
 		const ask = vi.spyOn(host, "openChoiceModal");
 		await expect(orchestrator.deleteContributorById(moved.reviewerId ?? "")).resolves.toBe(true);
-		expect(ask.mock.calls[0]?.[0].description).toContain("The pass you moved to them goes back to the name in its notes.");
+		expect(ask.mock.calls[0]?.[0].description).toContain("The file you credited to them goes back to the name in its notes.");
 		expect(directory.resolveContributor(samRaw, "batch-2").displayName).toBe("Sam");
 	});
 
@@ -213,6 +213,24 @@ describe("ContributorManagementOrchestrator", () => {
 		expect(s1?.contributor.resolutionStatus).toBe("alias");
 		expect(s2?.contributor.suggestedReviewerIds).toEqual([leeId]);
 		expect(registry.reassignReviewerSignals).toHaveBeenCalledWith(samId, leeId, { persist: false });
+	});
+
+	it("offers an engagement's editor the editor's choices, and opens the engagement to change editor", async () => {
+		const { host, directory, orchestrator } = setup({ choice: "change" });
+		const samId = directory.resolveContributor(samRaw).reviewerId!;
+		const ask = vi.spyOn(host, "openChoiceModal");
+		const changeEditor = vi.fn();
+		await expect(orchestrator.openContributorManagementFlow(samId, { engagement: "Developmental edit", changeEditor })).resolves.toBe(false);
+		const options = ask.mock.calls[0]![0];
+		expect(options.title).toBe(directory.getProfileById(samId)!.displayName);
+		expect(options.description).toMatch(/^Your editor for Developmental edit\. /);
+		// Each choice says what it does; deleting the editor is left to Settings.
+		expect(options.choices.map((choice) => choice.value)).toEqual(["strengths", "change", "move", "merge"]);
+		expect(options.choices.every((choice) => choice.detail)).toBe(true);
+		expect(changeEditor).toHaveBeenCalledOnce();
+		// From Settings, Delete is offered and there is no engagement to change.
+		await orchestrator.openContributorManagementFlow(samId);
+		expect(ask.mock.calls[1]![0].choices.map((choice) => choice.value)).toEqual(["strengths", "move", "merge", "delete"]);
 	});
 
 	it("preselects a dropped target and preserves aliases in the surviving bucket", async () => {

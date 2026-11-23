@@ -23,7 +23,8 @@ export interface ProjectPanelHost {
 	deliveries: EditorialDelivery[];
 	saveDelivery(delivery: EditorialDelivery): Promise<void>;
 	getReviewers(): ContributorProfile[];
-	manageEditor(id: string): Promise<void>;
+	/** Opens the editor's profile choices, as the engagement's editor. */
+	manageEditor(id: string, editor: { engagement: string; changeEditor(): void }): Promise<void>;
 	openSchedule(): void;
 	openSource(path: string): Promise<void>;
 	/** The next session, by the rule Today uses. */
@@ -161,7 +162,7 @@ export class EditorialProjectPanel {
 			const link = name.createEl("button", { cls: "editorialist-project__editor-link", text: editor.name, attr: { type: "button" } });
 			setIconLabel(link, `Open ${editor.name}'s profile`);
 			link.disabled = this.host.busy;
-			link.addEventListener("click", () => { void this.host.manageEditor(profile.id).catch((reason: unknown) => new Notice(reason instanceof Error ? reason.message : "Could not open the editor's profile.")); });
+			link.addEventListener("click", () => { void this.host.manageEditor(profile.id, { engagement: project.title, changeEditor: () => this.setup() }).catch((reason: unknown) => new Notice(reason instanceof Error ? reason.message : "Could not open the editor's profile.")); });
 		} else name.setText(editor.name);
 		hero.createDiv({ cls: "editorialist-project__editor-role", text: project.title });
 		if (editor.state === "unavailable") hero.createEl("p", { cls: "editorialist-project__warning", text: "The saved editor profile is unavailable. Choose an existing contributor in engagement details." });

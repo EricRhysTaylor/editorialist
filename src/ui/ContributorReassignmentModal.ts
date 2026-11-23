@@ -41,20 +41,20 @@ class ContributorReassignmentModal extends PromiseModal<ContributorReassignmentR
 	protected renderContent(): void {
 		this.contentEl.addClass("editorialist-contributor-modal");
 
-		const title = this.options.mode === "merge" ? "Merge contributor" : "Move a pass";
+		const title = this.options.mode === "merge" ? "Merge with a duplicate name" : "Credit a file to someone else";
 		this.contentEl.createEl("h3", { text: title });
 		this.contentEl.createDiv({
 			cls: "editorialist-contributor-modal__description",
 			text:
 				this.options.mode === "merge"
-					? "Combine both contributors under the target name. The current name and its aliases become alternate names of the target, and their revision history and stats are combined."
-					: "Credit one imported pass to the contributor it really came from, or a new one. The notes in your scenes and your decisions on them stay as they are; the pass's stats move with it.",
+					? "For one person filed under two names. This name becomes another name for the one you keep, and their history and stats are combined."
+					: "For a file of notes filed under the wrong person. Only the credit moves: the notes in your scenes and your decisions on them stay as they are.",
 		});
 
 		const currentRow = this.contentEl.createDiv({ cls: "editorialist-contributor-modal__row" });
 		currentRow.createDiv({
 			cls: "editorialist-contributor-modal__label",
-			text: "Current contributor",
+			text: "Filed under",
 		});
 		currentRow.createDiv({
 			cls: "editorialist-contributor-modal__value",
@@ -114,18 +114,18 @@ class ContributorReassignmentModal extends PromiseModal<ContributorReassignmentR
 		const scopeRow = this.contentEl.createDiv({ cls: "editorialist-contributor-modal__scope" });
 		scopeRow.createDiv({
 			cls: "editorialist-contributor-modal__label",
-			text: this.options.mode === "move" ? "Pass" : "Scope",
+			text: this.options.mode === "move" ? "File" : "Covers",
 		});
 		scopeRow.createDiv({
 			cls: "editorialist-contributor-modal__value",
-			text: this.options.mode === "move" ? this.options.passLabel ?? "One pass" : "All revision notes",
+			text: this.options.mode === "move" ? this.options.passLabel ?? "One imported file" : "All their notes",
 		});
 
 		this.footer = buildModalFooter(this.contentEl, {
 			className: "editorialist-contributor-modal__actions",
 			buttons: [
 				{
-					text: this.options.mode === "merge" ? "Merge contributor" : "Move pass",
+					text: this.options.mode === "merge" ? "Merge" : "Credit file",
 					cta: true,
 					enableWhen: () =>
 						this.targetValue === "__create__"

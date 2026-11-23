@@ -24,7 +24,15 @@ import type { ContributorReassignmentMode, ContributorReassignmentResult } from 
 import type { ContributorStrengthsModalResult } from "../ui/ContributorStrengthsModal";
 import type { EditorialistChoiceModalOptions } from "../ui/EditorialistChoiceModal";
 
-export type ContributorManagementAction = "strengths" | "move" | "merge" | "delete";
+export type ContributorManagementAction = "strengths" | "change" | "move" | "merge" | "delete";
+
+/** Opened from an editor engagement: the contributor is the editor the author hired for it. */
+export interface EngagementEditorContext {
+	/** The engagement, as its title reads, e.g. "Developmental edit". */
+	engagement: string;
+	/** Opens the engagement's details, where its editor is chosen. */
+	changeEditor(): void;
+}
 
 export interface ContributorManagementOrchestratorHost {
 	readonly store: Pick<ReviewStore, "getSession" | "replaceSuggestions">;
@@ -72,24 +80,43 @@ export class ContributorManagementOrchestrator {
 		this.host.refreshReviewPanel();
 	}
 
-	async openContributorManagementFlow(reviewerId: string): Promise<boolean> {
+	async openContributorManagementFlow(reviewerId: string, editor?: EngagementEditorContext): Promise<boolean> {
 		const profile = this.host.reviewerDirectory.getProfileById(reviewerId);
 		if (!profile) {
 			new Notice("Contributor not found.");
 			return false;
 		}
 
-		const action = await this.host.openChoiceModal<ContributorManagementAction>({
-			title: "Manage contributor",
-			description: `Choose how to update ${profile.displayName}.`,
+		const name = profile.displayName;
+		// An engagement's editor is a contributor like any other: their imported
+		// feedback is filed under this name. From the engagement, the choices are
+		// about that editor, and deleting them is left to Settings, since the
+		// engagement would lose its editor.
+		const action = await this.host.openChoiceModal<ContributorManagementAction>(editor ? {
+			title: name,
+			description: `Your editor for ${editor.engagement}. Feedback you import from ${name} is filed under this name.`,
 			choices: [
-				{ label: "Edit", value: "strengths" },
-				{ label: "Move a pass to someone else", value: "move" },
-				{ label: "Merge with another contributor", value: "merge" },
-				{ label: "Delete", value: "delete" },
+				{ label: "Edit profile", value: "strengths", detail: "Name, contributor type and strengths." },
+				{ label: "Choose a different editor", value: "change", detail: "Opens the engagement details." },
+				{ label: "Credit an imported file to someone else", value: "move", detail: `For notes filed under ${name} by mistake.` },
+				{ label: "Merge with a duplicate name", value: "merge", detail: `For when ${name} appears under two names.` },
+			],
+		} : {
+			title: name,
+			description: "Choose what to change.",
+			choices: [
+				{ label: "Edit profile", value: "strengths", detail: "Name, contributor type and strengths." },
+				{ label: "Credit an imported file to someone else", value: "move", detail: `For notes filed under ${name} by mistake.` },
+				{ label: "Merge with a duplicate name", value: "merge", detail: `For when ${name} appears under two names.` },
+				{ label: "Delete contributor", value: "delete", detail: "Removes the name and its stats. Your decisions stay." },
 			],
 		});
 		if (!action) {
+			return false;
+		}
+
+		if (action === "change") {
+			editor?.changeEditor();
 			return false;
 		}
 
@@ -119,12 +146,12 @@ export class ContributorManagementOrchestrator {
 		}
 		const passes = this.host.listContributorPasses(sourceReviewerId);
 		if (passes.length === 0) {
-			new Notice(`${sourceProfile.displayName} has no imported passes to move.`);
+			new Notice(`Nothing has been imported from ${sourceProfile.displayName} yet.`);
 			return false;
 		}
 		const batchId = passes.length === 1 ? passes[0]!.batchId : await this.host.openChoiceModal({
-			title: "Move a pass",
-			description: `Which of ${sourceProfile.displayName}'s passes came from someone else?`,
+			title: "Credit a file to someone else",
+			description: `Which file filed under ${sourceProfile.displayName} came from someone else?`,
 			choices: passes.map((pass) => ({ label: pass.label, value: pass.batchId })),
 		});
 		const pass = passes.find((item) => item.batchId === batchId);
@@ -146,12 +173,12 @@ export class ContributorManagementOrchestrator {
 				? this.host.reviewerDirectory.ensureProfileFromReassignment(result.createName, sourceProfile)
 				: null;
 		if (!targetProfile || targetProfile.id === sourceReviewerId) {
-			new Notice("Choose who the pass came from.");
+			new Notice("Choose who the file came from.");
 			return false;
 		}
 		await this.host.movePassToContributor(pass.batchId, targetProfile.id);
 		this.host.refreshReviewPanel();
-		new Notice(`Moved the pass to ${targetProfile.displayName}. Your decisions on its notes are unchanged.`);
+		new Notice(`Credited the file to ${targetProfile.displayName}. Your decisions on its notes are unchanged.`);
 		return true;
 	}
 
@@ -164,8 +191,8 @@ export class ContributorManagementOrchestrator {
 
 		const movedPasses = this.host.registry.getMovedPassCount(reviewerId);
 		const movedPassNote = movedPasses === 0 ? ""
-			: movedPasses === 1 ? " The pass you moved to them goes back to the name in its notes."
-			: ` The ${movedPasses} passes you moved to them go back to the names in their notes.`;
+			: movedPasses === 1 ? " The file you credited to them goes back to the name in its notes."
+			: ` The ${movedPasses} files you credited to them go back to the names in their notes.`;
 		const confirm = await this.host.openChoiceModal<"delete" | "cancel">({
 			title: "Delete contributor",
 			description: `Delete ${profile.displayName} and their saved stats? Your decisions on their notes stay. If their revision notes are still in your scenes, they come back, without their old stats, the next time those scenes are opened; clean those notes out first to remove them for good.${movedPassNote}`,

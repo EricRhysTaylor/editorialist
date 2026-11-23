@@ -8,6 +8,9 @@ interface ChoiceOption<T extends string> {
 	// Emphasize this option. Used when the safe answer is not the obvious one —
 	// e.g. re-importing a batch the author already finished.
 	cta?: boolean;
+	// One line on what the choice does. With details, the choices are listed
+	// one per row instead of as a row of buttons.
+	detail?: string;
 }
 
 export interface EditorialistChoiceModalOptions<T extends string> {
@@ -49,6 +52,17 @@ class EditorialistChoiceModal<T extends string> extends PromiseModal<T> {
 					text: item,
 				});
 			}
+		}
+
+		if (this.options.choices.some((choice) => choice.detail)) {
+			const list = this.contentEl.createDiv({ cls: "editorialist-choice-modal__list", attr: { role: "list" } });
+			for (const choice of this.options.choices) {
+				const row = list.createEl("button", { cls: `editorialist-choice-modal__row${choice.cta ? " mod-cta" : ""}`, attr: { type: "button", role: "listitem" } });
+				row.createSpan({ cls: "editorialist-choice-modal__row-label", text: choice.label });
+				if (choice.detail) row.createSpan({ cls: "editorialist-choice-modal__row-detail", text: choice.detail });
+				row.addEventListener("click", () => this.finish(choice.value));
+			}
+			return;
 		}
 
 		buildModalFooter(this.contentEl, {
