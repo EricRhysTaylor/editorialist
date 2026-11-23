@@ -7672,10 +7672,18 @@ button.editorialist-panel__contributors-row:focus-visible {
 	gap: 6px;
 }
 
+/* Short, wide tiles: the full width, without a square's height on every row. */
+.editorialist-days.editorialist-days--fluid .editorialist-days__week {
+	font-size: var(--font-smallest);
+	line-height: 20px;
+}
+
 .editorialist-days.editorialist-days--fluid button.editorialist-days__day,
 .editorialist-days.editorialist-days--fluid button.editorialist-days__day:hover {
 	max-width: none;
-	border-radius: 6px;
+	height: 20px;
+	aspect-ratio: auto;
+	border-radius: 5px;
 }
 
 /* A day gone by is filled by the work done on it, quieter than what is ahead. */
@@ -7705,11 +7713,28 @@ button.editorialist-panel__contributors-row:focus-visible {
 }
 
 .editorialist-days__load-bar {
-	display: flex;
+	display: grid;
+	grid-template-columns: repeat(7, minmax(0, 1fr));
+	gap: 3px;
 	height: 4px;
+}
+
+.editorialist-days__load-day {
+	display: flex;
 	border-radius: 4px;
 	background: var(--background-modifier-border);
 	overflow: hidden;
+}
+
+/* A day off has no hours to fill, so it is only a faint gap in the week. */
+.editorialist-days__load-day.is-off {
+	background: transparent;
+	box-shadow: inset 0 0 0 1px var(--background-modifier-border);
+}
+
+.editorialist-days__load-day.is-today {
+	outline: 1px solid var(--text-muted);
+	outline-offset: 1px;
 }
 
 .editorialist-days__load-done,
@@ -10816,7 +10841,20 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	font-weight: var(--font-semibold);
 }
 
+/* The week's day segments run full width right under the day squares; its
+   text and the planner link share the line below. */
+.editorialist-today__week-foot .editorialist-days__load {
+	display: contents;
+}
+
+.editorialist-today__week-foot .editorialist-days__load-bar {
+	flex-basis: 100%;
+	order: -1;
+	margin-bottom: 4px;
+}
+
 .editorialist-today__week-foot {
+	flex-wrap: wrap;
 	display: flex;
 	align-items: center;
 	justify-content: space-between;

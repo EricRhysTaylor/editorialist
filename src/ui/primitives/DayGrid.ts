@@ -116,10 +116,15 @@ export function renderWeekLoad(parent: HTMLElement, week: readonly GridDay[]): H
 	const load = parent.createDiv({ cls: "editorialist-days__load" });
 	const total = done + planned;
 	load.createSpan({ cls: "editorialist-days__load-text", text: room ? `This week · ${done ? `${hours(done)} h done · ` : ""}${hours(total)} of ${hours(room)} h planned` : total ? `This week · ${hours(total)} h planned` : "This week" });
+	// A segment a day: each filled by its own time done, then still planned, against its hours.
 	if (room) {
 		const bar = load.createDiv({ cls: "editorialist-days__load-bar", attr: { "aria-hidden": "true" } });
-		bar.createSpan({ cls: "editorialist-days__load-done" }).style.setProperty("--editorialist-load", `${Math.min(100, done / room * 100)}%`);
-		bar.createSpan({ cls: "editorialist-days__load-planned" }).style.setProperty("--editorialist-load", `${Math.min(100, planned / room * 100)}%`);
+		for (const day of week) {
+			const segment = bar.createSpan({ cls: `editorialist-days__load-day${day.capacity ? "" : " is-off"}${day.today ? " is-today" : ""}` });
+			if (!day.capacity) continue;
+			segment.createSpan({ cls: "editorialist-days__load-done" }).style.setProperty("--editorialist-load", `${Math.min(100, day.done / day.capacity * 100)}%`);
+			segment.createSpan({ cls: "editorialist-days__load-planned" }).style.setProperty("--editorialist-load", `${Math.min(100, day.minutes / day.capacity * 100)}%`);
+		}
 	}
 	return load;
 }
