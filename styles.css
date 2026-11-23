@@ -10269,6 +10269,43 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 	margin-top: -8px;
 }
 
+/* The files most likely sent, under the file field: one click picks one. */
+.editorialist-project__file-row > .editorialist-project__file-suggestions {
+	display: flex;
+	flex-basis: 100%;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	margin: -6px 0 14px;
+}
+
+.editorialist-project__file-suggestions-label {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.editorialist-project__file-suggestions button.editorialist-project__file-suggestion {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	max-width: 100%;
+	height: auto;
+	margin: 0;
+	padding: 3px 9px;
+	border-radius: var(--radius-m);
+	font-size: var(--font-ui-smaller);
+}
+
+.editorialist-project__file-suggestion > span:first-child {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.editorialist-project__file-suggestion-day {
+	color: var(--text-muted);
+}
+
 .editorialist-project__file-chosen:empty {
 	display: none;
 }

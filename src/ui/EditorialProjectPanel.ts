@@ -2,6 +2,7 @@ import { renderWordLimit } from "./primitives/WordLimitBar";
 import { setIconLabel } from "./primitives/AccessibleLabel";
 import { bindCompletionMenu } from "./primitives/CompletionMenu";
 import { openEditorialistChoiceModal } from "./EditorialistChoiceModal";
+import { suggestSentFiles } from "../core/planning/SentFiles";
 import { Modal, Notice, TFile, normalizePath, setIcon, type App } from "obsidian";
 import { ENGAGEMENT_START, MAX_AGREEMENT_LENGTH, candidateDeadline, collaborationUrl, createEditorialProject, deadlineState, documentDue, documentSends, dueDeadline, engagementReturned, engagementStartCountdown, isProjectEditorProfile, milestoneState, projectEditor, recordProjectEvent, removeDocument, removeMilestone, removeTask, shiftDate, taskDue, type EditorialProject, type EngagementRecord, type EngagementTask, type ProjectMaterial } from "../core/planning/EditorialProject";
 import { isDate, localDate, type RevisionPlan } from "../core/planning/RevisionPlan";
@@ -541,7 +542,7 @@ export class EditorialProjectPanel {
 		const row = parent.createDiv({ cls: "editorialist-project__file-row" });
 		const day = field(row, `Sent to ${editor} on`, latest?.day ?? "", "date"); day.max = today;
 		day.parentElement!.addClass("editorialist-project__field--date");
-		const file = this.fileChoice(row, "File you sent", latest);
+		const file = this.fileChoice(row, "File you sent", latest, [material?.title ?? "", material?.source.split("/").pop()?.replace(/\.md$/, "") ?? ""].filter(Boolean));
 		const note = parent.createEl("p", { cls: "editorialist-project__hint editorialist-project__send-note" });
 		let takeBack = false;
 		const describe = (): void => {
@@ -595,12 +596,28 @@ export class EditorialProjectPanel {
 	// the vault has no other; a newly chosen vault file is copied unless the
 	// author says not to. An unchanged file keeps the copy it has, and a copy
 	// made by a save that then failed is reused when the save is tried again.
-	private fileChoice(parent: HTMLElement, label: string, record: EngagementRecord | undefined): { changed(): boolean; setDisabled(disabled: boolean): void; save(projectId: string): Promise<Pick<EngagementRecord, "referencePath" | "filenames" | "archive">> } {
+	/** `names`: what the file is likely called, such as the document's title, to suggest the file just exported. */
+	private fileChoice(parent: HTMLElement, label: string, record: EngagementRecord | undefined, names: readonly string[] = []): { changed(): boolean; setDisabled(disabled: boolean): void; save(projectId: string): Promise<Pick<EngagementRecord, "referencePath" | "filenames" | "archive">> } {
 		const reference = this.fileField(parent, label, record?.referencePath ?? "");
 		reference.placeholder = "A file in your vault";
 		let upload: File | null = null;
 		const input = parent.createEl("input", { type: "file", attr: { hidden: "" } });
 		const choose = button(parent, "Choose file…", () => input.click());
+		// The files most likely sent, newest exports first, one click to pick.
+		const recent = suggestSentFiles(this.host.app.vault.getFiles(), names, Date.now());
+		const suggestions = recent.length ? parent.createDiv({ cls: "editorialist-project__file-suggestions" }) : null;
+		if (suggestions) {
+			suggestions.createSpan({ cls: "editorialist-project__file-suggestions-label", text: "Recent exports" });
+			for (const path of recent) {
+				const file = this.host.app.vault.getAbstractFileByPath(path);
+				const saved = file instanceof TFile ? planDayLabel(localDate(new Date(file.stat.mtime))) : "";
+				const pick = suggestions.createEl("button", { cls: "editorialist-project__file-suggestion", attr: { type: "button" } });
+				setIconLabel(pick, `Use ${path}`);
+				pick.createSpan({ text: path.split("/").pop() ?? path });
+				if (saved) pick.createSpan({ cls: "editorialist-project__file-suggestion-day", text: saved });
+				pick.addEventListener("click", () => { reference.value = path; reference.dispatchEvent(new Event("input")); });
+			}
+		}
 		const note = parent.createDiv({ cls: "editorialist-project__hint editorialist-project__file-chosen" });
 		const keep = field(parent, "Keep a copy of this file as it is now", "", "checkbox"); keep.checked = true;
 		const keepField = keep.parentElement!;
