@@ -2,7 +2,7 @@ import { renderWordLimit } from "./primitives/WordLimitBar";
 import { setIconLabel } from "./primitives/AccessibleLabel";
 import { bindCompletionMenu } from "./primitives/CompletionMenu";
 import { openEditorialistChoiceModal } from "./EditorialistChoiceModal";
-import { suggestSentFiles } from "../core/planning/SentFiles";
+import { KEPT_COPIES_FOLDER, suggestSentFiles } from "../core/planning/SentFiles";
 import { Modal, Notice, TFile, normalizePath, setIcon, type App } from "obsidian";
 import { ENGAGEMENT_START, MAX_AGREEMENT_LENGTH, candidateDeadline, collaborationUrl, createEditorialProject, deadlineState, documentDue, documentSends, dueDeadline, engagementReturned, engagementStartCountdown, isProjectEditorProfile, milestoneState, projectEditor, recordProjectEvent, removeDocument, removeMilestone, removeTask, shiftDate, taskDue, type EditorialProject, type EngagementRecord, type EngagementTask, type ProjectMaterial } from "../core/planning/EditorialProject";
 import { isDate, localDate, type RevisionPlan } from "../core/planning/RevisionPlan";
@@ -619,7 +619,7 @@ export class EditorialProjectPanel {
 			}
 		}
 		const note = parent.createDiv({ cls: "editorialist-project__hint editorialist-project__file-chosen" });
-		const keep = field(parent, "Keep a copy of this file as it is now", "", "checkbox"); keep.checked = true;
+		const keep = field(parent, `Keep a copy of this file as it is now, in ${KEPT_COPIES_FOLDER}`, "", "checkbox"); keep.checked = true;
 		const keepField = keep.parentElement!;
 		const unchanged = (): boolean => !upload && reference.value.trim() === (record?.referencePath ?? "");
 		const describe = (): void => {

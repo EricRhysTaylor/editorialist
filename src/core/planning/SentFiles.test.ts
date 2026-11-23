@@ -17,6 +17,8 @@ describe("the files most likely sent", () => {
 			file("Outline/Series Outline - Short Version.md", 0),
 			file("Old/Series overview draft.docx", 60),
 			file("Radial Timeline/Export/Synopsis.pdf", 2),
+			// The copy kept when the query letter was recorded as sent.
+			file("Editorialist/Engagement history/p1/abc/Query Letter.pdf", 0),
 		];
 		expect(suggestSentFiles(files, ["Series overview", "Series Outline - Short Version"], now)).toEqual([
 			"Radial Timeline/Export/Series Outline - Short Version.docx",

@@ -1,5 +1,6 @@
 import { TFile, normalizePath, type App } from "obsidian";
 import { ensureVaultFolderPath } from "../core/VaultFolders";
+import { KEPT_COPIES_FOLDER } from "../core/planning/SentFiles";
 
 async function sha256(bytes: ArrayBuffer): Promise<string> {
 	return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))).map((byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -24,7 +25,7 @@ export class EditorialProjectService {
 		const filename = name.replace(/[\\/:*?"<>|#^[\]]/g, "-").trim();
 		if (!filename || filename.startsWith(".")) throw new Error("This file has no usable name. Rename it and choose it again.");
 		const digest = await sha256(bytes);
-		const folder = normalizePath(`Editorialist/Engagement history/${projectId}/${crypto.randomUUID()}`);
+		const folder = normalizePath(`${KEPT_COPIES_FOLDER}/${projectId}/${crypto.randomUUID()}`);
 		const blocked = await ensureVaultFolderPath(this.app, folder, { stopAtFile: true });
 		if (blocked !== null) throw new Error(`A file blocks archive storage: ${blocked}`);
 		const copy = `${folder}/${filename}`, saved = await this.app.vault.createBinary(copy, bytes);

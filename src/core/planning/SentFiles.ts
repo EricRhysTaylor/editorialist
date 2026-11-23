@@ -7,6 +7,9 @@
 
 export interface VaultFileLike { path: string; basename: string; extension: string; stat: { mtime: number } }
 
+/** Where Editorialist keeps a copy of each file sent, one folder per copy, inside the vault. */
+export const KEPT_COPIES_FOLDER = "Editorialist/Engagement history";
+
 /** The kinds of file sent to an editor; a note in the vault is the working document, not what was sent. */
 const SENT_KINDS = new Set(["docx", "doc", "pdf", "odt", "rtf", "epub", "pages"]);
 const RECENT_DAYS = 30;
@@ -23,7 +26,8 @@ function likeness(basename: string, names: readonly string[]): number {
 export function suggestSentFiles(files: readonly VaultFileLike[], names: readonly string[], now: number): string[] {
 	const since = now - RECENT_DAYS * 86400000;
 	return files
-		.filter((file) => SENT_KINDS.has(file.extension.toLowerCase()) && file.stat.mtime >= since)
+		// A copy kept of a file already sent is not a new export.
+		.filter((file) => SENT_KINDS.has(file.extension.toLowerCase()) && file.stat.mtime >= since && !file.path.startsWith(`${KEPT_COPIES_FOLDER}/`))
 		.map((file) => ({ file, like: likeness(file.basename, names) }))
 		.sort((a, b) => b.like - a.like || b.file.stat.mtime - a.file.stat.mtime)
 		.slice(0, SHOWN)
