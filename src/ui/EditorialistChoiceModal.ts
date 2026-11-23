@@ -57,7 +57,7 @@ class EditorialistChoiceModal<T extends string> extends PromiseModal<T> {
 		if (this.options.choices.some((choice) => choice.detail)) {
 			const list = this.contentEl.createDiv({ cls: "editorialist-choice-modal__list", attr: { role: "list" } });
 			for (const choice of this.options.choices) {
-				const row = list.createEl("button", { cls: `editorialist-choice-modal__row${choice.cta ? " mod-cta" : ""}`, attr: { type: "button", role: "listitem" } });
+				const row = list.createEl("button", { cls: `editorialist-choice-modal__row${choice.cta ? " is-suggested" : ""}`, attr: { type: "button", role: "listitem" } });
 				row.createSpan({ cls: "editorialist-choice-modal__row-label", text: choice.label });
 				if (choice.detail) row.createSpan({ cls: "editorialist-choice-modal__row-detail", text: choice.detail });
 				row.addEventListener("click", () => this.finish(choice.value));

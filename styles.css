@@ -5106,6 +5106,11 @@
 	font-weight: 600;
 }
 
+/* The choice most people want, marked by its colour rather than a filled button. */
+.editorialist-choice-modal__row.is-suggested .editorialist-choice-modal__row-label {
+	color: var(--text-accent);
+}
+
 .editorialist-choice-modal__row-detail {
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
@@ -10146,6 +10151,12 @@ a:not([aria-disabled="true"], .is-disabled):hover {
 
 .editorialist-project__document-head.is-sent .editorialist-project__document-status {
 	color: var(--color-green);
+}
+
+/* Every task done, only the sending left: the accent, not a warning. */
+.editorialist-project__document-head.is-ready .editorialist-project__document-status,
+.editorialist-project__document-head.is-ready .editorialist-project__row-deadline {
+	color: var(--text-accent);
 }
 
 .editorialist-project__nowrap {

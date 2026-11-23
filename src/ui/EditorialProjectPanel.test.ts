@@ -104,7 +104,9 @@ describe("Recording that a document was sent", () => {
 	});
 	it("says plainly that an unsent document is not sent yet, with a way to record it", () => {
 		const card = engagement(false).root.querySelector<HTMLElement>(".editorialist-project__document")!;
-		expect(card.dataset.documentState).toBe("unsent");
+		// Its only task is done, so the one step left is sending it.
+		expect(card.dataset.documentState).toBe("ready");
+		expect(card.querySelector(".editorialist-project__document-head .editorialist-project__row-deadline")?.textContent).toMatch(/^Ready to send · due /);
 		expect(card.querySelector(".editorialist-project__send.is-unsent")?.textContent).toContain("Not sent yet");
 		expect(card.querySelector(".editorialist-project__send.is-unsent button")?.textContent).toBe("Record sending…");
 	});
@@ -223,7 +225,7 @@ describe("Documents, tasks and milestones on the engagement overview", () => {
 		// A bare date that has gone by is past, not done.
 		expect(call!.classList.contains("is-passed")).toBe(true);
 		expect(call!.classList.contains("is-done")).toBe(false);
-		expect(call!.textContent).toContain("Passed");
+		expect(call!.textContent).toContain("Passed, nothing attached");
 	});
 });
 

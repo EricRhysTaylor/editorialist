@@ -1,6 +1,7 @@
 import { renderWordLimit } from "./primitives/WordLimitBar";
 import { setIconLabel } from "./primitives/AccessibleLabel";
 import { bindCompletionMenu } from "./primitives/CompletionMenu";
+import { openEditorialistChoiceModal } from "./EditorialistChoiceModal";
 import { Modal, Notice, TFile, normalizePath, setIcon, type App } from "obsidian";
 import { ENGAGEMENT_START, MAX_AGREEMENT_LENGTH, candidateDeadline, collaborationUrl, createEditorialProject, deadlineState, documentDue, documentSends, dueDeadline, engagementReturned, engagementStartCountdown, isProjectEditorProfile, milestoneState, projectEditor, recordProjectEvent, removeDocument, removeMilestone, removeTask, shiftDate, taskDue, type EditorialProject, type EngagementRecord, type EngagementTask, type ProjectMaterial } from "../core/planning/EditorialProject";
 import { isDate, localDate, type RevisionPlan } from "../core/planning/RevisionPlan";
@@ -294,16 +295,35 @@ export class EditorialProjectPanel {
 		button(actions, "Open schedule", () => this.host.openSchedule()).addClass("mod-cta");
 	}
 	private finishToggle(parent: HTMLElement, task: EngagementTask): void {
-		this.completionControl(parent, task.title, task.done, (draft, done) => {
+		const finish = (draft: EditorialProject, done: boolean): void => {
 			const item = draft.tasks.find((value) => value.id === task.id);
 			if (!item) throw new Error("This task is no longer available. Reopen the engagement.");
 			item.done = done; recordProjectEvent(draft, `${item.title}: ${done ? "task finished" : "task reopened"}`);
-		});
-	}
-	private completionControl(parent: HTMLElement, title: string, done: boolean, update: (draft: EditorialProject, done: boolean) => void): void {
-		const control = iconButton(parent, done ? "check-circle-2" : "circle", `Status for “${title}”: ${done ? "Done" : "Open"}. Choose a status.`, undefined, `editorialist-project__check${done ? " is-done" : ""}`);
+		};
+		const control = iconButton(parent, task.done ? "check-circle-2" : "circle", `Status for “${task.title}”: ${task.done ? "Done" : "Open"}. Choose a status.`, undefined, `editorialist-project__check${task.done ? " is-done" : ""}`);
 		control.disabled = this.host.busy;
-		bindCompletionMenu(control, done, (next) => this.change((draft) => update(draft, next)));
+		bindCompletionMenu(control, task.done, async (next) => {
+			// The last open task of a document still to send leaves only the
+			// sending: offer to record it in the same step, so the document,
+			// its milestone and the history agree.
+			const project = this.host.plan.project!;
+			const material = next && task.materialId ? project.materials.find((item) => item.id === task.materialId) : undefined;
+			const last = material && !documentSends(project, material.id).length && project.tasks.every((item) => item.id === task.id || item.materialId !== material.id || item.done);
+			if (material && last) {
+				const editor = projectEditor(project, this.host.getReviewers()).name;
+				const choice = await openEditorialistChoiceModal(this.host.app, {
+					title: `${material.title} is ready`,
+					description: `This is its last open task. Have you sent ${material.title} to ${editor}?`,
+					choices: [
+						{ label: "Mark done and record sending", value: "send", detail: `Records the day you sent it. ${material.title} then shows as sent.`, cta: true },
+						{ label: "Just mark the task done", value: "done", detail: `${material.title} shows as ready to send.` },
+					],
+				});
+				if (choice === "send") { this.editMaterial(material, "send", task.id); return; }
+				if (choice !== "done") return;
+			}
+			await this.change((draft) => finish(draft, next));
+		});
 	}
 	private renderDocuments(root: HTMLElement): void {
 		const project = this.host.plan.project!;
@@ -321,17 +341,20 @@ export class EditorialProjectPanel {
 		const deadline = due ? dueDeadline(this.host.plan, project, due) : null;
 		const state = deadline && !sent ? deadlineState(deadline, localDate(new Date())) : null;
 		const tasks = project.tasks.filter((item) => item.materialId === material.id);
-		const card = parent.createEl("details", { cls: "editorialist-project__document", attr: { name: "editorialist-documents", "data-plan-section": `document:${material.id}`, "data-material-id": material.id, "data-document-state": sent ? "sent" : "unsent" } });
-		const head = card.createEl("summary", { cls: `editorialist-project__row editorialist-project__document-head${sent ? " is-sent" : state === "late" ? " is-overdue" : state === "cushion" ? " is-cushion" : ""}` });
+		const open = tasks.filter((task) => !task.done).length;
+		// Every task for it done, and not sent yet: the only step left is sending it.
+		const ready = !sent && tasks.length > 0 && open === 0;
+		const card = parent.createEl("details", { cls: "editorialist-project__document", attr: { name: "editorialist-documents", "data-plan-section": `document:${material.id}`, "data-material-id": material.id, "data-document-state": sent ? "sent" : ready ? "ready" : "unsent" } });
+		const head = card.createEl("summary", { cls: `editorialist-project__row editorialist-project__document-head${sent ? " is-sent" : state === "late" ? " is-overdue" : ready ? " is-ready" : state === "cushion" ? " is-cushion" : ""}` });
 		// A status mark, not a control: the send itself is edited in the
 		// document's details, like everything else about it.
 		const mark = head.createSpan({ cls: "editorialist-project__row-icon editorialist-project__document-status", attr: { role: "img" } });
-		setIcon(mark, sent ? "check-circle-2" : "circle-dashed");
-		setIconLabel(mark, sent ? "Sent to your editor" : state === "late" ? "Not sent yet, overdue" : "Not sent yet");
+		setIcon(mark, sent ? "check-circle-2" : ready ? "send" : "circle-dashed");
+		setIconLabel(mark, sent ? "Sent to your editor" : ready ? "Ready to send" : state === "late" ? "Not sent yet, overdue" : "Not sent yet");
 		const main = head.createDiv({ cls: "editorialist-project__row-main" });
 		main.createDiv({ cls: "editorialist-project__row-title", text: material.title });
-		const open = tasks.filter((task) => !task.done).length;
-		const when = sent ? `Sent ${planDayLabel(sends[0]!.day)}` : deadline ? deadlineLabel(deadline, state === "late") : "Not sent yet";
+		const dueText = deadline ? `due ${planDayLabel(deadline.due)}` : null;
+		const when = sent ? `Sent ${planDayLabel(sends[0]!.day)}` : ready ? ["Ready to send", dueText].filter(Boolean).join(" · ") : deadline ? deadlineLabel(deadline, state === "late") : "Not sent yet";
 		main.createDiv({ cls: "editorialist-project__row-meta editorialist-project__row-deadline", text: [when, open ? `${open} ${open === 1 ? "task" : "tasks"} open` : null].filter(Boolean).join(" · ") });
 		this.wordLimit(main, material);
 		setIcon(head.createSpan({ cls: "editorialist-project__document-caret", attr: { "aria-hidden": "true" } }), "chevron-right");
@@ -453,7 +476,8 @@ export class EditorialProjectPanel {
 	// further send, such as a revised version, keeping the earlier ones. Each
 	// save starts from the plan as it was when the form opened, so a save that
 	// fails and is tried again never adds the document twice.
-	private editMaterial(material: ProjectMaterial | null, mode: "edit" | "send" | "again" = "edit"): void {
+	/** `finishTask`: a task to mark done in the same save, when recording the send it led to. */
+	private editMaterial(material: ProjectMaterial | null, mode: "edit" | "send" | "again" = "edit", finishTask?: string): void {
 		const expected = structuredClone(this.host.plan), snapshot = expected.project!;
 		const id = material?.id ?? crypto.randomUUID();
 		const sent = material ? documentSends(snapshot, material.id).length > 0 : false;
@@ -474,6 +498,8 @@ export class EditorialProjectPanel {
 				if (dated.due) target.due = dated.due; else delete target.due;
 				if (notes.value.trim()) target.notes = notes.value.trim(); else delete target.notes;
 				commit(draft, target);
+				const finished = finishTask ? draft.tasks.find((item) => item.id === finishTask && !item.done) : undefined;
+				if (finished) { finished.done = true; recordProjectEvent(draft, `${finished.title}: task finished`); }
 				// A send records itself; the document's own change only when there is one.
 				if (!material) recordProjectEvent(draft, `${target.title}: document added`);
 				else if (JSON.stringify(target) !== JSON.stringify(material)) recordProjectEvent(draft, `${target.title}: document updated`);
@@ -663,8 +689,10 @@ export class EditorialProjectPanel {
 			// The aim and due date sit under the title, so a long title keeps its width.
 			const main = row.createDiv({ cls: "editorialist-project__row-main" });
 			main.createDiv({ cls: "editorialist-project__row-title", text: milestone.title });
-			const outstanding = open.length === 1 ? open[0] : open.length ? `${open.length} still open` : null;
-			main.createDiv({ cls: "editorialist-project__row-meta editorialist-project__row-deadline", text: done ? `${planDayLabel(milestone.day)} · ${total ? "Done" : "Passed"}` : [deadlineLabel(deadline, state === "late"), outstanding].filter(Boolean).join(" · ") });
+			// A milestone with no task or document due on it is only a date, and says
+			// so: it can never be finished by finishing work.
+			const outstanding = !total ? "nothing attached" : open.length === 1 ? open[0] : open.length ? `${open.length} still open` : null;
+			main.createDiv({ cls: "editorialist-project__row-meta editorialist-project__row-deadline", text: done ? `${planDayLabel(milestone.day)} · ${total ? "Done" : "Passed, nothing attached"}` : [deadlineLabel(deadline, state === "late"), outstanding].filter(Boolean).join(" · ") });
 			iconButton(row.createDiv({ cls: "editorialist-project__row-actions" }), "pencil", `Edit “${milestone.title}”`, () => this.editMilestone(milestone.id));
 		}
 		button(body, "Add milestone", () => this.editMilestone()).addClass("editorialist-project__add");
