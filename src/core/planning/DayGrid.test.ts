@@ -32,6 +32,14 @@ describe("the days grid", () => {
 		expect(gridWeeks(today, ["2027-06-01"])).toBe(12);
 	});
 
+	it("shows the week gone by first, with the work done on each day", () => {
+		const weeks = dayGrid([plan([session("a", "2026-11-04", 90, true), session("b", "2026-11-04", 30), session("c", "2026-11-16", 60)])], [], [], today, 4, 1);
+		expect(weeks).toHaveLength(5);
+		expect(weeks[0]![0]!.day).toBe("2026-11-02");
+		expect(find(weeks, "2026-11-04")).toMatchObject({ state: "past", done: 90, finished: [{ title: "Session a", minutes: 90 }], sessions: [{ title: "Session b", minutes: 30 }] });
+		expect(find(weeks, "2026-11-16")).toMatchObject({ state: "light", done: 0, minutes: 60 });
+	});
+
 	it("fills a day by its planned time against the time set aside", () => {
 		const weeks = dayGrid([plan([session("a", "2026-11-16", 30), session("b", "2026-11-17", 90), session("c", "2026-11-18", 90), session("d", "2026-11-18", 60), session("e", "2026-11-21", 30), session("f", "2026-11-19", 60, true)])], [], [], today, 4);
 		expect(weeks).toHaveLength(4);

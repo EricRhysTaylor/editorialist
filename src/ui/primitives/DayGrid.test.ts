@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from "vitest";
 import type { GridDay } from "../../core/planning/DayGrid";
-import { renderDayGrid } from "./DayGrid";
+import { renderDayGrid, renderWeekLoad } from "./DayGrid";
 import { renderRunway } from "./Runway";
 
 // The primitives use Obsidian's element helpers, which the mock installs.
@@ -9,9 +9,24 @@ import "../../../tests/mocks/obsidianDom";
 
 const mount = (): HTMLElement => document.body.appendChild(document.createElement("div"));
 
-const day = (date: string, overrides: Partial<GridDay> = {}): GridDay => ({ day: date, state: "free", today: false, capacity: 120, minutes: 0, sessions: [], paced: [], marks: [], withEditor: null, ...overrides });
+const day = (date: string, overrides: Partial<GridDay> = {}): GridDay => ({ day: date, state: "free", today: false, capacity: 120, minutes: 0, sessions: [], finished: [], done: 0, paced: [], marks: [], withEditor: null, ...overrides });
 const week = (start: number, overrides: Record<number, Partial<GridDay>> = {}): GridDay[] =>
 	Array.from({ length: 7 }, (_, index) => day(`2026-11-${String(start + index).padStart(2, "0")}`, overrides[index] ?? {}));
+
+describe("days gone by and this week's time", () => {
+	it("fills a past day by the work done on it, and says what this week holds", () => {
+		const root = mount();
+		const days = week(16, { 0: { state: "past", done: 120, finished: [{ title: "Draft chapter 3", minutes: 120 }] }, 1: { state: "past", done: 30, finished: [{ title: "Notes", minutes: 30 }] }, 2: { state: "past" }, 3: { today: true, state: "light", minutes: 60, sessions: [{ title: "Synopsis", minutes: 60 }] } });
+		renderDayGrid(root, [days], { hint: "", fluid: true, open: vi.fn() });
+		const squares = [...root.querySelectorAll<HTMLElement>(".editorialist-days__day:not(.is-sample)")];
+		expect(squares[0]!.classList.contains("is-worked")).toBe(true);
+		expect(squares[1]!.classList.contains("is-worked-light")).toBe(true);
+		expect(squares[2]!.className).not.toMatch(/is-worked/);
+		expect(root.querySelector(".editorialist-days--fluid")).not.toBeNull();
+		renderWeekLoad(root, days);
+		expect(root.querySelector(".editorialist-days__load-text")?.textContent).toBe("This week · 2.5 h done · 3.5 of 14 h planned");
+	});
+});
 
 describe("days as squares", () => {
 	it("draws a row per week, a square per day, with only the keys it shows", () => {

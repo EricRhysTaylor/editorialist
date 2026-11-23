@@ -29,6 +29,9 @@ export interface GridDay {
 	/** Planned minutes of the day's open, estimated sessions. */
 	minutes: number;
 	sessions: GridSession[];
+	/** Sessions on the day marked done, and their minutes: what a past day shows. */
+	finished: GridSession[];
+	done: number;
 	/** Open goals whose window holds the day while nothing is scheduled. */
 	paced: string[];
 	/** What falls due that day: goal deadlines, engagement targets and starts. */
@@ -57,6 +60,11 @@ export const weekStart = (day: string): string => shift(day, -((weekday(day) + 6
  * The weeks to show: from this week's Monday to the week of the latest thing
  * due, at least four weeks and at most twelve.
  */
+/** This week's time: what is done, what is still planned, and what was set aside. */
+export function weekLoad(week: readonly GridDay[]): { done: number; planned: number; room: number } {
+	return week.reduce((sum, day) => ({ done: sum.done + day.done, planned: sum.planned + day.minutes, room: sum.room + day.capacity }), { done: 0, planned: 0, room: 0 });
+}
+
 export function gridWeeks(today: string, latest: readonly string[]): number {
 	const first = weekStart(today);
 	const last = latest.filter((day) => day >= first).sort().at(-1);
@@ -73,13 +81,19 @@ export function gridHorizon(goals: readonly AuthorTarget[], engagements: readonl
 	];
 }
 
-export function dayGrid(plans: readonly AgendaPlan[], goals: readonly AuthorTarget[], engagements: readonly GridEngagement[], today: string, weeks: number): GridDay[][] {
+/**
+ * `weeks` weeks from this week's Monday, after `before` weeks already gone by,
+ * so the work done lately is in view beside what is ahead.
+ */
+export function dayGrid(plans: readonly AgendaPlan[], goals: readonly AuthorTarget[], engagements: readonly GridEngagement[], today: string, weeks: number, before = 0): GridDay[][] {
 	const sessions = new Map<string, GridSession[]>();
+	const finished = new Map<string, GridSession[]>();
 	for (const { plan, candidates } of plans) {
 		const doneKeys = progressDoneKeys(plan);
 		for (const entry of plan.entries) {
-			if (!entry.day || isPlanEntryComplete(entry, candidates, doneKeys)) continue;
-			sessions.set(entry.day, [...(sessions.get(entry.day) ?? []), { title: pendingWorkTitle(entry.title), minutes: entry.highMinutes }]);
+			if (!entry.day) continue;
+			const into = isPlanEntryComplete(entry, candidates, doneKeys) ? finished : sessions;
+			into.set(entry.day, [...(into.get(entry.day) ?? []), { title: pendingWorkTitle(entry.title), minutes: entry.highMinutes }]);
 		}
 	}
 	const marks = new Map<string, GridMark[]>();
@@ -91,10 +105,11 @@ export function dayGrid(plans: readonly AgendaPlan[], goals: readonly AuthorTarg
 		if (track.stages.some((stage) => stage.key === "editing")) mark(start, `${label} · editor starts`, true);
 	}
 	const capacity = (day: string): number => Math.max(0, ...plans.map(({ plan }) => plan.capacity[weekday(day)] ?? 0));
-	const first = weekStart(today);
-	return Array.from({ length: weeks }, (_, week) => Array.from({ length: 7 }, (_, index): GridDay => {
+	const first = shift(weekStart(today), -7 * before);
+	return Array.from({ length: weeks + before }, (_, week) => Array.from({ length: 7 }, (_, index): GridDay => {
 		const day = shift(first, week * 7 + index);
 		const own = sessions.get(day) ?? [];
+		const over = finished.get(day) ?? [];
 		const minutes = own.reduce((sum, session) => sum + (session.minutes ?? 0), 0);
 		const room = capacity(day);
 		const paced = own.length || day < today || !room ? [] : goals.filter((goal) => !goal.done && day <= goal.due && (goal.start === null ? goalTimeline(null, goal.due, today).phase !== "upcoming" : day >= goal.start)).map((goal) => goal.title);
@@ -102,6 +117,6 @@ export function dayGrid(plans: readonly AgendaPlan[], goals: readonly AuthorTarg
 		const state: GridDayState = day < today ? "past"
 			: own.length ? (!room || minutes > room ? "over" : minutes / room > LIGHT_SHARE ? "full" : "light")
 			: !room ? "off" : paced.length ? "paced" : "free";
-		return { day, state, today: day === today, capacity: room, minutes, sessions: own, paced, marks: marks.get(day) ?? [], withEditor: editing?.editor ?? null };
+		return { day, state, today: day === today, capacity: room, minutes, sessions: own, finished: over, done: over.reduce((sum, session) => sum + (session.minutes ?? 0), 0), paced, marks: marks.get(day) ?? [], withEditor: editing?.editor ?? null };
 	}));
 }

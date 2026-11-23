@@ -7666,57 +7666,65 @@ button.editorialist-panel__contributors-row:focus-visible {
 	color: var(--text-muted);
 }
 
-.editorialist-plan__week {
-	display: grid;
-	grid-template-columns: repeat(7, minmax(0, 1fr));
-	gap: 4px;
-	margin: 16px 0;
+/* In a side panel the days share its width, as the week strip does. */
+.editorialist-days.editorialist-days--fluid {
+	grid-template-columns: max-content repeat(7, minmax(0, 1fr));
+	gap: 6px;
 }
 
-.editorialist-plan__week button {
-	height: auto;
+.editorialist-days.editorialist-days--fluid button.editorialist-days__day,
+.editorialist-days.editorialist-days--fluid button.editorialist-days__day:hover {
+	max-width: none;
+	border-radius: 6px;
+}
+
+/* A day gone by is filled by the work done on it, quieter than what is ahead. */
+.editorialist-days__day.is-worked-light {
+	--editorialist-day-fill: color-mix(in srgb, var(--editorialist-day-planned) 45%, var(--background-modifier-border));
+}
+
+.editorialist-days__day.is-worked {
+	--editorialist-day-fill: var(--editorialist-day-planned);
+}
+
+.editorialist-days button.editorialist-days__day.is-past.is-worked,
+.editorialist-days button.editorialist-days__day.is-past.is-worked-light {
+	opacity: 0.6;
+}
+
+/* This week's time: done, then still planned, against the hours set aside. */
+.editorialist-days__load {
 	display: flex;
 	flex-direction: column;
 	gap: 5px;
-	padding: 8px 4px;
-	border: 1px solid transparent;
-	border-radius: 7px;
-	background: transparent;
-	font-variant-numeric: tabular-nums;
-}
-
-.editorialist-plan__week button.is-today {
-	border-color: color-mix(in srgb, var(--interactive-accent) 45%, transparent);
-	background: color-mix(in srgb, var(--interactive-accent) 9%, transparent);
-}
-
-.editorialist-plan__week-label {
-	font-size: 10px;
+	flex: 1;
+	min-width: 0;
+	margin-top: 8px;
 	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
 }
 
-.editorialist-plan__week strong {
-	font-size: 15px;
-	font-weight: 500;
-}
-
-.editorialist-plan__week-load {
-	width: 80%;
-	height: 3px;
+.editorialist-days__load-bar {
+	display: flex;
+	height: 4px;
+	border-radius: 4px;
 	background: var(--background-modifier-border);
-	border-radius: 3px;
 	overflow: hidden;
 }
 
-.editorialist-plan__week-load > span {
+.editorialist-days__load-done,
+.editorialist-days__load-planned {
 	display: block;
-	width: var(--editorialist-day-load, 0%);
+	width: var(--editorialist-load, 0%);
 	height: 100%;
-	background: var(--interactive-accent);
 }
 
-.editorialist-plan__week .is-overloaded .editorialist-plan__week-load > span {
-	background: var(--text-warning);
+.editorialist-days__load-done {
+	background: var(--color-green);
+}
+
+.editorialist-days__load-planned {
+	background: color-mix(in srgb, var(--color-green) 45%, transparent);
 }
 
 .editorialist-plan__capacity {

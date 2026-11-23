@@ -6,7 +6,7 @@ import { EDITORIALIST_ICON_ID } from "./EditorialistLogoIcon";
 import { deadlineLabel, kindIcons, kindLabels, pendingWorkTitle, planDayLabel } from "../core/planning/WorkPresentation";
 import { nextSession, type VaultPlans } from "../core/planning/TodayAgenda";
 import { runwayLanes, vaultDays, vaultEngagements } from "./VaultCalendar";
-import { renderDayGrid } from "./primitives/DayGrid";
+import { renderDayGrid, renderWeekLoad } from "./primitives/DayGrid";
 import { renderRunway } from "./primitives/Runway";
 import { ItemView, Notice, TFile, TFolder, setIcon, type TAbstractFile, type WorkspaceLeaf } from "obsidian";
 import type EditorialistPlugin from "../main";
@@ -18,7 +18,7 @@ import { movableSessions, vaultWork } from "../core/planning/VaultSchedule";
 import { type QueueHead, EditorialProjectPanel } from "./EditorialProjectPanel";
 import { EditorialProjectService } from "../services/EditorialProjectService";
 import { cushionProgress, deadlineState, engagementReturned, entryWorkDeadline, projectEditor, taskDocument } from "../core/planning/EditorialProject";
-import { dayGrid, gridHorizon, gridWeeks, type GridEngagement } from "../core/planning/DayGrid";
+import { dayGrid, gridHorizon, gridWeeks, type GridDay, type GridEngagement } from "../core/planning/DayGrid";
 import { engagementTrack } from "../core/planning/EngagementTrack";
 import { renderCushionBar } from "./primitives/CushionBar";
 import { bindCompletionMenu } from "./primitives/CompletionMenu";
@@ -27,6 +27,8 @@ import { desktopFileActions, opensInObsidian } from "./primitives/DesktopFileAct
 export const REVISION_PLAN_VIEW_TYPE = "editorialist-revision-plan";
 export const AUTHOR_PLAN_VIEW_TYPE = "editorialist-author-plan";
 const duration = (minutes: number): string => `${Math.round(minutes / 6) / 10} h`;
+// Weeks ahead in a side panel's days, after the week gone by: enough to plan with, short enough to read.
+const SIDE_WEEKS = 6;
 
 /** Planning writes only plugin data. Source editing stays in the existing tools. */
 export class RevisionPlanPanel extends ItemView {
@@ -150,7 +152,7 @@ export class RevisionPlanPanel extends ItemView {
 		const plans = (this.vault?.plans ?? []).map((plan) => plan.scope === AUTHOR_PLAN_SCOPE ? { ...plan, plan: this.plan, candidates: this.candidates } : plan);
 		const engagements = vaultEngagements(this.plugin, plans, today);
 		const goals = this.plan.targets ?? [];
-		const weeks = vaultDays(this.plugin, plans, today);
+		const weeks = vaultDays(this.plugin, plans, today, undefined, { before: 1, most: SIDE_WEEKS });
 		const from = weeks[0]![0]!.day, to = weeks[weeks.length - 1]![6]!.day;
 		const range = `${planDayLabel(from)} – ${planDayLabel(to)}`;
 		const lanes = runwayLanes(goals, engagements, this.goalWords, from, today, this.plan.scheduling?.balance === "goals");
@@ -161,11 +163,7 @@ export class RevisionPlanPanel extends ItemView {
 			head.createSpan({ cls: "editorialist-author__panel-range", text: range });
 			renderRunway(ahead, lanes, from, to, today);
 		}
-		const calendar = root.createDiv({ cls: "editorialist-author__panel" });
-		const head = calendar.createDiv({ cls: "editorialist-author__panel-head" });
-		head.createSpan({ cls: "editorialist-project__eyebrow", text: "Your days" });
-		head.createSpan({ cls: "editorialist-author__panel-range", text: range });
-		renderDayGrid(calendar, weeks, { hint: "Click to plan this day", open: (day) => this.openDay(day.day) });
+		const calendar = this.daysPanel(root, weeks, today, "Click to plan this day");
 		const ahead = weeks.flat().filter((day) => day.day >= today);
 		const sessions = ahead.reduce((sum, day) => sum + day.sessions.length, 0);
 		const over = ahead.filter((day) => day.state === "over").length;
@@ -430,13 +428,8 @@ export class RevisionPlanPanel extends ItemView {
 			const track = engagementTrack(project, engagementReturned(project, this.plugin.getEditorialDeliveries()).date ?? null, today);
 			if (track.stages.length && track.current !== "done") engagements.push({ label: project.title, editor: projectEditor(project, this.plugin.getReviewerProfiles()).name, track, start: project.submissionDate });
 		}
-		const weeks = dayGrid(plans, [], engagements, today, gridWeeks(today, gridHorizon([], engagements, plans)));
-		const from = weeks[0]![0]!.day, to = weeks[weeks.length - 1]![6]!.day;
-		const calendar = root.createDiv({ cls: "editorialist-author__panel" });
-		const head = calendar.createDiv({ cls: "editorialist-author__panel-head" });
-		head.createSpan({ cls: "editorialist-project__eyebrow", text: "Your days" });
-		head.createSpan({ cls: "editorialist-author__panel-range", text: `${planDayLabel(from)} – ${planDayLabel(to)}` });
-		renderDayGrid(calendar, weeks, { hint: "Click to see this day's sessions", open: (day) => this.openDay(day.day) });
+		const weeks = dayGrid(plans, [], engagements, today, Math.min(SIDE_WEEKS, gridWeeks(today, gridHorizon([], engagements, plans))), 1);
+		const calendar = this.daysPanel(root, weeks, today, "Click to see this day's sessions");
 		const ahead = weeks.flat().filter((day) => day.day >= today);
 		const sessions = ahead.reduce((sum, day) => sum + day.sessions.length, 0);
 		const over = ahead.filter((day) => day.state === "over").length;
@@ -450,6 +443,21 @@ export class RevisionPlanPanel extends ItemView {
 			fill.createSpan({ text: "Fill my days" });
 			setIconLabel(fill, "Plan this engagement's tasks together with your writing goals");
 		}
+	}
+	/**
+	 * "Your days": the week gone by, this week with its time done and planned
+	 * against the hours set aside, then the weeks ahead, the squares sharing
+	 * the panel's width.
+	 */
+	private daysPanel(root: HTMLElement, weeks: GridDay[][], today: string, hint: string): HTMLElement {
+		const calendar = root.createDiv({ cls: "editorialist-author__panel" });
+		const head = calendar.createDiv({ cls: "editorialist-author__panel-head" });
+		head.createSpan({ cls: "editorialist-project__eyebrow", text: "Your days" });
+		head.createSpan({ cls: "editorialist-author__panel-range", text: `${planDayLabel(weeks[0]![0]!.day)} – ${planDayLabel(weeks[weeks.length - 1]![6]!.day)}` });
+		const thisWeek = weeks.find((week) => week.some((day) => day.today));
+		if (thisWeek) renderWeekLoad(calendar, thisWeek);
+		renderDayGrid(calendar, weeks, { hint, fluid: true, open: (day) => this.openDay(day.day) });
+		return calendar;
 	}
 	private renderViewTabs(parent: HTMLElement): void {
 		const tabs = parent.createDiv({ cls: "editorialist-plan__tabs" });
@@ -608,7 +616,6 @@ export class RevisionPlanPanel extends ItemView {
 		const notes = summary.createEl("details", { cls: "editorialist-plan__estimate-notes", attr: { "data-plan-section": "estimate-notes" } });
 		notes.createEl("summary", { text: "How this estimate works" });
 		notes.createEl("p", { text: `Selected required work only. Optional work still occupies daily capacity. Unestimated work is not counted as zero. Work due to an editor aims to finish ${this.plan.cushionDays} ${this.plan.cushionDays === 1 ? "day" : "days"} early.` });
-		if (open.length) this.renderWeek(root, forecast.dailyLoads);
 	}
 	// The plan only counts work that is in it. Auto-plan brings every open
 	// batch, directive, and pending edit in at once, estimated and spread over
@@ -621,24 +628,6 @@ export class RevisionPlanPanel extends ItemView {
 		if (primary) button.addClass("mod-cta");
 		setIcon(button.createSpan(), "calendar-range");
 		button.createSpan({ text: primary ? `Auto-plan all ${count} open ${count === 1 ? "item" : "items"}` : `Auto-plan ${count} more open ${count === 1 ? "item" : "items"}${this.plan.deadline ? ` by ${planDayLabel(this.plan.deadline)}` : ""}` });
-	}
-	private renderWeek(root: HTMLElement, loads: Record<string, number>): void {
-		const week = root.createDiv({ cls: "editorialist-plan__week" });
-		setAccessibleLabel(week, "Next seven days");
-		for (const day of this.weekDays()) {
-			const date = new Date(day + "T12:00:00");
-			const capacity = this.plan.capacity[date.getDay()] ?? 0;
-			const load = loads[day] ?? 0;
-			const cell = this.button(week, "", () => { this.view = "days"; this.render(); root.querySelector<HTMLElement>(`[data-plan-day="${day}"]`)?.scrollIntoView({ block: "nearest" }); });
-			setAccessibleLabel(cell, `${planDayLabel(day)}: ${load} estimated minutes of ${capacity} available`);
-
-			if (day === localDate(new Date())) cell.addClass("is-today");
-			if (load > capacity) cell.addClass("is-overloaded");
-			cell.createSpan({ cls: "editorialist-plan__week-label", text: date.toLocaleDateString(undefined, { weekday: "short" }) });
-			cell.createEl("strong", { text: String(date.getDate()) });
-			const bar = cell.createDiv({ cls: "editorialist-plan__week-load" });
-			bar.createSpan().style.setProperty("--editorialist-day-load", `${capacity ? Math.min(100, load / capacity * 100) : load ? 100 : 0}%`);
-		}
 	}
 	private renderCapacity(root: HTMLElement): void {
 		const details = root.createEl("details", { cls: "editorialist-plan__capacity", attr: { "data-plan-section": "capacity" } });

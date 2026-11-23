@@ -1,4 +1,4 @@
-import type { GridDay } from "../../core/planning/DayGrid";
+import { weekLoad, type GridDay } from "../../core/planning/DayGrid";
 import { bindDotPopover, type DotPopoverContent } from "./DotPopover";
 import { plural } from "../util/wording";
 
@@ -13,10 +13,28 @@ export interface DayGridOptions {
 	open: (day: GridDay) => void;
 	/** One week with each day named above its square, as Today shows it. */
 	strip?: boolean;
+	/** The squares share the panel's width, as the week strip does, instead of a fixed size. */
+	fluid?: boolean;
+}
+
+/** A day gone by: what was done on it. */
+function pastPopover(day: GridDay, hint: string): DotPopoverContent {
+	return {
+		color: "is-day-past",
+		kind: dayName(day.day),
+		tag: null,
+		state: { text: day.done ? `${day.done} min done` : "Nothing marked done", tone: day.done ? "accent" : "muted" },
+		title: day.finished.length ? `${plural(day.finished.length, "session")} done` : day.sessions.length ? `${plural(day.sessions.length, "session")} not done` : "Nothing planned",
+		summary: null,
+		items: [...day.finished.map((session) => ({ text: session.title, state: "done", look: "open" as const })), ...day.sessions.map((session) => ({ text: session.title, state: "not done", look: "open" as const }))],
+		note: null,
+		hint,
+	};
 }
 
 /** A day in full: its date, how much of its time is planned, and what fills it or falls due. */
 function dayPopover(day: GridDay, hint: string): DotPopoverContent {
+	if (day.state === "past") return pastPopover(day, hint);
 	const { sessions, minutes, capacity } = day;
 	const time = capacity ? `${minutes} of ${capacity} min` : sessions.length ? "Day off" : "No time set aside";
 	const title = sessions.length ? plural(sessions.length, "session")
@@ -48,6 +66,8 @@ function square(parent: HTMLElement, day: GridDay, options: DayGridOptions): HTM
 		day.marks.length ? "has-mark" : "",
 		day.marks.some((mark) => mark.hard) ? "is-hard" : "",
 		day.withEditor && quiet ? "is-editor" : "",
+		// A past day is filled by the work done on it, as an open day is by the work planned.
+		day.state === "past" && day.done ? (day.capacity && day.done / day.capacity <= 0.6 ? "is-worked-light" : "is-worked") : "",
 	].filter(Boolean).join(" ");
 	const content = dayPopover(day, options.hint);
 	const label = [content.kind, content.title, content.state.text, ...(content.items ?? []).map((item) => `${item.text}, ${item.state}`), content.note].filter(Boolean).join(". ");
@@ -74,7 +94,7 @@ export function renderDayGrid(parent: HTMLElement, weeks: readonly GridDay[][], 
 		}
 		return strip;
 	}
-	const grid = parent.createDiv({ cls: "editorialist-days", attr: { role: "group", "aria-label": `${plural(weeks.length, "week")} from ${weekName(weeks[0]?.[0]?.day ?? "")}` } });
+	const grid = parent.createDiv({ cls: `editorialist-days${options.fluid ? " editorialist-days--fluid" : ""}`, attr: { role: "group", "aria-label": `${plural(weeks.length, "week")} from ${weekName(weeks[0]?.[0]?.day ?? "")}` } });
 	grid.createSpan({ attr: { "aria-hidden": "true" } });
 	for (const name of WEEKDAYS) grid.createSpan({ cls: "editorialist-days__weekday", text: name, attr: { "aria-hidden": "true" } });
 	for (const week of weeks) {
@@ -83,6 +103,25 @@ export function renderDayGrid(parent: HTMLElement, weeks: readonly GridDay[][], 
 	}
 	renderLegend(parent, weeks.flat());
 	return grid;
+}
+
+const hours = (minutes: number): string => `${Math.round(minutes / 6) / 10}`;
+
+/**
+ * This week's time as one line and one bar: the part done, then the part still
+ * planned, against the hours set aside. Today and the schedules share it.
+ */
+export function renderWeekLoad(parent: HTMLElement, week: readonly GridDay[]): HTMLElement {
+	const { done, planned, room } = weekLoad(week);
+	const load = parent.createDiv({ cls: "editorialist-days__load" });
+	const total = done + planned;
+	load.createSpan({ cls: "editorialist-days__load-text", text: room ? `This week · ${done ? `${hours(done)} h done · ` : ""}${hours(total)} of ${hours(room)} h planned` : total ? `This week · ${hours(total)} h planned` : "This week" });
+	if (room) {
+		const bar = load.createDiv({ cls: "editorialist-days__load-bar", attr: { "aria-hidden": "true" } });
+		bar.createSpan({ cls: "editorialist-days__load-done" }).style.setProperty("--editorialist-load", `${Math.min(100, done / room * 100)}%`);
+		bar.createSpan({ cls: "editorialist-days__load-planned" }).style.setProperty("--editorialist-load", `${Math.min(100, planned / room * 100)}%`);
+	}
+	return load;
 }
 
 const LEGEND: [string, string][] = [["free", "free"], ["paced", "goal pace"], ["light", "some planned"], ["full", "full"], ["over", "over"], ["off", "day off"]];

@@ -13,7 +13,7 @@ import { renderCushionBar } from "./primitives/CushionBar";
 import { setIconLabel } from "./primitives/AccessibleLabel";
 import { cushionProgress, deadlineState, entryWorkDeadline, type ProjectMaterial, type WorkDeadline } from "../core/planning/EditorialProject";
 import { vaultDays, vaultEngagements, type VaultEngagement } from "./VaultCalendar";
-import { renderDayGrid } from "./primitives/DayGrid";
+import { renderDayGrid, renderWeekLoad } from "./primitives/DayGrid";
 import { renderEngagementPhaseBar } from "./primitives/EngagementPhaseBar";
 
 export const TODAY_VIEW_TYPE = "editorialist-today";
@@ -312,11 +312,8 @@ export class TodayPanel extends ItemView {
 	private renderWeek(hero: HTMLElement): void {
 		const [week = []] = vaultDays(this.plugin, this.plans, this.day, 1);
 		renderDayGrid(hero, [week], { strip: true, hint: "Click to plan this day in the author planner", open: (day) => { void this.plugin.openPlanSection(true, "schedule", null, day.day); } });
-		const planned = week.reduce((sum, day) => sum + day.minutes, 0);
-		const room = week.reduce((sum, day) => sum + day.capacity, 0);
 		const foot = hero.createDiv({ cls: "editorialist-today__week-foot" });
-		const hours = (minutes: number): string => `${Math.round(minutes / 6) / 10}`;
-		foot.createSpan({ text: room ? `This week · ${hours(planned)} of ${hours(room)} h planned` : planned ? `This week · ${hours(planned)} h planned` : "This week" });
+		renderWeekLoad(foot, week);
 		const planner = foot.createEl("button", { cls: "editorialist-today__planner-link", text: "Author planner", attr: { type: "button" } });
 		setIcon(planner.createSpan(), "arrow-right");
 		planner.addEventListener("click", () => { void this.plugin.openAuthorPlanner(); });

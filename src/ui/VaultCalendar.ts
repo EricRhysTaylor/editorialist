@@ -31,11 +31,15 @@ export const gridEngagements = (engagements: readonly VaultEngagement[]): GridEn
 export const vaultGoals = (plans: readonly VaultPlan[]): AuthorTarget[] =>
 	plans.find((plan) => plan.scope === AUTHOR_PLAN_SCOPE)?.plan.targets ?? [];
 
-/** The whole calendar from this week to the latest thing due, or `weeks` weeks of it. */
-export function vaultDays(plugin: EditorialistPlugin, plans: readonly VaultPlan[], today: string, weeks?: number): GridDay[][] {
+/**
+ * The whole calendar from this week to the latest thing due, or `weeks` weeks
+ * of it, at most `most` weeks ahead, after `before` weeks already gone by.
+ */
+export function vaultDays(plugin: EditorialistPlugin, plans: readonly VaultPlan[], today: string, weeks?: number, options: { before?: number; most?: number } = {}): GridDay[][] {
 	const engagements = gridEngagements(vaultEngagements(plugin, plans, today));
 	const goals = vaultGoals(plans);
-	return dayGrid(plans, goals, engagements, today, weeks ?? gridWeeks(today, gridHorizon(goals, engagements, plans)));
+	const ahead = weeks ?? gridWeeks(today, gridHorizon(goals, engagements, plans));
+	return dayGrid(plans, goals, engagements, today, Math.min(ahead, options.most ?? ahead), options.before ?? 0);
 }
 
 const daysBetween = (from: string, to: string): number => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000);
