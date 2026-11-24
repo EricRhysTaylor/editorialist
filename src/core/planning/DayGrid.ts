@@ -43,7 +43,7 @@ export interface GridDay {
 export interface GridEngagement { label: string; editor: string; track: EngagementTrack; start: string }
 
 /** Below this share of the day's time a day reads as light, above it as full. */
-const LIGHT_SHARE = 0.6;
+export const LIGHT_SHARE = 0.6;
 export const MAX_GRID_WEEKS = 12;
 const MIN_GRID_WEEKS = 4;
 
@@ -56,15 +56,15 @@ const weekday = (day: string): number => new Date(`${day}T12:00:00`).getDay();
 /** The Monday of the day's week. */
 export const weekStart = (day: string): string => shift(day, -((weekday(day) + 6) % 7));
 
-/**
- * The weeks to show: from this week's Monday to the week of the latest thing
- * due, at least four weeks and at most twelve.
- */
 /** This week's time: what is done, what is still planned, and what was set aside. */
 export function weekLoad(week: readonly GridDay[]): { done: number; planned: number; room: number } {
 	return week.reduce((sum, day) => ({ done: sum.done + day.done, planned: sum.planned + day.minutes, room: sum.room + day.capacity }), { done: 0, planned: 0, room: 0 });
 }
 
+/**
+ * The weeks to show: from this week's Monday to the week of the latest thing
+ * due, at least four weeks and at most twelve.
+ */
 export function gridWeeks(today: string, latest: readonly string[]): number {
 	const first = weekStart(today);
 	const last = latest.filter((day) => day >= first).sort().at(-1);
