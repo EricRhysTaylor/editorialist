@@ -1,4 +1,4 @@
-import { weekLoad, type GridDay } from "../../core/planning/DayGrid";
+import { LIGHT_SHARE, weekLoad, type GridDay } from "../../core/planning/DayGrid";
 import { bindDotPopover, type DotPopoverContent } from "./DotPopover";
 import { plural } from "../util/wording";
 
@@ -77,7 +77,7 @@ function square(parent: HTMLElement, day: GridDay, options: DayGridOptions): HTM
 		day.marks.some((mark) => mark.hard) ? "is-hard" : "",
 		day.withEditor && quiet ? "is-editor" : "",
 		// A past day is filled by the work done on it, as an open day is by the work planned.
-		day.state === "past" && day.done ? (day.capacity && day.done / day.capacity <= 0.6 ? "is-worked-light" : "is-worked") : "",
+		day.state === "past" && day.done ? (day.capacity && day.done / day.capacity <= LIGHT_SHARE ? "is-worked-light" : "is-worked") : "",
 	].filter(Boolean).join(" ");
 	const content = dayPopover(day, options.hint);
 	const label = [content.kind, content.title, content.state.text, ...(content.items ?? []).map((item) => `${item.text}, ${item.state}`), content.note].filter(Boolean).join(". ");

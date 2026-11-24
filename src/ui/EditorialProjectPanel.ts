@@ -606,12 +606,14 @@ export class EditorialProjectPanel {
 		// The files most likely sent, newest exports first, one click to pick.
 		const recent = suggestSentFiles(this.host.app.vault.getFiles(), names, Date.now());
 		const suggestions = recent.length ? parent.createDiv({ cls: "editorialist-project__file-suggestions" }) : null;
+		const picks: HTMLButtonElement[] = [];
 		if (suggestions) {
 			suggestions.createSpan({ cls: "editorialist-project__file-suggestions-label", text: "Recent exports" });
 			for (const path of recent) {
 				const file = this.host.app.vault.getAbstractFileByPath(path);
 				const saved = file instanceof TFile ? planDayLabel(localDate(new Date(file.stat.mtime))) : "";
 				const pick = suggestions.createEl("button", { cls: "editorialist-project__file-suggestion", attr: { type: "button" } });
+				picks.push(pick);
 				setIconLabel(pick, `Use ${path}`);
 				pick.createSpan({ text: path.split("/").pop() ?? path });
 				if (saved) pick.createSpan({ cls: "editorialist-project__file-suggestion-day", text: saved });
@@ -638,7 +640,7 @@ export class EditorialProjectPanel {
 		};
 		return {
 			changed: () => !unchanged(),
-			setDisabled: (disabled) => { reference.disabled = disabled; choose.disabled = disabled; keep.disabled = disabled; },
+			setDisabled: (disabled) => { reference.disabled = disabled; choose.disabled = disabled; keep.disabled = disabled; for (const pick of picks) pick.disabled = disabled; },
 			save: async (projectId) => {
 				if (upload) {
 					const chosen = upload;
